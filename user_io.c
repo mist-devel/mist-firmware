@@ -282,7 +282,7 @@ unsigned char joystick_map2ikbd(unsigned in) {
 }
 
 void user_io_joystick(unsigned char joystick, unsigned char map) {
-  if(core_type == CORE_TYPE_MINIMIG) {
+  if(core_type == CORE_TYPE_MINIMIG || core_type == CORE_TYPE_PACE) {
     EnableIO();
     SPI(UIO_JOYSTICK0 + joystick);
     SPI(map);
