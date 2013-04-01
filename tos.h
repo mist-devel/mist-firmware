@@ -13,6 +13,7 @@
 #define MIST_SET_CONTROL  0x04
 #define MIST_GET_DMASTATE 0x05   // reads state of dma and floppy controller
 #define MIST_ACK_DMA      0x06   // acknowledges a dma command
+#define MIST_READ_ACSI    0x07
 
 // tos sysconfig bits:
 // 0     - RESET

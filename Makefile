@@ -76,12 +76,9 @@ sections: $(PRJ).elf
 	$(DUMP) --section-headers $<
 
 release:
-	make clean
 	make $(PRJ).hex $(PRJ).bin $(PRJ).upg
-	rm ../../www/firmware*.zip
+	rm ../../www/firmware.zip
 	zip ../../www/firmware.zip $(PRJ).hex $(PRJ).bin $(PRJ).upg logo.raw
-	make clean
-	cd ..; zip -urq  ../www/firmware_src.zip minimig -x '*/.svn/*' '*.old' '*.new'
 	cp ../../www/files.html files.tmp
 	sed -e "s|Firmware updated on [0-9/]*.|Firmware updated on $(TODAY).|g" files.tmp > ../../www/files.html
 	rm files.tmp

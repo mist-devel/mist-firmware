@@ -7,13 +7,14 @@
   Feature                      Example using/needing it    impl. tested
   ---------------------------------------------------------------------
   mouse y at bottom            Bolo                         X     X
-  mouse button key events      Goldrunner/Automation 8      X     X
-  joystick interrogation mode  ?
-  Absolute mouse mode          Backlash/Automation 8
+  mouse button key events      Goldrunner/A_008             X     X
+  joystick interrogation mode  Xevious/A_004
+  Absolute mouse mode          Backlash/A_008
   disable mouse                ?                            X
   disable joystick             ?                            X
-  Joysticks also generate      Goldrunner
+  Joysticks also generate      Goldrunner                   X     X
   mouse button events!
+  Pause (cmd 0x13)             Wings of Death/A_427
 
  */
 
@@ -80,7 +81,7 @@ void ikbd_handle_input(unsigned char cmd) {
     if(!ikbd_expect) {
       switch(ikbd_cmd) {
       case 0x07: // set mouse button action
-	iprintf("mouse button action = %x\n", cmd);
+	iprintf("IKBD: mouse button action = %x\n", cmd);
 
 	// bit 2: Mouse buttons act like keys (LEFT=0x74 & RIGHT=0x75)
 	if(cmd & 0x04) ikbd_state |=  IKBD_STATE_MOUSE_BUTTON_AS_KEY;

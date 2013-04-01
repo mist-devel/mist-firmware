@@ -15,13 +15,52 @@ unsigned long tos_system_ctrl = TOS_MEMCONFIG_4M;
 
 static unsigned char font[2048];  // buffer for 8x16 atari font
 
+// two floppies
 static struct {
   fileTYPE file;
   unsigned char sides;
   unsigned char spt;
-} disk[2];
+} fdd_image[2];
 
-static unsigned char floppy_buffer[512];
+// one harddisk
+fileTYPE hdd_image;
+
+static unsigned char dma_buffer[512];
+
+static const char *acsi_cmd_name(int cmd) {
+  static const char *cmdname[] = {
+    "Test Drive Ready", "Restore to Zero", "Cmd $2", "Request Sense",
+    "Format Drive", "Read Block limits", "Reassign Blocks", "Cmd $7", 
+    "Read Sector", "Cmd $9", "Write Sector", "Seek Block", 
+    "Cmd $C", "Cmd $D", "Cmd $E", "Cmd $F", 
+    "Cmd $10", "Cmd $11", "Inquiry", "Verify", 
+    "Cmd $14", "Mode Select", "Cmd $16", "Cmd $17", 
+    "Cmd $18", "Cmd $19", "Mode Sense", "Start/Stop Unit", 
+    "Cmd $1C", "Cmd $1D", "Cmd $1E", "Cmd $1F"
+  };
+  
+  return cmdname[cmd];
+}
+
+static void acsi_read_cmd() {
+  static int cnt = 0;
+
+  EnableFpga();
+  SPI(MIST_READ_ACSI);
+  unsigned char status = SPI(0);
+  while(status & 1) {
+    unsigned char data = SPI(0);
+
+    if(!(status & 0x02))
+      iprintf("ACSI: cmd \"%s\", target %d\n", 
+	      acsi_cmd_name(data & 0x1f), data>>5);
+    else
+      iprintf("ACSI: cont. data %x\n", data);
+
+    status = SPI(0);
+  }
+  DisableFpga();
+}
 
 static void mist_memory_set_address(unsigned long a) {
   a >>= 1;   // make word address
@@ -34,6 +73,7 @@ static void mist_memory_set_address(unsigned long a) {
   SPI((a >>  0) & 0xff);
   DisableFpga();
 }
+
 
 static void mist_set_control(unsigned short ctrl) {
   EnableFpga();
@@ -102,74 +142,162 @@ void mist_memory_set(char data, unsigned long words) {
   DisableFpga();
 }
 
-static void mist_get_dmastate() {
-  static unsigned char buffer[10];
-  int i;
+static void handle_acsi(unsigned char *buffer) {
+  unsigned char target = buffer[9] >> 5;
+  unsigned char cmd = buffer[9] & 0x1f;
+  unsigned int dma_address = 256 * 256 * buffer[0] + 
+    256 * buffer[1] + buffer[2];
+  unsigned char scnt = buffer[3];
+  unsigned long lba = 256 * 256 * (buffer[10] & 0x1f) +
+    256 * buffer[11] + buffer[12];
+  unsigned short length = buffer[13];
+  if(length == 0) length = 256;
+  
+  iprintf("ACSI: target %d, \"%s\"\n", target, acsi_cmd_name(cmd));
+  
+  // iprintf("ACSI: %02x %02x %02x %02x %02x\n", buffer[10], buffer[11], 
+  //   buffer[12], buffer[13], buffer[14]);
+  
+  iprintf("ACSI: lba %lu, length %u\n", lba, length);
+  
+  iprintf("DMA: scnt %u, addr %p\n", scnt, dma_address);
+  
+  mist_memory_set_address(dma_address);
+  
+  switch(cmd) {
+  case 0x08: // read sector
+    DISKLED_ON;
+    while(length) {
+      FileSeek(&hdd_image, lba++, SEEK_SET);
+      FileRead(&hdd_image, dma_buffer);	  
+      mist_memory_write(dma_buffer, 256);
+      length--;
+    }
+    DISKLED_OFF;
+    break;
 
+  case 0x0a: // write sector
+    DISKLED_ON;
+    while(length) {
+      mist_memory_read(dma_buffer, 256);
+      FileSeek(&hdd_image, lba++, SEEK_SET);
+      FileWrite(&hdd_image, dma_buffer);	  
+      length--;
+    }
+    DISKLED_OFF;
+    break;
+    
+  case 0x12: // inquiry
+    memset(dma_buffer, 0, 512);
+    dma_buffer[2] = 1;                              // ANSI version
+    dma_buffer[4] = length-8;                        // len
+    memcpy(dma_buffer+8,  "MIST    ", 8);           // Vendor
+    memcpy(dma_buffer+16, "                ", 16);  // Clear device entry
+    memcpy(dma_buffer+16, hdd_image.name, 11);      // Device
+    mist_memory_write(dma_buffer, length/2);      
+    break;
+
+  case 0x1a: // mode sense
+    { unsigned int blocks = hdd_image.size / 512;
+      iprintf("ACSI: mode sense, blocks = %u\n", blocks);
+      memset(dma_buffer, 0, 512);
+      dma_buffer[3] = 8;            // size of extent descriptor list
+      dma_buffer[5] = blocks >> 16;
+      dma_buffer[6] = blocks >> 8;
+      dma_buffer[7] = blocks;
+      dma_buffer[10] = 2;           // byte 1 of block size in bytes (512)
+      mist_memory_write(dma_buffer, length/2);      
+    }
+    break;
+
+  default:
+    iprintf("ACSI: Unsupported command\n");
+    break;
+  }
+  
+  EnableFpga();
+  SPI(MIST_ACK_DMA);
+  DisableFpga(); 
+}
+
+static void handle_fdc(unsigned char *buffer) {
+  // extract contents
+  unsigned int dma_address = 256 * 256 * buffer[0] + 
+    256 * buffer[1] + buffer[2];
+  unsigned char scnt = buffer[3];
+  unsigned char fdc_cmd = buffer[4];
+  unsigned char fdc_track = buffer[5];
+  unsigned char fdc_sector = buffer[6];
+  unsigned char fdc_data = buffer[7];
+  unsigned char drv_sel = 3-((buffer[8]>>2)&3); 
+  unsigned char drv_side = 1-((buffer[8]>>1)&1); 
+  
+  // check if a matching disk image has been inserted
+  if(drv_sel && fdd_image[drv_sel-1].file.size) {
+    
+    // if the fdc has been asked to write protect the disks, then
+    // write sector commands should never reach the oi controller
+    
+    // read/write sector command
+    if((fdc_cmd & 0xc0) == 0x80) {
+      
+      // convert track/sector/side into disk offset
+      unsigned int offset = drv_side;
+      offset += fdc_track * fdd_image[drv_sel-1].sides;
+      offset *= fdd_image[drv_sel-1].spt;
+      offset += fdc_sector-1;
+      
+      while(scnt) {
+	DISKLED_ON;
+	
+	FileSeek(&fdd_image[drv_sel-1].file, offset, SEEK_SET);
+	mist_memory_set_address(dma_address);
+	
+	if((fdc_cmd & 0xe0) == 0x80) { 
+	  // read from disk ...
+	  FileRead(&fdd_image[drv_sel-1].file, dma_buffer);	  
+	  // ... and copy to ram
+	  mist_memory_write(dma_buffer, 256);
+	} else {
+	  // read from ram ...
+	  mist_memory_read(dma_buffer, 256);
+	  // ... and write to disk
+	  FileWrite(&(fdd_image[drv_sel-1].file), dma_buffer);
+	}
+	
+	DISKLED_OFF;
+	
+	scnt--;
+	dma_address += 512;
+	offset += 1;
+      }
+      
+      EnableFpga();
+      SPI(MIST_ACK_DMA);
+      DisableFpga(); 
+    }
+  }
+}  
+
+static void mist_get_dmastate() {
+  static unsigned char buffer[16];
+  int i;
+  
+  //   acsi_read_cmd();
+  
   EnableFpga();
   SPI(MIST_GET_DMASTATE);
-  for(i=0;i<10;i++)
+  for(i=0;i<16;i++)
     buffer[i] = SPI(0);
   DisableFpga();
 
+  // check if acsi is busy
+  if(buffer[8] & 0x10) 
+    handle_acsi(buffer);
+
   // check if fdc is busy
-  if(buffer[8] & 1) {
-    // extract contents
-    unsigned int dma_address = 256 * 256 * buffer[0] + 256 * buffer[1] + buffer[2];
-    unsigned char scnt = buffer[3];
-    unsigned char fdc_cmd = buffer[4];
-    unsigned char fdc_track = buffer[5];
-    unsigned char fdc_sector = buffer[6];
-    unsigned char fdc_data = buffer[7];
-    unsigned char drv_sel = 3-((buffer[8]>>2)&3); 
-    unsigned char drv_side = 1-((buffer[8]>>1)&1); 
-    
-    // check if a matching disk image has been inserted
-    if(drv_sel && disk[drv_sel-1].file.size) {
-
-      // if the fdc has been asked to write protect the disks, then
-      // write sector commands should never reach the oi controller
-
-      // read/write sector command
-      if((fdc_cmd & 0xc0) == 0x80) {
-
-	// convert track/sector/side into disk offset
-	unsigned int offset = drv_side;
-	offset += fdc_track * disk[drv_sel-1].sides;
-	offset *= disk[drv_sel-1].spt;
-	offset += fdc_sector-1;
-	
-	while(scnt) {
-	  DISKLED_ON;
-
-	  FileSeek(&disk[drv_sel-1].file, offset, SEEK_SET);
-	  mist_memory_set_address(dma_address);
-
-	  if((fdc_cmd & 0xe0) == 0x80) { 
-	    // read from disk ...
-	    FileRead(&disk[drv_sel-1].file, floppy_buffer);	  
-	    // ... and copy to ram
-	    mist_memory_write(floppy_buffer, 256);
-	  } else {
-	    // read from ram ...
-	    mist_memory_read(floppy_buffer, 256);
-	    // ... and write to disk
-	    FileWrite(&(disk[drv_sel-1].file), floppy_buffer);
-	  }
-	  
-	  DISKLED_OFF;
-
-	  scnt--;
-	  dma_address += 512;
-	  offset += 1;
-	}
-
-	EnableFpga();
-	SPI(MIST_ACK_DMA);
-	DisableFpga(); 
-      }
-    }
-  }
+  if(buffer[8] & 0x01) 
+    handle_fdc(buffer);
 }
 
 static void tos_clr() {
@@ -409,13 +537,21 @@ void tos_upload() {
   // try to open both floppies
   int i;
   for(i=0;i<2;i++) {
+    char msg[] = "Found floppy disk image for drive X: ";
     char name[] = "DISK_A  ST ";
-    name[5] = 'A'+i;
+    msg[34] = name[5] = 'A'+i;
 
     fileTYPE file;
-    if(FileOpen(&file, name))
+    if(FileOpen(&file, name)) {
+      tos_write(msg);
       tos_insert_disk(i, &file);
+    }
   }
+
+  // try to open harddisk image
+  hdd_image.size = 0;
+  if(FileOpen(&hdd_image, "HARDDISKHD "))
+    tos_write("Found harddisk image ");
 
   tos_write("Booting ... ");
 
@@ -478,16 +614,16 @@ char *tos_get_disk_name(char index) {
   static char buffer[13];  // local buffer to assemble file name (8+3+2)
   char *c;
 
-  if(!disk[index].file.size) {
+  if(!fdd_image[index].file.size) {
     strcpy(buffer, "* no disk *");
     return buffer;
   }
 
   // copy and append nul
-  strncpy(buffer, disk[index].file.name, 8);
+  strncpy(buffer, fdd_image[index].file.name, 8);
   for(c=buffer+7;*c==' ';c--); c++;
   *c++ = '.';
-  strncpy(c, disk[index].file.name+8, 3);
+  strncpy(c, fdd_image[index].file.name+8, 3);
   for(c+=2;*c==' ';c--); c++;
   *c++='\0';
 
@@ -495,7 +631,7 @@ char *tos_get_disk_name(char index) {
 }
 
 char tos_disk_is_inserted(char index) {
-  return (disk[index].file.size != 0);
+  return (fdd_image[index].file.size != 0);
 }
 
 void tos_insert_disk(char i, fileTYPE *file) {
@@ -508,40 +644,44 @@ void tos_insert_disk(char i, fileTYPE *file) {
   mist_set_control(tos_system_ctrl | wp_bit);
 
   // first "eject" disk
-  disk[i].file.size = 0;
-  disk[i].sides = 1;
-  disk[i].spt = 0;
+  fdd_image[i].file.size = 0;
+  fdd_image[i].sides = 1;
+  fdd_image[i].spt = 0;
 
   // no new disk given?
   if(!file) return;
 
   // open floppy
-  disk[i].file = *file;
-  iprintf("%c: insert %.11s\n", i+'A', disk[i].file.name);
+  fdd_image[i].file = *file;
+  iprintf("%c: insert %.11s\n", i+'A', fdd_image[i].file.name);
 
   // check image size and parameters
     
   // check if image size suggests it's a two sided disk
-  if(disk[i].file.size > 80*9*512)
-    disk[i].sides = 2;
+  if(fdd_image[i].file.size > 80*9*512)
+    fdd_image[i].sides = 2;
     
   // try common sector/track values
-  int s, t;
-  for(s=9;s<=12;s++)
-    for(t=80;t<=85;t++)
-      if(512*s*t*disk[i].sides == disk[i].file.size)
-	disk[i].spt = s;
+  int m, s, t;
+  for(m=0;m<=2;m++)  // multiplier for hd/ed disks
+    for(s=9;s<=12;s++)
+      for(t=80;t<=85;t++)
+	if(512*(1<<m)*s*t*fdd_image[i].sides == fdd_image[i].file.size)
+	  fdd_image[i].spt = s*(1<<m);
   
-  if(!disk[i].spt) {
-    iprintf("%c: image has unknown size\n", i+'A');
-    
-    // todo: try to extract that info from the image itself
-    
-    disk[i].file.size = 0;
-  } else {
+  if(!fdd_image[i].spt) {
+    // read first sector from disk
+    if(MMC_Read(0, dma_buffer)) {
+      fdd_image[i].spt = dma_buffer[24] + 256 * dma_buffer[25];
+      fdd_image[i].sides = dma_buffer[26] + 256 * dma_buffer[27];
+    } else
+      fdd_image[i].file.size = 0;
+  }
+
+  if(fdd_image[i].file.size) {
     // restore state of write protect bit
     tos_update_sysctrl(tos_system_ctrl);
     iprintf("%c: detected %d sides with %d sectors per track\n", 
-	    i+'A', disk[i].sides, disk[i].spt);
+	    i+'A', fdd_image[i].sides, fdd_image[i].spt);
   }
 }
