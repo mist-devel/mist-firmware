@@ -42,26 +42,6 @@ static const char *acsi_cmd_name(int cmd) {
   return cmdname[cmd];
 }
 
-static void acsi_read_cmd() {
-  static int cnt = 0;
-
-  EnableFpga();
-  SPI(MIST_READ_ACSI);
-  unsigned char status = SPI(0);
-  while(status & 1) {
-    unsigned char data = SPI(0);
-
-    if(!(status & 0x02))
-      iprintf("ACSI: cmd \"%s\", target %d\n", 
-	      acsi_cmd_name(data & 0x1f), data>>5);
-    else
-      iprintf("ACSI: cont. data %x\n", data);
-
-    status = SPI(0);
-  }
-  DisableFpga();
-}
-
 static void mist_memory_set_address(unsigned long a) {
   a >>= 1;   // make word address
 
@@ -75,9 +55,11 @@ static void mist_memory_set_address(unsigned long a) {
 }
 
 
-static void mist_set_control(unsigned short ctrl) {
+static void mist_set_control(unsigned long ctrl) {
   EnableFpga();
   SPI(MIST_SET_CONTROL);
+  SPI((ctrl >> 24) & 0xff);
+  SPI((ctrl >> 16) & 0xff);
   SPI((ctrl >>  8) & 0xff);
   SPI((ctrl >>  0) & 0xff);
   DisableFpga();
@@ -154,67 +136,67 @@ static void handle_acsi(unsigned char *buffer) {
   if(length == 0) length = 256;
   
   iprintf("ACSI: target %d, \"%s\"\n", target, acsi_cmd_name(cmd));
-  
-  // iprintf("ACSI: %02x %02x %02x %02x %02x\n", buffer[10], buffer[11], 
-  //   buffer[12], buffer[13], buffer[14]);
-  
   iprintf("ACSI: lba %lu, length %u\n", lba, length);
-  
   iprintf("DMA: scnt %u, addr %p\n", scnt, dma_address);
   
-  mist_memory_set_address(dma_address);
+  // only a harddisk on ACSI 0 is supported
+  // ACSI 0 is only supported if a image is loaded
+  if((target == 0) && (hdd_image.size != 0)) {
+    mist_memory_set_address(dma_address);
   
-  switch(cmd) {
-  case 0x08: // read sector
-    DISKLED_ON;
-    while(length) {
-      FileSeek(&hdd_image, lba++, SEEK_SET);
-      FileRead(&hdd_image, dma_buffer);	  
-      mist_memory_write(dma_buffer, 256);
-      length--;
-    }
-    DISKLED_OFF;
-    break;
-
-  case 0x0a: // write sector
-    DISKLED_ON;
-    while(length) {
-      mist_memory_read(dma_buffer, 256);
-      FileSeek(&hdd_image, lba++, SEEK_SET);
-      FileWrite(&hdd_image, dma_buffer);	  
-      length--;
-    }
-    DISKLED_OFF;
-    break;
-    
-  case 0x12: // inquiry
-    memset(dma_buffer, 0, 512);
-    dma_buffer[2] = 1;                              // ANSI version
-    dma_buffer[4] = length-8;                        // len
-    memcpy(dma_buffer+8,  "MIST    ", 8);           // Vendor
-    memcpy(dma_buffer+16, "                ", 16);  // Clear device entry
-    memcpy(dma_buffer+16, hdd_image.name, 11);      // Device
-    mist_memory_write(dma_buffer, length/2);      
-    break;
-
-  case 0x1a: // mode sense
-    { unsigned int blocks = hdd_image.size / 512;
-      iprintf("ACSI: mode sense, blocks = %u\n", blocks);
+    switch(cmd) {
+    case 0x08: // read sector
+      DISKLED_ON;
+      while(length) {
+	FileSeek(&hdd_image, lba++, SEEK_SET);
+	FileRead(&hdd_image, dma_buffer);	  
+	mist_memory_write(dma_buffer, 256);
+	length--;
+      }
+      DISKLED_OFF;
+      break;
+      
+    case 0x0a: // write sector
+      DISKLED_ON;
+      while(length) {
+	mist_memory_read(dma_buffer, 256);
+	FileSeek(&hdd_image, lba++, SEEK_SET);
+	FileWrite(&hdd_image, dma_buffer);	  
+	length--;
+      }
+      DISKLED_OFF;
+      break;
+      
+    case 0x12: // inquiry
       memset(dma_buffer, 0, 512);
-      dma_buffer[3] = 8;            // size of extent descriptor list
-      dma_buffer[5] = blocks >> 16;
-      dma_buffer[6] = blocks >> 8;
-      dma_buffer[7] = blocks;
-      dma_buffer[10] = 2;           // byte 1 of block size in bytes (512)
+      dma_buffer[2] = 1;                              // ANSI version
+      dma_buffer[4] = length-8;                        // len
+      memcpy(dma_buffer+8,  "MIST    ", 8);           // Vendor
+      memcpy(dma_buffer+16, "                ", 16);  // Clear device entry
+      memcpy(dma_buffer+16, hdd_image.name, 11);      // Device
       mist_memory_write(dma_buffer, length/2);      
+      break;
+      
+    case 0x1a: // mode sense
+      { unsigned int blocks = hdd_image.size / 512;
+	iprintf("ACSI: mode sense, blocks = %u\n", blocks);
+	memset(dma_buffer, 0, 512);
+	dma_buffer[3] = 8;            // size of extent descriptor list
+	dma_buffer[5] = blocks >> 16;
+	dma_buffer[6] = blocks >> 8;
+	dma_buffer[7] = blocks;
+	dma_buffer[10] = 2;           // byte 1 of block size in bytes (512)
+	mist_memory_write(dma_buffer, length/2);      
+      }
+      break;
+      
+    default:
+      iprintf("ACSI: Unsupported command\n");
+      break;
     }
-    break;
+  } else
+    iprintf("ACSI: Request for unsupported target\n");
 
-  default:
-    iprintf("ACSI: Unsupported command\n");
-    break;
-  }
-  
   EnableFpga();
   SPI(MIST_ACK_DMA);
   DisableFpga(); 
@@ -282,8 +264,6 @@ static void handle_fdc(unsigned char *buffer) {
 static void mist_get_dmastate() {
   static unsigned char buffer[16];
   int i;
-  
-  //   acsi_read_cmd();
   
   EnableFpga();
   SPI(MIST_GET_DMASTATE);
@@ -550,8 +530,10 @@ void tos_upload() {
 
   // try to open harddisk image
   hdd_image.size = 0;
-  if(FileOpen(&hdd_image, "HARDDISKHD "))
-    tos_write("Found harddisk image ");
+  if(FileOpen(&hdd_image, "HARDDISKHD ")) {
+    tos_write("Found hard disk image ");
+    tos_system_ctrl |= TOS_ACSI0_ENABLE;
+  }
 
   tos_write("Booting ... ");
 

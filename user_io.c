@@ -1,31 +1,13 @@
-/*
-
-  https://www.kernel.org/doc/Documentation/input/atarikbd.txt
-
-  ikbd ToDo:
-
-  Feature                      Example using/needing it    impl. tested
-  ---------------------------------------------------------------------
-  mouse y at bottom            Bolo                         X     X
-  mouse button key events      Goldrunner/A_008             X     X
-  joystick interrogation mode  Xevious/A_004
-  Absolute mouse mode          Backlash/A_008
-  disable mouse                ?                            X
-  disable joystick             ?                            X
-  Joysticks also generate      Goldrunner                   X     X
-  mouse button events!
-  Pause (cmd 0x13)             Wings of Death/A_427
-
- */
-
 #include "AT91SAM7S256.h"
-#include "stdio.h"
+#include <stdio.h>
+#include <string.h>
 #include "hardware.h"
 
 #include "user_io.h"
 #include "usb.h"
 
 #include "keycodes.h"
+#include "ikbd.h"
 
 typedef enum { EMU_NONE, EMU_MOUSE, EMU_JOY0, EMU_JOY1 } emu_mode_t;
 static emu_mode_t emu_mode = EMU_NONE;
@@ -39,155 +21,6 @@ AT91PS_ADC a_pADC = AT91C_BASE_ADC;
 AT91PS_PMC a_pPMC = AT91C_BASE_PMC;
 
 static char caps_lock_toggle = 0;
-
-// atari ikbd stuff
-#define IKBD_STATE_JOYSTICK_EVENT_REPORTING  0x01
-#define IKBD_STATE_MOUSE_Y_BOTTOM            0x02
-#define IKBD_STATE_MOUSE_BUTTON_AS_KEY       0x04   // mouse buttons act like keys
-#define IKBD_STATE_MOUSE_DISABLED            0x08
-
-#define IKBD_DEFAULT IKBD_STATE_JOYSTICK_EVENT_REPORTING
-
-static unsigned char ikbd_cmd = 0;
-static unsigned char ikbd_state = IKBD_DEFAULT;
-static unsigned char ikbd_expect = 0;
-static unsigned char ikbd_joystick_buttons = 0;
-
-// #define IKBD_DEBUG
-
-void ikbd_ok() {
-  // this only happens while we are reading 
-  // from the spi. so stop reading
-  DisableIO();
-
-  // send reply
-  EnableIO();
-  SPI(UIO_IKBD_OUT);
-  SPI(0xf0);
-  DisableIO();
-
-  // continue reading
-  EnableIO();
-  SPI(UIO_IKBD_IN);
-}
-
-// process inout from atari core into ikbd
-void ikbd_handle_input(unsigned char cmd) {
-  // expecting a second byte for command
-  if(ikbd_expect) {
-    ikbd_expect--;
-
-    // last byte of command received
-    if(!ikbd_expect) {
-      switch(ikbd_cmd) {
-      case 0x07: // set mouse button action
-	iprintf("IKBD: mouse button action = %x\n", cmd);
-
-	// bit 2: Mouse buttons act like keys (LEFT=0x74 & RIGHT=0x75)
-	if(cmd & 0x04) ikbd_state |=  IKBD_STATE_MOUSE_BUTTON_AS_KEY;
-	else           ikbd_state &= ~IKBD_STATE_MOUSE_BUTTON_AS_KEY;
-
-	break;
-
-      case 0x80: // ibkd reset
-	// reply "everything is ok"
-	ikbd_ok();
-	break;
-
-      default:
-	break;
-      }
-    }
-
-    return;
-  }
-
-  ikbd_cmd = cmd;
-
-  switch(cmd) {
-  case 0x07:
-    puts("IKBD: Set mouse button action");
-    ikbd_expect = 1;
-    break;
-
-  case 0x08:
-    puts("IKBD: Set relative mouse positioning");
-    ikbd_state &= ~IKBD_STATE_MOUSE_DISABLED;
-    break;
-
-  case 0x0b:
-    puts("IKBD: Set Mouse threshold");
-    ikbd_expect = 2;
-    break;
-
-  case 0x0f:
-    puts("IKBD: Set Y at bottom");
-    ikbd_state |= IKBD_STATE_MOUSE_Y_BOTTOM;
-    break;
-
-  case 0x10:
-    puts("IKBD: Set Y at top");
-    ikbd_state &= ~IKBD_STATE_MOUSE_Y_BOTTOM;
-    break;
-
-  case 0x12:
-    puts("IKBD: Disable mouse");
-    ikbd_state |= IKBD_STATE_MOUSE_DISABLED;
-    break;
-
-  case 0x14:
-    puts("IKBD: Set Joystick event reporting");
-    ikbd_state |= IKBD_STATE_JOYSTICK_EVENT_REPORTING;
-    break;
-
-  case 0x15:
-    puts("IKBD: Set Joystick interrogation mode");
-    ikbd_state &= ~IKBD_STATE_JOYSTICK_EVENT_REPORTING;
-    break;
-
-  case 0x1a:
-    puts("IKBD: Disable joysticks");
-    ikbd_state &= ~IKBD_STATE_JOYSTICK_EVENT_REPORTING;
-    break;
-
-  case 0x1c:
-    puts("IKBD: Interrogate time of day");
-
-    // send some date
-
-    // stop reading from ikbd queue
-    DisableIO();
-
-    // send reply (the date this routine was written)
-    EnableIO();
-    SPI(UIO_IKBD_OUT);
-    SPI(0xfc);
-    SPI(0x13);  // year bcd
-    SPI(0x03);  // month bcd
-    SPI(0x07);  // day bcd
-    SPI(0x20);  // hour bcd
-    SPI(0x58);  // minute bcd
-    SPI(0x00);  // second bcd
-    DisableIO();
-
-    // continue reading
-    EnableIO();
-    SPI(UIO_IKBD_IN);
-
-    break;
-    
-
-  case 0x80:
-    puts("IKBD: Reset");
-    ikbd_expect = 1;
-    ikbd_state = IKBD_DEFAULT;
-    break;
-
-  default:
-    iprintf("IKBD: unknown command: %x\n", cmd);
-    break;
-  }
-}
 
 static void InitADC(void) {
 
@@ -229,6 +62,7 @@ static unsigned int GetAdc(unsigned char channel) {
 void user_io_init() {
   InitADC();
 
+  ikbd_init();
 }
 
 unsigned char user_io_core_type() {
@@ -269,19 +103,6 @@ void user_io_detect_core_type() {
   }
 }
 
-// convert internal joystick format into atari ikbd format
-unsigned char joystick_map2ikbd(unsigned in) {
-  unsigned char out = 0;
-
-  if(in & JOY_UP)    out |= 0x01;
-  if(in & JOY_DOWN)  out |= 0x02;
-  if(in & JOY_LEFT)  out |= 0x04;
-  if(in & JOY_RIGHT) out |= 0x08;
-  if(in & JOY_BTN1)  out |= 0x80;
-
-  return out;
-}
-
 void user_io_joystick(unsigned char joystick, unsigned char map) {
   if(core_type == CORE_TYPE_MINIMIG || core_type == CORE_TYPE_PACE) {
     EnableIO();
@@ -290,39 +111,8 @@ void user_io_joystick(unsigned char joystick, unsigned char map) {
     DisableIO();
   }
 
-  if(core_type == CORE_TYPE_MIST) {
-    // todo: suppress events for joystick 0 as long as mouse
-    // is enabled?
-
-    if(ikbd_state & IKBD_STATE_JOYSTICK_EVENT_REPORTING) {
-#ifdef IKBD_DEBUG
-      iprintf("IKBD: joy %d %x\n", joystick, map);
-#endif
-
-      EnableIO();
-      SPI(UIO_IKBD_OUT);
-      SPI(0xfe + joystick);
-      SPI(joystick_map2ikbd(map));
-      DisableIO();
-
-      // the fire button also generates a mouse event if 
-      // mouse reporting is enabled
-
-      unsigned char button1 = (map & JOY_BTN1)?(1<<joystick):0;
-      if(button1 != (ikbd_joystick_buttons & (1<<joystick))) {
-	// update saved state of joystick buttons
-	ikbd_joystick_buttons = (ikbd_joystick_buttons & ~(1<<joystick)) | button1;
-
-	// generate mouse event (ikbd_joystick_buttons is evaluated inside 
-	// user_io_mouse)
-	user_io_mouse(0, 0, 0);
-      }
-    }
-#ifdef IKBD_DEBUG
-    else
-      iprintf("IKBD: no monitor, drop joy %d %x\n", joystick, map);
-#endif
-  }
+  if(core_type == CORE_TYPE_MIST)
+    ikbd_joystick(joystick, map);
 }
 
 void user_io_poll() {
@@ -333,28 +123,16 @@ void user_io_poll() {
   }
 
   if(core_type == CORE_TYPE_MIST) {
-    static mtimer = 0;
-    if(CheckTimer(mtimer)) {
-      mtimer = GetTimer(100);
+    ikbd_poll();
 
-      // check for incoming ikbd data
-      EnableIO();
-      SPI(UIO_IKBD_IN);
-
-      while(SPI(0))
-	ikbd_handle_input(SPI(0));
-      
-      DisableIO();
-
-      // check for incoming serial data
-      EnableIO();
-      SPI(UIO_SERIAL_IN);
-
-      while(SPI(0))
-	putchar(SPI(0));
-      
-      DisableIO();
-    }
+    // check for incoming serial data
+    EnableIO();
+    SPI(UIO_SERIAL_IN);
+    
+    while(SPI(0))
+      putchar(SPI(0));
+    
+    DisableIO();
   }
 
   // poll db9 joysticks
@@ -445,15 +223,8 @@ static void send_keycode(unsigned short code) {
     DisableIO();
   }
 
-  if(core_type == CORE_TYPE_MIST) {
-#ifdef IKBD_DEBUG
-    iprintf("IKBD: send keycode %x%s\n", code&0x7f, (code&0x80)?" BREAK":"");
-#endif
-    EnableIO();
-    SPI(UIO_IKBD_OUT);
-    SPI(code & 0xff);
-    DisableIO();
-  }
+  if(core_type == CORE_TYPE_MIST)
+    ikbd_keyboard(code);
 }
 
 void user_io_mouse(unsigned char b, char x, char y) {
@@ -469,45 +240,8 @@ void user_io_mouse(unsigned char b, char x, char y) {
   }
 
   // send mouse data as mist expects it
-  if(core_type == CORE_TYPE_MIST) {
-    if(ikbd_state & IKBD_STATE_MOUSE_DISABLED)
-      return;
-
-    // joystick and mouse buttons are wired together in
-    // atari st
-    b |= ikbd_joystick_buttons;
-
-    static unsigned char b_old = 0;
-    // monitor state of two mouse buttons
-    if(b != b_old) {
-      // check if mouse buttons are supposed to be treated like keys
-      if(ikbd_state & IKBD_STATE_MOUSE_BUTTON_AS_KEY) {
-	// Mouse buttons act like keys (LEFT=0x74 & RIGHT=0x75)
-	
-	// handle left mouse button
-	if((b ^ b_old) & 1) send_keycode(0x74 | ((b&1)?0x00:0x80));
-	// handle right mouse button
-	if((b ^ b_old) & 2) send_keycode(0x75 | ((b&2)?0x00:0x80));
-      }
-      b_old = b;
-    }
-
-#if 0
-    if(ikbd_state & IKBD_STATE_MOUSE_BUTTON_AS_KEY) {
-      b = 0;
-      // if mouse position is 0/0 quit here
-      if(!x && !y) return;
-    }
-#endif
-
-    EnableIO();
-    SPI(UIO_IKBD_OUT);
-    // atari has mouse button bits swapped
-    SPI(0xf8|((b&1)?2:0)|((b&2)?1:0));
-    SPI(x);
-    SPI((ikbd_state & IKBD_STATE_MOUSE_Y_BOTTOM)?-y:y);
-    DisableIO();
-  }
+  if(core_type == CORE_TYPE_MIST)
+    ikbd_mouse(b, x, y);
 }
 
 // check if this is a key that's supposed to be suppressed

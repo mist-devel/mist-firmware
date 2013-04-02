@@ -13,7 +13,6 @@
 #define MIST_SET_CONTROL  0x04
 #define MIST_GET_DMASTATE 0x05   // reads state of dma and floppy controller
 #define MIST_ACK_DMA      0x06   // acknowledges a dma command
-#define MIST_READ_ACSI    0x07
 
 // tos sysconfig bits:
 // 0     - RESET
@@ -21,6 +20,8 @@
 // 4-5   - CPU configuration
 // 6-7   - Floppy A+B write protection
 // 8     - Color/Monochrome mode
+// 9     - PAL mode in 56 or 50 Hz
+// 10-17 - ACSI device enable
 
 // memory configurations (0x02/0x04/0x08)
 // (currently 4MB are fixed and cannot be changed)
@@ -40,11 +41,21 @@
 #define TOS_CPUCONFIG_68020      (3<<4)
 
 // control bits (all control bits have unknown state after core startup)
-#define TOS_CONTROL_CPU_RESET     0x0001
-#define TOS_CONTROL_FDC_WR_PROT_A 0x0040
-#define TOS_CONTROL_FDC_WR_PROT_B 0x0080
-#define TOS_CONTROL_VIDEO_COLOR   0x0100   // input to mfp
-#define TOS_CONTROL_PAL50HZ       0x0200   // display pal at 50hz (56 hz otherwise)
+#define TOS_CONTROL_CPU_RESET     0x00000001
+#define TOS_CONTROL_FDC_WR_PROT_A 0x00000040
+#define TOS_CONTROL_FDC_WR_PROT_B 0x00000080
+#define TOS_CONTROL_VIDEO_COLOR   0x00000100   // input to mfp
+#define TOS_CONTROL_PAL50HZ       0x00000200   // display pal at 50hz (56 hz otherwise)
+
+// up to eight acsi devices can be enabled
+#define TOS_ACSI0_ENABLE          0x00000400
+#define TOS_ACSI1_ENABLE          0x00000800
+#define TOS_ACSI2_ENABLE          0x00001000
+#define TOS_ACSI3_ENABLE          0x00002000
+#define TOS_ACSI4_ENABLE          0x00004000
+#define TOS_ACSI5_ENABLE          0x00008000
+#define TOS_ACSI6_ENABLE          0x00010000
+#define TOS_ACSI7_ENABLE          0x00020000
 
 extern unsigned long tos_system_ctrl;
 
