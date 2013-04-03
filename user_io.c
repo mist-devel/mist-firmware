@@ -125,6 +125,7 @@ void user_io_poll() {
   if(core_type == CORE_TYPE_MIST) {
     ikbd_poll();
 
+#if 1
     // check for incoming serial data
     EnableIO();
     SPI(UIO_SERIAL_IN);
@@ -133,6 +134,7 @@ void user_io_poll() {
       putchar(SPI(0));
     
     DisableIO();
+#endif
   }
 
   // poll db9 joysticks

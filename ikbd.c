@@ -35,8 +35,9 @@
 #define IKBD_DEFAULT IKBD_STATE_JOYSTICK_EVENT_REPORTING
 
 #define QUEUE_LEN 16    // power of 2!
-static unsigned char tx_queue[QUEUE_LEN];
+static unsigned short tx_queue[QUEUE_LEN];
 static unsigned char wptr = 0, rptr = 0;
+static unsigned long ikbd_timer = 0;
 
 // structure to keep track of ikbd state
 static struct {
@@ -60,7 +61,7 @@ void ikbd_init() {
   ikbd.state = IKBD_DEFAULT;
 }
 
-static void enqueue(unsigned char b) {
+static void enqueue(unsigned short b) {
   if(((wptr + 1)&(QUEUE_LEN-1)) == rptr) {
     iprintf("IKBD: !!!!!!! tx queue overflow !!!!!!!!!\n");
     return;
@@ -103,6 +104,7 @@ void ikbd_handle_input(unsigned char cmd) {
 
       case 0x80: // ibkd reset
 	// reply "everything is ok"
+	enqueue(0x8000 + 200);   // wait 200ms
 	enqueue(0xf0);
 	break;
 
@@ -167,6 +169,7 @@ void ikbd_handle_input(unsigned char cmd) {
 
   case 0x16: // interrogate joystick
     // send reply
+    enqueue(0x8000 + 10);   // wait 10ms
     enqueue(0xfd);
     enqueue(joystick_map2ikbd(ikbd.joystick[0]));
     enqueue(joystick_map2ikbd(ikbd.joystick[1]));
@@ -180,6 +183,7 @@ void ikbd_handle_input(unsigned char cmd) {
   case 0x1c:
     puts("IKBD: Interrogate time of day");
 
+    enqueue(0x8000 + 10);   // wait 10ms
     enqueue(0xfc);
     enqueue(0x13);  // year bcd
     enqueue(0x03);  // month bcd
@@ -203,6 +207,15 @@ void ikbd_handle_input(unsigned char cmd) {
 }
 
 void ikbd_poll(void) {
+#ifdef IKBD_DEBUG
+  static int sent = 0;
+  static xtimer = 0;
+  if(CheckTimer(xtimer)) {
+    xtimer = GetTimer(2000);
+    iprintf("IKBD: sent %d\n", sent);
+  }
+#endif
+
   static mtimer = 0;
   if(CheckTimer(mtimer)) {
     mtimer = GetTimer(10);
@@ -219,14 +232,34 @@ void ikbd_poll(void) {
 
   // send data from queue if present
   if(rptr == wptr) return;
-    
+
+  // timer active?
+  if(ikbd_timer) {
+    if(!CheckTimer(ikbd_timer))
+      return;
+
+    iprintf("IKBD: timer done\n");
+    ikbd_timer = 0;
+  }
+
+  // request to start timer?
+  if(tx_queue[rptr] & 0x8000) {
+    ikbd_timer = GetTimer(tx_queue[rptr] & 0x7fff);
+    iprintf("IKBD: starting timer %dms\n", tx_queue[rptr] & 0x7fff);
+    rptr = (rptr+1)&(QUEUE_LEN-1);
+    return;
+  }
+
   // transmit data from queue
   EnableIO();
   SPI(UIO_IKBD_OUT);
   SPI(tx_queue[rptr]);
   DisableIO();
-  
+
   rptr = (rptr+1)&(QUEUE_LEN-1);  
+#ifdef IKBD_DEBUG
+  sent++;
+#endif
 }
 
 void ikbd_joystick(unsigned char joystick, unsigned char map) {
@@ -294,7 +327,7 @@ void ikbd_mouse(unsigned char b, char x, char y) {
     }
     b_old = b;
   }
-  
+
 #if 0
   if(ikbd.state & IKBD_STATE_MOUSE_BUTTON_AS_KEY) {
     b = 0;
@@ -303,11 +336,14 @@ void ikbd_mouse(unsigned char b, char x, char y) {
   }
 #endif
 
+  if(ikbd.state & IKBD_STATE_MOUSE_Y_BOTTOM)
+    y = -y;
+
   if(ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE) {
   } else {
     // atari has mouse button bits swapped
     enqueue(0xf8|((b&1)?2:0)|((b&2)?1:0));
-    enqueue(x);
-    enqueue((ikbd.state & IKBD_STATE_MOUSE_Y_BOTTOM)?-y:y);
+    enqueue(x & 0xff);
+    enqueue(y & 0xff);
   }
 }
