@@ -123,9 +123,6 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	  if(p->iface_desc.bInterfaceSubClass == HID_BOOT_INTF_SUBCLASS) {
 	    iprintf("Iface %d is Boot sub class\n", info->bNumIfaces);
 	    info->iface_info[info->bNumIfaces].has_boot_mode = true;
-
-	    // enable boot mode
-	    hid_set_protocol(dev, info->iface_info[info->bNumIfaces].iface_idx, HID_BOOT_PROTOCOL);
 	  }
 	  
 	  switch(p->iface_desc.bInterfaceProtocol) {
@@ -277,6 +274,9 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
     if (rcode && rcode != hrSTALL)
       return rcode;
 
+    // enable boot mode
+    if(info->iface_info[i].has_boot_mode)
+      hid_set_protocol(dev, info->iface_info[i].iface_idx, HID_BOOT_PROTOCOL);
   }
   
   puts("HID configured");

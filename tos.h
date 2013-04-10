@@ -13,6 +13,7 @@
 #define MIST_SET_CONTROL  0x04
 #define MIST_GET_DMASTATE 0x05   // reads state of dma and floppy controller
 #define MIST_ACK_DMA      0x06   // acknowledges a dma command
+#define MIST_NAK_DMA      0x07   // don't acknowledge a dma command, but release bus
 
 // tos sysconfig bits:
 // 0     - RESET
@@ -65,5 +66,6 @@ void tos_update_sysctrl(unsigned long);
 char *tos_get_disk_name(char);
 char tos_disk_is_inserted(char index);
 void tos_insert_disk(char i, fileTYPE *file);
+void tos_eject_all();
 
 #endif

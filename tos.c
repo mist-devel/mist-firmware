@@ -2,6 +2,7 @@
 #include "string.h"
 #include "hardware.h"
 
+#include "menu.h"
 #include "tos.h"
 #include "fat.h"
 #include "fpga.h"
@@ -258,6 +259,10 @@ static void handle_fdc(unsigned char *buffer) {
       SPI(MIST_ACK_DMA);
       DisableFpga(); 
     }
+  } else {
+    EnableFpga();
+    SPI(MIST_NAK_DMA);
+    DisableFpga(); 
   }
 }  
 
@@ -665,5 +670,18 @@ void tos_insert_disk(char i, fileTYPE *file) {
     tos_update_sysctrl(tos_system_ctrl);
     iprintf("%c: detected %d sides with %d sectors per track\n", 
 	    i+'A', fdd_image[i].sides, fdd_image[i].spt);
+  }
+}
+
+// force ejection of all disks (SD card has been removed)
+void tos_eject_all() {
+  int i;
+  for(i=0;i<2;i++) 
+    tos_insert_disk(i, NULL);
+
+  // ejecting an SD card while a hdd image is mounted may be a bad idea
+  if(hdd_image.size) {
+    InfoMessage("Card removed: Disabling Harddisk!");
+    hdd_image.size = 0;
   }
 }

@@ -91,6 +91,7 @@ void ErrorMessage(const char *message, unsigned char code);
 void InfoMessage(char *message);
 void ShowSplash();
 void HideSplash();
+void EjectAllFloppies();
 
 #endif
 

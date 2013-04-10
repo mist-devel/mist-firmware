@@ -46,7 +46,8 @@ void user_io_init();
 void user_io_detect_core_type();
 unsigned char user_io_core_type();
 void user_io_poll();
-int user_io_button_pressed();
+int user_io_menu_button();
+int user_io_button_dip_switch1();
 void user_io_osd_key_enable(char);
 
 // hooks from the usb layer

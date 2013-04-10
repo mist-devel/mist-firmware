@@ -34,24 +34,51 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "fat.h"
 
 // variables
-unsigned char crc;
-unsigned long timeout;
-unsigned char response;
-unsigned char CardType;
+static unsigned char crc;
+static unsigned long timeout;
+static unsigned char response;
+static unsigned char CardType;
 
-unsigned char CSDData[16];
+static unsigned char CSDData[16];
 
 // internal functions
 static void MMC_CRC(unsigned char c) RAMFUNC;
 static unsigned char MMC_Command(unsigned char cmd, unsigned long arg) RAMFUNC;
 static unsigned char MMC_CMD12(void);
 
+unsigned char MMC_CheckCard() {
+  // check for removal of card
+  if((CardType != CARDTYPE_NONE) && !mmc_inserted()) {
+    CardType = CARDTYPE_NONE;
+    return 0;
+  }
+  return 1;
+}
+
+static RAMFUNC char check_card() {
+  // check of card has been removed and try to re-initialize it
+  if(CardType == CARDTYPE_NONE) {
+    iprintf("Card was removed, try to init it\n");
+    
+    if(!mmc_inserted())
+      return 0;
+    
+    if(!MMC_Init())
+      return 0;
+  }
+  return 1;
+}
 
 // init memory card
 unsigned char MMC_Init(void)
 {
     unsigned char n;
     unsigned char ocr[4];
+
+    if(!mmc_inserted()) {
+      printf("No card inserted\r");
+      return(CARDTYPE_NONE);
+    }
 
     SPI_slow();     // set slow clock
     DisableCard();  // CS = 1
@@ -206,6 +233,9 @@ RAMFUNC unsigned char MMC_Read(unsigned long lba, unsigned char *pReadBuffer)
 {
     // if pReadBuffer is NULL then use direct to the FPGA transfer mode (FPGA2 asserted)
 
+    // check of card has been removed and try to re-initialize it
+    if(!check_card()) return 0;
+
     unsigned long i;
     unsigned char *p;
 
@@ -357,6 +387,9 @@ unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, un
 {
     // if pReadBuffer is NULL then use direct to the FPGA transfer mode (FPGA2 asserted)
 
+    // check of card has been removed and try to re-initialize it
+    if(!check_card()) return 0;
+
     unsigned long i;
     unsigned char *p;
 
@@ -426,6 +459,9 @@ unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, un
 unsigned char MMC_Write(unsigned long lba, unsigned char *pWriteBuffer)
 {
     unsigned long i;
+
+    // check of card has been removed and try to re-initialize it
+    if(!check_card()) return 0;
 
    if (CardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
         lba = lba << 9; // otherwise convert sector adddress to byte address

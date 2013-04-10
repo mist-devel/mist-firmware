@@ -46,6 +46,8 @@
 #define MMC_SEL       AT91C_PIO_PA31
 #define USB_SEL       AT91C_PIO_PA11
 #define USB_PUP       AT91C_PIO_PA16
+#define SD_WP         AT91C_PIO_PA1
+#define SD_CD         AT91C_PIO_PA0
 
 // altera programming interface
 #define ALTERA_DONE    AT91C_PIO_PA4
@@ -116,7 +118,6 @@ static inline void DisableCard() {
     SPI(0xFF);
     SPI_Wait4XferEnd();
 }
-
 
 void SPI_Init(void);
 // unsigned char SPI(unsigned char outByte);

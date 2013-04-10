@@ -15,7 +15,6 @@
   Joysticks also generate      Goldrunner                   X     X
   mouse button events!
   Pause (cmd 0x13)             Wings of Death/A_427
-
  */
 
 #include <stdio.h>
@@ -63,7 +62,7 @@ void ikbd_init() {
 
 static void enqueue(unsigned short b) {
   if(((wptr + 1)&(QUEUE_LEN-1)) == rptr) {
-    iprintf("IKBD: !!!!!!! tx queue overflow !!!!!!!!!\n");
+    //    iprintf("IKBD: !!!!!!! tx queue overflow !!!!!!!!!\n");
     return;
   }
 
@@ -169,7 +168,7 @@ void ikbd_handle_input(unsigned char cmd) {
 
   case 0x16: // interrogate joystick
     // send reply
-    enqueue(0x8000 + 10);   // wait 10ms
+    //    enqueue(0x8000 + 10);   // wait 10ms
     enqueue(0xfd);
     enqueue(joystick_map2ikbd(ikbd.joystick[0]));
     enqueue(joystick_map2ikbd(ikbd.joystick[1]));
@@ -185,7 +184,7 @@ void ikbd_handle_input(unsigned char cmd) {
 
     enqueue(0x8000 + 10);   // wait 10ms
     enqueue(0xfc);
-    enqueue(0x13);  // year bcd
+    enqueue(0xb3);  // year bcd
     enqueue(0x03);  // month bcd
     enqueue(0x07);  // day bcd
     enqueue(0x20);  // hour bcd
@@ -284,6 +283,8 @@ void ikbd_joystick(unsigned char joystick, unsigned char map) {
 	// generate mouse event (ikbd_joystick_buttons is evaluated inside 
 	// user_io_mouse)
 	ikbd.joystick[joystick] = map;
+	
+	enqueue(0x8000 + 5); // some small pause in between
 	ikbd_mouse(0, 0, 0);
       }
     }

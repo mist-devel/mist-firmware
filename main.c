@@ -53,6 +53,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "config.h"
 #include "user_io.h"
 #include "boot_logo.h"
+#include "tos.h"
+
+// #include "xmenu.h"
 
 #ifdef MIST
 #include "usb.h"
@@ -112,7 +115,6 @@ int main(void)
     unsigned char key;
     unsigned long time;
     unsigned short spiclk;
-    //unsigned char CSD[16];
 
 #ifdef __GNUC__
     __init_hardware();
@@ -154,7 +156,7 @@ int main(void)
     user_io_init();
 
 #ifdef MIST
-    if(!user_io_button_pressed())
+    if(!user_io_dip_switch1())
 #endif
     {
       if (ConfigureFpga()) {
@@ -220,20 +222,19 @@ int main(void)
 
       // MIST (atari) core supports the same UI as Minimig
       if(user_io_core_type() == CORE_TYPE_MIST) {
+	if(!MMC_CheckCard()) 
+	  tos_eject_all();
+
 	HandleUI();
       }
 
       // call original minimig handlers if minimig core is found
       if(user_io_core_type() == CORE_TYPE_MINIMIG) {
+	if(!MMC_CheckCard()) 
+	  EjectAllFloppies();
+
 	HandleFpga();
 	HandleUI();
-
-	if(cnt < 20000) {
-	  cnt++;
-	  
-	  if(cnt == 20000)
-	    inserttestfloppy();
-	}
       }
     }
     return 0;

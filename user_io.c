@@ -16,14 +16,44 @@ static long emu_timer;
 #define EMU_MOUSE_FREQ 5
 
 static unsigned char core_type = CORE_TYPE_UNKNOWN;
+static unsigned char adc_state = 0;
 
 AT91PS_ADC a_pADC = AT91C_BASE_ADC;
 AT91PS_PMC a_pPMC = AT91C_BASE_PMC;
 
 static char caps_lock_toggle = 0;
 
-static void InitADC(void) {
+static void PollOneAdc() {
+  static unsigned char adc_cnt = 0xff;
 
+  // fetch result from previous run
+  if(adc_cnt != 0xff) {
+    unsigned int result;
+
+    // wait for end of convertion
+    while(!(AT91C_BASE_ADC->ADC_SR & (1 << (4+adc_cnt))));
+    
+    switch (adc_cnt) {
+    case 0: result = AT91C_BASE_ADC->ADC_CDR4; break;
+    case 1: result = AT91C_BASE_ADC->ADC_CDR5; break;
+    case 2: result = AT91C_BASE_ADC->ADC_CDR6; break;
+    case 3: result = AT91C_BASE_ADC->ADC_CDR7; break;
+    }
+    
+    if(result < 128) adc_state |=  (1<<adc_cnt);
+    if(result > 128) adc_state &= ~(1<<adc_cnt);
+  }
+  
+  adc_cnt = (adc_cnt + 1)&3;
+  
+  // Enable desired chanel
+  AT91C_BASE_ADC->ADC_CHER = 1 << (4+adc_cnt);
+  
+  // Start conversion
+  AT91C_BASE_ADC->ADC_CR = AT91C_ADC_START;
+}
+
+static void InitADC(void) {
   // Enable clock for interface
   AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_ADC;
 
@@ -33,30 +63,22 @@ static void InitADC(void) {
 
   // Set maximum startup time and hold time
   AT91C_BASE_ADC->ADC_MR = 0x0F1F0F00 | AT91C_ADC_LOWRES_8_BIT;
+
+  // make sure we get the first values immediately
+  PollOneAdc();
+  PollOneAdc();
+  PollOneAdc();
+  PollOneAdc();
 }
 
-static unsigned int GetAdc(unsigned char channel) {
+// poll one adc channel every 25ms
+static void PollAdc() {
+  static long adc_timer = 0;
 
-  // variable
-  unsigned int result;
-
-  // Enable desired chanel
-  AT91C_BASE_ADC->ADC_CHER = channel;
-
-  // Start conversion
-  AT91C_BASE_ADC->ADC_CR = AT91C_ADC_START;
-
-  // wait for end of convertion
-  while(!(AT91C_BASE_ADC->ADC_SR & channel));
-
-  switch (channel) {
-    case AT91C_ADC_CH4: result = AT91C_BASE_ADC->ADC_CDR4; break;
-    case AT91C_ADC_CH5: result = AT91C_BASE_ADC->ADC_CDR5; break;
-    case AT91C_ADC_CH6: result = AT91C_BASE_ADC->ADC_CDR6; break;
-    case AT91C_ADC_CH7: result = AT91C_BASE_ADC->ADC_CDR7; break;
+  if(CheckTimer(adc_timer)) {
+    adc_timer = GetTimer(25);
+    PollOneAdc();
   }
-
-  return result;
 }
 
 void user_io_init() {
@@ -167,14 +189,18 @@ void user_io_poll() {
     
     user_io_joystick(1, joy_map);
   }
+
+  // frequently poll the adc the switches 
+  // and buttons are connected to
+  PollAdc();
   
   static unsigned char key_map = 0;
   unsigned char map = 0;
-  if(GetAdc(AT91C_ADC_CH4) < 128) map |= SWITCH2;
+  if(adc_state & 1) map |= SWITCH2;
+  if(adc_state & 2) map |= SWITCH1;
 
-  if(GetAdc(AT91C_ADC_CH5) < 128) map |= SWITCH1;
-  if(GetAdc(AT91C_ADC_CH6) < 128) map |= BUTTON1;
-  if(GetAdc(AT91C_ADC_CH7) < 128) map |= BUTTON2;
+  if(adc_state & 4) map |= BUTTON1;
+  if(adc_state & 8) map |= BUTTON2;
   
   if(map != key_map) {
     key_map = map;
@@ -212,8 +238,12 @@ void user_io_poll() {
   }
 }
 
-int user_io_button_pressed() {
-  return (GetAdc(AT91C_ADC_CH5) < 128);
+int user_io_dip_switch1() {
+  return(adc_state & 2);
+}
+
+int user_io_menu_button() {
+  return(adc_state & 4);
 }
 
 static void send_keycode(unsigned short code) {

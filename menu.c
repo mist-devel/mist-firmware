@@ -2317,3 +2317,13 @@ void InfoMessage(char *message)
     menu_timer = GetTimer(1000);
     menustate = MENU_INFO;
 }
+
+void EjectAllFloppies() {
+  char i;
+  for(i=0;i<drives;i++)
+    df[i].status = 0;
+
+  // harddisk
+  config.hardfile[0].present = 0;
+  config.hardfile[1].present = 0;
+}

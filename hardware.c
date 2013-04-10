@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "AT91SAM7S256.h"
 #include "stdio.h"
 #include "hardware.h"
+#include "user_io.h"
 
 void __init_hardware(void)
 {
@@ -57,6 +58,11 @@ void __init_hardware(void)
 
 #ifdef JOY1
     *AT91C_PIOA_PPUER = JOY1;
+#endif
+
+#ifdef SD_WP
+    // enable SD card signals
+    *AT91C_PIOA_PPUER = SD_WP | SD_CD;
 #endif
 
     *AT91C_PIOA_SODR = MMC_SEL | FPGA0 | FPGA1 | FPGA2; // set output data register
@@ -195,7 +201,7 @@ unsigned long CheckButton(void)
 #ifdef BUTTON
     return((~*AT91C_PIOA_PDSR) & BUTTON);
 #else
-    return 0;
+    return user_io_menu_button();
 #endif
 }
 
@@ -279,3 +285,12 @@ RAMFUNC void SPI_block_read(char *addr) {
   *AT91C_SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver
   *AT91C_PIOA_PDR = AT91C_PA13_MOSI; // disable GPIO function
 }
+
+char mmc_inserted() {
+  return !(*AT91C_PIOA_PDSR & SD_CD);
+}
+
+char mmc_write_protected() {
+  return (*AT91C_PIOA_PDSR & SD_WP);
+}
+

@@ -761,7 +761,7 @@ unsigned char OsdGetCtrl(void)
     // mist/atari core uses local queue
     if(user_io_core_type() == CORE_TYPE_MIST)
       c1 = OsdKeyGet();
-    
+
     // add front menu button
     if (!CheckButton())
         delay = GetTimer(BUTTONDELAY);
