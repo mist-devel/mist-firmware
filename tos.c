@@ -16,6 +16,10 @@ unsigned long tos_system_ctrl = TOS_MEMCONFIG_4M;
 
 static unsigned char font[2048];  // buffer for 8x16 atari font
 
+// default name of TOS image
+static char tos_img[12]  = "TOS     IMG";
+static char cart_img[12] = "";
+
 // two floppies
 static struct {
   fileTYPE file;
@@ -285,11 +289,6 @@ static void mist_get_dmastate() {
     handle_fdc(buffer);
 }
 
-static void tos_clr() {
-  mist_memory_set_address(VIDEO_BASE_ADDRESS);
-  mist_memory_set(0, 16000);
-}
-
 // color test, used to test the shifter without CPU/TOS
 #define COLORS   20
 #define PLANES   4
@@ -314,6 +313,12 @@ static void tos_color_test() {
 static void tos_write(char *str) {
   static int y = 0;
   int l;
+
+  if(!str) {
+    y = 0;
+    return;
+  }
+
   int c = strlen(str);
 
   {
@@ -332,6 +337,16 @@ static void tos_write(char *str) {
   y+=16;
 }
 
+static void tos_clr() {
+  mist_memory_set_address(VIDEO_BASE_ADDRESS);
+  mist_memory_set(0, 16000);
+
+  tos_write(NULL);
+}
+
+// the built-in OSD font, being used if everything else fails
+extern unsigned char charfont[256][8];
+
 static void tos_font_load() {
   fileTYPE file;
   if(FileOpen(&file,"SYSTEM  FNT")) {
@@ -342,34 +357,100 @@ static void tos_font_load() {
 	FileNextSector(&file);
       }
 
-      tos_clr();
+      return;
+    } 
+  }
 
-      //      tos_color_test();
+  // if we couldn't load something, then just convert the 
+  // built-on OSD font, so we see at least something
+  unsigned char c, l, n;
+  // copy 128 chars
+  for(c=0;c<128;c++) {
+    // each character is 8 pixel tall
+    for(l=0;l<8;l++) {
+      unsigned char *d = font + c*16 + 2*l;
+      *d = 0;
 
-      tos_write("\016\017 MIST core \016\017 ");
+      for(n=0;n<8;n++)
+	if(charfont[c][n] & (1 << l))
+	  *d |= 0x80 >> n;
 
-    } else
-      iprintf("SYSTEM.FNT has wrong size\n");      
-  } else
-    iprintf("SYSTEM.FNT not found\n");      
+      *(d+1) = *d;
+    }
+  }
 }
 
-void tos_upload() {
+void tos_load_cartridge(char *name) {
+  fileTYPE file;
+
+  if(name)
+    strncpy(cart_img, name, 11);
+
+  // upload cartridge 
+  if(cart_img[0] && FileOpen(&file, cart_img)) {
+    int i;
+    char buffer[512];
+	
+    iprintf("%s:\n  size = %d\n", cart_img, file.size);
+
+    int blocks = file.size / 512;
+    iprintf("  blocks = %d\n", blocks);
+
+    iprintf("Uploading: [");
+    mist_memory_set_address(CART_BASE_ADDRESS);
+    
+    DISKLED_ON;
+    for(i=0;i<blocks;i++) {
+      FileRead(&file, buffer);
+      mist_memory_write(buffer, 256);
+      
+      if(!(i & 7)) iprintf(".");
+      
+      if(i != blocks-1)
+	FileNextSector(&file);
+    }
+    DISKLED_OFF;
+    iprintf("]\n");
+    
+    iprintf("%s uploaded\r", cart_img);
+    return; 
+  }
+
+  // erase that ram area to remove any previously uploaded
+  // image
+  iprintf("Erasing cart memory\n");
+  mist_memory_set_address(CART_BASE_ADDRESS);
+  mist_memory_set(0, 128*1024/2);
+}
+
+char tos_cartridge_is_inserted() {
+  return cart_img[0];
+}
+
+void tos_upload(char *name) {
+
+  if(name)
+    strncpy(tos_img, name, 11);
 
   // put cpu into reset
-  mist_set_control(tos_system_ctrl | TOS_CONTROL_CPU_RESET);
+  tos_system_ctrl |= TOS_CONTROL_CPU_RESET;
+  mist_set_control(tos_system_ctrl);
 
   tos_font_load();
+  tos_clr();
+
+  //      tos_color_test();
 
   // do the MiST core handling
+  tos_write("\x0e\x0f MIST core \x0e\x0f ");
   tos_write("Uploading TOS ... ");
   iprintf("Uploading TOS ...\n");
-  
+
   DISKLED_ON;
-  
+
   // upload and verify tos image
   fileTYPE file;
-  if(FileOpen(&file,"TOS     IMG")) {
+  if(FileOpen(&file, tos_img)) {
     int i;
     char buffer[512];
     unsigned long time;
@@ -377,7 +458,7 @@ void tos_upload() {
 	
     iprintf("TOS.IMG:\n  size = %d\n", file.size);
 
-    if(file.size == 256*1024)
+    if(file.size >= 256*1024)
       tos_base = TOS_BASE_ADDRESS_256k;
     else if(file.size != 192*1024)
       iprintf("WARNING: Unexpected TOS size!\n");
@@ -483,41 +564,8 @@ void tos_upload() {
 #endif
   DISKLED_OFF;
 
-  // upload cartridge 
-  if(FileOpen(&file,"CART    IMG")) {
-    int i;
-    char buffer[512];
-	
-    iprintf("CART.IMG:\n  size = %d\n", file.size);
-
-    int blocks = file.size / 512;
-    iprintf("  blocks = %d\n", blocks);
-
-    iprintf("Uploading: [");
-    mist_memory_set_address(CART_BASE_ADDRESS);
-    
-    DISKLED_ON;
-    for(i=0;i<blocks;i++) {
-      FileRead(&file, buffer);
-      mist_memory_write(buffer, 256);
-      
-      if(!(i & 7)) iprintf(".");
-      
-      if(i != blocks-1)
-	FileNextSector(&file);
-    }
-    DISKLED_OFF;
-    iprintf("]\n");
-    
-    iprintf("CART.IMG uploaded\r");
-  } else {
-    iprintf("Unable to find cart.img\n");
-
-    // erase that ram area to remove any previously uploaded
-    // image
-    mist_memory_set_address(CART_BASE_ADDRESS);
-    mist_memory_set(0, 128*1024/2);
-  }
+  // load
+  tos_load_cartridge(NULL);
 
   // try to open both floppies
   int i;
@@ -534,15 +582,15 @@ void tos_upload() {
   }
 
   // try to open harddisk image
-  hdd_image.size = 0;
-  if(FileOpen(&hdd_image, "HARDDISKHD ")) {
+  if(FileOpen(&file, "HARDDISKHD ")) {
     tos_write("Found hard disk image ");
-    tos_system_ctrl |= TOS_ACSI0_ENABLE;
+    tos_select_hdd_image(&file);
   }
 
   tos_write("Booting ... ");
 
   // let cpu run (release reset)
+  tos_system_ctrl &= ~TOS_CONTROL_CPU_RESET;
   mist_set_control(tos_system_ctrl);
 }
 
@@ -597,31 +645,78 @@ void tos_update_sysctrl(unsigned long n) {
   mist_set_control(tos_system_ctrl);
 }
 
-char *tos_get_disk_name(char index) {
-  static char buffer[13];  // local buffer to assemble file name (8+3+2)
+static char buffer[13];  // local buffer to assemble file name (8+3+2)
+static void nice_name(char *dest, char *src) {
   char *c;
 
-  if(!fdd_image[index].file.size) {
+  // copy and append nul
+  strncpy(dest, src, 8);
+  for(c=dest+7;*c==' ';c--); c++;
+  *c++ = '.';
+  strncpy(c, src+8, 3);
+  for(c+=2;*c==' ';c--); c++;
+  *c++='\0';
+}
+
+char *tos_get_disk_name(char index) {
+  fileTYPE file;
+  char *c;
+
+  if(index <= 1) 
+    file = fdd_image[index].file;
+  else
+    file = hdd_image;
+  
+  if(!file.size) {
     strcpy(buffer, "* no disk *");
     return buffer;
   }
+  
+  nice_name(buffer, file.name);
+  return buffer;
+}
 
-  // copy and append nul
-  strncpy(buffer, fdd_image[index].file.name, 8);
-  for(c=buffer+7;*c==' ';c--); c++;
-  *c++ = '.';
-  strncpy(c, fdd_image[index].file.name+8, 3);
-  for(c+=2;*c==' ';c--); c++;
-  *c++='\0';
+char *tos_get_image_name() {
+  nice_name(buffer, tos_img);
+  return buffer;
+}
+
+char *tos_get_cartridge_name() {
+  if(!cart_img[0])  // no cart name set
+    strcpy(buffer, "* no cartridge *");
+  else
+    nice_name(buffer, cart_img);
 
   return buffer;
 }
 
 char tos_disk_is_inserted(char index) {
-  return (fdd_image[index].file.size != 0);
+  if(index <= 1) 
+    return (fdd_image[index].file.size != 0);
+
+  return hdd_image.size != 0;
+}
+
+void tos_select_hdd_image(fileTYPE *file) {
+  // try to open harddisk image
+  hdd_image.size = 0;
+  tos_system_ctrl &= ~TOS_ACSI0_ENABLE;
+
+  if(file) {
+    tos_system_ctrl |= TOS_ACSI0_ENABLE;
+    hdd_image = *file;
+  }
+
+  // update system control
+  mist_set_control(tos_system_ctrl);
 }
 
 void tos_insert_disk(char i, fileTYPE *file) {
+  if(i > 1) {
+    tos_select_hdd_image(file);
+    return;
+  }
+
   iprintf("%c: eject\n", i+'A');
 
   // toggle write protect bit to help tos detect a media change
@@ -684,4 +779,16 @@ void tos_eject_all() {
     InfoMessage("Card removed: Disabling Harddisk!");
     hdd_image.size = 0;
   }
+}
+
+void tos_reset(char cold) {
+  tos_update_sysctrl(tos_system_ctrl |  TOS_CONTROL_CPU_RESET);  // set reset
+
+  if(cold) {
+    // clear first 16k
+    mist_memory_set_address(8);
+    mist_memory_set(0x00, 8192-4);
+  }
+
+  tos_update_sysctrl(tos_system_ctrl & ~TOS_CONTROL_CPU_RESET);  // release reset
 }

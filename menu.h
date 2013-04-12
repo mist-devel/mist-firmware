@@ -69,10 +69,18 @@ enum MENU
     MENU_ERROR,
     MENU_INFO,
 
-    // Mist/atari specifig pages
+    // Mist/atari specific pages
     MENU_MIST_MAIN1,
     MENU_MIST_MAIN2,
-    MENU_MIST_FILE_SELECTED,
+    MENU_MIST_MAIN_FILE_SELECTED,
+    MENU_MIST_STORAGE1,
+    MENU_MIST_STORAGE2,
+    MENU_MIST_STORAGE_FILE_SELECTED,
+    MENU_MIST_SYSTEM1,
+    MENU_MIST_SYSTEM2,
+    MENU_MIST_SYSTEM_FILE_SELECTED,
+    MENU_MIST_VIDEO1,
+    MENU_MIST_VIDEO2,
 };
 
 // UI strings, used by boot messages

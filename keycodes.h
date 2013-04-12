@@ -129,7 +129,7 @@ const unsigned short usb2ami[] = {
   0x0f,  // 62: KP 0
   0x3c,  // 63: KP .
   0x30,  // 64: Europe 2
-  MISS,  // 65: App
+  0x69 | OSD,  // 65: App
   MISS,  // 66: Power
   MISS,  // 67: KP =
   MISS,  // 68: F13
@@ -249,7 +249,7 @@ const unsigned short usb2atari[] = {
   0x70,  // 62: KP 0
   0x71,  // 63: KP .
   0x60,  // 64: Europe 2
-  MISS,  // 65: App
+  OSD_LOC, // 65: App
   MISS,  // 66: Power
   MISS,  // 67: KP =
   MISS,  // 68: F13
@@ -265,6 +265,7 @@ const unsigned short usb2atari[] = {
 // OSD uses amiga keycodes. This table translates from usb to OSD/amiga 
 const unsigned char usb2osd[][2] = {
   { 0x45, KEY_MENU  },
+  { 0x65, KEY_MENU  },
   { 0x52, KEY_UP    },
   { 0x51, KEY_DOWN  },
   { 0x28, KEY_ENTER },

@@ -351,7 +351,6 @@ static char key_used_by_osd(unsigned short s) {
 }
 
 void user_io_kbd(unsigned char m, unsigned char *k) {
-
   if((core_type == CORE_TYPE_MINIMIG) ||
      (core_type == CORE_TYPE_MIST)) {
 

@@ -288,40 +288,31 @@ void HandleUI(void)
         /******************************************************************/
         /* mist main menu                                                 */
         /******************************************************************/
+
     case MENU_MIST_MAIN1 :
-	menumask=0xff;
+	menumask=0x7f;
 	OsdSetTitle("Mist", 0);
 
-	// entries for both floppies
-	for(i=0;i<2;i++) {
-	  strcpy(s, " A: ");
-	  strcat(s, tos_get_disk_name(i));
-	  s[1] = 'A'+i;
-	  if(tos_system_ctrl & (TOS_CONTROL_FDC_WR_PROT_A << i))
-	    strcat(s, " \x17");
-
-	  OsdWrite(i, s, menusub == i,0);
-	}
-
-	strcpy(s, " Write protect: ");
-	strcat(s, config_tos_wrprot[(tos_system_ctrl >> 6)&3]);
-        OsdWrite(2, s, menusub == 2,0);
-
-	strcpy(s, " Memory: ");
-	strcat(s, config_tos_mem[(tos_system_ctrl >> 1)&7]);
-        OsdWrite(3, s, menusub == 3,0);
-
-	strcpy(s, " PAL mode: ");
-	if(tos_system_ctrl & TOS_CONTROL_PAL50HZ) strcat(s, "50Hz");
-	else                                      strcat(s, "56Hz");
-        OsdWrite(4, s, menusub == 4,0);
+	// most important: main page has setup for floppy A: and screen
+	strcpy(s, " A: ");
+	strcat(s, tos_get_disk_name(0));
+	if(tos_system_ctrl & TOS_CONTROL_FDC_WR_PROT_A) strcat(s, " \x17");
+	OsdWrite(0, s, menusub == 0,0);
 
 	strcpy(s, " Screen: ");
 	if(tos_system_ctrl & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
 	else                                          strcat(s, "Mono");
-        OsdWrite(5, s, menusub == 5,0);
-        OsdWrite(6, " Reset", menusub == 6,0);
-        OsdWrite(7, STD_EXIT, menusub == 7,0);
+        OsdWrite(1, s, menusub == 1,0);
+
+        OsdWrite(2, "", 0,0);
+	
+	/* everything else is in submenus */
+        OsdWrite(3, " Storage                   \x16", menusub == 2,0);
+        OsdWrite(4, " System                    \x16", menusub == 3,0);
+        OsdWrite(5, " Video                     \x16", menusub == 4,0);
+        OsdWrite(6, " Firmware                  \x16", menusub == 5,0);
+
+        OsdWrite(7, STD_EXIT, menusub == 6,0);
 
         menustate = MENU_MIST_MAIN2;
 	parentstate=MENU_MIST_MAIN1;
@@ -332,45 +323,276 @@ void HandleUI(void)
         if (menu)
             menustate = MENU_NONE1;
 	if(select) {
-	  if(menusub <= 1) {
-	    if(tos_disk_is_inserted(menusub)) {
-	      tos_insert_disk(menusub, NULL);
+	  switch(menusub) {
+	  case 0:
+	    if(tos_disk_is_inserted(0)) {
+	      tos_insert_disk(0, NULL);
 	      menustate = MENU_MIST_MAIN1;
 	    } else
-	      SelectFile("ST ", SCAN_DIR | SCAN_LFN, MENU_MIST_FILE_SELECTED, MENU_MIST_MAIN1);
-	  }
-	    
-	  if(menusub == 2) {
-	    // remove current write protect bits and increase by one
-	    tos_update_sysctrl((tos_system_ctrl & ~(TOS_CONTROL_FDC_WR_PROT_A | TOS_CONTROL_FDC_WR_PROT_B)) 
-			       | (((((tos_system_ctrl >> 6)&3) + 1)&3)<<6) );
-            menustate = MENU_MIST_MAIN1;
-	  } else if(menusub == 3) {
-	    int cmem = (tos_system_ctrl >> 1)&7;   // current memory config
-	    cmem++;
-	    if(cmem > 5) cmem = 3;                 // cycle 4MB/8MB/14MB
-	    tos_update_sysctrl((tos_system_ctrl & ~0x0e) | (cmem<<1) );
-            menustate = MENU_MIST_MAIN1;
-	  } else if(menusub == 4) {
-	    tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_PAL50HZ);
-            menustate = MENU_MIST_MAIN1;
-	  } else if(menusub == 5) {
+	      SelectFile("ST ", SCAN_DIR | SCAN_LFN, MENU_MIST_MAIN_FILE_SELECTED, MENU_MIST_MAIN1);
+	    break;
+
+	  case 1:
 	    tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_VIDEO_COLOR);
             menustate = MENU_MIST_MAIN1;
-	  } else if(menusub == 6) {
-	    tos_update_sysctrl(tos_system_ctrl |  TOS_CONTROL_CPU_RESET);  // set reset
-	    tos_update_sysctrl(tos_system_ctrl & ~TOS_CONTROL_CPU_RESET);  // reset reset :-)	    
+	    break;
+
+	  case 2:  // Storage submenu
+	    menustate = MENU_MIST_STORAGE1;
+	    menusub = 0;
+	    break;
+
+	  case 3:  // System submenu
+	    menustate = MENU_MIST_SYSTEM1;
+	    menusub = 0;
+	    break;
+
+	  case 4:  // Video submenu
+	    menustate = MENU_MIST_VIDEO1;
+	    menusub = 0;
+	    break;
+
+	  case 5:  // Firmware submenu
+	    menustate = MENU_FIRMWARE1;
+	    menusub = 0;
+	    break;
+
+	  case 6:  // Exit
 	    menustate = MENU_NONE1;
-	  } else if (menusub == 7)
-	    menustate = MENU_NONE1;
+	    break;
+	  }
+
 	}
         break;
 
-    case MENU_MIST_FILE_SELECTED : // file successfully selected
-	tos_insert_disk(menusub, &file);
+    case MENU_MIST_MAIN_FILE_SELECTED : // file successfully selected
+        tos_insert_disk(0, &file);
 	menustate = MENU_MIST_MAIN1;
 	break;
 	
+    case MENU_MIST_STORAGE1 :
+	menumask=0x1f;
+	OsdSetTitle("Storage", 0);
+
+	OsdWrite(0, "", 0, 0);
+
+	// entries for both floppies
+	for(i=0;i<2;i++) {
+	  strcpy(s, " A: ");
+	  strcat(s, tos_get_disk_name(i));
+	  s[1] = 'A'+i;
+	  if(tos_system_ctrl & (TOS_CONTROL_FDC_WR_PROT_A << i))
+	    strcat(s, " \x17");
+
+	  OsdWrite(i+1, s, menusub == i,0);
+	}
+
+	strcpy(s, " Write protect: ");
+	strcat(s, config_tos_wrprot[(tos_system_ctrl >> 6)&3]);
+        OsdWrite(3, s, menusub == 2,0);
+
+        OsdWrite(4, "", 0, 0);
+
+	strcpy(s, " HDD: ");
+	strcat(s, tos_get_disk_name(2));
+        OsdWrite(5, s, menusub == 3, 0);
+
+        OsdWrite(6, "", 0, 0);
+
+        OsdWrite(7, STD_EXIT, menusub == 4,0);
+
+	parentstate = menustate;
+        menustate = MENU_MIST_STORAGE2;
+        break;
+
+
+    case MENU_MIST_STORAGE2 :
+      if (menu) {
+	menustate = MENU_MIST_MAIN1;
+	menusub = 2;
+      }
+      if(select) {
+	if(menusub <= 1) {
+	  if(tos_disk_is_inserted(menusub)) {
+	    tos_insert_disk(menusub, NULL);
+	    menustate = MENU_MIST_STORAGE1;
+	  } else
+	    SelectFile("ST ", SCAN_DIR | SCAN_LFN, MENU_MIST_STORAGE_FILE_SELECTED, MENU_MIST_STORAGE1);
+	}
+	
+	else if(menusub == 2) {
+	  // remove current write protect bits and increase by one
+	  tos_update_sysctrl((tos_system_ctrl & ~(TOS_CONTROL_FDC_WR_PROT_A | TOS_CONTROL_FDC_WR_PROT_B)) 
+			     | (((((tos_system_ctrl >> 6)&3) + 1)&3)<<6) );
+	  menustate = MENU_MIST_STORAGE1;
+	
+	} else if(menusub == 3) {
+	  if(tos_disk_is_inserted(2)) {
+	    tos_insert_disk(2, NULL);
+	    menustate = MENU_MIST_STORAGE1;
+	  } else
+	    SelectFile("HD ", SCAN_LFN, MENU_MIST_STORAGE_FILE_SELECTED, MENU_MIST_STORAGE1);
+	} else if (menusub == 4) {
+	  menustate = MENU_MIST_MAIN1;
+	  menusub = 2;
+	}
+      }
+      break;
+
+    case MENU_MIST_STORAGE_FILE_SELECTED : // file successfully selected
+      // floppy/hdd      
+      tos_insert_disk(menusub, &file);
+      menustate = MENU_MIST_STORAGE1;
+      break;
+
+    case MENU_MIST_SYSTEM1 :
+	menumask=0x7f;
+	OsdSetTitle("System", 0);
+
+	strcpy(s, " Memory:    ");
+	strcat(s, config_tos_mem[(tos_system_ctrl >> 1)&7]);
+        OsdWrite(0, s, menusub == 0,0);
+
+	strcpy(s, " CPU:       ");
+	strcat(s, config_cpu_msg[(tos_system_ctrl >> 4)&3]);
+        OsdWrite(1, s, menusub == 1, 0);
+
+	strcpy(s, " TOS:       ");
+	strcat(s, tos_get_image_name());
+        OsdWrite(2, s, menusub == 2, 0);
+
+	strcpy(s, " Cartridge: ");
+	strcat(s, tos_get_cartridge_name());
+        OsdWrite(3, s, menusub == 3, 0);
+
+        OsdWrite(4, " Reset",     menusub == 4, 0);
+        OsdWrite(5, " Cold boot", menusub == 5, 0);
+
+        OsdWrite(6, "", 0,0);
+        OsdWrite(7, STD_EXIT, menusub == 6,0);
+
+	parentstate = menustate;
+        menustate = MENU_MIST_SYSTEM2;
+        break;
+
+    case MENU_MIST_SYSTEM2 :
+      if (menu) {
+	menustate = MENU_MIST_MAIN1;
+	menusub = 3;
+      }
+      if(select) {
+	switch(menusub) {
+	case 0: { // RAM
+	  int mem = (tos_system_ctrl >> 1)&7;   // current memory config
+	  mem++;
+	  if(mem > 5) mem = 3;                 // cycle 4MB/8MB/14MB
+	  tos_update_sysctrl((tos_system_ctrl & ~0x0e) | (mem<<1) );
+	  tos_reset(1);
+	  menustate = MENU_MIST_SYSTEM1;
+	} break;
+
+	case 1: { // CPU
+	  int cpu = (tos_system_ctrl >> 4)&3;   // current cpu config
+	  cpu = (cpu+1)&3;
+	  if(cpu == 2) cpu = 3;                 // skip unused config
+	  tos_update_sysctrl((tos_system_ctrl & ~0x30) | (cpu<<4) );
+	  tos_reset(0);
+	  menustate = MENU_MIST_SYSTEM1;
+	} break;
+
+	case 2:  // TOS
+	  SelectFile("IMG", SCAN_LFN, MENU_MIST_SYSTEM_FILE_SELECTED, MENU_MIST_SYSTEM1);
+	  break;
+
+	case 3:  // Cart
+	  // if a cart name is set, then remove it
+	  if(tos_cartridge_is_inserted()) {
+	    tos_load_cartridge("");
+	    menustate = MENU_MIST_SYSTEM1;
+	  } else
+	    SelectFile("IMG", SCAN_LFN, MENU_MIST_SYSTEM_FILE_SELECTED, MENU_MIST_SYSTEM1);
+	  break;
+
+	case 4:  // Reset
+	  tos_reset(0);
+	  menustate = MENU_NONE1;
+	  break;
+
+	case 5:  // Cold Boot
+	  tos_reset(1);
+	  menustate = MENU_NONE1;
+	  break;
+
+	case 6:
+	  menustate = MENU_MIST_MAIN1;
+	  menusub = 3;
+	}
+      }
+      break;
+
+    case MENU_MIST_SYSTEM_FILE_SELECTED : // file successfully selected
+      if(menusub == 2) {
+	tos_upload(file.name);
+	menustate = MENU_MIST_SYSTEM1;
+      }
+      if(menusub == 3) {
+	tos_load_cartridge(file.name);
+	menustate = MENU_MIST_SYSTEM1;
+      }
+      break;
+
+
+    case MENU_MIST_VIDEO1 :
+	menumask=0x07;
+	OsdSetTitle("Video", 0);
+
+        OsdWrite(0, "", 0,0);
+
+	strcpy(s, " PAL mode: ");
+	if(tos_system_ctrl & TOS_CONTROL_PAL50HZ) strcat(s, "50Hz");
+	else                                      strcat(s, "56Hz");
+        OsdWrite(1, s, menusub == 0,0);
+
+        OsdWrite(2, "", 0,0);
+
+	strcpy(s, " Screen: ");
+	if(tos_system_ctrl & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
+	else                                          strcat(s, "Mono");
+        OsdWrite(3, s, menusub == 1,0);
+	
+        OsdWrite(4, "", 0,0);
+        OsdWrite(5, "", 0,0);
+        OsdWrite(6, "", 0,0);
+        OsdWrite(7, STD_EXIT, menusub == 2,0);
+
+	parentstate = menustate;
+        menustate = MENU_MIST_VIDEO2;
+	break;
+
+    case MENU_MIST_VIDEO2 :
+      if (menu) {
+	menustate = MENU_MIST_MAIN1;
+	menusub = 4;
+      }
+      if(select) {
+	switch(menusub) {
+	case 0:
+	  tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_PAL50HZ);
+	  menustate = MENU_MIST_VIDEO1;
+	  break;
+
+	case 1:
+	  tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_VIDEO_COLOR);
+	  menustate = MENU_MIST_VIDEO1;
+	  break;
+
+	case 2:
+	  menustate = MENU_MIST_MAIN1;
+	  menusub = 4;
+	}
+      }
+      break;
+
         /******************************************************************/
         /* minimig main menu                                              */
         /******************************************************************/
@@ -1841,30 +2063,36 @@ void HandleUI(void)
         break;
 
     case MENU_FIRMWARE2 :
-        if (menu)
-        {
-            menusub = 1;
-            menustate = MENU_MISC1;
-        }
-       else if (select)
-        {
-            if (menusub == 0)
-            {
-                if (CheckFirmware(&file, "FIRMWAREUPG"))
-                    menustate = MENU_FIRMWARE_UPDATE1;
-                else
-                    menustate = MENU_FIRMWARE_UPDATE_ERROR1;
-                menusub = 1;
-                OsdClear();
-            }
-            else if (menusub == 1)
-            {
-                menustate = MENU_MISC1;
-                menusub = 1;
-            }
-        }
-        break;
-
+      if (menu) {
+	if(user_io_core_type() == CORE_TYPE_MINIMIG) {
+	  menusub = 1;
+	  menustate = MENU_MISC1;
+	} else {
+	  menusub = 5;
+	  menustate = MENU_MIST_MAIN1;
+	}
+      }
+      else if (select) {
+	if (menusub == 0) {
+	  if (CheckFirmware(&file, "FIRMWAREUPG"))
+	    menustate = MENU_FIRMWARE_UPDATE1;
+	  else
+	    menustate = MENU_FIRMWARE_UPDATE_ERROR1;
+	  menusub = 1;
+	  OsdClear();
+	}
+	else if (menusub == 1) {
+	  if(user_io_core_type() == CORE_TYPE_MINIMIG) {
+	    menusub = 1;
+	    menustate = MENU_MISC1;
+	  } else {
+	    menusub = 5;
+	    menustate = MENU_MIST_MAIN1;
+	  }
+	}
+      }
+      break;
+	
         /******************************************************************/
         /* firmware update message menu */
         /******************************************************************/

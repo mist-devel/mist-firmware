@@ -157,6 +157,11 @@ char *GetFirmwareVersion(fileTYPE *file, char *name) {
   return v;
 }
 
+// enable some nasty hacks to prevent gcc calling memset/memcpy during flash as these
+// are library functions placed in flash and thus must not be called while flash is being
+// overwritten
+#define GCC_OPTIMZES_TOO_MUCH
+
 #pragma section_code_init
 RAMFUNC __noinline unsigned long WriteFirmware(fileTYPE *file)
 {
@@ -190,33 +195,69 @@ RAMFUNC __noinline unsigned long WriteFirmware(fileTYPE *file)
         else
             read_size = size;
 
-        FileNextSector(file);
+        FileNextSector(file); 
         FileRead(file, sector_buffer);
 
+#ifndef GCC_OPTIMZES_TOO_MUCH  // the latest gcc 4.8.0 calls memset for this
+	// it doesn't hurt to not do this at all
+
         // fill the rest of buffer
-        for (i = read_size; i < 512; i++)
-            sector_buffer[i] = 0xFF;
+	for (i = read_size; i < 512; i++)
+	  sector_buffer[i] = 0xFF;
+#endif
 
         // programming time: 13.2 ms per disk sector (512B)
         pSrc = (unsigned long*)sector_buffer;
         k = 2;
         while (k--)
         {
-                i = 256 / 4;
-                while (i--)
-                      *pDst++ = *pSrc++;
+ 		DISKLED_ON;
 
-                DISKLED_ON;
+#ifndef GCC_OPTIMZES_TOO_MUCH  // the latest gcc 4.8.0 calls memcpy for this
+		i = 256 / 4;
+		while (i--)
+		  *pDst++ = *pSrc++;
+#else
+		i = 256 / 8;
+		while (i--) {
+		  *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++;
+		}
+
+#if 0
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
+#endif
+#endif
+
+		DISKLED_OFF;
+
                 while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
                 *AT91C_MC_FCR = 0x5A << 24 | page << 8 | AT91C_MC_FCMD_START_PROG; // key: 0x5A
                 while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
-                DISKLED_OFF;
-
                 page++;
         }
 
         size -= read_size;
     }
+
     *AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
     return 0;
 }

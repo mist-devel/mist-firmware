@@ -206,7 +206,7 @@ int main(void)
     if(user_io_core_type() == CORE_TYPE_MIST) {
       puts("Running mist setup");
 
-      tos_upload();
+      tos_upload(NULL);
 
       // end of mist setup
     }
