@@ -2156,7 +2156,7 @@ void HandleUI(void)
 
     case MENU_FIRMWARE_UPDATING2 :
 
-        WriteFirmware(&file);
+        WriteFirmware(&file, "FIRMWAREUPG");
         Error = ERROR_UPDATE_FAILED;
         menustate = MENU_FIRMWARE_UPDATE_ERROR1;
         menusub = 0;

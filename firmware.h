@@ -20,5 +20,5 @@ typedef struct
 
 unsigned long CalculateCRC32(unsigned long crc, unsigned char *pBuffer, unsigned long nSize);
 unsigned char CheckFirmware(fileTYPE *file, char *name);
-unsigned long WriteFirmware(fileTYPE *file) RAMFUNC;
+void WriteFirmware(fileTYPE *file, char *name) RAMFUNC;
 char *GetFirmwareVersion(fileTYPE *file, char *name);

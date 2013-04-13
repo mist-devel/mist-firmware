@@ -128,8 +128,13 @@ void USART_Init(unsigned long baudrate)
 
 RAMFUNC void USART_Write(unsigned char c)
 {
-    while (!(AT91C_BASE_US0->US_CSR & AT91C_US_TXEMPTY));
+    while (!(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY));
     AT91C_BASE_US0->US_THR = c;
+}
+
+unsigned char USART_Read(void) {
+    while (!(AT91C_BASE_US0->US_CSR & AT91C_US_RXRDY));
+    return AT91C_BASE_US0->US_RHR;
 }
 
 #ifndef __GNUC__

@@ -88,6 +88,7 @@
 
 void USART_Init(unsigned long baudrate);
 void USART_Write(unsigned char c) RAMFUNC;
+unsigned char USART_Read(void);
 
 static inline unsigned char SPI(unsigned char outByte) {
   while (!(*AT91C_SPI_SR & AT91C_SPI_TDRE));

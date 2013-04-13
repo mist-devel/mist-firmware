@@ -163,7 +163,7 @@ char *GetFirmwareVersion(fileTYPE *file, char *name) {
 #define GCC_OPTIMZES_TOO_MUCH
 
 #pragma section_code_init
-RAMFUNC __noinline unsigned long WriteFirmware(fileTYPE *file)
+RAMFUNC __noinline unsigned long WriteFirmware(fileTYPE *file, char *name)
 {
     unsigned long read_size;
     unsigned long i;
@@ -172,6 +172,17 @@ RAMFUNC __noinline unsigned long WriteFirmware(fileTYPE *file)
     unsigned long *pSrc;
     unsigned long *pDst;
     unsigned long size;
+
+    // All interrupts have to be disabled.
+    asm volatile ("mrs r12, CPSR; orr r12, r12, #0xC0; msr CPSR_c, r12"
+        : /* No outputs */
+        : /* No inputs */
+        : "r12", "cc");
+
+    // Since the file may have changed in the meantime, it needs to be
+    // opened again...
+    if (!FileOpen(file, name)) 
+        return;
 
     size = file->size - sizeof(UPGRADE);
     page = 0;
@@ -191,10 +202,12 @@ RAMFUNC __noinline unsigned long WriteFirmware(fileTYPE *file)
     while (size)
     {
         if (size > 512)
-           read_size = 512;
+	    read_size = 512;
         else
-            read_size = size;
+	    read_size = size;
 
+        // On _any_ error the upgrade will fail :-(
+        // then the firmware needs to be upgraded by another way!
         FileNextSector(file); 
         FileRead(file, sector_buffer);
 
@@ -259,7 +272,7 @@ RAMFUNC __noinline unsigned long WriteFirmware(fileTYPE *file)
     }
 
     *AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
-    return 0;
+    for(;;);
 }
 #pragma section_no_code_init
 
