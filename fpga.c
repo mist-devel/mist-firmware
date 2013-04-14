@@ -33,6 +33,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "fat.h"
 #include "fdd.h"
 #include "rafile.h"
+#include "user_io.h"
+#include "config.h"
 
 #include "fpga.h"
 
@@ -40,6 +42,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 extern fileTYPE file;
 extern char s[40];
+extern adfTYPE df[4];
 
 char BootPrint(const char *text);
 
@@ -225,7 +228,7 @@ static inline void ShiftFpga(unsigned char data)
 }
 
 // Altera FPGA configuration
-RAMFUNC unsigned char ConfigureFpga(void)
+RAMFUNC unsigned char ConfigureFpga(char *name)
 {
     unsigned long i;
     unsigned char *ptr;
@@ -235,8 +238,11 @@ RAMFUNC unsigned char ConfigureFpga(void)
     // enable outputs
     *AT91C_PIOA_OER = ALTERA_DCLK | ALTERA_DATA0 | ALTERA_NCONFIG;
 
+    if(!name)
+      name = "CORE    RBF";
+
     // open bitstream file
-    if (FileOpen(&file, "CORE    RBF") == 0)
+    if (FileOpen(&file, name) == 0)
     {
         printf("No FPGA configuration file found!\r");
         FatalError(4);
@@ -772,4 +778,64 @@ unsigned char GetFPGAStatus(void)
     DisableFpga();
 
     return status;
+}
+
+void fpga_init(char *name) {
+  unsigned long time = GetTimer(0);
+
+#ifdef MIST
+  if(!user_io_dip_switch1() || name)
+#endif
+    {
+      if (ConfigureFpga(name)) {
+        time = GetTimer(0) - time;
+        iprintf("FPGA configured in %lu ms\r", time >> 20);
+      } else {
+        iprintf("FPGA configuration failed\r");
+        FatalError(3);
+      }
+      
+      WaitTimer(100); // let's wait some time till reset is inactive so we can get a valid keycode
+    }
+  
+  user_io_detect_core_type();
+  if(user_io_core_type() == CORE_TYPE_MINIMIG) {
+    puts("Running minimig setup");
+    
+    draw_boot_logo();
+    BootPrintEx("**** MINIMIG for MiST ****");
+    BootPrintEx("Minimig by Dennis van Weeren");
+    BootPrintEx("Updates by Jakub Bednarski, Tobias Gubener, Sascha Boing, A.M. Robinson");
+    BootPrintEx("DE1 port by Rok Krajnc (rok.krajnc@gmail.com)");
+    BootPrintEx("MiST port by Till Harbaum (till@harbaum.org)");
+    BootPrintEx(" ");
+    BootPrintEx("For support, see http://www.minimig.net");
+    BootPrint(" ");
+    
+    ChangeDirectory(DIRECTORY_ROOT);
+    
+    //eject all disk
+    df[0].status = 0;
+    df[1].status = 0;
+    df[2].status = 0;
+    df[3].status = 0;
+    
+    BootPrint(" ");
+    BootPrintEx("Booting ...");
+    printf("Booting ...\r");
+    
+    WaitTimer(6000);
+    config.kickstart.name[0]=0;
+    SetConfigurationFilename(0); // Use default config
+    LoadConfiguration(0);  // Use slot-based config filename
+    
+  } // end of minimig setup
+  
+  if(user_io_core_type() == CORE_TYPE_MIST) {
+    puts("Running mist setup");
+    
+    tos_upload(NULL);
+    
+    // end of mist setup
+  }
 }

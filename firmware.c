@@ -163,7 +163,7 @@ char *GetFirmwareVersion(fileTYPE *file, char *name) {
 #define GCC_OPTIMZES_TOO_MUCH
 
 #pragma section_code_init
-RAMFUNC __noinline unsigned long WriteFirmware(fileTYPE *file, char *name)
+RAMFUNC __noinline void WriteFirmware(fileTYPE *file, char *name)
 {
     unsigned long read_size;
     unsigned long i;

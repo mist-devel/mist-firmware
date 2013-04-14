@@ -50,7 +50,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "hdd.h"
 #include "firmware.h"
 #include "menu.h"
-#include "config.h"
 #include "user_io.h"
 #include "boot_logo.h"
 #include "tos.h"
@@ -66,7 +65,6 @@ const char version[] = {"$VER:ATH" VDATE};
 extern hdfTYPE hdf[2];
 
 unsigned char Error;
-extern adfTYPE df[4];
 char s[40];
 
 void FatalError(unsigned long error)
@@ -113,7 +111,6 @@ int main(void)
 {
     unsigned char rc;
     unsigned char key;
-    unsigned long time;
     unsigned short spiclk;
 
 #ifdef __GNUC__
@@ -151,68 +148,10 @@ int main(void)
 
     ChangeDirectory(DIRECTORY_ROOT);
 
-    time = GetTimer(0);
-    
     user_io_init();
 
-#ifdef MIST
-    if(!user_io_dip_switch1())
-#endif
-    {
-      if (ConfigureFpga()) {
-        time = GetTimer(0) - time;
-        printf("FPGA configured in %lu ms\r", time >> 20);
-      } else {
-        printf("FPGA configuration failed\r");
-        FatalError(3);
-      }
+    fpga_init(NULL);
 
-      WaitTimer(100); // let's wait some time till reset is inactive so we can get a valid keycode
-    }
-
-    user_io_detect_core_type();
-    if(user_io_core_type() == CORE_TYPE_MINIMIG) {
-      puts("Running minimig setup");
-
-      draw_boot_logo();
-      BootPrintEx("**** MINIMIG for MiST ****");
-      BootPrintEx("Minimig by Dennis van Weeren");
-      BootPrintEx("Updates by Jakub Bednarski, Tobias Gubener, Sascha Boing, A.M. Robinson");
-      BootPrintEx("DE1 port by Rok Krajnc (rok.krajnc@gmail.com)");
-      BootPrintEx("MiST port by Till Harbaum (till@harbaum.org)");
-      BootPrintEx(" ");
-      BootPrintEx("For support, see http://www.minimig.net");
-      BootPrint(" ");
-      
-      ChangeDirectory(DIRECTORY_ROOT);
-      
-      //eject all disk
-      df[0].status = 0;
-      df[1].status = 0;
-      df[2].status = 0;
-      df[3].status = 0;
-      
-      BootPrint(" ");
-      BootPrintEx("Booting ...");
-      printf("Booting ...\r");
-      
-      WaitTimer(6000);
-      config.kickstart.name[0]=0;
-      SetConfigurationFilename(0); // Use default config
-      LoadConfiguration(0);  // Use slot-based config filename
-
-    } // end of minimig setup
-
-    if(user_io_core_type() == CORE_TYPE_MIST) {
-      puts("Running mist setup");
-
-      tos_upload(NULL);
-
-      // end of mist setup
-    }
-
-    int cnt = 0;
-    
     while (1) {
       user_io_poll();
 

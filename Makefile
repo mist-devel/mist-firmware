@@ -11,11 +11,13 @@ PRJ = firmware
 SRC = Cstartup_SAM7.c  fat.c  fdd.c  firmware.c  fpga.c  hardware.c  hdd.c  main.c  menu.c  mmc.c  osd.c syscalls.c user_io.c boot_print.c boot_logo.c rafile.c config.c tos.c ikbd.c
 SRC += usb/max3421e.c usb/usb.c usb/hub.c usb/hid.c usb/timer.c
 OBJ = $(SRC:.c=.o)
+DEP = $(SRC:.c=.d)
 
 LINKMAP  = AT91SAM7S256-ROM.ld
 LIBDIR   = 
 
 # Commandline options for each tool.
+DFLAGS  = -I. -Iusb -DMIST
 CFLAGS  = -I. -Iusb -c -fno-common -O3 -DMIST -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
 AFLAGS  = -ahls -mapcs-32
 LFLAGS  = -nostartfiles -Wl,-Map,$(PRJ).map -T$(LINKMAP) $(LIBDIR)
@@ -30,7 +32,7 @@ LIBS       =
 all: $(PRJ).hex $(PRJ).upg
 
 clean:
-	rm -f *.o *.hex *.elf *.map *.lst core *~ */*.o $(MKUPG) *.bin *.upg
+	rm -f *.d *.o *.hex *.elf *.map *.lst core *~ */*.d */*.o $(MKUPG) *.bin *.upg
 
 reset:
 	openocd -f interface/olimex-arm-usb-tiny-h.cfg -f target/at91sam7sx.cfg --command "adapter_khz 10000; init; reset init; resume; shutdown"
@@ -71,6 +73,14 @@ crt.o: Cstartup.S
 
 %.o: %.c
 	$(CC) $(CFLAGS)  -o $@ -c $<
+
+# Automatic dependencies
+-include $(DEP)
+%.d: %.c
+	$(CC) $(DFLAGS) -MM $< -MT $@ -MT $*.o -MF $@
+
+# Ensure correct time stamp
+main.o: $(filter-out main.o, $(OBJ))
 
 sections: $(PRJ).elf
 	$(DUMP) --section-headers $<

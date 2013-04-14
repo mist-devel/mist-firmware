@@ -310,7 +310,7 @@ void HandleUI(void)
         OsdWrite(3, " Storage                   \x16", menusub == 2,0);
         OsdWrite(4, " System                    \x16", menusub == 3,0);
         OsdWrite(5, " Video                     \x16", menusub == 4,0);
-        OsdWrite(6, " Firmware                  \x16", menusub == 5,0);
+        OsdWrite(6, " Firmware & Core           \x16", menusub == 5,0);
 
         OsdWrite(7, STD_EXIT, menusub == 6,0);
 
@@ -354,7 +354,7 @@ void HandleUI(void)
 
 	  case 5:  // Firmware submenu
 	    menustate = MENU_FIRMWARE1;
-	    menusub = 0;
+	    menusub = 1;
 	    break;
 
 	  case 6:  // Exit
@@ -793,7 +793,7 @@ void HandleUI(void)
       OsdWrite(0, "", 0,0);
       OsdWrite(1, "       Reset", menusub == 0,0);
       OsdWrite(2, "", 0,0);
-      OsdWrite(3, "       Firmware \x16", menusub == 1,0);
+      OsdWrite(3, "       Firmware & Core \x16", menusub == 1,0);
       OsdWrite(4, "", 0,0);
       OsdWrite(5, "       About", menusub == 2,0);
       OsdWrite(6, "", 0,0);
@@ -817,7 +817,7 @@ void HandleUI(void)
 			}
             if (menusub == 1)	// Firware
             {
-				menusub=0;
+				menusub=1;
 				menustate=MENU_FIRMWARE1;
 			}
             if (menusub == 2)	// About
@@ -2040,24 +2040,26 @@ void HandleUI(void)
     case MENU_FIRMWARE1 :
         helptext=helptexts[HELPTEXT_NONE];
         parentstate=menustate;
-	menumask=0x03;
+	menumask=0x07;
 
-        OsdSetTitle("Firmware",0);
+        OsdSetTitle("FW & Core",0);
         OsdWrite(0, "", 0, 0);
 	sprintf(s, "   ARM  s/w ver. %s", version + 5);
 	OsdWrite(1, s, 0, 0);
-	OsdWrite(2, "", 0, 0);
 	char *v = GetFirmwareVersion(&file, "FIRMWAREUPG");
 	if(v) {
 	  sprintf(s, "   FILE s/w ver. %s", v);
-	  OsdWrite(3, s, 0, 0);
+	  OsdWrite(2, s, 0, 0);
 	} else
-	  OsdWrite(3, "", 0, 0);
+	  OsdWrite(2, "", 0, 0);
+	OsdWrite(3, "           Update", menusub == 0, 0);
 
 	OsdWrite(4, "", 0, 0);
-	OsdWrite(5, "           Update", menusub == 0, 0);
+
+	OsdWrite(5, "      Change FPGA core", menusub == 1, 0);
 	OsdWrite(6, "", 0, 0);
-        OsdWrite(7, STD_EXIT, menusub == 1,0);
+
+        OsdWrite(7, STD_EXIT, menusub == 2,0);
 	
         menustate = MENU_FIRMWARE2;
         break;
@@ -2082,6 +2084,9 @@ void HandleUI(void)
 	  OsdClear();
 	}
 	else if (menusub == 1) {
+	  SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1);
+	}
+	else if (menusub == 2) {
 	  if(user_io_core_type() == CORE_TYPE_MINIMIG) {
 	    menusub = 1;
 	    menustate = MENU_MISC1;
@@ -2093,6 +2098,12 @@ void HandleUI(void)
       }
       break;
 	
+    case MENU_FIRMWARE_CORE_FILE_SELECTED :
+      fpga_init(file.name);
+      menustate = MENU_NONE1;
+      break;
+
+
         /******************************************************************/
         /* firmware update message menu */
         /******************************************************************/
@@ -2128,7 +2139,7 @@ void HandleUI(void)
             else if (menusub == 1)
             {
                 menustate = MENU_FIRMWARE1;
-                menusub = 1;
+                menusub = 2;
             }
         }
         break;
@@ -2199,7 +2210,7 @@ void HandleUI(void)
         if (select)
         {
             menustate = MENU_FIRMWARE1;
-            menusub = 1;
+            menusub = 2;
         }
         break;
 
