@@ -215,6 +215,7 @@ void Timer_Init(void)
     *AT91C_PITC_PIMR = AT91C_PITC_PITEN | ((MCLK / 16 / 1000 - 1) & AT91C_PITC_PIV); // counting period 1ms
 }
 
+// 12 bits accuracy at 1ms = 4096 ms 
 unsigned long GetTimer(unsigned long offset)
 {
     unsigned long systimer = (*AT91C_PITC_PIIR & AT91C_PITC_PICNT);

@@ -34,20 +34,20 @@ all: $(PRJ).hex $(PRJ).upg
 clean:
 	rm -f *.d *.o *.hex *.elf *.map *.lst core *~ */*.d */*.o $(MKUPG) *.bin *.upg
 
-reset:
-	openocd -f interface/olimex-arm-usb-tiny-h.cfg -f target/at91sam7sx.cfg --command "adapter_khz 10000; init; reset init; resume; shutdown"
+INTERFACE=olimex-arm-usb-tiny-h
+ADAPTER_KHZ=10000
 
-unprotect:
-	openocd -f interface/olimex-arm-usb-tiny-h.cfg -f target/at91sam7sx.cfg --command "adapter_khz 10000; init; reset init; flash protect 0 0 7 off; resume; shutdown"
+#INTERFACE=busblaster
+#ADAPTER_KHZ=100
+
+reset:
+	openocd -f interface/$(INTERFACE).cfg -f target/at91sam7sx.cfg --command "adapter_khz $(ADAPTER_KHZ); init; reset init; resume; shutdown"
 
 $(MKUPG): $(MKUPG).c
 	gcc  -o $@ $<
 
 flash: $(PRJ).bin
-	openocd -f interface/olimex-arm-usb-tiny-h.cfg -f target/at91sam7sx.cfg --command "adapter_khz 10000; init; reset init;  flash protect 0 0 7 off; sleep 1; arm7_9 fast_memory_access enable; flash write_bank 0 $(PRJ).bin 0x0; resume; shutdown"
-
-flash_ul: $(PRJ).bin
-	openocd -f interface/ulink.cfg -f target/at91sam7sx.cfg --command "adapter_khz 10000; init; reset init;  flash protect 0 0 7 off; sleep 1; arm7_9 fast_memory_access enable; flash write_bank 0 $(PRJ).bin 0x0; resume; shutdown"
+	openocd -f interface/$(INTERFACE).cfg -f target/at91sam7sx.cfg --command "adapter_khz $(ADAPTER_KHZ); init; reset init;  flash protect 0 0 7 off; sleep 1; arm7_9 fast_memory_access enable; flash write_bank 0 $(PRJ).bin 0x0; resume; shutdown"
 
 flash_sam: $(PRJ).hex
 	Sam_I_Am -x flash_sam_i_am
@@ -87,8 +87,4 @@ sections: $(PRJ).elf
 
 release:
 	make $(PRJ).hex $(PRJ).bin $(PRJ).upg
-	rm ../../www/firmware.zip
-	zip ../../www/firmware.zip $(PRJ).hex $(PRJ).bin $(PRJ).upg logo.raw
-	cp ../../www/files.html files.tmp
-	sed -e "s|Firmware updated on [0-9/]*.|Firmware updated on $(TODAY).|g" files.tmp > ../../www/files.html
-	rm files.tmp
+	cp $(PRJ).hex $(PRJ).bin $(PRJ).upg ../bin/firmware

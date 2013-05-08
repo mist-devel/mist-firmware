@@ -96,10 +96,12 @@ static void mist_memory_read(char *data, unsigned long words) {
   EnableFpga();
   SPI(MIST_READ_MEMORY);
 
+  while (!(*AT91C_SPI_SR & AT91C_SPI_TDRE));
+
   // transmitted bytes must be multiple of 2 (-> words)
   while(words--) {
-    *data++ = SPI(0);
-    *data++ = SPI(0);
+    *data++ = SPI_READ();
+    *data++ = SPI_READ();
   }
 
   DisableFpga();
@@ -110,8 +112,8 @@ static void mist_memory_write(char *data, unsigned long words) {
   SPI(MIST_WRITE_MEMORY);
 
   while(words--) {
-    SPI(*data++);
-    SPI(*data++);
+    SPI_WRITE(*data++);
+    SPI_WRITE(*data++);
   }
 
   DisableFpga();
@@ -122,9 +124,9 @@ void mist_memory_set(char data, unsigned long words) {
   SPI(MIST_WRITE_MEMORY);
 
   while(words--) {
-    SPI(data);
-    SPI(data);
-  }
+    SPI_WRITE(data);
+    SPI_WRITE(data);
+ }
 
   DisableFpga();
 }
@@ -428,7 +430,7 @@ char tos_cartridge_is_inserted() {
 }
 
 void tos_upload(char *name) {
-
+  
   if(name)
     strncpy(tos_img, name, 11);
 
@@ -483,7 +485,7 @@ void tos_upload(char *name) {
     mist_memory_set(0x00, file.size/2);
     iprintf("done\n");
 #endif
-	
+
     time = GetTimer(0);
     iprintf("Uploading: [");
     
@@ -511,7 +513,8 @@ void tos_upload(char *name) {
     iprintf("]\n");
     
     time = GetTimer(0) - time;
-    iprintf("TOS.IMG uploaded in %lu ms\r", time >> 20);
+    iprintf("TOS.IMG uploaded in %lu ms (%d kB/s)\r", 
+	    time >> 20, file.size/(time >> 20));
     
   } else
     iprintf("Unable to find tos.img\n");

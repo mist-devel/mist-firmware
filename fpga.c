@@ -783,22 +783,20 @@ unsigned char GetFPGAStatus(void)
 void fpga_init(char *name) {
   unsigned long time = GetTimer(0);
 
-#ifdef MIST
-  if(!user_io_dip_switch1() || name)
-#endif
-    {
-      if (ConfigureFpga(name)) {
-        time = GetTimer(0) - time;
-        iprintf("FPGA configured in %lu ms\r", time >> 20);
-      } else {
-        iprintf("FPGA configuration failed\r");
-        FatalError(3);
-      }
-      
-      WaitTimer(100); // let's wait some time till reset is inactive so we can get a valid keycode
+  if(!user_io_dip_switch1() || name) {
+    if (ConfigureFpga(name)) {
+      time = GetTimer(0) - time;
+      iprintf("FPGA configured in %lu ms\r", time >> 20);
+    } else {
+      iprintf("FPGA configuration failed\r");
+      FatalError(3);
     }
+    
+    WaitTimer(100); // let's wait some time till reset is inactive so we can get a valid keycode
+  }
   
   user_io_detect_core_type();
+
   if(user_io_core_type() == CORE_TYPE_MINIMIG) {
     puts("Running minimig setup");
     

@@ -97,6 +97,17 @@ static inline unsigned char SPI(unsigned char outByte) {
   return((unsigned char)*AT91C_SPI_RDR);
 }
 
+static inline unsigned char SPI_READ() {
+  *AT91C_SPI_TDR = 0;
+  while (!(*AT91C_SPI_SR & AT91C_SPI_RDRF));
+  return((unsigned char)*AT91C_SPI_RDR);
+}
+
+static inline void SPI_WRITE(unsigned char outByte) {
+  while (!(*AT91C_SPI_SR & AT91C_SPI_TDRE));
+  *AT91C_SPI_TDR = outByte;
+}
+
 #define SPI_SDC_CLK_VALUE 2     // 24 Mhz
 #define SPI_MMC_CLK_VALUE 3     // 16 Mhz
 #define SPI_SLOW_CLK_VALUE 120  // 400kHz
