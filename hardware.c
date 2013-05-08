@@ -105,6 +105,11 @@ void __init_hardware(void)
     AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_PIOA;
 }
 
+volatile int cnt = 0;
+void __attribute__((naked)) Usart0IrqHandler (void) {
+  //  cnt++;
+}
+
 void USART_Init(unsigned long baudrate)
 {
     // Configure PA5 and PA6 for USART0 use
@@ -124,6 +129,30 @@ void USART_Init(unsigned long baudrate)
 
     // Enable receiver & transmitter
     AT91C_BASE_US0->US_CR = AT91C_US_RXEN | AT91C_US_TXEN;
+
+#if 0
+    // configure tx irqs
+    // TODO: reset tx/rw pointers
+
+    // http://www.procyonengineering.com/embedded/arm/armlib/docs/html/uartdma_8c-source.html
+    // http://www.mikrocontroller.net/articles/DMA
+    // http://svn.code.sf.net/p/lejos/code/tags/lejos_nxj_0.9.0/nxtvm/platform/nxt/hs.c
+
+    // setup DMA controller for transmit
+    //    AT91C_BASE_US0->US_TNPR = 0;
+
+    puts("Vorher");
+
+    // Set the USART0 IRQ handler address in AIC Source
+    AT91C_BASE_AIC->AIC_SVR[AT91C_ID_US0] = (unsigned int)Usart0IrqHandler; 
+    AT91C_BASE_AIC->AIC_IECR = (1<<AT91C_ID_US0);
+    AT91C_BASE_US0->US_IER = AT91C_US_ENDTX;
+    AT91C_BASE_US0->US_IDR = ~AT91C_US_ENDTX;
+
+    puts("Hallo3!");
+
+    for(;;);
+#endif
 }
 
 RAMFUNC void USART_Write(unsigned char c)

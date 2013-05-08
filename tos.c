@@ -96,12 +96,12 @@ static void mist_memory_read(char *data, unsigned long words) {
   EnableFpga();
   SPI(MIST_READ_MEMORY);
 
-  while (!(*AT91C_SPI_SR & AT91C_SPI_TDRE));
+  //   while (!(*AT91C_SPI_SR & AT91C_SPI_TDRE));
 
   // transmitted bytes must be multiple of 2 (-> words)
   while(words--) {
-    *data++ = SPI_READ();
-    *data++ = SPI_READ();
+    *data++ = SPI(0);
+    *data++ = SPI(0);
   }
 
   DisableFpga();
@@ -513,8 +513,8 @@ void tos_upload(char *name) {
     iprintf("]\n");
     
     time = GetTimer(0) - time;
-    iprintf("TOS.IMG uploaded in %lu ms (%d kB/s)\r", 
-	    time >> 20, file.size/(time >> 20));
+    iprintf("TOS.IMG uploaded in %lu ms (%d kB/s / %d kBit/s)\r", 
+	    time >> 20, file.size/(time >> 20), 8*file.size/(time >> 20));
     
   } else
     iprintf("Unable to find tos.img\n");
@@ -567,27 +567,31 @@ void tos_upload(char *name) {
 #endif
   DISKLED_OFF;
 
-  // load
-  tos_load_cartridge(NULL);
+  // This is the initial boot if no name was given. Otherwise the
+  // user reloaded a new os
+  if(!name) {
+    // load
+    tos_load_cartridge(NULL);
 
-  // try to open both floppies
-  int i;
-  for(i=0;i<2;i++) {
-    char msg[] = "Found floppy disk image for drive X: ";
-    char name[] = "DISK_A  ST ";
-    msg[34] = name[5] = 'A'+i;
-
-    fileTYPE file;
-    if(FileOpen(&file, name)) {
-      tos_write(msg);
-      tos_insert_disk(i, &file);
+    // try to open both floppies
+    int i;
+    for(i=0;i<2;i++) {
+      char msg[] = "Found floppy disk image for drive X: ";
+      char name[] = "DISK_A  ST ";
+      msg[34] = name[5] = 'A'+i;
+      
+      fileTYPE file;
+      if(FileOpen(&file, name)) {
+	tos_write(msg);
+	tos_insert_disk(i, &file);
+      }
     }
-  }
-
-  // try to open harddisk image
-  if(FileOpen(&file, "HARDDISKHD ")) {
-    tos_write("Found hard disk image ");
-    tos_select_hdd_image(&file);
+    
+    // try to open harddisk image
+    if(FileOpen(&file, "HARDDISKHD ")) {
+      tos_write("Found hard disk image ");
+      tos_select_hdd_image(&file);
+    }
   }
 
   tos_write("Booting ... ");

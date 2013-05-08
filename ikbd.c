@@ -15,6 +15,8 @@
   Joysticks also generate      Goldrunner                   X     X
   mouse button events!
   Pause (cmd 0x13)             Wings of Death/A_427
+  pause/resume                 Gembench
+  mouse keycode mode           
  */
 
 #include <stdio.h>
@@ -48,6 +50,8 @@ static struct {
   unsigned char joystick[2];
 
   // mouse state
+  unsigned short mouse_abs_max_x, mouse_abs_max_y;
+  unsigned char  mouse_abs_scale_x, mouse_abs_scale_y;
   unsigned short mouse_pos_x, mouse_pos_y;
   unsigned char mouse_buttons;
 } ikbd;
@@ -58,6 +62,9 @@ void ikbd_init() {
   // reset ikbd state
   memset(&ikbd, 0, sizeof(ikbd));
   ikbd.state = IKBD_DEFAULT;
+
+  ikbd.mouse_abs_max_x = ikbd.mouse_abs_max_y = 65535;
+  ikbd.mouse_abs_scale_x = ikbd.mouse_abs_scale_y = 1;
 }
 
 static void enqueue(unsigned short b) {
@@ -101,6 +108,34 @@ void ikbd_handle_input(unsigned char cmd) {
 
 	break;
 
+      case 0x09:
+	if(ikbd.expect == 3) ikbd.mouse_abs_max_x = cmd;
+	if(ikbd.expect == 2) ikbd.mouse_abs_max_x = (ikbd.mouse_abs_max_x & 0xff00) | cmd;
+	if(ikbd.expect == 1) ikbd.mouse_abs_max_y = cmd;
+	if(ikbd.expect == 0) ikbd.mouse_abs_max_y = (ikbd.mouse_abs_max_y & 0xff00) | cmd;
+
+	if(!ikbd.expect) 
+	  iprintf("IKBD: new abs max = %u/%u\n", ikbd.mouse_abs_max_x, ikbd.mouse_abs_max_y);
+	break;
+
+      case 0x0e:
+	if(ikbd.expect == 3) ikbd.mouse_pos_x = cmd;
+	if(ikbd.expect == 2) ikbd.mouse_pos_x = (ikbd.mouse_pos_x & 0xff00) | cmd;
+	if(ikbd.expect == 1) ikbd.mouse_pos_y = cmd;
+	if(ikbd.expect == 0) ikbd.mouse_pos_y = (ikbd.mouse_pos_y & 0xff00) | cmd;
+
+	if(!ikbd.expect) 
+	  iprintf("IKBD: new abs pos = %u/%u\n", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
+	break;
+
+      case 0x0c:
+	if(ikbd.expect == 1) ikbd.mouse_abs_scale_x = cmd;
+	if(ikbd.expect == 0) ikbd.mouse_abs_scale_y = cmd;
+
+	if(!ikbd.expect) 
+	  iprintf("IKBD: absolute scale = %u/%u\n", ikbd.mouse_abs_scale_x, ikbd.mouse_abs_scale_y);
+	break;
+
       case 0x80: // ibkd reset
 	// reply "everything is ok"
 	enqueue(0x8000 + 200);   // wait 200ms
@@ -139,6 +174,28 @@ void ikbd_handle_input(unsigned char cmd) {
   case 0x0b:
     puts("IKBD: Set Mouse threshold");
     ikbd.expect = 2;
+    break;
+
+  case 0x0c:
+    puts("IKBD: Set Mouse scale");
+    ikbd.expect = 2;
+    break;
+
+  case 0x0d:
+    puts("IKBD: Interrogate Mouse Position");
+    if(ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE) {
+      enqueue(0xf7);
+      enqueue(0x00);  // TODO: Buttons
+      enqueue(ikbd.mouse_pos_x >> 8);
+      enqueue(ikbd.mouse_pos_x & 0xff);
+      enqueue(ikbd.mouse_pos_y >> 8);
+      enqueue(ikbd.mouse_pos_y & 0xff);
+    }
+    break;
+
+  case 0x0e:
+    puts("IKBD: Load Mouse Position");
+    ikbd.expect = 5;
     break;
 
   case 0x0f:
@@ -341,6 +398,36 @@ void ikbd_mouse(unsigned char b, char x, char y) {
     y = -y;
 
   if(ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE) {
+    x /= ikbd.mouse_abs_scale_x;
+    y /= ikbd.mouse_abs_scale_y;
+
+    if(x < 0) {
+      x = -x;
+
+      if(ikbd.mouse_pos_x > x) ikbd.mouse_pos_x -= x;
+      else     	               ikbd.mouse_pos_x = 0;
+    }
+
+    if(x > 0) {
+      if(ikbd.mouse_pos_x < ikbd.mouse_abs_max_x - x)
+	ikbd.mouse_pos_x += x;
+      else
+	ikbd.mouse_pos_x = ikbd.mouse_abs_max_x;
+    }
+
+    if(y < 0) {
+      y = -y;
+      if(ikbd.mouse_pos_y >  y) ikbd.mouse_pos_y -= y;
+      else	                ikbd.mouse_pos_y = 0;
+    }
+
+    if(y > 0) {
+      if(ikbd.mouse_pos_y < ikbd.mouse_abs_max_y - y)
+	ikbd.mouse_pos_y += y;
+      else
+	ikbd.mouse_pos_y = ikbd.mouse_abs_max_y;
+    }
+
   } else {
     // atari has mouse button bits swapped
     enqueue(0xf8|((b&1)?2:0)|((b&2)?1:0));
