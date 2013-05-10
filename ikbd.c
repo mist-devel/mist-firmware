@@ -9,7 +9,7 @@
   mouse y at bottom            Bolo                         X     X
   mouse button key events      Goldrunner/A_008             X     X
   joystick interrogation mode  Xevious/A_004                X     X
-  Absolute mouse mode          Backlash/A_008, A-Ball/A50
+  Absolute mouse mode          Addicataball/A_050
   disable mouse                ?                            X
   disable joystick             ?                            X
   Joysticks also generate      Goldrunner                   X     X
@@ -52,8 +52,8 @@ static struct {
   // mouse state
   unsigned short mouse_abs_max_x, mouse_abs_max_y;
   unsigned char  mouse_abs_scale_x, mouse_abs_scale_y;
+  unsigned char  mouse_abs_buttons;
   unsigned short mouse_pos_x, mouse_pos_y;
-  unsigned char mouse_buttons;
 } ikbd;
 
 // #define IKBD_DEBUG
@@ -96,55 +96,52 @@ void ikbd_handle_input(unsigned char cmd) {
   if(ikbd.expect) {
     ikbd.expect--;
 
-    // last byte of command received
-    if(!ikbd.expect) {
-      switch(ikbd.cmd) {
-      case 0x07: // set mouse button action
-	iprintf("IKBD: mouse button action = %x\n", cmd);
+    switch(ikbd.cmd) {
+    case 0x07: // set mouse button action
+      iprintf("IKBD: mouse button action = %x\n", cmd);
+      
+      // bit 2: Mouse buttons act like keys (LEFT=0x74 & RIGHT=0x75)
+      if(cmd & 0x04) ikbd.state |=  IKBD_STATE_MOUSE_BUTTON_AS_KEY;
+      else           ikbd.state &= ~IKBD_STATE_MOUSE_BUTTON_AS_KEY;
+      
+      break;
 
-	// bit 2: Mouse buttons act like keys (LEFT=0x74 & RIGHT=0x75)
-	if(cmd & 0x04) ikbd.state |=  IKBD_STATE_MOUSE_BUTTON_AS_KEY;
-	else           ikbd.state &= ~IKBD_STATE_MOUSE_BUTTON_AS_KEY;
-
-	break;
-
-      case 0x09:
-	if(ikbd.expect == 3) ikbd.mouse_abs_max_x = cmd;
-	if(ikbd.expect == 2) ikbd.mouse_abs_max_x = (ikbd.mouse_abs_max_x & 0xff00) | cmd;
-	if(ikbd.expect == 1) ikbd.mouse_abs_max_y = cmd;
-	if(ikbd.expect == 0) ikbd.mouse_abs_max_y = (ikbd.mouse_abs_max_y & 0xff00) | cmd;
-
-	if(!ikbd.expect) 
-	  iprintf("IKBD: new abs max = %u/%u\n", ikbd.mouse_abs_max_x, ikbd.mouse_abs_max_y);
-	break;
-
-      case 0x0e:
-	if(ikbd.expect == 3) ikbd.mouse_pos_x = cmd;
-	if(ikbd.expect == 2) ikbd.mouse_pos_x = (ikbd.mouse_pos_x & 0xff00) | cmd;
-	if(ikbd.expect == 1) ikbd.mouse_pos_y = cmd;
-	if(ikbd.expect == 0) ikbd.mouse_pos_y = (ikbd.mouse_pos_y & 0xff00) | cmd;
-
-	if(!ikbd.expect) 
-	  iprintf("IKBD: new abs pos = %u/%u\n", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
-	break;
-
-      case 0x0c:
-	if(ikbd.expect == 1) ikbd.mouse_abs_scale_x = cmd;
-	if(ikbd.expect == 0) ikbd.mouse_abs_scale_y = cmd;
-
-	if(!ikbd.expect) 
-	  iprintf("IKBD: absolute scale = %u/%u\n", ikbd.mouse_abs_scale_x, ikbd.mouse_abs_scale_y);
-	break;
-
-      case 0x80: // ibkd reset
-	// reply "everything is ok"
-	enqueue(0x8000 + 200);   // wait 200ms
-	enqueue(0xf0);
-	break;
-
-      default:
-	break;
-      }
+    case 0x09:
+      if(ikbd.expect == 3) ikbd.mouse_abs_max_x = cmd;
+      if(ikbd.expect == 2) ikbd.mouse_abs_max_x = (ikbd.mouse_abs_max_x & 0xff00) | cmd;
+      if(ikbd.expect == 1) ikbd.mouse_abs_max_y = cmd;
+      if(ikbd.expect == 0) ikbd.mouse_abs_max_y = (ikbd.mouse_abs_max_y & 0xff00) | cmd;
+      
+      if(!ikbd.expect) 
+	iprintf("IKBD: new abs max = %u/%u\n", ikbd.mouse_abs_max_x, ikbd.mouse_abs_max_y);
+      break;
+      
+    case 0x0e:
+      if(ikbd.expect == 3) ikbd.mouse_pos_x = cmd;
+      if(ikbd.expect == 2) ikbd.mouse_pos_x = (ikbd.mouse_pos_x & 0xff00) | cmd;
+      if(ikbd.expect == 1) ikbd.mouse_pos_y = cmd;
+      if(ikbd.expect == 0) ikbd.mouse_pos_y = (ikbd.mouse_pos_y & 0xff00) | cmd;
+      
+      if(!ikbd.expect) 
+	iprintf("IKBD: new abs pos = %u/%u\n", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
+      break;
+      
+    case 0x0c:
+      if(ikbd.expect == 1) ikbd.mouse_abs_scale_x = cmd;
+      if(ikbd.expect == 0) ikbd.mouse_abs_scale_y = cmd;
+      
+      if(!ikbd.expect) 
+	iprintf("IKBD: absolute scale = %u/%u\n", ikbd.mouse_abs_scale_x, ikbd.mouse_abs_scale_y);
+      break;
+      
+    case 0x80: // ibkd reset
+      // reply "everything is ok"
+      enqueue(0x8000 + 200);   // wait 200ms
+      enqueue(0xf0);
+      break;
+      
+    default:
+      break;
     }
 
     return;
@@ -169,6 +166,7 @@ void ikbd_handle_input(unsigned char cmd) {
     ikbd.state &= ~IKBD_STATE_MOUSE_DISABLED;
     ikbd.state |=  IKBD_STATE_MOUSE_ABSOLUTE;
     ikbd.expect = 4;
+    ikbd.mouse_abs_buttons = 0;
     break;
 
   case 0x0b:
@@ -182,14 +180,16 @@ void ikbd_handle_input(unsigned char cmd) {
     break;
 
   case 0x0d:
-    puts("IKBD: Interrogate Mouse Position");
+    //    puts("IKBD: Interrogate Mouse Position");
     if(ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE) {
       enqueue(0xf7);
-      enqueue(0x00);  // TODO: Buttons
+      enqueue(ikbd.mouse_abs_buttons);
       enqueue(ikbd.mouse_pos_x >> 8);
       enqueue(ikbd.mouse_pos_x & 0xff);
       enqueue(ikbd.mouse_pos_y >> 8);
       enqueue(ikbd.mouse_pos_y & 0xff);
+
+      ikbd.mouse_abs_buttons = 0;
     }
     break;
 
@@ -370,6 +370,12 @@ void ikbd_mouse(unsigned char b, char x, char y) {
   // atari st
   b |= (ikbd.joystick[0] & JOY_BTN1)?1:0;
   b |= (ikbd.joystick[1] & JOY_BTN1)?2:0;
+
+  // save state for absolute mouse reports
+  if(b & 2) ikbd.mouse_abs_buttons |= 1;
+  else      ikbd.mouse_abs_buttons |= 2;
+  if(b & 1) ikbd.mouse_abs_buttons |= 4;
+  else      ikbd.mouse_abs_buttons |= 8;
   
   static unsigned char b_old = 0;
   // monitor state of two mouse buttons
@@ -401,14 +407,14 @@ void ikbd_mouse(unsigned char b, char x, char y) {
     x /= ikbd.mouse_abs_scale_x;
     y /= ikbd.mouse_abs_scale_y;
 
+    iprintf("abs inc %d %d -> ", x, y);
+
     if(x < 0) {
       x = -x;
 
       if(ikbd.mouse_pos_x > x) ikbd.mouse_pos_x -= x;
       else     	               ikbd.mouse_pos_x = 0;
-    }
-
-    if(x > 0) {
+    } else if(x > 0) {
       if(ikbd.mouse_pos_x < ikbd.mouse_abs_max_x - x)
 	ikbd.mouse_pos_x += x;
       else
@@ -419,14 +425,14 @@ void ikbd_mouse(unsigned char b, char x, char y) {
       y = -y;
       if(ikbd.mouse_pos_y >  y) ikbd.mouse_pos_y -= y;
       else	                ikbd.mouse_pos_y = 0;
-    }
-
-    if(y > 0) {
+    } else if(y > 0) {
       if(ikbd.mouse_pos_y < ikbd.mouse_abs_max_y - y)
 	ikbd.mouse_pos_y += y;
       else
 	ikbd.mouse_pos_y = ikbd.mouse_abs_max_y;
     }
+
+    iprintf("%d %d\n", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
 
   } else {
     // atari has mouse button bits swapped

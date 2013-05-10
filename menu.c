@@ -40,7 +40,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "user_io.h"
 #include "tos.h"
 
-
 // other constants
 #define DIRSIZE 8 // number of items in directory display window
 
@@ -446,7 +445,7 @@ void HandleUI(void)
       break;
 
     case MENU_MIST_SYSTEM1 :
-	menumask=0x7f;
+	menumask=0xff;
 	OsdSetTitle("System", 0);
 
 	strcpy(s, " Memory:    ");
@@ -465,11 +464,14 @@ void HandleUI(void)
 	strcat(s, tos_get_cartridge_name());
         OsdWrite(3, s, menusub == 3, 0);
 
-        OsdWrite(4, " Reset",     menusub == 4, 0);
-        OsdWrite(5, " Cold boot", menusub == 5, 0);
+	strcpy(s, " Turbo:     ");
+	strcat(s, (tos_system_ctrl & TOS_CONTROL_TURBO)?"on":"off");
+        OsdWrite(4, s, menusub == 4, 0);
 
-        OsdWrite(6, "", 0,0);
-        OsdWrite(7, STD_EXIT, menusub == 6,0);
+        OsdWrite(5, " Reset",     menusub == 5, 0);
+        OsdWrite(6, " Cold boot", menusub == 6, 0);
+
+        OsdWrite(7, STD_EXIT, menusub == 7,0);
 
 	parentstate = menustate;
         menustate = MENU_MIST_SYSTEM2;
@@ -513,17 +515,22 @@ void HandleUI(void)
 	    SelectFile("IMG", SCAN_LFN, MENU_MIST_SYSTEM_FILE_SELECTED, MENU_MIST_SYSTEM1);
 	  break;
 
-	case 4:  // Reset
+	case 4:
+	  tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_TURBO );
+	  menustate = MENU_MIST_SYSTEM1;
+	  break;
+
+	case 5:  // Reset
 	  tos_reset(0);
 	  menustate = MENU_NONE1;
 	  break;
 
-	case 5:  // Cold Boot
+	case 6:  // Cold Boot
 	  tos_reset(1);
 	  menustate = MENU_NONE1;
 	  break;
 
-	case 6:
+	case 7:
 	  menustate = MENU_MIST_MAIN1;
 	  menusub = 3;
 	}

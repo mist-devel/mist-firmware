@@ -58,6 +58,8 @@
 #define TOS_ACSI6_ENABLE          0x00010000
 #define TOS_ACSI7_ENABLE          0x00020000
 
+#define TOS_CONTROL_TURBO         0x00040000
+
 extern unsigned long tos_system_ctrl;
 
 void tos_upload(char *);

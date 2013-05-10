@@ -96,13 +96,21 @@ static void mist_memory_read(char *data, unsigned long words) {
   EnableFpga();
   SPI(MIST_READ_MEMORY);
 
-  //   while (!(*AT91C_SPI_SR & AT91C_SPI_TDRE));
-
   // transmitted bytes must be multiple of 2 (-> words)
   while(words--) {
     *data++ = SPI(0);
     *data++ = SPI(0);
   }
+
+  DisableFpga();
+
+}
+
+static void mist_memory_read_block(char *data) {
+  EnableFpga();
+  SPI(MIST_READ_MEMORY);
+
+  SPI_block_read(data);
 
   DisableFpga();
 }
@@ -115,6 +123,15 @@ static void mist_memory_write(char *data, unsigned long words) {
     SPI_WRITE(*data++);
     SPI_WRITE(*data++);
   }
+
+  DisableFpga();
+}
+
+static void mist_memory_write_block(char *data) {
+  EnableFpga();
+  SPI(MIST_WRITE_MEMORY);
+
+  SPI_block_write(data);
 
   DisableFpga();
 }
@@ -470,12 +487,58 @@ void tos_upload(char *name) {
 
     iprintf("  address = $%08x\n", tos_base);
 
-    // extract base address
-    FileRead(&file, buffer);
-
     // clear first 16k
     mist_memory_set_address(0);
     mist_memory_set(0x00, 8192);
+
+#if 0  // spi transfer tests
+    iprintf("SPI transfer test\n");
+
+    // draw some max power pattern on screen
+    mist_memory_set_address(VIDEO_BASE_ADDRESS);
+    mist_memory_set(0x55, 16000);
+
+    FileRead(&file, buffer);
+    int run_ok = 0, run_fail = 0;
+
+    while(1) {
+      int j;
+      char b2[512];
+
+      for(j=0;j<512;j++) {
+	buffer[j] ^= 0x55;
+	b2[j] = 0xa5;
+      }
+
+      mist_memory_set_address(0);
+      mist_memory_set(0xaa, 256);
+
+      mist_memory_set_address(0);
+      mist_memory_write_block(buffer);
+      //      mist_memory_write(buffer, 256);
+
+      mist_memory_set_address(0);
+      //      mist_memory_read_block(b2);
+      mist_memory_read(b2, 256);
+
+      char ok = 1;
+      for(j=0;j<512;j++) 
+	if(buffer[j] != b2[j]) 
+	  ok = 0;
+
+      if(ok) run_ok++;
+      else   run_fail++;
+
+      if(!ok) {
+	hexdump(buffer, 512, 0);
+	hexdump(b2, 512, 0);
+	for(;;);
+      }
+
+      if(!((run_ok + run_fail)%10))
+	iprintf("ok %d, failed %d\r", run_ok, run_fail);
+    }
+#endif
 
 #if 0
     iprintf("Erasing:   ");

@@ -153,6 +153,7 @@ void SPI_block(unsigned short num);
 
 #define SPI_BLOCK_READ
 RAMFUNC void SPI_block_read(char *addr);
+void SPI_block_write(char *addr);
 
 #ifdef FPGA3
 // the MiST has the user inout on the arm controller

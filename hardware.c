@@ -307,6 +307,7 @@ RAMFUNC void SPI_block_read(char *addr) {
   *AT91C_PIOA_SODR = AT91C_PA13_MOSI; // set GPIO output register
   *AT91C_PIOA_OER = AT91C_PA13_MOSI;  // GPIO pin as output
   *AT91C_PIOA_PER = AT91C_PA13_MOSI;  // enable GPIO function
+  
   // use SPI PDC (DMA transfer)
   *AT91C_SPI_TPR = (unsigned long)addr;
   *AT91C_SPI_TCR = 512;
@@ -318,7 +319,20 @@ RAMFUNC void SPI_block_read(char *addr) {
   // wait for tranfer end
   while ((*AT91C_SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX));
   *AT91C_SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver
+
   *AT91C_PIOA_PDR = AT91C_PA13_MOSI; // disable GPIO function
+}
+
+void SPI_block_write(char *addr) {
+  // use SPI PDC (DMA transfer)
+  *AT91C_SPI_TPR = (unsigned long)addr;
+  *AT91C_SPI_TCR = 512;
+  *AT91C_SPI_TNCR = 0;
+  *AT91C_SPI_RCR = 0;
+  *AT91C_SPI_PTCR = AT91C_PDC_TXTEN; // start DMA transfer
+  // wait for tranfer end
+  while ((*AT91C_SPI_SR & AT91C_SPI_ENDTX) != (AT91C_SPI_ENDTX));
+  *AT91C_SPI_PTCR = AT91C_PDC_TXTDIS; // disable transmitter
 }
 
 char mmc_inserted() {
