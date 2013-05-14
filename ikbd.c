@@ -9,7 +9,7 @@
   mouse y at bottom            Bolo                         X     X
   mouse button key events      Goldrunner/A_008             X     X
   joystick interrogation mode  Xevious/A_004                X     X
-  Absolute mouse mode          Addicataball/A_050
+  Absolute mouse mode          Addicataball/A_050           X    (broken)
   disable mouse                ?                            X
   disable joystick             ?                            X
   Joysticks also generate      Goldrunner                   X     X
@@ -27,11 +27,12 @@
 #include "ikbd.h"
 
 // atari ikbd stuff
-#define IKBD_STATE_JOYSTICK_EVENT_REPORTING  0x01
-#define IKBD_STATE_MOUSE_Y_BOTTOM            0x02
-#define IKBD_STATE_MOUSE_BUTTON_AS_KEY       0x04   // mouse buttons act like keys
-#define IKBD_STATE_MOUSE_DISABLED            0x08
-#define IKBD_STATE_MOUSE_ABSOLUTE            0x10
+#define IKBD_STATE_JOYSTICK_EVENT_REPORTING    0x01
+#define IKBD_STATE_MOUSE_Y_BOTTOM              0x02
+#define IKBD_STATE_MOUSE_BUTTON_AS_KEY         0x04   // mouse buttons act like keys
+#define IKBD_STATE_MOUSE_DISABLED              0x08
+#define IKBD_STATE_MOUSE_ABSOLUTE              0x10
+#define IKBD_STATE_MOUSE_ABSOLUTE_IN_PROGRESS  0x20
 
 #define IKBD_DEFAULT IKBD_STATE_JOYSTICK_EVENT_REPORTING
 
@@ -136,8 +137,8 @@ void ikbd_handle_input(unsigned char cmd) {
       
     case 0x80: // ibkd reset
       // reply "everything is ok"
-      enqueue(0x8000 + 200);   // wait 200ms
-      enqueue(0xf0);
+      enqueue(0x8000 + 100);   // wait 100ms
+      enqueue(0xf1);
       break;
       
     default:
@@ -166,7 +167,7 @@ void ikbd_handle_input(unsigned char cmd) {
     ikbd.state &= ~IKBD_STATE_MOUSE_DISABLED;
     ikbd.state |=  IKBD_STATE_MOUSE_ABSOLUTE;
     ikbd.expect = 4;
-    ikbd.mouse_abs_buttons = 0;
+    ikbd.mouse_abs_buttons = 2 | 8;
     break;
 
   case 0x0b:
@@ -181,13 +182,19 @@ void ikbd_handle_input(unsigned char cmd) {
 
   case 0x0d:
     //    puts("IKBD: Interrogate Mouse Position");
-    if(ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE) {
+    if((ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE) && 
+       !(ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE_IN_PROGRESS)) {
+
+      ikbd.state |= IKBD_STATE_MOUSE_ABSOLUTE_IN_PROGRESS;
+
+      enqueue(0x8000 + 36);
       enqueue(0xf7);
       enqueue(ikbd.mouse_abs_buttons);
       enqueue(ikbd.mouse_pos_x >> 8);
       enqueue(ikbd.mouse_pos_x & 0xff);
       enqueue(ikbd.mouse_pos_y >> 8);
       enqueue(ikbd.mouse_pos_y & 0xff);
+      enqueue(0x4000 + 0xf7);
 
       ikbd.mouse_abs_buttons = 0;
     }
@@ -225,7 +232,7 @@ void ikbd_handle_input(unsigned char cmd) {
 
   case 0x16: // interrogate joystick
     // send reply
-    //    enqueue(0x8000 + 10);   // wait 10ms
+    enqueue(0x8000 + 70);   // wait 70ms
     enqueue(0xfd);
     enqueue(joystick_map2ikbd(ikbd.joystick[0]));
     enqueue(joystick_map2ikbd(ikbd.joystick[1]));
@@ -239,7 +246,7 @@ void ikbd_handle_input(unsigned char cmd) {
   case 0x1c:
     puts("IKBD: Interrogate time of day");
 
-    enqueue(0x8000 + 10);   // wait 10ms
+    enqueue(0x8000 + 64);   // wait 64ms
     enqueue(0xfc);
     enqueue(0xb3);  // year bcd
     enqueue(0x03);  // month bcd
@@ -294,18 +301,25 @@ void ikbd_poll(void) {
     if(!CheckTimer(ikbd_timer))
       return;
 
-    iprintf("IKBD: timer done\n");
+    //    iprintf("IKBD: timer done\n");
     ikbd_timer = 0;
   }
 
-  // request to start timer?
-  if(tx_queue[rptr] & 0x8000) {
-    ikbd_timer = GetTimer(tx_queue[rptr] & 0x7fff);
-    iprintf("IKBD: starting timer %dms\n", tx_queue[rptr] & 0x7fff);
+  if(tx_queue[rptr] & 0xc000) {
+
+    // request to start timer?
+    if((tx_queue[rptr] & 0xc000) == 0x8000) 
+      ikbd_timer = GetTimer(tx_queue[rptr] & 0x3fff);
+
+    // cmd ack
+    if((tx_queue[rptr] & 0xc000) == 0x4000)
+      if((tx_queue[rptr] & 0xff) == 0xf7)
+	ikbd.state &= ~IKBD_STATE_MOUSE_ABSOLUTE_IN_PROGRESS;
+
     rptr = (rptr+1)&(QUEUE_LEN-1);
     return;
   }
-
+    
   // transmit data from queue
   EnableIO();
   SPI(UIO_IKBD_OUT);
@@ -341,7 +355,7 @@ void ikbd_joystick(unsigned char joystick, unsigned char map) {
 	// user_io_mouse)
 	ikbd.joystick[joystick] = map;
 	
-	enqueue(0x8000 + 5); // some small pause in between
+	//	enqueue(0x8000 + 5); // some small pause in between
 	ikbd_mouse(0, 0, 0);
       }
     }
@@ -407,7 +421,7 @@ void ikbd_mouse(unsigned char b, char x, char y) {
     x /= ikbd.mouse_abs_scale_x;
     y /= ikbd.mouse_abs_scale_y;
 
-    iprintf("abs inc %d %d -> ", x, y);
+    //    iprintf("abs inc %d %d -> ", x, y);
 
     if(x < 0) {
       x = -x;
@@ -432,7 +446,7 @@ void ikbd_mouse(unsigned char b, char x, char y) {
 	ikbd.mouse_pos_y = ikbd.mouse_abs_max_y;
     }
 
-    iprintf("%d %d\n", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
+    //    iprintf("%d %d\n", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
 
   } else {
     // atari has mouse button bits swapped
