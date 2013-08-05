@@ -37,6 +37,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "menu.h"
 #include "fpga.h"
 #include "config.h"
+#include "debug.h"
 
 // hardfile structure
 hdfTYPE hdf[2];
@@ -304,20 +305,20 @@ void HandleHDD(unsigned char c1, unsigned char c2)
 
         if (0)
         {
-            printf("IDE:");
+            hdd_debugf("IDE:");
             for (i = 1; i < 7; i++)
-                printf("%02X.",tfr[i]);
-            printf("%02X\r", tfr[7]);
+                hdd_debugf("%02X.",tfr[i]);
+            hdd_debugf("%02X\r", tfr[7]);
         }
         if ((tfr[7] & 0xF0) == ACMD_RECALIBRATE) // Recalibrate 0x10-0x1F (class 3 command: no data)
         {
-            printf("Recalibrate\r");
+            hdd_debugf("Recalibrate\r");
             WriteTaskFile(0, 0, 1, 0, 0, tfr[6] & 0xF0);
             WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
         }
         else if (tfr[7] == ACMD_IDENTIFY_DEVICE) // Identify Device
         {
-            printf("Identify Device\r");
+            hdd_debugf("Identify Device\r");
             IdentifyDevice(id, unit);
             WriteTaskFile(0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
@@ -338,11 +339,11 @@ void HandleHDD(unsigned char c1, unsigned char c2)
         }
         else if (tfr[7] == ACMD_INITIALIZE_DEVICE_PARAMETERS) // Initiallize Device Parameters
         {
-            printf("Initialize Device Parameters\r");
-            printf("IDE:");
+            hdd_debugf("Initialize Device Parameters\r");
+            hdd_debugf("IDE:");
             for (i = 1; i < 7; i++)
-                printf("%02X.", tfr[i]);
-            printf("%02X\r", tfr[7]);
+                hdd_debugf("%02X.", tfr[i]);
+            hdd_debugf("%02X\r", tfr[7]);
             WriteTaskFile(0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
         }
@@ -467,11 +468,11 @@ void HandleHDD(unsigned char c1, unsigned char c2)
         {
             hdf[unit].sectors_per_block = tfr[2];
 
-            printf("Set Multiple Mode\r");
-            printf("IDE:");
+            hdd_debugf("Set Multiple Mode\r");
+            hdd_debugf("IDE:");
             for (i = 1; i < 7; i++)
-                printf("%02X.", tfr[i]);
-            printf("%02X\r", tfr[7]);
+                hdd_debugf("%02X.", tfr[i]);
+            hdd_debugf("%02X\r", tfr[7]);
 
             WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
         }
@@ -753,12 +754,12 @@ void HandleHDD(unsigned char c1, unsigned char c2)
         }
         else
         {
-            printf("Unknown ATA command\r");
+            hdd_debugf("Unknown ATA command\r");
 
-            printf("IDE:");
+            hdd_debugf("IDE:");
             for (i = 1; i < 7; i++)
-                printf("%02X.", tfr[i]);
-            printf("%02X\r", tfr[7]);
+                hdd_debugf("%02X.", tfr[i]);
+            hdd_debugf("%02X\r", tfr[7]);
             WriteTaskFile(0x04, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ | IDE_STATUS_ERR);
         }
@@ -887,16 +888,16 @@ unsigned char OpenHardfile(unsigned char unit)
 				{
 				    GetHardfileGeometry(&hdf[unit]);
 
-				    printf("HARDFILE %d:\r", unit);
-				    printf("file: \"%.8s.%.3s\"\r", hdf[unit].file.name, &hdf[unit].file.name[8]);
-				    printf("size: %lu (%lu MB)\r", hdf[unit].file.size, hdf[unit].file.size >> 20);
-				    printf("CHS: %u.%u.%u", hdf[unit].cylinders, hdf[unit].heads, hdf[unit].sectors);
-				    printf(" (%lu MB)\r", ((((unsigned long) hdf[unit].cylinders) * hdf[unit].heads * hdf[unit].sectors) >> 11));
+				    hdd_debugf("HARDFILE %d:\r", unit);
+				    hdd_debugf("file: \"%.8s.%.3s\"\r", hdf[unit].file.name, &hdf[unit].file.name[8]);
+				    hdd_debugf("size: %lu (%lu MB)\r", hdf[unit].file.size, hdf[unit].file.size >> 20);
+				    hdd_debugf("CHS: %u.%u.%u", hdf[unit].cylinders, hdf[unit].heads, hdf[unit].sectors);
+				    hdd_debugf(" (%lu MB)\r", ((((unsigned long) hdf[unit].cylinders) * hdf[unit].heads * hdf[unit].sectors) >> 11));
 
 				    time = GetTimer(0);
 				    BuildHardfileIndex(&hdf[unit]);
 				    time = GetTimer(0) - time;
-				    printf("Hardfile indexed in %lu ms\r", time >> 16);
+				    hdd_debugf("Hardfile indexed in %lu ms\r", time >> 16);
 
 					if(config.hardfile[unit].enabled & HDF_SYNTHRDB)
 						hdf[unit].offset=-(hdf[unit].heads*hdf[unit].sectors);

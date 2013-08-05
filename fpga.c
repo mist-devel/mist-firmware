@@ -131,28 +131,28 @@ unsigned char ConfigureFpga(void)
     {
         if (--t == 0)
         {
-            printf("FPGA init is NOT high!\r");
+            iprintf("FPGA init is NOT high!\r");
             FatalError(3);
         }
     }
 
-    printf("FPGA init is high\r");
+    iprintf("FPGA init is high\r");
 
     if (*AT91C_PIOA_PDSR & XILINX_DONE)
     {
-        printf("FPGA done is high before configuration!\r");
+        iprintf("FPGA done is high before configuration!\r");
         FatalError(3);
     }
 
     // open bitstream file
     if (FileOpen(&file, "MINIMIG1BIN") == 0)
     {
-        printf("No FPGA configuration file found!\r");
+        iprintf("No FPGA configuration file found!\r");
         FatalError(4);
     }
 
-    printf("FPGA bitstream file opened\r");
-    printf("[");
+    iprintf("FPGA bitstream file opened\r");
+    iprintf("[");
 
     // send all bytes to FPGA in loop
     t = 0;
@@ -169,7 +169,7 @@ unsigned char ConfigureFpga(void)
                 DISKLED_ON
 
             if ((t & 0x1FF) == 0)
-                printf("*");
+                iprintf("*");
 
             if (!FileRead(&file, sector_buffer))
                 return(0);
@@ -199,15 +199,15 @@ unsigned char ConfigureFpga(void)
     // disable outputs
     *AT91C_PIOA_ODR = XILINX_CCLK | XILINX_DIN | XILINX_PROG_B;
 
-    printf("]\r");
-    printf("FPGA bitstream loaded\r");
+    iprintf("]\r");
+    iprintf("FPGA bitstream loaded\r");
     DISKLED_OFF;
 
     // check if DONE is high
     if (*AT91C_PIOA_PDSR & XILINX_DONE)
         return(1);
 
-    printf("FPGA done is NOT high!\r");
+    iprintf("FPGA done is NOT high!\r");
     FatalError(5);
     return 0;
 }
@@ -244,12 +244,12 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
     // open bitstream file
     if (FileOpen(&file, name) == 0)
     {
-        printf("No FPGA configuration file found!\r");
+        iprintf("No FPGA configuration file found!\r");
         FatalError(4);
     }
 
-    printf("FPGA bitstream file opened, file size = %d\r", file.size);
-    printf("[");
+    iprintf("FPGA bitstream file opened, file size = %d\r", file.size);
+    iprintf("[");
 
     // send all bytes to FPGA in loop
     ptr = sector_buffer;
@@ -266,7 +266,7 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
     {
         if (--i == 0)
         {
-            printf("FPGA NSTATUS is NOT high!\r");
+            iprintf("FPGA NSTATUS is NOT high!\r");
             FatalError(3);
         }
     }
@@ -288,7 +288,7 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
                 DISKLED_ON
 
             if ((i & 0x3FFF) == 0)
-                printf("*");
+                iprintf("*");
 
             if (!FileRead(&file, sector_buffer))
                 return(0);
@@ -306,7 +306,7 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
         /* Check for error through NSTATUS for every 10KB programmed and the last byte */
         if ( !(i % 10240) || (i == file.size - 1) ) {
             if ( !*AT91C_PIOA_PDSR & ALTERA_NSTATUS ) {
-                printf("FPGA NSTATUS is NOT high!\r");
+                iprintf("FPGA NSTATUS is NOT high!\r");
                 FatalError(5);
             }
         }
@@ -316,13 +316,13 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
             FileNextSector(&file);
     }
 
-    printf("]\r");
-    printf("FPGA bitstream loaded\r");
+    iprintf("]\r");
+    iprintf("FPGA bitstream loaded\r");
     DISKLED_OFF;
 
     // check if DONE is high
     if (!(*AT91C_PIOA_PDSR & ALTERA_DONE)) {
-      printf("FPGA Configuration done but contains error... CONF_DONE is LOW\r");
+      iprintf("FPGA Configuration done but contains error... CONF_DONE is LOW\r");
       FatalError(5);
     }
 
@@ -348,7 +348,7 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
     if ( !(*AT91C_PIOA_PDSR & ALTERA_NSTATUS) || 
          !(*AT91C_PIOA_PDSR & ALTERA_DONE)) {
       
-      printf("FPGA Initialization finish but contains error: NSTATUS is %s and CONF_DONE is %s.\r", 
+      iprintf("FPGA Initialization finish but contains error: NSTATUS is %s and CONF_DONE is %s.\r", 
              ((*AT91C_PIOA_PDSR & ALTERA_NSTATUS)?"HIGH":"LOW"), ((*AT91C_PIOA_PDSR & ALTERA_DONE)?"HIGH":"LOW") );
       FatalError(5);
     }
@@ -365,7 +365,7 @@ void SendFile(RAFile *file)
     unsigned long  n;
     unsigned char *p;
 
-    printf("[");
+    iprintf("[");
     n = (file->file.size + 511) >> 9; // sector count (rounded up)
     while (n--)
     {
@@ -387,7 +387,7 @@ void SendFile(RAFile *file)
         while (!(c1 & CMD_RDTRK));
 
         if ((n & 15) == 0)
-            printf("*");
+            iprintf("*");
 
         // send data sector to FPGA
         EnableFpga();
@@ -404,7 +404,7 @@ void SendFile(RAFile *file)
 
         DisableFpga();
     }
-    printf("]\r");
+    iprintf("]\r");
 }
 
 
@@ -418,7 +418,7 @@ void SendFileEncrypted(RAFile *file,unsigned char *key,int keysize)
     unsigned char *p;
 	int badbyte=0;
 
-    printf("[");
+    iprintf("[");
 	headersize=file->size&255;	// ROM should be a round number of kilobytes; overspill will likely be the Amiga Forever header.
 
 	RARead(file,sector_buffer,headersize);	// Read extra bytes
@@ -449,7 +449,7 @@ void SendFileEncrypted(RAFile *file,unsigned char *key,int keysize)
         while (!(c1 & CMD_RDTRK));
 
         if ((n & 15) == 0)
-            printf("*");
+            iprintf("*");
 
         // send data sector to FPGA
         EnableFpga();
@@ -465,7 +465,7 @@ void SendFileEncrypted(RAFile *file,unsigned char *key,int keysize)
             SPI(*p++);
         DisableFpga();
     }
-    printf("]\r");
+    iprintf("]\r");
 }
 
 
@@ -494,7 +494,7 @@ char BootDraw(char *data, unsigned short len, unsigned short offset)
         c3 = SPI(0);
         c4 = SPI(0);
 
-	//	printf("FPGA state: %d %d (%d %d) %d %d\n", c1, c2, x, y, c3, c4);
+	//	iprintf("FPGA state: %d %d (%d %d) %d %d\n", c1, c2, x, y, c3, c4);
 
         if (c1 & CMD_RDTRK)
         {
@@ -673,10 +673,10 @@ char PrepareBootUpload(unsigned char base, unsigned char size)
             else
             { // data phase
                 DisableFpga();
-                printf("Ready to upload ROM file...\r");
+                iprintf("Ready to upload ROM file...\r");
                 // send rom image to FPGA
 //                SendFile(file);
-//                printf("ROM file uploaded.\r");
+//                iprintf("ROM file uploaded.\r");
                 return 0;
             }
         }
@@ -820,7 +820,7 @@ void fpga_init(char *name) {
     
     BootPrint(" ");
     BootPrintEx("Booting ...");
-    printf("Booting ...\r");
+    iprintf("Booting ...\r");
     
     WaitTimer(6000);
     config.kickstart.name[0]=0;

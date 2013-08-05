@@ -234,7 +234,7 @@ void user_io_poll() {
 
   if(core_type == CORE_TYPE_MIST) {
     // do some tos specific monitoring here
-    tos_show_state();
+    tos_poll();
   }
 }
 

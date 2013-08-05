@@ -89,16 +89,16 @@ unsigned char CheckFirmware(fileTYPE *file, char *name)
     if (FileOpen(file, name))
     {
         Error = ERROR_INVALID_DATA;
-        printf("Upgrade file size     : %lu\r", file->size);
-        printf("Upgrade header size   : %lu\r", (unsigned long)sizeof(UPGRADE));
+        iprintf("Upgrade file size     : %lu\r", file->size);
+        iprintf("Upgrade header size   : %lu\r", (unsigned long)sizeof(UPGRADE));
 
         if (file->size >= sizeof(UPGRADE))
         {
             FileRead(file, sector_buffer);
             crc = ~CalculateCRC32(-1, sector_buffer, sizeof(UPGRADE) - 4);
-            printf("Upgrade ROM size      : %lu\r", pUpgrade->rom.size);
-            printf("Upgrade header CRC    : %08lX\r", pUpgrade->crc);
-            printf("Calculated header CRC : %08lX\r", crc);
+            iprintf("Upgrade ROM size      : %lu\r", pUpgrade->rom.size);
+            iprintf("Upgrade header CRC    : %08lX\r", pUpgrade->crc);
+            iprintf("Calculated header CRC : %08lX\r", crc);
             if (pUpgrade->crc == crc)
             {
                 if (strncmp((const char*)pUpgrade->id, "MNMGUPG", 7) == 0 && pUpgrade->id[7] == 0)
@@ -122,25 +122,25 @@ unsigned char CheckFirmware(fileTYPE *file, char *name)
                             crc = CalculateCRC32(crc, sector_buffer, read_size);
                             size -= read_size;
                         }
-                        printf("Calculated ROM CRC    : %08lX\r", ~crc);
-                        printf("ROM CRC from header   : %08lX\r", rom_crc);
+                        iprintf("Calculated ROM CRC    : %08lX\r", ~crc);
+                        iprintf("ROM CRC from header   : %08lX\r", rom_crc);
                         if (~crc == rom_crc)
                         { // upgrade file CRC is OK so go back to the beginning of the file
                             FileSeek(file, 0, SEEK_SET);
                             Error = ERROR_NONE;
                             return 1;
                         }
-                        else printf("ROM CRC mismatch! from header: %08lX, calculated: %08lX\r", rom_crc, ~crc);
+                        else iprintf("ROM CRC mismatch! from header: %08lX, calculated: %08lX\r", rom_crc, ~crc);
                     }
-                    else printf("ROM size mismatch! from header: %lu, from file: %lu\r", pUpgrade->rom.size, file->size-sizeof(UPGRADE));
+                    else iprintf("ROM size mismatch! from header: %lu, from file: %lu\r", pUpgrade->rom.size, file->size-sizeof(UPGRADE));
                 }
-                else printf("Invalid upgrade file header!\r");
+                else iprintf("Invalid upgrade file header!\r");
             }
-            else printf("Header CRC mismatch! from header: %08lX, calculated: %08lX\r", pUpgrade->crc, crc);
+            else iprintf("Header CRC mismatch! from header: %08lX, calculated: %08lX\r", pUpgrade->crc, crc);
         }
-        else printf("Upgrade file size too small: %lu\r", file->size);
+        else iprintf("Upgrade file size too small: %lu\r", file->size);
     }
-    else printf("Cannot open firmware file!\r");
+    else iprintf("Cannot open firmware file!\r");
     return 0;
 }
 

@@ -6,6 +6,7 @@
 #include "tos.h"
 #include "fat.h"
 #include "fpga.h"
+#include "debug.h"
 
 #define TOS_BASE_ADDRESS_192k    0xfc0000
 #define TOS_BASE_ADDRESS_256k    0xe00000
@@ -28,7 +29,7 @@ static struct {
 } fdd_image[2];
 
 // one harddisk
-fileTYPE hdd_image;
+fileTYPE hdd_image[2];
 
 static unsigned char dma_buffer[512];
 
@@ -85,7 +86,7 @@ static void hexdump(void *data, unsigned long size, unsigned long offset) {
     iprintf("  ");
     for(i=0;i<(16-b2c);i++) iprintf("   ");
     for(i=0;i<b2c;i++)      iprintf("%c", isprint(ptr[i])?ptr[i]:'.');
-    iprintf("\n");
+    iprintff("\n");
     ptr  += b2c;
     size -= b2c;
     n    += b2c;
@@ -158,22 +159,22 @@ static void handle_acsi(unsigned char *buffer) {
     256 * buffer[11] + buffer[12];
   unsigned short length = buffer[13];
   if(length == 0) length = 256;
-  
-  iprintf("ACSI: target %d, \"%s\"\n", target, acsi_cmd_name(cmd));
-  iprintf("ACSI: lba %lu, length %u\n", lba, length);
-  iprintf("DMA: scnt %u, addr %p\n", scnt, dma_address);
-  
+
+  tos_debugf("ACSI: target %d, \"%s\"\n", target, acsi_cmd_name(cmd));
+  tos_debugf("ACSI: lba %lu, length %u\n", lba, length);
+  tos_debugf("DMA: scnt %u, addr %p\n", scnt, dma_address);
+
   // only a harddisk on ACSI 0 is supported
   // ACSI 0 is only supported if a image is loaded
-  if((target == 0) && (hdd_image.size != 0)) {
+  if((target < 2) && (hdd_image[target].size != 0)) {
     mist_memory_set_address(dma_address);
   
     switch(cmd) {
     case 0x08: // read sector
       DISKLED_ON;
       while(length) {
-	FileSeek(&hdd_image, lba++, SEEK_SET);
-	FileRead(&hdd_image, dma_buffer);	  
+	FileSeek(&hdd_image[target], lba++, SEEK_SET);
+	FileRead(&hdd_image[target], dma_buffer);	  
 	mist_memory_write(dma_buffer, 256);
 	length--;
       }
@@ -184,26 +185,27 @@ static void handle_acsi(unsigned char *buffer) {
       DISKLED_ON;
       while(length) {
 	mist_memory_read(dma_buffer, 256);
-	FileSeek(&hdd_image, lba++, SEEK_SET);
-	FileWrite(&hdd_image, dma_buffer);	  
+	FileSeek(&hdd_image[target], lba++, SEEK_SET);
+	FileWrite(&hdd_image[target], dma_buffer);	  
 	length--;
       }
       DISKLED_OFF;
       break;
-      
+
     case 0x12: // inquiry
+      tos_debugf("ACSI: Inquiry %11s\n", hdd_image[target].name);
       memset(dma_buffer, 0, 512);
-      dma_buffer[2] = 1;                              // ANSI version
-      dma_buffer[4] = length-8;                        // len
-      memcpy(dma_buffer+8,  "MIST    ", 8);           // Vendor
-      memcpy(dma_buffer+16, "                ", 16);  // Clear device entry
-      memcpy(dma_buffer+16, hdd_image.name, 11);      // Device
+      dma_buffer[2] = 1;                                   // ANSI version
+      dma_buffer[4] = length-8;                            // len
+      memcpy(dma_buffer+8,  "MIST    ", 8);                // Vendor
+      memcpy(dma_buffer+16, "                ", 16);       // Clear device entry
+      memcpy(dma_buffer+16, hdd_image[target].name, 11);   // Device
       mist_memory_write(dma_buffer, length/2);      
       break;
       
     case 0x1a: // mode sense
-      { unsigned int blocks = hdd_image.size / 512;
-	iprintf("ACSI: mode sense, blocks = %u\n", blocks);
+      { unsigned int blocks = hdd_image[target].size / 512;
+	tos_debugf("ACSI: mode sense, blocks = %u\n", blocks);
 	memset(dma_buffer, 0, 512);
 	dma_buffer[3] = 8;            // size of extent descriptor list
 	dma_buffer[5] = blocks >> 16;
@@ -215,11 +217,11 @@ static void handle_acsi(unsigned char *buffer) {
       break;
       
     default:
-      iprintf("ACSI: Unsupported command\n");
+      tos_debugf("ACSI: Unsupported command\n");
       break;
     }
   } else
-    iprintf("ACSI: Request for unsupported target\n");
+    tos_debugf("ACSI: Request for unsupported target\n");
 
   EnableFpga();
   SPI(MIST_ACK_DMA);
@@ -246,7 +248,7 @@ static void handle_fdc(unsigned char *buffer) {
     
     // read/write sector command
     if((fdc_cmd & 0xc0) == 0x80) {
-      
+
       // convert track/sector/side into disk offset
       unsigned int offset = drv_side;
       offset += fdc_track * fdd_image[drv_sel-1].sides;
@@ -258,7 +260,7 @@ static void handle_fdc(unsigned char *buffer) {
 	
 	FileSeek(&fdd_image[drv_sel-1].file, offset, SEEK_SET);
 	mist_memory_set_address(dma_address);
-	
+
 	if((fdc_cmd & 0xe0) == 0x80) { 
 	  // read from disk ...
 	  FileRead(&fdd_image[drv_sel-1].file, dma_buffer);	  
@@ -410,12 +412,12 @@ void tos_load_cartridge(char *name) {
     int i;
     char buffer[512];
 	
-    iprintf("%s:\n  size = %d\n", cart_img, file.size);
+    tos_debugf("%s:\n  size = %d\n", cart_img, file.size);
 
     int blocks = file.size / 512;
-    iprintf("  blocks = %d\n", blocks);
+    tos_debugf("  blocks = %d\n", blocks);
 
-    iprintf("Uploading: [");
+    tos_debugf("Uploading: [");
     mist_memory_set_address(CART_BASE_ADDRESS);
     
     DISKLED_ON;
@@ -423,21 +425,21 @@ void tos_load_cartridge(char *name) {
       FileRead(&file, buffer);
       mist_memory_write(buffer, 256);
       
-      if(!(i & 7)) iprintf(".");
+      if(!(i & 7)) tos_debugf(".");
       
       if(i != blocks-1)
 	FileNextSector(&file);
     }
     DISKLED_OFF;
-    iprintf("]\n");
+    tos_debugf("]\n");
     
-    iprintf("%s uploaded\r", cart_img);
+    tos_debugf("%s uploaded\r", cart_img);
     return; 
   }
 
   // erase that ram area to remove any previously uploaded
   // image
-  iprintf("Erasing cart memory\n");
+  tos_debugf("Erasing cart memory\n");
   mist_memory_set_address(CART_BASE_ADDRESS);
   mist_memory_set(0, 128*1024/2);
 }
@@ -463,7 +465,7 @@ void tos_upload(char *name) {
   // do the MiST core handling
   tos_write("\x0e\x0f MIST core \x0e\x0f ");
   tos_write("Uploading TOS ... ");
-  iprintf("Uploading TOS ...\n");
+  tos_debugf("Uploading TOS ...\n");
 
   DISKLED_ON;
 
@@ -475,24 +477,24 @@ void tos_upload(char *name) {
     unsigned long time;
     unsigned long tos_base = TOS_BASE_ADDRESS_192k;
 	
-    iprintf("TOS.IMG:\n  size = %d\n", file.size);
+    tos_debugf("TOS.IMG:\n  size = %d\n", file.size);
 
     if(file.size >= 256*1024)
       tos_base = TOS_BASE_ADDRESS_256k;
     else if(file.size != 192*1024)
-      iprintf("WARNING: Unexpected TOS size!\n");
+      tos_debugf("WARNING: Unexpected TOS size!\n");
 
     int blocks = file.size / 512;
-    iprintf("  blocks = %d\n", blocks);
+    tos_debugf("  blocks = %d\n", blocks);
 
-    iprintf("  address = $%08x\n", tos_base);
+    tos_debugf("  address = $%08x\n", tos_base);
 
     // clear first 16k
     mist_memory_set_address(0);
     mist_memory_set(0x00, 8192);
 
 #if 0  // spi transfer tests
-    iprintf("SPI transfer test\n");
+    tos_debugf("SPI transfer test\n");
 
     // draw some max power pattern on screen
     mist_memory_set_address(VIDEO_BASE_ADDRESS);
@@ -536,21 +538,21 @@ void tos_upload(char *name) {
       }
 
       if(!((run_ok + run_fail)%10))
-	iprintf("ok %d, failed %d\r", run_ok, run_fail);
+	tos_debugf("ok %d, failed %d\r", run_ok, run_fail);
     }
 #endif
 
 #if 0
-    iprintf("Erasing:   ");
+    tos_debugf("Erasing:   ");
     
     // clear memory to increase chances of catching write problems
     mist_memory_set_address(tos_base);
     mist_memory_set(0x00, file.size/2);
-    iprintf("done\n");
+    tos_debugf("done\n");
 #endif
 
     time = GetTimer(0);
-    iprintf("Uploading: [");
+    tos_debugf("Uploading: [");
     
     for(i=0;i<blocks;i++) {
       FileRead(&file, buffer);
@@ -568,19 +570,19 @@ void tos_upload(char *name) {
       
       mist_memory_write(buffer, 256);
       
-      if(!(i & 7)) iprintf(".");
+      if(!(i & 7)) tos_debugf(".");
       
       if(i != blocks-1)
 	FileNextSector(&file);
     }
-    iprintf("]\n");
+    tos_debugf("]\n");
     
     time = GetTimer(0) - time;
-    iprintf("TOS.IMG uploaded in %lu ms (%d kB/s / %d kBit/s)\r", 
+    tos_debugf("TOS.IMG uploaded in %lu ms (%d kB/s / %d kBit/s)\r", 
 	    time >> 20, file.size/(time >> 20), 8*file.size/(time >> 20));
     
   } else
-    iprintf("Unable to find tos.img\n");
+    tos_debugf("Unable to find tos.img\n");
   
 #if 0
   {
@@ -592,29 +594,29 @@ void tos_upload(char *name) {
     
     mist_memory_set_address(TOS_BASE_ADDRESS);
     
-    iprintf("Verifying: [");
+    tos_debugf("Verifying: [");
     for(i=0;i<blocks;i++) {
       FileRead(&file, buffer);
 
       mist_memory_read(rx, 256);
       
-      if(!(i & 7)) iprintf("+");
+      if(!(i & 7)) tos_debugf("+");
       
       for(j=0;j<512;j++) {
 	if(buffer[j] != rx[j]) {
-	  iprintf("Verify error block %d, byte %x\n", i, j);
+	  tos_debugf("Verify error block %d, byte %x\n", i, j);
 
-	  iprintf("should be:\n");
+	  tos_debugf("should be:\n");
 	  hexdump(buffer, 512, 0);
 
-	  iprintf("is:\n");
+	  tos_debugf("is:\n");
 	  hexdump(rx, 512, 0);
 
 	  // try to re-read to check whether read or write failed
 	  mist_memory_set_address(TOS_BASE_ADDRESS+i*512);
 	  mist_memory_read(rx, 256);
 
-	  iprintf("re-read: %s\n", (buffer[j] != rx[j])?"failed":"ok");
+	  tos_debugf("re-read: %s\n", (buffer[j] != rx[j])?"failed":"ok");
 	  hexdump(rx, 512, 0);
 
 
@@ -625,7 +627,7 @@ void tos_upload(char *name) {
       if(i != blocks-1)
 	FileNextSector(&file);
     }
-    iprintf("]\n");
+    tos_debugf("]\n");
   }
 #endif
   DISKLED_OFF;
@@ -653,7 +655,7 @@ void tos_upload(char *name) {
     // try to open harddisk image
     if(FileOpen(&file, "HARDDISKHD ")) {
       tos_write("Found hard disk image ");
-      tos_select_hdd_image(&file);
+      tos_select_hdd_image(0, &file);
     }
   }
 
@@ -674,40 +676,8 @@ static unsigned long get_long(char *buffer, int offset) {
   return retval;
 }
 
-void tos_show_state() {
-  static unsigned long mtimer = 0;
-
+void tos_poll() {
   mist_get_dmastate();  
-
-#if 0
-  if(CheckTimer(mtimer)) {
-    mtimer = GetTimer(2000);
-    
-    int i;
-    char buffer[1024];
-    
-    mist_memory_set_address(0);
-    mist_memory_read(buffer, 64);
-    hexdump(buffer, 128, 0);
-
-    // tos system varables are from $400 
-    mist_memory_set_address(0x400);
-    mist_memory_read(buffer, 512);
-    
-    iprintf("\n--- SYSTEM VARIABLES ---\n");
-    iprintf("memvalid:  $%lx (should be $752019F3)\n", get_long(buffer,0x20));
-    iprintf("memcntrl:  $%x  (memory controller low nibble)\n", buffer[0x24]); 
-    iprintf("phystop:   $%lx (Physical RAM top)\n", get_long(buffer,0x2e));
-    iprintf("memval2:   $%lx (should be $237698AA)\n", get_long(buffer,0x3a));
-    iprintf("sshiftmd:  $%x  (Shadow shiftmd, LMH/012)\n", buffer[0x4c]); 
-    iprintf("_v_bas_ad: $%lx (Screen memory base)\n", get_long(buffer,0x4e));
-    iprintf("_vbclock:  $%lx (vbl counter)\n", get_long(buffer,0x62));
-    iprintf("_dskbufp:  $%lx (1k disk buffer)\n", get_long(buffer,0xc6));
-    iprintf("_frclock:  $%lx (frame counter)\n", get_long(buffer,0x66));
-    iprintf("_hz_200:   $%lx (Raw 200Hz timer)\n", get_long(buffer,0xba));
-    iprintf("_sysbase:  $%lx (begin of tos)\n", get_long(buffer,0xf2));
-  }
-#endif
 }
 
 void tos_update_sysctrl(unsigned long n) {
@@ -735,7 +705,7 @@ char *tos_get_disk_name(char index) {
   if(index <= 1) 
     file = fdd_image[index].file;
   else
-    file = hdd_image;
+    file = hdd_image[index-2];
   
   if(!file.size) {
     strcpy(buffer, "* no disk *");
@@ -764,17 +734,19 @@ char tos_disk_is_inserted(char index) {
   if(index <= 1) 
     return (fdd_image[index].file.size != 0);
 
-  return hdd_image.size != 0;
+  return hdd_image[index-2].size != 0;
 }
 
-void tos_select_hdd_image(fileTYPE *file) {
+void tos_select_hdd_image(char i, fileTYPE *file) {
+  tos_debugf("Select ACSI%c image %11s\n", '0'+i, file->name);
+
   // try to open harddisk image
-  hdd_image.size = 0;
-  tos_system_ctrl &= ~TOS_ACSI0_ENABLE;
+  hdd_image[i].size = 0;
+  tos_system_ctrl &= ~(TOS_ACSI0_ENABLE<<i);
 
   if(file) {
-    tos_system_ctrl |= TOS_ACSI0_ENABLE;
-    hdd_image = *file;
+    tos_system_ctrl |= (TOS_ACSI0_ENABLE<<i);
+    hdd_image[i] = *file;
   }
 
   // update system control
@@ -783,11 +755,11 @@ void tos_select_hdd_image(fileTYPE *file) {
 
 void tos_insert_disk(char i, fileTYPE *file) {
   if(i > 1) {
-    tos_select_hdd_image(file);
+    tos_select_hdd_image(i-2, file);
     return;
   }
 
-  iprintf("%c: eject\n", i+'A');
+  tos_debugf("%c: eject\n", i+'A');
 
   // toggle write protect bit to help tos detect a media change
   int wp_bit = (!i)?TOS_CONTROL_FDC_WR_PROT_A:TOS_CONTROL_FDC_WR_PROT_B;
@@ -805,7 +777,7 @@ void tos_insert_disk(char i, fileTYPE *file) {
 
   // open floppy
   fdd_image[i].file = *file;
-  iprintf("%c: insert %.11s\n", i+'A', fdd_image[i].file.name);
+  tos_debugf("%c: insert %.11s\n", i+'A', fdd_image[i].file.name);
 
   // check image size and parameters
     
@@ -833,7 +805,7 @@ void tos_insert_disk(char i, fileTYPE *file) {
   if(fdd_image[i].file.size) {
     // restore state of write protect bit
     tos_update_sysctrl(tos_system_ctrl);
-    iprintf("%c: detected %d sides with %d sectors per track\n", 
+    tos_debugf("%c: detected %d sides with %d sectors per track\n", 
 	    i+'A', fdd_image[i].sides, fdd_image[i].spt);
   }
 }
@@ -845,9 +817,11 @@ void tos_eject_all() {
     tos_insert_disk(i, NULL);
 
   // ejecting an SD card while a hdd image is mounted may be a bad idea
-  if(hdd_image.size) {
-    InfoMessage("Card removed: Disabling Harddisk!");
-    hdd_image.size = 0;
+  for(i=0;i<2;i++) {
+    if(hdd_image[i].size) {
+      InfoMessage("Card removed: Disabling Harddisk!");
+      hdd_image[i].size = 0;
+    }
   }
 }
 

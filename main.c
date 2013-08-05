@@ -71,7 +71,7 @@ void FatalError(unsigned long error)
 {
     unsigned long i;
 
-    printf("Fatal error: %lu\r", error);
+    iprintf("Fatal error: %lu\r", error);
 
     while (1)
     {
@@ -127,9 +127,9 @@ int main(void)
 
     USART_Init(115200);
 
-    printf("\rMinimig by Dennis van Weeren");
-    printf("\rARM Controller by Jakub Bednarski\r\r");
-    printf("Version %s\r\r", version+5);
+    iprintf("\rMinimig by Dennis van Weeren");
+    iprintf("\rARM Controller by Jakub Bednarski\r\r");
+    iprintf("Version %s\r\r", version+5);
 
     SPI_Init();
 
@@ -137,7 +137,7 @@ int main(void)
       FatalError(1);
     
     spiclk = MCLK / ((AT91C_SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) / 1000000;
-    printf("spiclk: %u MHz\r", spiclk);
+    iprintf("spiclk: %u MHz\r", spiclk);
 
 #ifdef USB_SEL
     usb_init();

@@ -89,7 +89,7 @@ char UploadKickstart(char *name)
     }
     else
     {
-        sprintf(s, "No \"%s\" file!", filename);
+        siprintf(s, "No \"%s\" file!", filename);
         BootPrint(s);
     }
     return(0);
@@ -122,7 +122,7 @@ char UploadActionReplay()
 void SetConfigurationFilename(int config)
 {
 	if(config)
-		sprintf(configfilename,"MINIMIG%dCFG",config);
+		siprintf(configfilename,"MINIMIG%dCFG",config);
 	else
 		strcpy(configfilename,"MINIMIG CFG");
 }
@@ -155,7 +155,7 @@ unsigned char LoadConfiguration(char *filename)
     if (FileOpen(&file, filename))
     {
 		BootPrint("Opened configuration file\n");
-        printf("Configuration file size: %lu\r", file.size);
+        iprintf("Configuration file size: %lu\r", file.size);
         if (file.size == sizeof(config))
         {
             FileRead(&file, sector_buffer);
@@ -182,7 +182,7 @@ unsigned char LoadConfiguration(char *filename)
                 BootPrint("Wrong configuration file format!\n");
         }
         else
-            printf("Wrong configuration file size: %lu (expected: %lu)\r", file.size, sizeof(config));
+            iprintf("Wrong configuration file size: %lu (expected: %lu)\r", file.size, sizeof(config));
     }
     if(!result)
 	{
@@ -265,24 +265,24 @@ void ApplyConfiguration(char reloadkickstart)
 		switch(hdf[0].type) // Customise message for SD card access
 		{
 			case (HDF_FILE | HDF_SYNTHRDB):
-		        sprintf(s, "\nHardfile 1 (with fake RDB): %.8s.%.3s", hdf[1].file.name, &hdf[1].file.name[8]);
+		        siprintf(s, "\nHardfile 1 (with fake RDB): %.8s.%.3s", hdf[1].file.name, &hdf[1].file.name[8]);
 				break;
 			case HDF_FILE:
-		        sprintf(s, "\nHardfile 0: %.8s.%.3s", hdf[0].file.name, &hdf[0].file.name[8]);
+		        siprintf(s, "\nHardfile 0: %.8s.%.3s", hdf[0].file.name, &hdf[0].file.name[8]);
 				break;
 			case HDF_CARD:
-		        sprintf(s, "\nHardfile 0: using entire SD card");
+		        siprintf(s, "\nHardfile 0: using entire SD card");
 				break;
 			default:
-		        sprintf(s, "\nHardfile 0: using SD card partition %d",hdf[0].type-HDF_CARD);	// Number from 1
+		        siprintf(s, "\nHardfile 0: using SD card partition %d",hdf[0].type-HDF_CARD);	// Number from 1
 				break;
 		}
         BootPrint(s);
-        sprintf(s, "CHS: %u.%u.%u", hdf[0].cylinders, hdf[0].heads, hdf[0].sectors);
+        siprintf(s, "CHS: %u.%u.%u", hdf[0].cylinders, hdf[0].heads, hdf[0].sectors);
         BootPrint(s);
-        sprintf(s, "Size: %lu MB", ((((unsigned long) hdf[0].cylinders) * hdf[0].heads * hdf[0].sectors) >> 11));
+        siprintf(s, "Size: %lu MB", ((((unsigned long) hdf[0].cylinders) * hdf[0].heads * hdf[0].sectors) >> 11));
         BootPrint(s);
-        sprintf(s, "Offset: %ld", hdf[0].offset);
+        siprintf(s, "Offset: %ld", hdf[0].offset);
 		BootPrint(s);
 	}
    	if(OpenHardfile(1))
@@ -290,51 +290,51 @@ void ApplyConfiguration(char reloadkickstart)
 		switch(hdf[1].type)
 		{
 			case (HDF_FILE | HDF_SYNTHRDB):
-		        sprintf(s, "\nHardfile 1 (with fake RDB): %.8s.%.3s", hdf[1].file.name, &hdf[1].file.name[8]);
+		        siprintf(s, "\nHardfile 1 (with fake RDB): %.8s.%.3s", hdf[1].file.name, &hdf[1].file.name[8]);
 				break;
 			case HDF_FILE:
-		        sprintf(s, "\nHardfile 1: %.8s.%.3s", hdf[1].file.name, &hdf[1].file.name[8]);
+		        siprintf(s, "\nHardfile 1: %.8s.%.3s", hdf[1].file.name, &hdf[1].file.name[8]);
 				break;
 			case HDF_CARD:
-		        sprintf(s, "\nHardfile 1: using entire SD card");
+		        siprintf(s, "\nHardfile 1: using entire SD card");
 				break;
 			default:
-		        sprintf(s, "\nHardfile 1: using SD card partition %d",hdf[1].type-HDF_CARD);	// Number from 1
+		        siprintf(s, "\nHardfile 1: using SD card partition %d",hdf[1].type-HDF_CARD);	// Number from 1
 				break;
 		}
         BootPrint(s);
-        sprintf(s, "CHS: %u.%u.%u", hdf[1].cylinders, hdf[1].heads, hdf[1].sectors);
+        siprintf(s, "CHS: %u.%u.%u", hdf[1].cylinders, hdf[1].heads, hdf[1].sectors);
         BootPrint(s);
-        sprintf(s, "Size: %lu MB", ((((unsigned long) hdf[1].cylinders) * hdf[1].heads * hdf[1].sectors) >> 11));
+        siprintf(s, "Size: %lu MB", ((((unsigned long) hdf[1].cylinders) * hdf[1].heads * hdf[1].sectors) >> 11));
         BootPrint(s);
-        sprintf(s, "Offset: %ld", hdf[1].offset);
+        siprintf(s, "Offset: %ld", hdf[1].offset);
         BootPrint(s);
 	}
 
     ConfigIDE(config.enable_ide, config.hardfile[0].present && config.hardfile[0].enabled, config.hardfile[1].present && config.hardfile[1].enabled);
 
-    sprintf(s, "CPU clock     : %s", config.chipset & 0x01 ? "turbo" : "normal");
+    siprintf(s, "CPU clock     : %s", config.chipset & 0x01 ? "turbo" : "normal");
     BootPrint(s);
-    sprintf(s, "Chip RAM size : %s", config_memory_chip_msg[config.memory & 0x03]);
+    siprintf(s, "Chip RAM size : %s", config_memory_chip_msg[config.memory & 0x03]);
     BootPrint(s);
-    sprintf(s, "Slow RAM size : %s", config_memory_slow_msg[config.memory >> 2 & 0x03]);
+    siprintf(s, "Slow RAM size : %s", config_memory_slow_msg[config.memory >> 2 & 0x03]);
     BootPrint(s);
-    sprintf(s, "Fast RAM size : %s", config_memory_fast_msg[config.memory >> 4 & 0x03]);
+    siprintf(s, "Fast RAM size : %s", config_memory_fast_msg[config.memory >> 4 & 0x03]);
     BootPrint(s);
 
 
-    sprintf(s, "Floppy drives : %u", config.floppy.drives + 1);
+    siprintf(s, "Floppy drives : %u", config.floppy.drives + 1);
     BootPrint(s);
-    sprintf(s, "Floppy speed  : %s", config.floppy.speed ? "fast": "normal");
+    siprintf(s, "Floppy speed  : %s", config.floppy.speed ? "fast": "normal");
     BootPrint(s);
 
     BootPrint("");
 
-    sprintf(s, "\nA600 IDE HDC is %s.", config.enable_ide ? "enabled" : "disabled");
+    siprintf(s, "\nA600 IDE HDC is %s.", config.enable_ide ? "enabled" : "disabled");
     BootPrint(s);
-    sprintf(s, "Master HDD is %s.", config.hardfile[0].present ? config.hardfile[0].enabled ? "enabled" : "disabled" : "not present");
+    siprintf(s, "Master HDD is %s.", config.hardfile[0].present ? config.hardfile[0].enabled ? "enabled" : "disabled" : "not present");
     BootPrint(s);
-    sprintf(s, "Slave HDD is %s.", config.hardfile[1].present ? config.hardfile[1].enabled ? "enabled" : "disabled" : "not present");
+    siprintf(s, "Slave HDD is %s.", config.hardfile[1].present ? config.hardfile[1].enabled ? "enabled" : "disabled" : "not present");
     BootPrint(s);
 
 #if 0
@@ -346,7 +346,7 @@ void ApplyConfiguration(char reloadkickstart)
 		BootPrint(  "*           when using large hardfiles.           *");	// AMR
         BootPrint(  "***************************************************");
     }
-    printf("Bootloading is complete.\r");
+    iprintf("Bootloading is complete.\r");
 #endif
 
     BootPrint("\nExiting bootloader...");
@@ -377,7 +377,7 @@ unsigned char SaveConfiguration(char *filename)
     // save configuration data
     if (FileOpen(&file, filename))
     {
-        printf("Configuration file size: %lu\r", file.size);
+        iprintf("Configuration file size: %lu\r", file.size);
         if (file.size != sizeof(config))
         {
             file.size = sizeof(config);
@@ -392,28 +392,28 @@ unsigned char SaveConfiguration(char *filename)
     }
     else
     {
-        printf("Configuration file not found!\r");
-        printf("Trying to create a new one...\r");
+        iprintf("Configuration file not found!\r");
+        iprintf("Trying to create a new one...\r");
         strncpy(file.name, filename, 11);
         file.attributes = 0;
         file.size = sizeof(config);
         if (FileCreate(0, &file))
         {
-            printf("File created.\r");
-            printf("Trying to write new data...\r");
+            iprintf("File created.\r");
+            iprintf("Trying to write new data...\r");
             memset((void*)sector_buffer, 0, sizeof(sector_buffer));
             memcpy((void*)sector_buffer, (void*)&config, sizeof(config));
 
             if (FileWrite(&file, sector_buffer))
             {
-                printf("File written successfully.\r");
+                iprintf("File written successfully.\r");
                 return(1);
             }
             else
-                printf("File write failed!\r");
+                iprintf("File write failed!\r");
         }
         else
-            printf("File creation failed!\r");
+            iprintf("File creation failed!\r");
     }
     return(0);
 }

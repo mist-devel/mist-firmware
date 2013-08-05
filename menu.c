@@ -39,6 +39,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "menu.h"
 #include "user_io.h"
 #include "tos.h"
+#include "debug.h"
 
 // other constants
 #define DIRSIZE 8 // number of items in directory display window
@@ -370,10 +371,8 @@ void HandleUI(void)
 	break;
 	
     case MENU_MIST_STORAGE1 :
-	menumask=0x1f;
+	menumask=0x3f;
 	OsdSetTitle("Storage", 0);
-
-	OsdWrite(0, "", 0, 0);
 
 	// entries for both floppies
 	for(i=0;i<2;i++) {
@@ -383,22 +382,26 @@ void HandleUI(void)
 	  if(tos_system_ctrl & (TOS_CONTROL_FDC_WR_PROT_A << i))
 	    strcat(s, " \x17");
 
-	  OsdWrite(i+1, s, menusub == i,0);
+	  OsdWrite(i, s, menusub == i,0);
 	}
 
 	strcpy(s, " Write protect: ");
 	strcat(s, config_tos_wrprot[(tos_system_ctrl >> 6)&3]);
-        OsdWrite(3, s, menusub == 2,0);
+        OsdWrite(2, s, menusub == 2,0);
 
-        OsdWrite(4, "", 0, 0);
+        OsdWrite(3, "", 0, 0);
 
-	strcpy(s, " HDD: ");
-	strcat(s, tos_get_disk_name(2));
-        OsdWrite(5, s, menusub == 3, 0);
+	for(i=0;i<2;i++) {
+	  strcpy(s, " ACSI0: ");
+	  s[5] = '0'+i;
+	  
+	  strcat(s, tos_get_disk_name(2+i));
+	  OsdWrite(4+i, s, menusub == 3+i, 0);
+	}
 
         OsdWrite(6, "", 0, 0);
 
-        OsdWrite(7, STD_EXIT, menusub == 4,0);
+        OsdWrite(7, STD_EXIT, menusub == 5,0);
 
 	parentstate = menustate;
         menustate = MENU_MIST_STORAGE2;
@@ -425,13 +428,13 @@ void HandleUI(void)
 			     | (((((tos_system_ctrl >> 6)&3) + 1)&3)<<6) );
 	  menustate = MENU_MIST_STORAGE1;
 	
-	} else if(menusub == 3) {
-	  if(tos_disk_is_inserted(2)) {
-	    tos_insert_disk(2, NULL);
+	} else if((menusub == 3) || (menusub == 4)) {
+	  if(tos_disk_is_inserted(menusub-1)) {
+	    tos_insert_disk(menusub-1, NULL);
 	    menustate = MENU_MIST_STORAGE1;
 	  } else
 	    SelectFile("HD ", SCAN_LFN, MENU_MIST_STORAGE_FILE_SELECTED, MENU_MIST_STORAGE1);
-	} else if (menusub == 4) {
+	} else if (menusub == 5) {
 	  menustate = MENU_MIST_MAIN1;
 	  menusub = 2;
 	}
@@ -440,7 +443,7 @@ void HandleUI(void)
 
     case MENU_MIST_STORAGE_FILE_SELECTED : // file successfully selected
       // floppy/hdd      
-      tos_insert_disk(menusub, &file);
+      tos_insert_disk(menusub-1, &file);
       menustate = MENU_MIST_STORAGE1;
       break;
 
@@ -646,7 +649,7 @@ void HandleUI(void)
 		        OsdWrite(i, s, menusub == i,(i>drives)||(i>config.floppy.drives));
 			}
         }
-		sprintf(s," Floppy disk turbo : %s",config.floppy.speed ? "on" : "off");
+		siprintf(s," Floppy disk turbo : %s",config.floppy.speed ? "on" : "off");
         OsdWrite(4, s, menusub==4,0);
         OsdWrite(5, " Hard disk settings \x16", menusub == 5,0);
         OsdWrite(6, "", 0,0);
@@ -1484,7 +1487,7 @@ void HandleUI(void)
 		OsdSetTitle("Drives",OSD_ARROW_LEFT|OSD_ARROW_RIGHT);
 
         OsdWrite(0, "", 0,0);
-        sprintf(s, "        drives : %d", config.floppy.drives + 1,0);
+        siprintf(s, "        drives : %d", config.floppy.drives + 1,0);
         OsdWrite(1, s, menusub == 0,0);
         strcpy(s, "         speed : ");
         strcat(s, config.floppy.speed ? "fast " : "normal");
@@ -1493,7 +1496,7 @@ void HandleUI(void)
         strcpy(s, "      A600 IDE : ");
         strcat(s, config.enable_ide ? "on " : "off");
         OsdWrite(4, s, menusub == 2,0);
-        sprintf(s, "     hardfiles : %d", (config.hardfile[0].present & config.hardfile[0].enabled) + (config.hardfile[1].present & config.hardfile[1].enabled));
+        siprintf(s, "     hardfiles : %d", (config.hardfile[0].present & config.hardfile[0].enabled) + (config.hardfile[1].present & config.hardfile[1].enabled));
         OsdWrite(5,s, menusub == 3,0);
         OsdWrite(6, "", 0,0);
         OsdWrite(7, STD_EXIT, menusub == 4,0);
@@ -2051,11 +2054,11 @@ void HandleUI(void)
 
         OsdSetTitle("FW & Core",0);
         OsdWrite(0, "", 0, 0);
-	sprintf(s, "   ARM  s/w ver. %s", version + 5);
+	siprintf(s, "   ARM  s/w ver. %s", version + 5);
 	OsdWrite(1, s, 0, 0);
 	char *v = GetFirmwareVersion(&file, "FIRMWAREUPG");
 	if(v) {
-	  sprintf(s, "   FILE s/w ver. %s", v);
+	  siprintf(s, "   FILE s/w ver. %s", v);
 	  OsdWrite(2, s, 0, 0);
 	} else
 	  OsdWrite(2, "", 0, 0);
@@ -2465,7 +2468,7 @@ void InsertFloppy(adfTYPE *drive)
     tracks = file.size / (512*11);
     if (tracks > MAX_TRACKS)
     {
-        printf("UNSUPPORTED ADF SIZE!!! Too many tracks: %lu\r", tracks);
+        menu_debugf("UNSUPPORTED ADF SIZE!!! Too many tracks: %lu\r", tracks);
         tracks = MAX_TRACKS;
     }
     drive->tracks = (unsigned char)tracks;
@@ -2505,14 +2508,14 @@ void InsertFloppy(adfTYPE *drive)
 
     // some debug info
     if (file.long_name[0])
-        printf("Inserting floppy: \"%s\"\r", file.long_name);
+        menu_debugf("Inserting floppy: \"%s\"\r", file.long_name);
     else
-        printf("Inserting floppy: \"%.11s\"\r", file.name);
+        menu_debugf("Inserting floppy: \"%.11s\"\r", file.name);
 
-    printf("file attributes: 0x%02X\r", file.attributes);
-    printf("file size: %lu (%lu KB)\r", file.size, file.size >> 10);
-    printf("drive tracks: %u\r", drive->tracks);
-    printf("drive status: 0x%02X\r", drive->status);
+    menu_debugf("file attributes: 0x%02X\r", file.attributes);
+    menu_debugf("file size: %lu (%lu KB)\r", file.size, file.size >> 10);
+    menu_debugf("drive tracks: %u\r", drive->tracks);
+    menu_debugf("drive status: 0x%02X\r", drive->status);
 }
 
 /*  Error Message */
@@ -2530,7 +2533,7 @@ void ErrorMessage(const char *message, unsigned char code) {
     
     s[0] = 0;
     if (code)
-      sprintf(s, "    #%d", code);
+      siprintf(s, "    #%d", code);
     
     OsdWrite(3, "", 0,0);
     OsdWrite(4, s, 0,0);

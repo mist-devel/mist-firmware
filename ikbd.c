@@ -25,6 +25,7 @@
 #include "user_io.h"
 #include "hardware.h"
 #include "ikbd.h"
+#include "debug.h"
 
 // atari ikbd stuff
 #define IKBD_STATE_JOYSTICK_EVENT_REPORTING    0x01
@@ -33,6 +34,7 @@
 #define IKBD_STATE_MOUSE_DISABLED              0x08
 #define IKBD_STATE_MOUSE_ABSOLUTE              0x10
 #define IKBD_STATE_MOUSE_ABSOLUTE_IN_PROGRESS  0x20
+#define IKBD_STATE_WAIT4RESET                  0x40
 
 #define IKBD_DEFAULT IKBD_STATE_JOYSTICK_EVENT_REPORTING
 
@@ -62,7 +64,7 @@ static struct {
 void ikbd_init() {
   // reset ikbd state
   memset(&ikbd, 0, sizeof(ikbd));
-  ikbd.state = IKBD_DEFAULT;
+  ikbd.state = IKBD_DEFAULT | IKBD_STATE_WAIT4RESET;
 
   ikbd.mouse_abs_max_x = ikbd.mouse_abs_max_y = 65535;
   ikbd.mouse_abs_scale_x = ikbd.mouse_abs_scale_y = 1;
@@ -70,7 +72,7 @@ void ikbd_init() {
 
 static void enqueue(unsigned short b) {
   if(((wptr + 1)&(QUEUE_LEN-1)) == rptr) {
-    //    iprintf("IKBD: !!!!!!! tx queue overflow !!!!!!!!!\n");
+    //    ikbd_debugf("!!!!!!! tx queue overflow !!!!!!!!!");
     return;
   }
 
@@ -99,7 +101,7 @@ void ikbd_handle_input(unsigned char cmd) {
 
     switch(ikbd.cmd) {
     case 0x07: // set mouse button action
-      iprintf("IKBD: mouse button action = %x\n", cmd);
+      ikbd_debugf("mouse button action = %x", cmd);
       
       // bit 2: Mouse buttons act like keys (LEFT=0x74 & RIGHT=0x75)
       if(cmd & 0x04) ikbd.state |=  IKBD_STATE_MOUSE_BUTTON_AS_KEY;
@@ -114,7 +116,7 @@ void ikbd_handle_input(unsigned char cmd) {
       if(ikbd.expect == 0) ikbd.mouse_abs_max_y = (ikbd.mouse_abs_max_y & 0xff00) | cmd;
       
       if(!ikbd.expect) 
-	iprintf("IKBD: new abs max = %u/%u\n", ikbd.mouse_abs_max_x, ikbd.mouse_abs_max_y);
+	ikbd_debugf("new abs max = %u/%u", ikbd.mouse_abs_max_x, ikbd.mouse_abs_max_y);
       break;
       
     case 0x0e:
@@ -124,7 +126,7 @@ void ikbd_handle_input(unsigned char cmd) {
       if(ikbd.expect == 0) ikbd.mouse_pos_y = (ikbd.mouse_pos_y & 0xff00) | cmd;
       
       if(!ikbd.expect) 
-	iprintf("IKBD: new abs pos = %u/%u\n", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
+	ikbd_debugf("new abs pos = %u/%u", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
       break;
       
     case 0x0c:
@@ -132,7 +134,7 @@ void ikbd_handle_input(unsigned char cmd) {
       if(ikbd.expect == 0) ikbd.mouse_abs_scale_y = cmd;
       
       if(!ikbd.expect) 
-	iprintf("IKBD: absolute scale = %u/%u\n", ikbd.mouse_abs_scale_x, ikbd.mouse_abs_scale_y);
+	ikbd_debugf("absolute scale = %u/%u", ikbd.mouse_abs_scale_x, ikbd.mouse_abs_scale_y);
       break;
       
     case 0x80: // ibkd reset
@@ -152,18 +154,18 @@ void ikbd_handle_input(unsigned char cmd) {
 
   switch(cmd) {
   case 0x07:
-    puts("IKBD: Set mouse button action");
+    ikbd_debugf("Set mouse button action");
     ikbd.expect = 1;
     break;
 
   case 0x08:
-    puts("IKBD: Set relative mouse positioning");
+    ikbd_debugf("Set relative mouse positioning");
     ikbd.state &= ~IKBD_STATE_MOUSE_DISABLED;
     ikbd.state &= ~IKBD_STATE_MOUSE_ABSOLUTE;
     break;
 
   case 0x09:
-    puts("IKBD: Set absolute mouse positioning");
+    ikbd_debugf("Set absolute mouse positioning");
     ikbd.state &= ~IKBD_STATE_MOUSE_DISABLED;
     ikbd.state |=  IKBD_STATE_MOUSE_ABSOLUTE;
     ikbd.expect = 4;
@@ -171,17 +173,17 @@ void ikbd_handle_input(unsigned char cmd) {
     break;
 
   case 0x0b:
-    puts("IKBD: Set Mouse threshold");
+    ikbd_debugf("Set Mouse threshold");
     ikbd.expect = 2;
     break;
 
   case 0x0c:
-    puts("IKBD: Set Mouse scale");
+    ikbd_debugf("Set Mouse scale");
     ikbd.expect = 2;
     break;
 
   case 0x0d:
-    //    puts("IKBD: Interrogate Mouse Position");
+    //    ikbd_debugf("Interrogate Mouse Position");
     if((ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE) && 
        !(ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE_IN_PROGRESS)) {
 
@@ -201,32 +203,32 @@ void ikbd_handle_input(unsigned char cmd) {
     break;
 
   case 0x0e:
-    puts("IKBD: Load Mouse Position");
+    ikbd_debugf("Load Mouse Position");
     ikbd.expect = 5;
     break;
 
   case 0x0f:
-    puts("IKBD: Set Y at bottom");
+    ikbd_debugf("Set Y at bottom");
     ikbd.state |= IKBD_STATE_MOUSE_Y_BOTTOM;
     break;
 
   case 0x10:
-    puts("IKBD: Set Y at top");
+    ikbd_debugf("Set Y at top");
     ikbd.state &= ~IKBD_STATE_MOUSE_Y_BOTTOM;
     break;
 
   case 0x12:
-    puts("IKBD: Disable mouse");
+    ikbd_debugf("Disable mouse");
     ikbd.state |= IKBD_STATE_MOUSE_DISABLED;
     break;
 
   case 0x14:
-    puts("IKBD: Set Joystick event reporting");
+    ikbd_debugf("Set Joystick event reporting");
     ikbd.state |= IKBD_STATE_JOYSTICK_EVENT_REPORTING;
     break;
 
   case 0x15:
-    puts("IKBD: Set Joystick interrogation mode");
+    ikbd_debugf("Set Joystick interrogation mode");
     ikbd.state &= ~IKBD_STATE_JOYSTICK_EVENT_REPORTING;
     break;
 
@@ -239,12 +241,17 @@ void ikbd_handle_input(unsigned char cmd) {
     break;
 
   case 0x1a:
-    puts("IKBD: Disable joysticks");
+    ikbd_debugf("Disable joysticks");
     ikbd.state &= ~IKBD_STATE_JOYSTICK_EVENT_REPORTING;
     break;
 
+  case 0x1b:
+    ikbd_debugf("Time of day clock set");
+    ikbd.expect = 6;
+    break;
+
   case 0x1c:
-    puts("IKBD: Interrogate time of day");
+    ikbd_debugf("Interrogate time of day");
 
     enqueue(0x8000 + 64);   // wait 64ms
     enqueue(0xfc);
@@ -258,13 +265,13 @@ void ikbd_handle_input(unsigned char cmd) {
     
 
   case 0x80:
-    puts("IKBD: Reset");
+    ikbd_debugf("Reset");
     ikbd.expect = 1;
     ikbd.state = IKBD_DEFAULT;
     break;
 
   default:
-    iprintf("IKBD: unknown command: %x\n", cmd);
+    ikbd_debugf("unknown command: %x", cmd);
     break;
   }
 }
@@ -275,7 +282,7 @@ void ikbd_poll(void) {
   static xtimer = 0;
   if(CheckTimer(xtimer)) {
     xtimer = GetTimer(2000);
-    iprintf("IKBD: sent %d\n", sent);
+    ikbd_debugf("sent %d", sent);
   }
 #endif
 
@@ -301,7 +308,7 @@ void ikbd_poll(void) {
     if(!CheckTimer(ikbd_timer))
       return;
 
-    //    iprintf("IKBD: timer done\n");
+    //    ikbd_debugf("timer done");
     ikbd_timer = 0;
   }
 
@@ -319,12 +326,17 @@ void ikbd_poll(void) {
     rptr = (rptr+1)&(QUEUE_LEN-1);
     return;
   }
-    
-  // transmit data from queue
-  EnableIO();
-  SPI(UIO_IKBD_OUT);
-  SPI(tx_queue[rptr]);
-  DisableIO();
+
+  // keep quiet as long has we haven't received a reset
+  if(!(ikbd.state & IKBD_STATE_WAIT4RESET)) {
+    //    ikbd_debugf("TX[%x]", tx_queue[rptr]);
+
+    // transmit data from queue
+    EnableIO();
+    SPI(UIO_IKBD_OUT);
+    SPI(tx_queue[rptr]);
+    DisableIO();
+  }
 
   rptr = (rptr+1)&(QUEUE_LEN-1);  
 #ifdef IKBD_DEBUG
@@ -338,7 +350,7 @@ void ikbd_joystick(unsigned char joystick, unsigned char map) {
   
   if(ikbd.state & IKBD_STATE_JOYSTICK_EVENT_REPORTING) {
 #ifdef IKBD_DEBUG
-    iprintf("IKBD: joy %d %x\n", joystick, map);
+    ikbd_debugf("joy %d %x", joystick, map);
 #endif
 
     // only report joystick data for joystick 0 if the mouse is disabled
@@ -362,7 +374,7 @@ void ikbd_joystick(unsigned char joystick, unsigned char map) {
   }
 #ifdef IKBD_DEBUG
   else
-    iprintf("IKBD: no monitor, drop joy %d %x\n", joystick, map);
+    ikbd_debugf("no monitor, drop joy %d %x", joystick, map);
 #endif
   
   // save state of joystick for interrogation mode
@@ -371,7 +383,7 @@ void ikbd_joystick(unsigned char joystick, unsigned char map) {
 
 void ikbd_keyboard(unsigned char code) {
 #ifdef IKBD_DEBUG
-  iprintf("IKBD: send keycode %x%s\n", code&0x7f, (code&0x80)?" BREAK":"");
+  ikbd_debugf("send keycode %x%s", code&0x7f, (code&0x80)?" BREAK":"");
 #endif
   enqueue(code);
 }
@@ -421,7 +433,7 @@ void ikbd_mouse(unsigned char b, char x, char y) {
     x /= ikbd.mouse_abs_scale_x;
     y /= ikbd.mouse_abs_scale_y;
 
-    //    iprintf("abs inc %d %d -> ", x, y);
+    //    ikbd_debugf("abs inc %d %d -> ", x, y);
 
     if(x < 0) {
       x = -x;
@@ -446,7 +458,7 @@ void ikbd_mouse(unsigned char b, char x, char y) {
 	ikbd.mouse_pos_y = ikbd.mouse_abs_max_y;
     }
 
-    //    iprintf("%d %d\n", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
+    //    ikbd_debugf("%d %d\n", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
 
   } else {
     // atari has mouse button bits swapped

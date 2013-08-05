@@ -111,7 +111,7 @@ extern char BootPrint(const char *s);
 void bprintfl(const char *fmt,unsigned long l)
 {
 	char s[64];
-	sprintf(s,fmt,l);
+	siprintf(s,fmt,l);
 	BootPrint(s);
 }
 
@@ -123,32 +123,32 @@ unsigned char FindDrive(void)
     if (!MMC_Read(0, sector_buffer)) // read MBR
         return(0);
 
-    printf("partition type: 0x%02X (", sector_buffer[450]);
+    iprintf("partition type: 0x%02X (", sector_buffer[450]);
     switch (sector_buffer[450])
     {
     case 0x00:
-        printf("NONE");
+        iprintf("NONE");
         break;
     case 0x01:
-        printf("FAT12");
+        iprintf("FAT12");
         break;
     case 0x04:
     case 0x06:
-        printf("FAT16");
+        iprintf("FAT16");
         break;
     case 0x0B:
     case 0x0C:
-        printf("FAT32");
+        iprintf("FAT32");
         break;
     default:
-        printf("UNKNOWN");
+        iprintf("UNKNOWN");
         break;
     }
-    printf(")\r");
+    iprintf(")\r");
 
     if (sector_buffer[450] != 0x04 && sector_buffer[450] != 0x06 && sector_buffer[450] != 0x0B && sector_buffer[450] != 0x0C) // first partition filesystem type: FAT16
     {
-        printf("Unsupported partition type!\r");
+        iprintf("Unsupported partition type!\r");
         return(0);
     }
 
@@ -225,14 +225,14 @@ unsigned char FindDrive(void)
 
 
     // some debug output
-    printf("fat_size: %lu\r", fat_size);
-    printf("fat_number: %u\r", fat_number);
-    printf("fat_start: %lu\r", fat_start);
-    printf("root_directory_start: %lu\r", root_directory_start);
-    printf("dir_entries: %u\r", dir_entries);
-    printf("data_start: %lu\r", data_start);
-    printf("cluster_size: %u\r", cluster_size);
-    printf("cluster_mask: %08lX\r", cluster_mask);
+    iprintf("fat_size: %lu\r", fat_size);
+    iprintf("fat_number: %u\r", fat_number);
+    iprintf("fat_start: %lu\r", fat_start);
+    iprintf("root_directory_start: %lu\r", root_directory_start);
+    iprintf("dir_entries: %u\r", dir_entries);
+    iprintf("data_start: %lu\r", data_start);
+    iprintf("cluster_size: %u\r", cluster_size);
+    iprintf("cluster_mask: %08lX\r", cluster_mask);
 
     return(1);
 }
@@ -306,31 +306,31 @@ unsigned char FindDrive(void)
     if (strncmp((const char*)&sector_buffer[0x52], "FAT32   ", 8)==0) // check for FAT32
 		fattype = 32;
 	
-    printf("partition type: 0x%02X (", sector_buffer[450]);
+    iprintf("partition type: 0x%02X (", sector_buffer[450]);
     switch (fattype)
     {
 		case 0:
-		    printf("NONE");
+		    iprintf("NONE");
 		    break;
 		case 12:
-		    printf("FAT12");
+		    iprintf("FAT12");
 		    break;
 		case 16:
-		    printf("FAT16");
+		    iprintf("FAT16");
 		    break;
 		case 32:
-		    printf("FAT32");
+		    iprintf("FAT32");
 		    fat32 = 1;
 		    break;
 		default:
-		    printf("UNKNOWN");
+		    iprintf("UNKNOWN");
 		    break;
     }
-    printf(")\r");
+    iprintf(")\r");
 
     if (fattype != 32 && fattype != 16) // first partition filesystem type: FAT16 or FAT32
     {
-        printf("Unsupported partition type!\r");
+        iprintf("Unsupported partition type!\r");
         return(0);
     }
 
@@ -395,14 +395,14 @@ unsigned char FindDrive(void)
 
 
     // some debug output
-    printf("fat_size: %lu\r", fat_size);
-    printf("fat_number: %u\r", fat_number);
-    printf("fat_start: %lu\r", fat_start);
-    printf("root_directory_start: %lu\r", root_directory_start);
-    printf("dir_entries: %u\r", dir_entries);
-    printf("data_start: %lu\r", data_start);
-    printf("cluster_size: %u\r", cluster_size);
-    printf("cluster_mask: %08lX\r", cluster_mask);
+    iprintf("fat_size: %lu\r", fat_size);
+    iprintf("fat_number: %u\r", fat_number);
+    iprintf("fat_start: %lu\r", fat_start);
+    iprintf("root_directory_start: %lu\r", root_directory_start);
+    iprintf("dir_entries: %u\r", dir_entries);
+    iprintf("data_start: %lu\r", data_start);
+    iprintf("cluster_size: %u\r", cluster_size);
+    iprintf("cluster_mask: %08lX\r", cluster_mask);
 
     return(1);
 }
@@ -461,7 +461,7 @@ unsigned char FileOpen(fileTYPE *file, const char *name)
                         file->entry.sector = iDirectorySector - 1;
                         file->entry.index = iEntry & 0x0F;
 
-                        printf("file \"%s\" found\r", name);
+                        iprintf("file \"%s\" found\r", name);
 
                         return(1);
                     }
@@ -482,7 +482,7 @@ unsigned char FileOpen(fileTYPE *file, const char *name)
             break;
     }
 
-    printf("file \"%s\" not found\r", name);
+    iprintf("file \"%s\" not found\r", name);
     memset(file, 0, sizeof(fileTYPE));
     return(0);
 }
@@ -718,7 +718,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options)
                                 *ptr++ = 0;
                         }
                         else
-                            printf("LFN error!\r");
+                            iprintf("LFN error!\r");
                     }
                 }
                 else // if not an LFN entry
@@ -1109,7 +1109,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options)
     }
     /*
     time = GetTimer(0) - time;
-    printf("ScanDirectory(): %lu ms\r", time >> 20);
+    iprintf("ScanDirectory(): %lu ms\r", time >> 20);
     */
     return rc;
 }
@@ -1364,7 +1364,7 @@ unsigned char FileCreate(unsigned long iDirectory, fileTYPE *file)
 
             if (pEntry->Name[0] == SLOT_EMPTY)
             {
-                printf("Empty entry found in sector %lu at index %lu\r", iDirectorySector-1, iEntry&0x0F);
+                iprintf("Empty entry found in sector %lu at index %lu\r", iDirectorySector-1, iEntry&0x0F);
 
                 // free cluster is marked as 0x0000
                 // last cluster in chain is 0xFFFF
@@ -1377,7 +1377,7 @@ unsigned char FileCreate(unsigned long iDirectory, fileTYPE *file)
                     {
                         if (!MMC_Read(fat_start + fat_index, (unsigned char*)&fat_buffer))
                         {
-                            printf("FileCreate(): FAT read failed!\r");
+                            iprintf("FileCreate(): FAT read failed!\r");
                             return(0);
                         }
                         // remember current buffer index
@@ -1392,7 +1392,7 @@ unsigned char FileCreate(unsigned long iDirectory, fileTYPE *file)
                         {   // empty cluster found
                             unsigned long cluster = (fat_index << (fat32 ? 7 : 8)) + buffer_index;  // calculate cluster number
 
-                            printf("Empty cluster: %lu\r", cluster);
+                            iprintf("Empty cluster: %lu\r", cluster);
 
                             // mark cluster as used
                             if (fat32)
@@ -1404,7 +1404,7 @@ unsigned char FileCreate(unsigned long iDirectory, fileTYPE *file)
                             // store FAT sector
                             if (!MMC_Write(fat_start + fat_index, (unsigned char*)&fat_buffer))
                             {
-                                printf("FileCreate(): FAT write failed!\r");
+                                iprintf("FileCreate(): FAT write failed!\r");
                                 return(0);
                             }
 
@@ -1414,7 +1414,7 @@ unsigned char FileCreate(unsigned long iDirectory, fileTYPE *file)
                             {
                                 if (!MMC_Write(fat_start + (i * fat_size) + fat_index, (unsigned char*)&fat_buffer))
                                 {
-                                    printf("FileCreate(): FAT copy #%lu write failed!\r", i);
+                                    iprintf("FileCreate(): FAT copy #%lu write failed!\r", i);
                                     return(0);
                                 }
                             }
@@ -1441,7 +1441,7 @@ unsigned char FileCreate(unsigned long iDirectory, fileTYPE *file)
                             // store dir entry
                             if (!MMC_Write(iDirectorySector - 1, sector_buffer))
                             {
-                                printf("FileCreate(): directory write failed!\r");
+                                iprintf("FileCreate(): directory write failed!\r");
                                 return(0);
                             }
 
@@ -1487,7 +1487,7 @@ unsigned char UpdateEntry(fileTYPE *file)
 
     if (!MMC_Read(file->entry.sector, sector_buffer))
     {
-        printf("UpdateEntry(): directory read failed!\r");
+        iprintf("UpdateEntry(): directory read failed!\r");
         return(0);
     }
 
@@ -1498,10 +1498,10 @@ unsigned char UpdateEntry(fileTYPE *file)
 
     if ((SwapBBBB(pEntry->FileSize) + cluster_size - 1) / (cluster_size << 9) != (file->size + cluster_size - 1) / (cluster_size << 9))
     {
-        printf("UpdateEntry(): different number of clusters!\r");
-        printf("pEntry->FileSize = %lu\r", SwapBBBB(pEntry->FileSize));
-        printf("file->size = %lu\r", file->size);
-        printf("cluster_size = %u\r", cluster_size);
+        iprintf("UpdateEntry(): different number of clusters!\r");
+        iprintf("pEntry->FileSize = %lu\r", SwapBBBB(pEntry->FileSize));
+        iprintf("file->size = %lu\r", file->size);
+        iprintf("cluster_size = %u\r", cluster_size);
         return(0);
     }
 
@@ -1510,7 +1510,7 @@ unsigned char UpdateEntry(fileTYPE *file)
 
     if (!MMC_Write(file->entry.sector, sector_buffer))
     {
-        printf("UpdateEntry(): directory write failed!\r");
+        iprintf("UpdateEntry(): directory write failed!\r");
         return(0);
     }
 
