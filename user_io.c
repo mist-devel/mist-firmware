@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "hardware.h"
+#include "osd.h"
 
 #include "user_io.h"
 #include "usb.h"
@@ -304,6 +305,14 @@ unsigned short keycode(unsigned char in) {
   return MISS;
 }
 
+void check_reset(unsigned char modifiers)
+{
+	if(core_type==CORE_TYPE_MINIMIG){
+		if(modifiers==0x45) // ctrl - alt - alt
+			OsdReset(RESET_NORMAL);
+	}
+}
+
 unsigned char modifier_keycode(unsigned char index) {
   /* usb modifer bits: 
         0     1     2    3    4     5     6    7
@@ -385,12 +394,14 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
     // handle modifier keys
     if(m != modifier) {
       for(i=0;i<8;i++) {
-	if((m & (1<<i)) && !(modifier & (1<<i)))
+	if((m & (1<<i)) && !(modifier & (1<<i)))	// Do we have a downstroke on a modifier key?
+	{
+	  check_reset(m);
 	  // shift keys are used for mouse joystick emulation in emu mode
 	  if(((i != EMU_BTN1) && (i != EMU_BTN2)) || (emu_mode == EMU_NONE))
 	    if(modifier_keycode(i) != MISS)
 	      send_keycode(modifier_keycode(i));
-	
+	}
 	if(!(m & (1<<i)) && (modifier & (1<<i)))
 	  if(((i != EMU_BTN1) && (i != EMU_BTN2)) || (emu_mode == EMU_NONE))
 	    if(modifier_keycode(i) != MISS)
