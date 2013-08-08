@@ -13,7 +13,8 @@
 #define MIST_SET_CONTROL  0x04
 #define MIST_GET_DMASTATE 0x05   // reads state of dma and floppy controller
 #define MIST_ACK_DMA      0x06   // acknowledges a dma command
-#define MIST_NAK_DMA      0x07   // don't acknowledge a dma command, but release bus
+#define MIST_BUS_REQ      0x07   // request bus
+#define MIST_BUS_REL      0x08   // release bus
 
 // tos sysconfig bits:
 // 0     - RESET

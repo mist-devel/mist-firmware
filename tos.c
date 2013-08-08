@@ -93,7 +93,15 @@ static void hexdump(void *data, unsigned long size, unsigned long offset) {
   }
 }
 
+static void mist_bus_request(char req) {
+  EnableFpga();
+  SPI(req?MIST_BUS_REQ:MIST_BUS_REL);
+  DisableFpga();
+}
+
 static void mist_memory_read(char *data, unsigned long words) {
+  mist_bus_request(1);
+
   EnableFpga();
   SPI(MIST_READ_MEMORY);
 
@@ -105,6 +113,7 @@ static void mist_memory_read(char *data, unsigned long words) {
 
   DisableFpga();
 
+  mist_bus_request(0);
 }
 
 static void mist_memory_read_block(char *data) {
@@ -117,6 +126,8 @@ static void mist_memory_read_block(char *data) {
 }
 
 static void mist_memory_write(char *data, unsigned long words) {
+  mist_bus_request(1);
+
   EnableFpga();
   SPI(MIST_WRITE_MEMORY);
 
@@ -126,6 +137,8 @@ static void mist_memory_write(char *data, unsigned long words) {
   }
 
   DisableFpga();
+
+  mist_bus_request(0);
 }
 
 static void mist_memory_write_block(char *data) {
@@ -284,10 +297,6 @@ static void handle_fdc(unsigned char *buffer) {
       SPI(MIST_ACK_DMA);
       DisableFpga(); 
     }
-  } else {
-    EnableFpga();
-    SPI(MIST_NAK_DMA);
-    DisableFpga(); 
   }
 }  
 
