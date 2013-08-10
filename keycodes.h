@@ -116,7 +116,7 @@ const unsigned short usb2ami[] = {
   0x5d,  // 55: KP *
   0x4a,  // 56: KP -
   0x5e,  // 57: KP +
-  MISS,  // 58: KP Enter
+  0x43,  // 58: KP Enter
   0x1d,  // 59: KP 1
   0x1e,  // 5a: KP 2
   0x1f,  // 5b: KP 3

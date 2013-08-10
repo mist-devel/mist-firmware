@@ -205,6 +205,12 @@ void HandleUI(void)
     case KEY_RIGHT :
         right = true;
         break;
+    case KEY_KPPLUS :
+		plus=true;
+        break;
+    case KEY_KPMINUS :
+		minus=true;
+        break;
     }
 
 	if(menu || select || up || down || left || right )

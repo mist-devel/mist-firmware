@@ -39,6 +39,7 @@
 #define KEY_PGDN         0x6D
 #define KEY_HOME         0x6A
 #define KEY_ESC          0x45
+#define KEY_KPENTER      0x43
 #define KEY_ENTER        0x44
 #define KEY_BACK         0x41
 #define KEY_SPACE        0x40
