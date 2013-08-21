@@ -13,7 +13,7 @@
 #define CART_BASE_ADDRESS        0xfa0000
 #define VIDEO_BASE_ADDRESS       0x010000
 
-unsigned long tos_system_ctrl = TOS_MEMCONFIG_4M;
+unsigned long tos_system_ctrl = TOS_MEMCONFIG_4M | TOS_CONTROL_BLITTER;
 
 static unsigned char font[2048];  // buffer for 8x16 atari font
 

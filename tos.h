@@ -60,6 +60,7 @@
 #define TOS_ACSI7_ENABLE          0x00020000
 
 #define TOS_CONTROL_TURBO         0x00040000
+#define TOS_CONTROL_BLITTER       0x00080000
 
 extern unsigned long tos_system_ctrl;
 

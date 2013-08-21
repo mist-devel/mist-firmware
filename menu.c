@@ -559,7 +559,7 @@ void HandleUI(void)
 
 
     case MENU_MIST_VIDEO1 :
-	menumask=0x07;
+	menumask=0x0f;
 	OsdSetTitle("Video", 0);
 
         OsdWrite(0, "", 0,0);
@@ -569,17 +569,19 @@ void HandleUI(void)
 	else                                      strcat(s, "56Hz");
         OsdWrite(1, s, menusub == 0,0);
 
-        OsdWrite(2, "", 0,0);
+	strcpy(s, " Blitter:  ");
+	strcat(s, (tos_system_ctrl & TOS_CONTROL_BLITTER)?"on":"off");
+        OsdWrite(2, s, menusub == 1, 0);
 
 	strcpy(s, " Screen: ");
 	if(tos_system_ctrl & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
 	else                                          strcat(s, "Mono");
-        OsdWrite(3, s, menusub == 1,0);
+        OsdWrite(3, s, menusub == 2,0);
 	
         OsdWrite(4, "", 0,0);
         OsdWrite(5, "", 0,0);
         OsdWrite(6, "", 0,0);
-        OsdWrite(7, STD_EXIT, menusub == 2,0);
+        OsdWrite(7, STD_EXIT, menusub == 3,0);
 
 	parentstate = menustate;
         menustate = MENU_MIST_VIDEO2;
@@ -590,6 +592,7 @@ void HandleUI(void)
 	menustate = MENU_MIST_MAIN1;
 	menusub = 4;
       }
+
       if(select) {
 	switch(menusub) {
 	case 0:
@@ -598,11 +601,16 @@ void HandleUI(void)
 	  break;
 
 	case 1:
-	  tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_VIDEO_COLOR);
+	  tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_BLITTER );
 	  menustate = MENU_MIST_VIDEO1;
 	  break;
 
 	case 2:
+	  tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_VIDEO_COLOR);
+	  menustate = MENU_MIST_VIDEO1;
+	  break;
+
+	case 3:
 	  menustate = MENU_MIST_MAIN1;
 	  menusub = 4;
 	}
