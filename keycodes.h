@@ -99,7 +99,7 @@ const unsigned short usb2ami[] = {
   0x5f,  // 44: F11
   0x69 | OSD,  // 45: F12 (OSD)
   0x6e | OSD,  // 46: Print Screen (OSD)
-  0x69 | OSD,  // 47: Scroll Lock (OSD)
+  NUM_LOCK_TOGGLE,  // 47: Scroll Lock (OSD)
   MISS,  // 48: Pause
   MISS,  // 49: Insert
   MISS,  // 4a: Home
@@ -219,7 +219,7 @@ const unsigned short usb2atari[] = {
   MISS,  // 44: F11
   OSD_LOC,  // 45: F12
   MISS,  // 46: Print Screen
-  MISS,  // 47: Scroll Lock
+  NUM_LOCK_TOGGLE,  // 47: Scroll Lock
   MISS,  // 48: Pause
   0x52,  // 49: Insert
   0x47,  // 4a: Home
