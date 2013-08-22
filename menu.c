@@ -456,7 +456,11 @@ void HandleUI(void)
 
     case MENU_MIST_STORAGE_FILE_SELECTED : // file successfully selected
       // floppy/hdd      
-      tos_insert_disk(menusub-1, &file);
+      if(menusub < 2)
+	tos_insert_disk(menusub, &file);
+      else
+	tos_insert_disk(menusub-1, &file);
+
       menustate = MENU_MIST_STORAGE1;
       break;
 
