@@ -334,16 +334,16 @@ unsigned char modifier_keycode(unsigned char index) {
   return MISS;
 }
 
-unsigned char osdcode(unsigned char c) {
-  int i = 0;
-  while(usb2osd[i][0] && usb2osd[i][0] != c)
-    i++;
+// unsigned char osdcode(unsigned char c) {
+//   int i = 0;
+//   while(usb2osd[i][0] && usb2osd[i][0] != c)
+//     i++;
   
-  if(!usb2osd[i][0])
-    iprintf("ERROR: Unsupported OSD code %x!\n", c);
+//   if(!usb2osd[i][0])
+//     iprintf("ERROR: Unsupported OSD code %x!\n", c);
   
-  return usb2osd[i][1];
-}
+//   return usb2osd[i][1];
+// }
 
 // set by OSD code to suppress forwarding of those keys to the core which
 // may be in use by an active OSD
@@ -422,8 +422,9 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 	// don't send break for caps lock
 	if(j == 6) {
 	  // special OSD key handled internally 
-	  if(code & OSD_LOC) 
-	    OsdKeySet(0x80 | osdcode(pressed[i]));
+	  //if(code & OSD_LOC) 
+	    //OsdKeySet(0x80 | osdcode(pressed[i]));
+    OsdKeySet(0x80 | usb2ami[pressed[i]]);
 
 	  if(!key_used_by_osd(code)) {
 	    if(is_emu_key(pressed[i])) {
@@ -451,8 +452,9 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 
 	if(j == 6) {
 	  // special OSD key handled internally 
-	  if(code & OSD_LOC) 
-	    OsdKeySet(osdcode(k[i]));
+	  //if(code & OSD_LOC) 
+	    //OsdKeySet(osdcode(k[i]));
+    OsdKeySet(usb2ami[k[i]]); 
 
 	  // no further processing of any key that is currently 
 	  // redirected to the OSD

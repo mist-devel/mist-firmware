@@ -190,7 +190,7 @@ const unsigned short usb2atari[] = {
   0x0b,  // 27: 0
   0x1c | OSD_LOC,  // 28: Return
   0x01 | OSD_LOC,  // 29: Escape
-  0x0e,  // 2a: Backspace
+  0x0e | OSD_LOC,  // 2a: Backspace
   0x0f,  // 2b: Tab
   0x39 | OSD_LOC,  // 2c: Space
   0x0c,  // 2d: -
@@ -222,11 +222,11 @@ const unsigned short usb2atari[] = {
   NUM_LOCK_TOGGLE,  // 47: Scroll Lock
   MISS,  // 48: Pause
   0x52,  // 49: Insert
-  0x47,  // 4a: Home
-  0x62,  // 4b: Page Up
+  0x47 | OSD_LOC,  // 4a: Home
+  0x62 | OSD_LOC,  // 4b: Page Up
   0x53,  // 4c: Delete
   MISS,  // 4d: End
-  0x61,  // 4e: Page Down
+  0x61 | OSD_LOC,  // 4e: Page Down
   0x4d,  // 4f: Right Arrow
   0x4b,  // 50: Left Arrow
   0x50 | OSD_LOC,  // 51: Down Arrow
@@ -263,16 +263,16 @@ const unsigned short usb2atari[] = {
 };
 
 // OSD uses amiga keycodes. This table translates from usb to OSD/amiga 
-const unsigned char usb2osd[][2] = {
-  { 0x45, KEY_MENU  },
-  { 0x65, KEY_MENU  },
-  { 0x52, KEY_UP    },
-  { 0x51, KEY_DOWN  },
-  { 0x28, KEY_ENTER },
-  { 0x29, KEY_ESC   },
-  { 0x2c, KEY_SPACE },
-  { 0,0 }
-};
+// const unsigned char usb2osd[][2] = {
+//   { 0x45, KEY_MENU  },
+//   { 0x65, KEY_MENU  },
+//   { 0x52, KEY_UP    },
+//   { 0x51, KEY_DOWN  },
+//   { 0x28, KEY_ENTER },
+//   { 0x29, KEY_ESC   },
+//   { 0x2c, KEY_SPACE },
+//   { 0,0 }
+// };
 
 #if 0
   // #define KEY_UPSTROKE     0x80
