@@ -150,6 +150,8 @@ int main(void)
 
     user_io_init();
 
+    tos_config_init();
+
     fpga_init(NULL);
 
     while (1) {

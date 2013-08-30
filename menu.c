@@ -303,29 +303,29 @@ void HandleUI(void)
         /******************************************************************/
 
     case MENU_MIST_MAIN1 :
-	menumask=0x7f;
+	menumask=0xff;
 	OsdSetTitle("Mist", 0);
 
 	// most important: main page has setup for floppy A: and screen
 	strcpy(s, " A: ");
 	strcat(s, tos_get_disk_name(0));
-	if(tos_system_ctrl & TOS_CONTROL_FDC_WR_PROT_A) strcat(s, " \x17");
+	if(tos_system_ctrl() & TOS_CONTROL_FDC_WR_PROT_A) strcat(s, " \x17");
 	OsdWrite(0, s, menusub == 0,0);
 
 	strcpy(s, " Screen: ");
-	if(tos_system_ctrl & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
+	if(tos_system_ctrl() & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
 	else                                          strcat(s, "Mono");
         OsdWrite(1, s, menusub == 1,0);
 
-        OsdWrite(2, "", 0,0);
-	
 	/* everything else is in submenus */
-        OsdWrite(3, " Storage                   \x16", menusub == 2,0);
-        OsdWrite(4, " System                    \x16", menusub == 3,0);
-        OsdWrite(5, " Audio / Video             \x16", menusub == 4,0);
-        OsdWrite(6, " Firmware & Core           \x16", menusub == 5,0);
+        OsdWrite(2, " Storage                   \x16", menusub == 2,0);
+        OsdWrite(3, " System                    \x16", menusub == 3,0);
+        OsdWrite(4, " Audio / Video             \x16", menusub == 4,0);
+        OsdWrite(5, " Firmware & Core           \x16", menusub == 5,0);
 
-        OsdWrite(7, STD_EXIT, menusub == 6,0);
+        OsdWrite(6, " Save config                ", menusub == 6,0);
+
+        OsdWrite(7, STD_EXIT, menusub == 7,0);
 
         menustate = MENU_MIST_MAIN2;
 	parentstate=MENU_MIST_MAIN1;
@@ -346,7 +346,7 @@ void HandleUI(void)
 	    break;
 
 	  case 1:
-	    tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_VIDEO_COLOR);
+	    tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIDEO_COLOR);
             menustate = MENU_MIST_MAIN1;
 	    break;
 
@@ -370,11 +370,15 @@ void HandleUI(void)
 	    menusub = 1;
 	    break;
 
-	  case 6:  // Exit
+	  case 6:  // Save config
+	    menustate = MENU_NONE1;
+	    tos_config_save();
+	    break;
+
+	  case 7:  // Exit
 	    menustate = MENU_NONE1;
 	    break;
 	  }
-
 	}
         break;
 
@@ -392,14 +396,14 @@ void HandleUI(void)
 	  strcpy(s, " A: ");
 	  strcat(s, tos_get_disk_name(i));
 	  s[1] = 'A'+i;
-	  if(tos_system_ctrl & (TOS_CONTROL_FDC_WR_PROT_A << i))
+	  if(tos_system_ctrl() & (TOS_CONTROL_FDC_WR_PROT_A << i))
 	    strcat(s, " \x17");
 
 	  OsdWrite(i, s, menusub == i,0);
 	}
 
 	strcpy(s, " Write protect: ");
-	strcat(s, config_tos_wrprot[(tos_system_ctrl >> 6)&3]);
+	strcat(s, config_tos_wrprot[(tos_system_ctrl() >> 6)&3]);
         OsdWrite(2, s, menusub == 2,0);
 
         OsdWrite(3, "", 0, 0);
@@ -437,8 +441,8 @@ void HandleUI(void)
 	
 	else if(menusub == 2) {
 	  // remove current write protect bits and increase by one
-	  tos_update_sysctrl((tos_system_ctrl & ~(TOS_CONTROL_FDC_WR_PROT_A | TOS_CONTROL_FDC_WR_PROT_B)) 
-			     | (((((tos_system_ctrl >> 6)&3) + 1)&3)<<6) );
+	  tos_update_sysctrl((tos_system_ctrl() & ~(TOS_CONTROL_FDC_WR_PROT_A | TOS_CONTROL_FDC_WR_PROT_B)) 
+			     | (((((tos_system_ctrl() >> 6)&3) + 1)&3)<<6) );
 	  menustate = MENU_MIST_STORAGE1;
 	
 	} else if((menusub == 3) || (menusub == 4)) {
@@ -465,15 +469,20 @@ void HandleUI(void)
       break;
 
     case MENU_MIST_SYSTEM1 :
+#ifdef ENABLE_TURBO
 	menumask=0xff;
+#else
+	menumask=0x7f;
+#endif
+
 	OsdSetTitle("System", 0);
 
 	strcpy(s, " Memory:    ");
-	strcat(s, config_tos_mem[(tos_system_ctrl >> 1)&7]);
+	strcat(s, config_tos_mem[(tos_system_ctrl() >> 1)&7]);
         OsdWrite(0, s, menusub == 0,0);
 
 	strcpy(s, " CPU:       ");
-	strcat(s, config_cpu_msg[(tos_system_ctrl >> 4)&3]);
+	strcat(s, config_cpu_msg[(tos_system_ctrl() >> 4)&3]);
         OsdWrite(1, s, menusub == 1, 0);
 
 	strcpy(s, " TOS:       ");
@@ -484,14 +493,25 @@ void HandleUI(void)
 	strcat(s, tos_get_cartridge_name());
         OsdWrite(3, s, menusub == 3, 0);
 
+#ifdef ENABLE_TURBO
 	strcpy(s, " Turbo:     ");
-	strcat(s, (tos_system_ctrl & TOS_CONTROL_TURBO)?"on":"off");
+	strcat(s, (tos_system_ctrl() & TOS_CONTROL_TURBO)?"on":"off");
         OsdWrite(4, s, menusub == 4, 0);
 
         OsdWrite(5, " Reset",     menusub == 5, 0);
         OsdWrite(6, " Cold boot", menusub == 6, 0);
 
         OsdWrite(7, STD_EXIT, menusub == 7,0);
+#else
+	strcpy(s, " Turbo:     ");
+	strcat(s, (tos_system_ctrl() & TOS_CONTROL_TURBO)?"on":"off");
+        OsdWrite(4, s, 0, 1);
+
+        OsdWrite(5, " Reset",     menusub == 4, 0);
+        OsdWrite(6, " Cold boot", menusub == 5, 0);
+
+        OsdWrite(7, STD_EXIT, menusub == 6,0);
+#endif
 
 	parentstate = menustate;
         menustate = MENU_MIST_SYSTEM2;
@@ -505,19 +525,19 @@ void HandleUI(void)
       if(select) {
 	switch(menusub) {
 	case 0: { // RAM
-	  int mem = (tos_system_ctrl >> 1)&7;   // current memory config
+	  int mem = (tos_system_ctrl() >> 1)&7;   // current memory config
 	  mem++;
 	  if(mem > 5) mem = 3;                 // cycle 4MB/8MB/14MB
-	  tos_update_sysctrl((tos_system_ctrl & ~0x0e) | (mem<<1) );
+	  tos_update_sysctrl((tos_system_ctrl() & ~0x0e) | (mem<<1) );
 	  tos_reset(1);
 	  menustate = MENU_MIST_SYSTEM1;
 	} break;
 
 	case 1: { // CPU
-	  int cpu = (tos_system_ctrl >> 4)&3;   // current cpu config
+	  int cpu = (tos_system_ctrl() >> 4)&3;   // current cpu config
 	  cpu = (cpu+1)&3;
 	  if(cpu == 2) cpu = 3;                 // skip unused config
-	  tos_update_sysctrl((tos_system_ctrl & ~0x30) | (cpu<<4) );
+	  tos_update_sysctrl((tos_system_ctrl() & ~0x30) | (cpu<<4) );
 	  tos_reset(0);
 	  menustate = MENU_MIST_SYSTEM1;
 	} break;
@@ -535,8 +555,9 @@ void HandleUI(void)
 	    SelectFile("IMG", SCAN_LFN, MENU_MIST_SYSTEM_FILE_SELECTED, MENU_MIST_SYSTEM1);
 	  break;
 
+#ifdef ENABLE_TURBO
 	case 4:
-	  tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_TURBO );
+	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_TURBO );
 	  menustate = MENU_MIST_SYSTEM1;
 	  break;
 
@@ -553,6 +574,24 @@ void HandleUI(void)
 	case 7:
 	  menustate = MENU_MIST_MAIN1;
 	  menusub = 3;
+	  break;
+
+#else
+	case 4:  // Reset
+	  tos_reset(0);
+	  menustate = MENU_NONE1;
+	  break;
+
+	case 5:  // Cold Boot
+	  tos_reset(1);
+	  menustate = MENU_NONE1;
+	  break;
+
+	case 6:
+	  menustate = MENU_MIST_MAIN1;
+	  menusub = 3;
+	  break;
+#endif
 	}
       }
       break;
@@ -575,16 +614,16 @@ void HandleUI(void)
 	OsdSetTitle("A/V", 0);
 
 	strcpy(s, " PAL mode: ");
-	if(tos_system_ctrl & TOS_CONTROL_PAL50HZ) strcat(s, "50Hz");
+	if(tos_system_ctrl() & TOS_CONTROL_PAL50HZ) strcat(s, "50Hz");
 	else                                      strcat(s, "56Hz");
   OsdWrite(0, s, menusub == 0,0);
 
 	strcpy(s, " Blitter:  ");
-	strcat(s, (tos_system_ctrl & TOS_CONTROL_BLITTER)?"on":"off");
+	strcat(s, (tos_system_ctrl() & TOS_CONTROL_BLITTER)?"on":"off");
   OsdWrite(1, s, menusub == 1, 0);
 
 	strcpy(s, " Screen: ");
-	if(tos_system_ctrl & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
+	if(tos_system_ctrl() & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
 	else                                          strcat(s, "Mono");
 
   OsdWrite(2, "", 0,0);
@@ -613,28 +652,28 @@ void HandleUI(void)
       if(select) {
 	switch(menusub) {
 	case 0:
-	  tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_PAL50HZ);
+	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_PAL50HZ);
 	  menustate = MENU_MIST_VIDEO1;
 	  break;
 
 	case 1:
-	  tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_BLITTER );
+	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_BLITTER );
 	  menustate = MENU_MIST_VIDEO1;
 	  break;
 
   case 2:
-    tos_update_sysctrl(tos_system_ctrl ^ TOS_CONTROL_VIDEO_COLOR);
+    tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIDEO_COLOR);
     menustate = MENU_MIST_VIDEO1;
     break;
 
   case 3:
     scan=(scan+1) & 0x3;
-    tos_update_sysctrl((tos_system_ctrl & 0x3fffffff) | (scan<<30));
+    tos_update_sysctrl((tos_system_ctrl() & 0x3fffffff) | (scan<<30));
     menustate=MENU_MIST_VIDEO1;
     break;
   case 4:
     sstereo++;
-    tos_update_sysctrl(tos_system_ctrl ^ 0x20000000);
+    tos_update_sysctrl(tos_system_ctrl() ^ 0x20000000);
     menustate=MENU_MIST_VIDEO1;
     break;
 	case 5:

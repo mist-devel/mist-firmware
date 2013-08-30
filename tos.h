@@ -62,7 +62,7 @@
 #define TOS_CONTROL_TURBO         0x00040000
 #define TOS_CONTROL_BLITTER       0x00080000
 
-extern unsigned long tos_system_ctrl;
+unsigned long tos_system_ctrl(void);
 
 void tos_upload(char *);
 void tos_poll();
@@ -77,5 +77,8 @@ char *tos_get_image_name();
 char *tos_get_cartridge_name();
 char tos_cartridge_is_inserted();
 void tos_load_cartridge(char *);
+
+void tos_config_init(void);
+void tos_config_save(void);
 
 #endif

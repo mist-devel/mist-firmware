@@ -262,18 +262,6 @@ const unsigned short usb2atari[] = {
   MISS   // 6f: F20
 };
 
-// OSD uses amiga keycodes. This table translates from usb to OSD/amiga 
-// const unsigned char usb2osd[][2] = {
-//   { 0x45, KEY_MENU  },
-//   { 0x65, KEY_MENU  },
-//   { 0x52, KEY_UP    },
-//   { 0x51, KEY_DOWN  },
-//   { 0x28, KEY_ENTER },
-//   { 0x29, KEY_ESC   },
-//   { 0x2c, KEY_SPACE },
-//   { 0,0 }
-// };
-
 #if 0
   // #define KEY_UPSTROKE     0x80
 #define KEY_MENU         0x69

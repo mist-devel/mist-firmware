@@ -8,18 +8,23 @@
 #include "fpga.h"
 #include "debug.h"
 
+#define CONFIG_FILENAME  "MIST    CFG"
+
+typedef struct {
+  unsigned long system_ctrl;  // system control word
+  char tos_img[12];
+  char cart_img[12];
+  char acsi_img[2][12];
+} tos_config_t;
+
+static tos_config_t config;
+
 #define TOS_BASE_ADDRESS_192k    0xfc0000
 #define TOS_BASE_ADDRESS_256k    0xe00000
 #define CART_BASE_ADDRESS        0xfa0000
 #define VIDEO_BASE_ADDRESS       0x010000
 
-unsigned long tos_system_ctrl = TOS_MEMCONFIG_4M | TOS_CONTROL_BLITTER;
-
 static unsigned char font[2048];  // buffer for 8x16 atari font
-
-// default name of TOS image
-static char tos_img[12]  = "TOS     IMG";
-static char cart_img[12] = "";
 
 // two floppies
 static struct {
@@ -173,9 +178,9 @@ static void handle_acsi(unsigned char *buffer) {
   unsigned short length = buffer[13];
   if(length == 0) length = 256;
 
-  tos_debugf("ACSI: target %d, \"%s\"\n", target, acsi_cmd_name(cmd));
-  tos_debugf("ACSI: lba %lu, length %u\n", lba, length);
-  tos_debugf("DMA: scnt %u, addr %p\n", scnt, dma_address);
+  tos_debugf("ACSI: target %d, \"%s\"", target, acsi_cmd_name(cmd));
+  tos_debugf("ACSI: lba %lu, length %u", lba, length);
+  tos_debugf("DMA: scnt %u, addr %p", scnt, dma_address);
 
   // only a harddisk on ACSI 0 is supported
   // ACSI 0 is only supported if a image is loaded
@@ -206,7 +211,7 @@ static void handle_acsi(unsigned char *buffer) {
       break;
 
     case 0x12: // inquiry
-      tos_debugf("ACSI: Inquiry %11s\n", hdd_image[target].name);
+      tos_debugf("ACSI: Inquiry %11s", hdd_image[target].name);
       memset(dma_buffer, 0, 512);
       dma_buffer[2] = 1;                                   // ANSI version
       dma_buffer[4] = length-8;                            // len
@@ -218,7 +223,7 @@ static void handle_acsi(unsigned char *buffer) {
       
     case 0x1a: // mode sense
       { unsigned int blocks = hdd_image[target].size / 512;
-	tos_debugf("ACSI: mode sense, blocks = %u\n", blocks);
+	tos_debugf("ACSI: mode sense, blocks = %u", blocks);
 	memset(dma_buffer, 0, 512);
 	dma_buffer[3] = 8;            // size of extent descriptor list
 	dma_buffer[5] = blocks >> 16;
@@ -230,11 +235,11 @@ static void handle_acsi(unsigned char *buffer) {
       break;
       
     default:
-      tos_debugf("ACSI: Unsupported command\n");
+      tos_debugf("ACSI: Unsupported command");
       break;
     }
   } else
-    tos_debugf("ACSI: Request for unsupported target\n");
+    tos_debugf("ACSI: Request for unsupported target");
 
   EnableFpga();
   SPI(MIST_ACK_DMA);
@@ -414,19 +419,18 @@ void tos_load_cartridge(char *name) {
   fileTYPE file;
 
   if(name)
-    strncpy(cart_img, name, 11);
+    strncpy(config.cart_img, name, 11);
 
   // upload cartridge 
-  if(cart_img[0] && FileOpen(&file, cart_img)) {
+  if(config.cart_img[0] && FileOpen(&file, config.cart_img)) {
     int i;
     char buffer[512];
 	
-    tos_debugf("%s:\n  size = %d\n", cart_img, file.size);
+    tos_debugf("%s:\n  size = %d", config.cart_img, file.size);
 
     int blocks = file.size / 512;
-    tos_debugf("  blocks = %d\n", blocks);
+    tos_debugf("  blocks = %d", blocks);
 
-    tos_debugf("Uploading: [");
     mist_memory_set_address(CART_BASE_ADDRESS);
     
     DISKLED_ON;
@@ -434,37 +438,35 @@ void tos_load_cartridge(char *name) {
       FileRead(&file, buffer);
       mist_memory_write(buffer, 256);
       
-      if(!(i & 7)) tos_debugf(".");
-      
       if(i != blocks-1)
 	FileNextSector(&file);
     }
     DISKLED_OFF;
-    tos_debugf("]\n");
     
-    tos_debugf("%s uploaded\r", cart_img);
+    tos_debugf("%s uploaded", config.cart_img);
     return; 
   }
 
   // erase that ram area to remove any previously uploaded
   // image
-  tos_debugf("Erasing cart memory\n");
+  tos_debugf("Erasing cart memory");
   mist_memory_set_address(CART_BASE_ADDRESS);
   mist_memory_set(0, 128*1024/2);
 }
 
 char tos_cartridge_is_inserted() {
-  return cart_img[0];
+  return config.cart_img[0];
 }
 
 void tos_upload(char *name) {
-  
+  fileTYPE file;
+
   if(name)
-    strncpy(tos_img, name, 11);
+    strncpy(config.tos_img, name, 11);
 
   // put cpu into reset
-  tos_system_ctrl |= TOS_CONTROL_CPU_RESET;
-  mist_set_control(tos_system_ctrl);
+  config.system_ctrl |= TOS_CONTROL_CPU_RESET;
+  mist_set_control(config.system_ctrl);
 
   tos_font_load();
   tos_clr();
@@ -474,29 +476,28 @@ void tos_upload(char *name) {
   // do the MiST core handling
   tos_write("\x0e\x0f MIST core \x0e\x0f ");
   tos_write("Uploading TOS ... ");
-  tos_debugf("Uploading TOS ...\n");
+  tos_debugf("Uploading TOS ...");
 
   DISKLED_ON;
 
   // upload and verify tos image
-  fileTYPE file;
-  if(FileOpen(&file, tos_img)) {
+  if(FileOpen(&file, config.tos_img)) {
     int i;
     char buffer[512];
     unsigned long time;
     unsigned long tos_base = TOS_BASE_ADDRESS_192k;
 	
-    tos_debugf("TOS.IMG:\n  size = %d\n", file.size);
+    tos_debugf("TOS.IMG:\n  size = %d", file.size);
 
     if(file.size >= 256*1024)
       tos_base = TOS_BASE_ADDRESS_256k;
     else if(file.size != 192*1024)
-      tos_debugf("WARNING: Unexpected TOS size!\n");
+      tos_debugf("WARNING: Unexpected TOS size!");
 
     int blocks = file.size / 512;
-    tos_debugf("  blocks = %d\n", blocks);
+    tos_debugf("  blocks = %d", blocks);
 
-    tos_debugf("  address = $%08x\n", tos_base);
+    tos_debugf("  address = $%08x", tos_base);
 
     // clear first 16k
     mist_memory_set_address(0);
@@ -561,7 +562,7 @@ void tos_upload(char *name) {
 #endif
 
     time = GetTimer(0);
-    tos_debugf("Uploading: [");
+    tos_debugf("Uploading ...");
     
     for(i=0;i<blocks;i++) {
       FileRead(&file, buffer);
@@ -579,66 +580,17 @@ void tos_upload(char *name) {
       
       mist_memory_write(buffer, 256);
       
-      if(!(i & 7)) tos_debugf(".");
-      
       if(i != blocks-1)
 	FileNextSector(&file);
     }
-    tos_debugf("]\n");
     
     time = GetTimer(0) - time;
-    tos_debugf("TOS.IMG uploaded in %lu ms (%d kB/s / %d kBit/s)\r", 
+    tos_debugf("TOS.IMG uploaded in %lu ms (%d kB/s / %d kBit/s)", 
 	    time >> 20, file.size/(time >> 20), 8*file.size/(time >> 20));
     
   } else
-    tos_debugf("Unable to find tos.img\n");
+    tos_debugf("Unable to find tos.img");
   
-#if 0
-  {
-    char rx[512], buffer[512];
-    int i,j;
-    int blocks = file.size / 512;
-    
-    FileSeek(&file, 0, SEEK_SET);
-    
-    mist_memory_set_address(TOS_BASE_ADDRESS);
-    
-    tos_debugf("Verifying: [");
-    for(i=0;i<blocks;i++) {
-      FileRead(&file, buffer);
-
-      mist_memory_read(rx, 256);
-      
-      if(!(i & 7)) tos_debugf("+");
-      
-      for(j=0;j<512;j++) {
-	if(buffer[j] != rx[j]) {
-	  tos_debugf("Verify error block %d, byte %x\n", i, j);
-
-	  tos_debugf("should be:\n");
-	  hexdump(buffer, 512, 0);
-
-	  tos_debugf("is:\n");
-	  hexdump(rx, 512, 0);
-
-	  // try to re-read to check whether read or write failed
-	  mist_memory_set_address(TOS_BASE_ADDRESS+i*512);
-	  mist_memory_read(rx, 256);
-
-	  tos_debugf("re-read: %s\n", (buffer[j] != rx[j])?"failed":"ok");
-	  hexdump(rx, 512, 0);
-
-
-	  while(1);
-	}
-      }
-      
-      if(i != blocks-1)
-	FileNextSector(&file);
-    }
-    tos_debugf("]\n");
-  }
-#endif
   DISKLED_OFF;
 
   // This is the initial boot if no name was given. Otherwise the
@@ -662,17 +614,21 @@ void tos_upload(char *name) {
     }
     
     // try to open harddisk image
-    if(FileOpen(&file, "HARDDISKHD ")) {
-      tos_write("Found hard disk image ");
-      tos_select_hdd_image(0, &file);
+    for(i=0;i<2;i++) {
+      if(FileOpen(&file, config.acsi_img[i])) {
+	char msg[] = "Found hard disk image for ACSIX";
+	msg[30] = '0'+i;
+	tos_write(msg);
+	tos_select_hdd_image(i, &file);
+      }
     }
   }
 
   tos_write("Booting ... ");
 
   // let cpu run (release reset)
-  tos_system_ctrl &= ~TOS_CONTROL_CPU_RESET;
-  mist_set_control(tos_system_ctrl);
+  config.system_ctrl &= ~TOS_CONTROL_CPU_RESET;
+  mist_set_control(config.system_ctrl);
 }
 
 static unsigned long get_long(char *buffer, int offset) {
@@ -690,8 +646,8 @@ void tos_poll() {
 }
 
 void tos_update_sysctrl(unsigned long n) {
-  tos_system_ctrl = n;
-  mist_set_control(tos_system_ctrl);
+  config.system_ctrl = n;
+  mist_set_control(config.system_ctrl);
 }
 
 static char buffer[13];  // local buffer to assemble file name (8+3+2)
@@ -726,15 +682,15 @@ char *tos_get_disk_name(char index) {
 }
 
 char *tos_get_image_name() {
-  nice_name(buffer, tos_img);
+  nice_name(buffer, config.tos_img);
   return buffer;
 }
 
 char *tos_get_cartridge_name() {
-  if(!cart_img[0])  // no cart name set
+  if(!config.cart_img[0])  // no cart name set
     strcpy(buffer, "* no cartridge *");
   else
-    nice_name(buffer, cart_img);
+    nice_name(buffer, config.cart_img);
 
   return buffer;
 }
@@ -747,19 +703,22 @@ char tos_disk_is_inserted(char index) {
 }
 
 void tos_select_hdd_image(char i, fileTYPE *file) {
-  tos_debugf("Select ACSI%c image %11s\n", '0'+i, file->name);
+  tos_debugf("Select ACSI%c image %11s", '0'+i, file->name);
+
+  if(file) memcpy(config.acsi_img[i], file->name, 12);
+  else     config.acsi_img[i][0] = 0;
 
   // try to open harddisk image
   hdd_image[i].size = 0;
-  tos_system_ctrl &= ~(TOS_ACSI0_ENABLE<<i);
+  config.system_ctrl &= ~(TOS_ACSI0_ENABLE<<i);
 
   if(file) {
-    tos_system_ctrl |= (TOS_ACSI0_ENABLE<<i);
+    config.system_ctrl |= (TOS_ACSI0_ENABLE<<i);
     hdd_image[i] = *file;
   }
 
   // update system control
-  mist_set_control(tos_system_ctrl);
+  mist_set_control(config.system_ctrl);
 }
 
 void tos_insert_disk(char i, fileTYPE *file) {
@@ -768,13 +727,13 @@ void tos_insert_disk(char i, fileTYPE *file) {
     return;
   }
 
-  tos_debugf("%c: eject\n", i+'A');
+  tos_debugf("%c: eject", i+'A');
 
   // toggle write protect bit to help tos detect a media change
   int wp_bit = (!i)?TOS_CONTROL_FDC_WR_PROT_A:TOS_CONTROL_FDC_WR_PROT_B;
 
   // any disk ejected is "write protected" (as nothing covers the write protect mechanism)
-  mist_set_control(tos_system_ctrl | wp_bit);
+  mist_set_control(config.system_ctrl | wp_bit);
 
   // first "eject" disk
   fdd_image[i].file.size = 0;
@@ -786,7 +745,7 @@ void tos_insert_disk(char i, fileTYPE *file) {
 
   // open floppy
   fdd_image[i].file = *file;
-  tos_debugf("%c: insert %.11s\n", i+'A', fdd_image[i].file.name);
+  tos_debugf("%c: insert %.11s", i+'A', fdd_image[i].file.name);
 
   // check image size and parameters
     
@@ -813,8 +772,8 @@ void tos_insert_disk(char i, fileTYPE *file) {
 
   if(fdd_image[i].file.size) {
     // restore state of write protect bit
-    tos_update_sysctrl(tos_system_ctrl);
-    tos_debugf("%c: detected %d sides with %d sectors per track\n", 
+    tos_update_sysctrl(config.system_ctrl);
+    tos_debugf("%c: detected %d sides with %d sectors per track", 
 	    i+'A', fdd_image[i].sides, fdd_image[i].spt);
   }
 }
@@ -835,7 +794,7 @@ void tos_eject_all() {
 }
 
 void tos_reset(char cold) {
-  tos_update_sysctrl(tos_system_ctrl |  TOS_CONTROL_CPU_RESET);  // set reset
+  tos_update_sysctrl(config.system_ctrl |  TOS_CONTROL_CPU_RESET);  // set reset
 
   if(cold) {
     // clear first 16k
@@ -843,5 +802,57 @@ void tos_reset(char cold) {
     mist_memory_set(0x00, 8192-4);
   }
 
-  tos_update_sysctrl(tos_system_ctrl & ~TOS_CONTROL_CPU_RESET);  // release reset
+  tos_update_sysctrl(config.system_ctrl & ~TOS_CONTROL_CPU_RESET);  // release reset
+}
+
+unsigned long tos_system_ctrl(void) {
+  return config.system_ctrl;
+}
+
+void tos_config_init(void) {
+  fileTYPE file;
+
+  // set default values
+  config.system_ctrl = TOS_MEMCONFIG_4M | TOS_CONTROL_BLITTER;
+  memcpy(config.tos_img, "TOS     IMG", 12);
+  config.cart_img[0] = 0;
+  memcpy(config.acsi_img[0], "HARDDISKHD ", 12);
+  config.acsi_img[1][0] = 0;
+
+  // try to load config
+  if (FileOpen(&file, CONFIG_FILENAME))  {
+    tos_debugf("Configuration file size: %lu (should be %lu)", file.size, sizeof(tos_config_t));
+    if(file.size == sizeof(tos_config_t)) {
+      FileRead(&file, sector_buffer);
+      memcpy(&config, sector_buffer, sizeof(tos_config_t));
+    }
+  }
+}
+
+// save configuration
+void tos_config_save(void) {
+  fileTYPE file;
+
+  // save configuration data
+  if (FileOpen(&file, CONFIG_FILENAME))  {
+    tos_debugf("Existing conf file size: %lu", file.size);
+    if(file.size != sizeof(tos_config_t)) {
+      file.size = sizeof(tos_config_t);
+      if (!UpdateEntry(&file))
+	return;
+    }
+  } else {
+    tos_debugf("Creating new config");
+    strncpy(file.name, CONFIG_FILENAME, 11);
+    file.attributes = 0;
+    file.size = sizeof(tos_config_t);
+    if(!FileCreate(0, &file)) {
+      tos_debugf("File creation failed.");
+      return;
+    }
+  }
+
+  // finally write the config
+  memcpy(sector_buffer, &config, sizeof(tos_config_t));
+  FileWrite(&file, sector_buffer);
 }

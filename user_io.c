@@ -148,8 +148,10 @@ void user_io_poll() {
   if(core_type == CORE_TYPE_MIST) {
     ikbd_poll();
 
-#if 1
-    // check for incoming serial data
+#if 0
+    // check for incoming serial data. thisis directly forwarded to the
+    // arm rs232 and mixes with debug output. Useful for debugging only of
+    // e.g. the diagnostic cartridge
     EnableIO();
     SPI(UIO_SERIAL_IN);
     
@@ -305,12 +307,11 @@ unsigned short keycode(unsigned char in) {
   return MISS;
 }
 
-void check_reset(unsigned char modifiers)
-{
-	if(core_type==CORE_TYPE_MINIMIG){
-		if(modifiers==0x45) // ctrl - alt - alt
-			OsdReset(RESET_NORMAL);
-	}
+void check_reset(unsigned char modifiers) {
+  if(core_type==CORE_TYPE_MINIMIG) {
+    if(modifiers==0x45) // ctrl - alt - alt
+      OsdReset(RESET_NORMAL);
+  }
 }
 
 unsigned char modifier_keycode(unsigned char index) {
@@ -334,17 +335,6 @@ unsigned char modifier_keycode(unsigned char index) {
   return MISS;
 }
 
-// unsigned char osdcode(unsigned char c) {
-//   int i = 0;
-//   while(usb2osd[i][0] && usb2osd[i][0] != c)
-//     i++;
-  
-//   if(!usb2osd[i][0])
-//     iprintf("ERROR: Unsupported OSD code %x!\n", c);
-  
-//   return usb2osd[i][1];
-// }
-
 // set by OSD code to suppress forwarding of those keys to the core which
 // may be in use by an active OSD
 static char osd_eats_keys = false;
@@ -355,8 +345,7 @@ void user_io_osd_key_enable(char on) {
 
 static char key_used_by_osd(unsigned short s) {
   if((s & OSD_LOC) && !(s & 0xff))  return true;   // this key is only used in OSD and has no keycode
-  if(!osd_eats_keys)                return false;  // OSD currently doesn't use keyboard
-  return((s & OSD_LOC) != 0);
+  return(osd_eats_keys);
 }
 
 void user_io_kbd(unsigned char m, unsigned char *k) {
@@ -422,9 +411,7 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 	// don't send break for caps lock
 	if(j == 6) {
 	  // special OSD key handled internally 
-	  //if(code & OSD_LOC) 
-	    //OsdKeySet(0x80 | osdcode(pressed[i]));
-    OsdKeySet(0x80 | usb2ami[pressed[i]]);
+	  OsdKeySet(0x80 | usb2ami[pressed[i]]);
 
 	  if(!key_used_by_osd(code)) {
 	    if(is_emu_key(pressed[i])) {
@@ -452,9 +439,7 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 
 	if(j == 6) {
 	  // special OSD key handled internally 
-	  //if(code & OSD_LOC) 
-	    //OsdKeySet(osdcode(k[i]));
-    OsdKeySet(usb2ami[k[i]]); 
+	  OsdKeySet(usb2ami[k[i]]); 
 
 	  // no further processing of any key that is currently 
 	  // redirected to the OSD

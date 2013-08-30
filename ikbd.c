@@ -1,5 +1,6 @@
 /*
 
+  http://removers.free.fr/wikipendium/wakka.php?wiki=IntelligentKeyboardBible
   https://www.kernel.org/doc/Documentation/input/atarikbd.txt
 
   ikbd ToDo:
@@ -51,6 +52,7 @@ static struct {
 
   // joystick state
   unsigned char joystick[2];
+  unsigned char date_buffer[6];
 
   // mouse state
   unsigned short mouse_abs_max_x, mouse_abs_max_y;
@@ -68,6 +70,14 @@ void ikbd_init() {
 
   ikbd.mouse_abs_max_x = ikbd.mouse_abs_max_y = 65535;
   ikbd.mouse_abs_scale_x = ikbd.mouse_abs_scale_y = 1;
+
+  // init ikbd date
+  ikbd.date_buffer[0] = 113;
+  ikbd.date_buffer[1] = 7;
+  ikbd.date_buffer[2] = 20;
+  ikbd.date_buffer[3] = 20;
+  ikbd.date_buffer[4] = 58;
+  ikbd.date_buffer[5] = 0;
 }
 
 static void enqueue(unsigned short b) {
@@ -91,6 +101,14 @@ static unsigned char joystick_map2ikbd(unsigned in) {
   if(in & JOY_BTN1)  out |= 0x80;
 
   return out;
+}
+
+unsigned char bcd2bin(unsigned char in) {
+  return 10*(in >> 4) + (in & 0x0f);
+}
+
+unsigned char bin2bcd(unsigned char in) {
+  return 16*(in/10) + (in % 10);
 }
 
 // process inout from atari core into ikbd
@@ -137,6 +155,15 @@ void ikbd_handle_input(unsigned char cmd) {
 	ikbd_debugf("absolute scale = %u/%u", ikbd.mouse_abs_scale_x, ikbd.mouse_abs_scale_y);
       break;
       
+    case 0x1b:
+      ikbd.date_buffer[5-ikbd.expect] = bcd2bin(cmd);
+      if(!ikbd.expect) {
+	ikbd_debugf("time/date = %u:%u:%u %u.%u.%u", 
+		    ikbd.date_buffer[3], ikbd.date_buffer[4], ikbd.date_buffer[5],
+		    ikbd.date_buffer[2], ikbd.date_buffer[1], 1900 + ikbd.date_buffer[0]);
+      }
+      break;
+
     case 0x80: // ibkd reset
       // reply "everything is ok"
       enqueue(0x8000 + 100);   // wait 100ms
@@ -252,15 +279,17 @@ void ikbd_handle_input(unsigned char cmd) {
 
   case 0x1c:
     ikbd_debugf("Interrogate time of day");
+    ikbd_debugf("time/date = %u:%u:%u %u.%u.%u", 
+		ikbd.date_buffer[3], ikbd.date_buffer[4], ikbd.date_buffer[5],
+		ikbd.date_buffer[2], ikbd.date_buffer[1], 1900 + ikbd.date_buffer[0]);
 
     enqueue(0x8000 + 64);   // wait 64ms
     enqueue(0xfc);
-    enqueue(0xb3);  // year bcd
-    enqueue(0x03);  // month bcd
-    enqueue(0x07);  // day bcd
-    enqueue(0x20);  // hour bcd
-    enqueue(0x58);  // minute bcd
-    enqueue(0x00);  // second bcd
+    {
+      int i;
+      for(i=0;i<6;i++)
+	enqueue(bin2bcd(ikbd.date_buffer[i]));
+    }
     break;
     
 
@@ -465,5 +494,50 @@ void ikbd_mouse(unsigned char b, char x, char y) {
     enqueue(0xf8|((b&1)?2:0)|((b&2)?1:0));
     enqueue(x & 0xff);
     enqueue(y & 0xff);
+  }
+}
+
+// advance the ikbd time by one second
+void ikbd_update_time(void) {
+  static const char mdays[] = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+  short year = 1900 + ikbd.date_buffer[0];
+  char is_leap = (!(year % 4) && (year % 100)) || !(year % 400);
+
+  ikbd_debugf("time update %u:%02u:%02u %u.%u.%u", 
+	      ikbd.date_buffer[3], ikbd.date_buffer[4], ikbd.date_buffer[5],
+	      ikbd.date_buffer[2], ikbd.date_buffer[1], year);
+
+  // advance seconds
+  ikbd.date_buffer[5]++;
+  if(ikbd.date_buffer[5] == 60) {
+    ikbd.date_buffer[5] = 0;
+
+    // advance minutes
+    ikbd.date_buffer[4]++;
+    if(ikbd.date_buffer[4] == 60) {
+      ikbd.date_buffer[4] = 0;
+
+      // advance hours
+      ikbd.date_buffer[3]++;
+      if(ikbd.date_buffer[3] == 24) {
+	ikbd.date_buffer[3] = 0;
+
+	// advance days
+	ikbd.date_buffer[2]++;
+	if((ikbd.date_buffer[2] == mdays[ikbd.date_buffer[1]-1]+1) ||
+	   (is_leap && (ikbd.date_buffer[1] == 2) && (ikbd.date_buffer[2] == 29))) {
+	  ikbd.date_buffer[2] = 1;
+
+	  // advance month
+	  ikbd.date_buffer[1]++;
+	  if(ikbd.date_buffer[1] == 13) {
+	    ikbd.date_buffer[1] = 0;
+	    
+	    // advance year
+	    ikbd.date_buffer[0]++;
+	  }
+	}
+      }
+    }
   }
 }

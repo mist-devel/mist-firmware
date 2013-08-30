@@ -27,7 +27,7 @@
 // -------------- TOS debugging --------------
 
 #if 0
-#define tos_debugf(...) iprintf(__VA_ARGS__)
+#define tos_debugf(a, ...) iprintf("\033[1;32mTOS: " a "\033[0m\n", ##__VA_ARGS__)
 #else
 #define tos_debugf(...)
 #endif

@@ -239,9 +239,54 @@ unsigned long CheckButton(void)
 #endif
 }
 
-void Timer_Init(void)
-{
-    *AT91C_PITC_PIMR = AT91C_PITC_PITEN | ((MCLK / 16 / 1000 - 1) & AT91C_PITC_PIV); // counting period 1ms
+void timer0_c_irq_handler(void) {
+  //* Acknowledge interrupt status
+  unsigned int dummy = AT91C_BASE_TC0->TC_SR;
+
+  ikbd_update_time();
+}
+
+void Timer_Init(void) {  
+  unsigned int dummy;
+
+  //* Open timer0
+  AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_TC0;
+  
+  //* Disable the clock and the interrupts
+  AT91C_BASE_TC0->TC_CCR = AT91C_TC_CLKDIS ;
+  AT91C_BASE_TC0->TC_IDR = 0xFFFFFFFF ;
+  
+  //* Clear status bit
+  dummy = AT91C_BASE_TC0->TC_SR;
+
+  //* Set the Mode of the Timer Counter
+  AT91C_BASE_TC0->TC_CMR = 0x04;  // :1024
+  
+  //* Enable the clock
+  AT91C_BASE_TC0->TC_CCR = AT91C_TC_CLKEN ;
+  
+  
+  
+  //* Open Timer 0 interrupt
+  
+  //* Disable the interrupt on the interrupt controller
+  AT91C_BASE_AIC->AIC_IDCR = 1 << AT91C_ID_TC0;
+  //* Save the interrupt handler routine pointer and the interrupt priority
+  AT91C_BASE_AIC->AIC_SVR[AT91C_ID_TC0] = (unsigned int)timer0_c_irq_handler;
+  //* Store the Source Mode Register
+  AT91C_BASE_AIC->AIC_SMR[AT91C_ID_TC0] = 1 | AT91C_AIC_SRCTYPE_INT_HIGH_LEVEL;
+  //* Clear the interrupt on the interrupt controller
+  AT91C_BASE_AIC->AIC_ICCR = 1 << AT91C_ID_TC0;
+  
+  AT91C_BASE_TC0->TC_IER = AT91C_TC_CPCS;  //  IRQ enable CPC
+  AT91C_BASE_AIC->AIC_IECR = 1 << AT91C_ID_TC0;
+  
+  //* Start timer0
+  AT91C_BASE_TC0->TC_CCR = AT91C_TC_SWTRG ;
+  
+  
+  
+  *AT91C_PITC_PIMR = AT91C_PITC_PITEN | ((MCLK / 16 / 1000 - 1) & AT91C_PITC_PIV); // counting period 1ms
 }
 
 // 12 bits accuracy at 1ms = 4096 ms 
