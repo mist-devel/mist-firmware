@@ -345,7 +345,8 @@ void user_io_osd_key_enable(char on) {
 
 static char key_used_by_osd(unsigned short s) {
   if((s & OSD_LOC) && !(s & 0xff))  return true;   // this key is only used in OSD and has no keycode
-  return(osd_eats_keys);
+  if(!osd_eats_keys) return false;
+  return ((s & OSD_LOC) != 0);
 }
 
 void user_io_kbd(unsigned char m, unsigned char *k) {
