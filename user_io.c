@@ -241,12 +241,16 @@ void user_io_poll() {
   }
 }
 
-int user_io_dip_switch1() {
-  return(adc_state & 2);
+char user_io_dip_switch1() {
+  return((adc_state & 2)?1:0);
 }
 
-int user_io_menu_button() {
-  return(adc_state & 4);
+char user_io_menu_button() {
+  return((adc_state & 4)?1:0);
+}
+
+char user_io_user_button() {
+  return((adc_state & 8)?1:0);
 }
 
 static void send_keycode(unsigned short code) {

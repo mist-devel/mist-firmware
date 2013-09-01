@@ -308,14 +308,14 @@ void ikbd_handle_input(unsigned char cmd) {
 void ikbd_poll(void) {
 #ifdef IKBD_DEBUG
   static int sent = 0;
-  static xtimer = 0;
+  static unsigned long xtimer = 0;
   if(CheckTimer(xtimer)) {
     xtimer = GetTimer(2000);
     ikbd_debugf("sent %d", sent);
   }
 #endif
 
-  static mtimer = 0;
+  static unsigned long mtimer = 0;
   if(CheckTimer(mtimer)) {
     mtimer = GetTimer(10);
     

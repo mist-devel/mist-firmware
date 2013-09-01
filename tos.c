@@ -642,7 +642,27 @@ static unsigned long get_long(char *buffer, int offset) {
 }
 
 void tos_poll() {
+  // 1 == button not pressed, 2 = 1 sec exceeded, else timer running
+  static unsigned long timer = 1;
+
   mist_get_dmastate();  
+ 
+  // check the user button
+  if(user_io_user_button()) {
+    if(timer == 1) 
+      timer = GetTimer(1000);
+    else if(timer != 2)
+      if(CheckTimer(timer)) {
+	tos_reset(1);
+	timer = 2;
+      }
+  } else {
+    // released while still running (< 1 sec)
+    if(!(timer & 3))
+      tos_reset(0);
+
+    timer = 1;
+  }
 }
 
 void tos_update_sysctrl(unsigned long n) {
