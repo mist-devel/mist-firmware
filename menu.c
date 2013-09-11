@@ -189,10 +189,16 @@ void HandleUI(void)
             }
         }
         break;
-    case KEY_MENU :
+    case KEY_MENU:
       menu = true;
         break;
-    case KEY_ESC :
+
+	// Within the menu the esc key acts as the menu key. problem:
+	// if the menu is left with a press of ESC, then the follwing
+	// break code for the ESC key when the key is released will 
+	// reach the core which never saw the make code. Simple solution:
+	// react on break code instead of make code
+    case KEY_ESC | KEY_UPSTROKE :
       if (menustate != MENU_NONE2)
 	menu = true;
       break;
@@ -2629,7 +2635,6 @@ void ErrorMessage(const char *message, unsigned char code) {
 
 void InfoMessage(char *message)
 {
-    OsdWaitVBL();
     if (menustate != MENU_INFO)
     {
 //        OsdClear();

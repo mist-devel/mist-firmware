@@ -32,8 +32,9 @@
 #define tos_debugf(...)
 #endif
 
-#if 0
+#if 1
 // ikbd debug output in red
+#define IKBD_DEBUG
 #define ikbd_debugf(a, ...) iprintf("\033[1;31mIKBD: " a "\033[0m\n", ##__VA_ARGS__)
 #else
 #define ikbd_debugf(...)

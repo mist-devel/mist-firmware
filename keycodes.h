@@ -188,11 +188,11 @@ const unsigned short usb2atari[] = {
   0x09,  // 25: 8
   0x0a,  // 26: 9
   0x0b,  // 27: 0
-  0x1c | OSD_LOC,  // 28: Return
-  0x01 | OSD_LOC,  // 29: Escape
-  0x0e | OSD_LOC,  // 2a: Backspace
+  0x1c,  // 28: Return
+  0x01,  // 29: Escape
+  0x0e,  // 2a: Backspace
   0x0f,  // 2b: Tab
-  0x39 | OSD_LOC,  // 2c: Space
+  0x39,  // 2c: Space
   0x0c,  // 2d: -
   0x0d,  // 2e: =
   0x1a,  // 2f: [
@@ -222,15 +222,15 @@ const unsigned short usb2atari[] = {
   NUM_LOCK_TOGGLE,  // 47: Scroll Lock
   MISS,  // 48: Pause
   0x52,  // 49: Insert
-  0x47 | OSD_LOC,  // 4a: Home
-  0x62 | OSD_LOC,  // 4b: Page Up
+  0x47,  // 4a: Home
+  0x62,  // 4b: Page Up
   0x53,  // 4c: Delete
   MISS,  // 4d: End
-  0x61 | OSD_LOC,  // 4e: Page Down
+  0x61,  // 4e: Page Down
   0x4d,  // 4f: Right Arrow
   0x4b,  // 50: Left Arrow
-  0x50 | OSD_LOC,  // 51: Down Arrow
-  0x48 | OSD_LOC,  // 52: Up Arrow
+  0x50,  // 51: Down Arrow
+  0x48,  // 52: Up Arrow
   NUM_LOCK_TOGGLE,  // 53: Num Lock
   0x65,  // 54: KP /
   0x66,  // 55: KP *

@@ -626,6 +626,8 @@ void tos_upload(char *name) {
 
   tos_write("Booting ... ");
 
+  ikbd_reset();
+
   // let cpu run (release reset)
   config.system_ctrl &= ~TOS_CONTROL_CPU_RESET;
   mist_set_control(config.system_ctrl);
@@ -814,6 +816,8 @@ void tos_eject_all() {
 }
 
 void tos_reset(char cold) {
+  ikbd_reset();
+
   tos_update_sysctrl(config.system_ctrl |  TOS_CONTROL_CPU_RESET);  // set reset
 
   if(cold) {

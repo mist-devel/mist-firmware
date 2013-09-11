@@ -636,18 +636,6 @@ void OsdClear(void)
     DisableOsd();
 }
 
-void OsdWaitVBL(void)
-{
-//    unsigned long pioa_old = 0;
-//    unsigned long pioa = 0;
-//
-//    while ((~pioa ^ pioa_old) & INIT_B)
-//    {
-//        pioa_old = pioa;
-//        pioa = *AT91C_PIOA_PDSR;
-//    }
-}
-
 // enable displaying of OSD
 void OsdEnable(unsigned char mode)
 {

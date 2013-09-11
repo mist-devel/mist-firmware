@@ -348,9 +348,16 @@ void user_io_osd_key_enable(char on) {
 }
 
 static char key_used_by_osd(unsigned short s) {
-  if((s & OSD_LOC) && !(s & 0xff))  return true;   // this key is only used in OSD and has no keycode
+  // this key is only used in OSD and has no keycode
+  if((s & OSD_LOC) && !(s & 0xff))  return true; 
+
+  // no keys are suppressed if the OSD is inactive
   if(!osd_eats_keys) return false;
-  return ((s & OSD_LOC) != 0);
+
+  // in atari mode eat all keys if the OSD is online,
+  // else none as it's up to the core to forward keys
+  // to the OSD
+  return (core_type == CORE_TYPE_MIST);
 }
 
 void user_io_kbd(unsigned char m, unsigned char *k) {

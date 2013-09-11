@@ -59,9 +59,9 @@ static struct {
   unsigned char  mouse_abs_scale_x, mouse_abs_scale_y;
   unsigned char  mouse_abs_buttons;
   unsigned short mouse_pos_x, mouse_pos_y;
-} ikbd;
 
-// #define IKBD_DEBUG
+  unsigned int   tx_cnt;   // tx byte counter for debugging
+} ikbd;
 
 void ikbd_init() {
   // reset ikbd state
@@ -80,11 +80,14 @@ void ikbd_init() {
   ikbd.date_buffer[5] = 0;
 }
 
+void ikbd_reset(void) {
+  ikbd.tx_cnt = 0;
+  ikbd.state |= IKBD_STATE_WAIT4RESET;
+}
+
 static void enqueue(unsigned short b) {
-  if(((wptr + 1)&(QUEUE_LEN-1)) == rptr) {
-    //    ikbd_debugf("!!!!!!! tx queue overflow !!!!!!!!!");
+  if(((wptr + 1)&(QUEUE_LEN-1)) == rptr)
     return;
-  }
 
   tx_queue[wptr] = b;
   wptr = (wptr+1)&(QUEUE_LEN-1);
@@ -307,11 +310,14 @@ void ikbd_handle_input(unsigned char cmd) {
 
 void ikbd_poll(void) {
 #ifdef IKBD_DEBUG
-  static int sent = 0;
   static unsigned long xtimer = 0;
+  static int last_cnt = 0;
   if(CheckTimer(xtimer)) {
     xtimer = GetTimer(2000);
-    ikbd_debugf("sent %d", sent);
+    if(ikbd.tx_cnt != last_cnt) {
+      ikbd_debugf("sent bytes: %d", ikbd.tx_cnt);
+      last_cnt = ikbd.tx_cnt;
+    }
   }
 #endif
 
@@ -365,12 +371,11 @@ void ikbd_poll(void) {
     SPI(UIO_IKBD_OUT);
     SPI(tx_queue[rptr]);
     DisableIO();
+
+    ikbd.tx_cnt++;
   }
 
   rptr = (rptr+1)&(QUEUE_LEN-1);  
-#ifdef IKBD_DEBUG
-  sent++;
-#endif
 }
 
 void ikbd_joystick(unsigned char joystick, unsigned char map) {
@@ -378,9 +383,6 @@ void ikbd_joystick(unsigned char joystick, unsigned char map) {
   // is enabled?
   
   if(ikbd.state & IKBD_STATE_JOYSTICK_EVENT_REPORTING) {
-#ifdef IKBD_DEBUG
-    ikbd_debugf("joy %d %x", joystick, map);
-#endif
 
     // only report joystick data for joystick 0 if the mouse is disabled
     if((ikbd.state & IKBD_STATE_MOUSE_DISABLED) || (joystick == 1)) {    
@@ -401,10 +403,6 @@ void ikbd_joystick(unsigned char joystick, unsigned char map) {
       }
     }
   }
-#ifdef IKBD_DEBUG
-  else
-    ikbd_debugf("no monitor, drop joy %d %x", joystick, map);
-#endif
   
   // save state of joystick for interrogation mode
   ikbd.joystick[joystick] = map;
@@ -462,7 +460,7 @@ void ikbd_mouse(unsigned char b, char x, char y) {
     x /= ikbd.mouse_abs_scale_x;
     y /= ikbd.mouse_abs_scale_y;
 
-    //    ikbd_debugf("abs inc %d %d -> ", x, y);
+     //    ikbd_debugf("abs inc %d %d -> ", x, y);
 
     if(x < 0) {
       x = -x;
@@ -500,12 +498,13 @@ void ikbd_mouse(unsigned char b, char x, char y) {
 // advance the ikbd time by one second
 void ikbd_update_time(void) {
   static const char mdays[] = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
   short year = 1900 + ikbd.date_buffer[0];
   char is_leap = (!(year % 4) && (year % 100)) || !(year % 400);
 
-  ikbd_debugf("time update %u:%02u:%02u %u.%u.%u", 
-	      ikbd.date_buffer[3], ikbd.date_buffer[4], ikbd.date_buffer[5],
-	      ikbd.date_buffer[2], ikbd.date_buffer[1], year);
+  //  ikbd_debugf("time update %u:%02u:%02u %u.%u.%u", 
+  //	      ikbd.date_buffer[3], ikbd.date_buffer[4], ikbd.date_buffer[5],
+  //	      ikbd.date_buffer[2], ikbd.date_buffer[1], year);
 
   // advance seconds
   ikbd.date_buffer[5]++;
