@@ -62,6 +62,10 @@
 #define TOS_CONTROL_TURBO         0x00040000
 #define TOS_CONTROL_BLITTER       0x00080000
 
+#define TOS_CONTROL_SCANLINES0    0x00100000   // 0 = off, 1 = 25%, 2 = 50%, 3 = 75%
+#define TOS_CONTROL_SCANLINES1    0x00200000
+#define TOS_CONTROL_SCANLINES     (TOS_CONTROL_SCANLINES0|TOS_CONTROL_SCANLINES1)
+
 unsigned long tos_system_ctrl(void);
 
 void tos_upload(char *);

@@ -343,6 +343,19 @@ static void tos_color_test() {
       mist_memory_write((char*)buffer, COLORS*PLANES);
     }
   }
+
+#if 0
+  mist_memory_set_address(VIDEO_BASE_ADDRESS);
+  mist_memory_set(0xff, 40);
+
+  mist_memory_set_address(VIDEO_BASE_ADDRESS+80);
+  mist_memory_set(0x55, 40);
+
+  mist_memory_set_address(VIDEO_BASE_ADDRESS+160);
+  mist_memory_set(0xf0, 40);
+
+  for(;;);
+#endif
 }
 
 static void tos_write(char *str) {
@@ -471,7 +484,7 @@ void tos_upload(char *name) {
   tos_font_load();
   tos_clr();
 
-  //      tos_color_test();
+  //   tos_color_test();
 
   // do the MiST core handling
   tos_write("\x0e\x0f MIST core \x0e\x0f ");

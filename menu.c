@@ -102,7 +102,6 @@ const char *helptexts[]={
 
 
 const char* scanlines[]={"Off","25%","50%","75%"};
-unsigned int scan=0;
 
 const char* stereo[]={"Mono","Stereo"};
 unsigned int sstereo=0;
@@ -636,7 +635,7 @@ void HandleUI(void)
   OsdWrite(3, s, menusub == 2,0);
 	     
   strcpy(s," Scanlines: ");
-  strcat(s,scanlines[scan & 0x3]);
+  strcat(s,scanlines[(tos_system_ctrl()>>20)&3]);
   OsdWrite(4,s,menusub==3,0);
   strcpy(s," Audio: ");
   strcat(s,stereo[sstereo & 0x1]);
@@ -672,11 +671,13 @@ void HandleUI(void)
     menustate = MENU_MIST_VIDEO1;
     break;
 
-  case 3:
-    scan=(scan+1) & 0x3;
-    tos_update_sysctrl((tos_system_ctrl() & 0x3fffffff) | (scan<<30));
+  case 3: {
+    // next scanline state
+    int scan = ((tos_system_ctrl() >> 20)+1)&3;
+    tos_update_sysctrl((tos_system_ctrl() & ~TOS_CONTROL_SCANLINES) | (scan << 20));
     menustate=MENU_MIST_VIDEO1;
-    break;
+  } break;
+
   case 4:
     sstereo++;
     tos_update_sysctrl(tos_system_ctrl() ^ 0x20000000);
