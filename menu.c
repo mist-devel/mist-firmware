@@ -104,7 +104,6 @@ const char *helptexts[]={
 const char* scanlines[]={"Off","25%","50%","75%"};
 
 const char* stereo[]={"Mono","Stereo"};
-unsigned int sstereo=0;
 
 unsigned char config_autofire = 0;
 
@@ -615,35 +614,39 @@ void HandleUI(void)
 
     case MENU_MIST_VIDEO1 :
 
-	menumask=0x3f;
+	menumask=0xff;
 	OsdSetTitle("A/V", 0);
 
-	strcpy(s, " PAL mode: ");
+	strcpy(s, " PAL mode:    ");
 	if(tos_system_ctrl() & TOS_CONTROL_PAL50HZ) strcat(s, "50Hz");
 	else                                      strcat(s, "56Hz");
-  OsdWrite(0, s, menusub == 0,0);
+	OsdWrite(0, s, menusub == 0,0);
 
-	strcpy(s, " Blitter:  ");
+	strcpy(s, " Blitter:     ");
 	strcat(s, (tos_system_ctrl() & TOS_CONTROL_BLITTER)?"on":"off");
-  OsdWrite(1, s, menusub == 1, 0);
+	OsdWrite(1, s, menusub == 1, 0);
 
-	strcpy(s, " Screen: ");
+	strcpy(s, " Screen:      ");
 	if(tos_system_ctrl() & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
 	else                                          strcat(s, "Mono");
+	OsdWrite(2, s, menusub == 2,0);
+ 
+	strcpy(s, " Scanlines:   ");
+	strcat(s,scanlines[(tos_system_ctrl()>>20)&3]);
+	OsdWrite(3, s, menusub == 3,0);
 
-  OsdWrite(2, "", 0,0);
-  OsdWrite(3, s, menusub == 2,0);
-	     
-  strcpy(s," Scanlines: ");
-  strcat(s,scanlines[(tos_system_ctrl()>>20)&3]);
-  OsdWrite(4,s,menusub==3,0);
-  strcpy(s," Audio: ");
-  strcat(s,stereo[sstereo & 0x1]);
-  OsdWrite(5, s, menusub==4,0);
-  OsdWrite(6, "", 0,0);
-  OsdWrite(7, STD_EXIT, menusub == 5,0);
+        siprintf(s, " Hor. adj.:   %d", tos_get_video_adjust(0));
+	OsdWrite(4, s, menusub == 4,0);
 
+	siprintf(s, " Ver. adj.:   %d", tos_get_video_adjust(1));
+	OsdWrite(5, s, menusub == 5,0);
 
+	strcpy(s, " Audio:       ");
+	strcat(s, stereo[(tos_system_ctrl() & TOS_CONTROL_STEREO)?1:0]);
+	OsdWrite(6, s, menusub == 6,0);
+
+	OsdWrite(7, STD_EXIT, menusub == 7,0);
+	
 	parentstate = menustate;
         menustate = MENU_MIST_VIDEO2;
 	break;
@@ -652,6 +655,19 @@ void HandleUI(void)
       if (menu) {
 	menustate = MENU_MIST_MAIN1;
 	menusub = 4;
+      }
+
+      // use left/right to adjust video position
+      if(left || right) {
+	if((menusub == 4)||(menusub == 5)) {
+	  if(left && (tos_get_video_adjust(menusub - 4) > -100))
+	    tos_set_video_adjust(menusub - 4, -1);
+	  
+	  if(right && (tos_get_video_adjust(menusub - 4) < 100))
+	    tos_set_video_adjust(menusub - 4, +1);
+	  
+	  menustate = MENU_MIST_VIDEO1;
+	}
       }
 
       if(select) {
@@ -665,28 +681,30 @@ void HandleUI(void)
 	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_BLITTER );
 	  menustate = MENU_MIST_VIDEO1;
 	  break;
+	  
+	case 2:
+	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIDEO_COLOR);
+	  menustate = MENU_MIST_VIDEO1;
+	  break;
+	  
+	case 3: {
+	  // next scanline state
+	  int scan = ((tos_system_ctrl() >> 20)+1)&3;
+	  tos_update_sysctrl((tos_system_ctrl() & ~TOS_CONTROL_SCANLINES) | (scan << 20));
+	  menustate=MENU_MIST_VIDEO1;
+	} break;
 
-  case 2:
-    tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIDEO_COLOR);
-    menustate = MENU_MIST_VIDEO1;
-    break;
+	  // entries 4 and 5 used left/right
 
-  case 3: {
-    // next scanline state
-    int scan = ((tos_system_ctrl() >> 20)+1)&3;
-    tos_update_sysctrl((tos_system_ctrl() & ~TOS_CONTROL_SCANLINES) | (scan << 20));
-    menustate=MENU_MIST_VIDEO1;
-  } break;
-
-  case 4:
-    sstereo++;
-    tos_update_sysctrl(tos_system_ctrl() ^ 0x20000000);
-    menustate=MENU_MIST_VIDEO1;
-    break;
-	case 5:
+	case 6:
+	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_STEREO);
+	  menustate = MENU_MIST_VIDEO1;
+	  break;
+	  
+	case 7:
 	  menustate = MENU_MIST_MAIN1;
 	  menusub = 4;
-    break;
+	  break;
 	}
       }
       break;

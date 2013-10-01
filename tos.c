@@ -15,6 +15,7 @@ typedef struct {
   char tos_img[12];
   char cart_img[12];
   char acsi_img[2][12];
+  char video_adjust[2];
 } tos_config_t;
 
 static tos_config_t config;
@@ -51,6 +52,20 @@ static const char *acsi_cmd_name(int cmd) {
   };
   
   return cmdname[cmd];
+}
+
+void tos_set_video_adjust(char axis, char value) {
+  config.video_adjust[axis] += value;
+
+  EnableFpga();
+  SPI(MIST_SET_VADJ);
+  SPI(config.video_adjust[0]);
+  SPI(config.video_adjust[1]);
+  DisableFpga();
+}
+
+char tos_get_video_adjust(char axis) {
+  return config.video_adjust[axis];
 }
 
 static void mist_memory_set_address(unsigned long a) {
@@ -328,6 +343,7 @@ static void mist_get_dmastate() {
 #define COLORS   20
 #define PLANES   4
 
+  static void tos_write(char *str);
 static void tos_color_test() {
   unsigned short buffer[COLORS][PLANES];
 
@@ -344,17 +360,23 @@ static void tos_color_test() {
     }
   }
 
-#if 0
+#if 1
   mist_memory_set_address(VIDEO_BASE_ADDRESS);
-  mist_memory_set(0xff, 40);
+  mist_memory_set(0xf0, 40);
 
   mist_memory_set_address(VIDEO_BASE_ADDRESS+80);
   mist_memory_set(0x55, 40);
 
   mist_memory_set_address(VIDEO_BASE_ADDRESS+160);
-  mist_memory_set(0xf0, 40);
+  mist_memory_set(0x0f, 40);
 
-  for(;;);
+#if 1
+  tos_write("");
+  tos_write("AAAAAAAABBBBBBBBCCCCCCCCDDDDDDDDEEEEEEEEFFFFFFFFGGGGGGGGHHHHHHHHIIIIIIIIJJJJJJJJ");
+  tos_write("ABCDEFGHIJHKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJHKLMNOPQRSTUVWXYZ0123456789");
+#endif
+
+  //  for(;;);
 #endif
 }
 
@@ -474,6 +496,9 @@ char tos_cartridge_is_inserted() {
 void tos_upload(char *name) {
   fileTYPE file;
 
+  // set video offset in fpga
+  tos_set_video_adjust(0, 0);
+
   if(name)
     strncpy(config.tos_img, name, 11);
 
@@ -484,7 +509,7 @@ void tos_upload(char *name) {
   tos_font_load();
   tos_clr();
 
-  //   tos_color_test();
+  //  tos_color_test();
 
   // do the MiST core handling
   tos_write("\x0e\x0f MIST core \x0e\x0f ");
@@ -855,6 +880,7 @@ void tos_config_init(void) {
   config.cart_img[0] = 0;
   memcpy(config.acsi_img[0], "HARDDISKHD ", 12);
   config.acsi_img[1][0] = 0;
+  config.video_adjust[0] = config.video_adjust[1] = 0;
 
   // try to load config
   if (FileOpen(&file, CONFIG_FILENAME))  {

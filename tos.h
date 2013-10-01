@@ -12,9 +12,10 @@
 #define MIST_READ_MEMORY  0x03
 #define MIST_SET_CONTROL  0x04
 #define MIST_GET_DMASTATE 0x05   // reads state of dma and floppy controller
-#define MIST_ACK_DMA      0x06   // acknowledges a dma command
+#define MIST_ACK_DMA      0x06   // acknowledge a dma command
 #define MIST_BUS_REQ      0x07   // request bus
 #define MIST_BUS_REL      0x08   // release bus
+#define MIST_SET_VADJ     0x09
 
 // tos sysconfig bits:
 // 0     - RESET
@@ -66,6 +67,8 @@
 #define TOS_CONTROL_SCANLINES1    0x00200000
 #define TOS_CONTROL_SCANLINES     (TOS_CONTROL_SCANLINES0|TOS_CONTROL_SCANLINES1)
 
+#define TOS_CONTROL_STEREO        0x00400000
+
 unsigned long tos_system_ctrl(void);
 
 void tos_upload(char *);
@@ -81,6 +84,9 @@ char *tos_get_image_name();
 char *tos_get_cartridge_name();
 char tos_cartridge_is_inserted();
 void tos_load_cartridge(char *);
+
+void tos_set_video_adjust(char axis, char value);
+char tos_get_video_adjust(char axis);
 
 void tos_config_init(void);
 void tos_config_save(void);
