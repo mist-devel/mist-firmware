@@ -52,6 +52,9 @@ static struct {
 
   // joystick state
   unsigned char joystick[2];
+  unsigned long joy_timer[2];
+  unsigned char joy_pending[2];
+  
   unsigned char date_buffer[6];
 
   // mouse state
@@ -70,6 +73,9 @@ void ikbd_init() {
 
   ikbd.mouse_abs_max_x = ikbd.mouse_abs_max_y = 65535;
   ikbd.mouse_abs_scale_x = ikbd.mouse_abs_scale_y = 1;
+
+  ikbd.joy_timer[0] = ikbd.joy_timer[1] = 0;
+  ikbd.joy_pending[0] = ikbd.joy_pending[1] = 0;
 
   // init ikbd date
   ikbd.date_buffer[0] = 113;
@@ -321,6 +327,20 @@ void ikbd_poll(void) {
   }
 #endif
 
+  // handle outstanding joystick events
+  char i;
+  for(i=0;i<2;i++) {
+    // check if timeout is still running
+    if((ikbd.joy_pending[i] & 0x40) && CheckTimer(ikbd.joy_timer[i]))
+      ikbd.joy_pending[i] &= ~0x40;  // clear timeout flag
+      
+    if((ikbd.joy_pending[i] & 0xc0) == 0x80) {
+      //      iprintf("delayed %d\n", i);
+      ikbd_joystick(i, ikbd.joy_pending[i] & ~0xc0);
+      ikbd.joy_pending[i] = 0;
+    }
+  }
+
   static unsigned long mtimer = 0;
   if(CheckTimer(mtimer)) {
     mtimer = GetTimer(10);
@@ -384,8 +404,25 @@ void ikbd_joystick(unsigned char joystick, unsigned char map) {
   
   if(ikbd.state & IKBD_STATE_JOYSTICK_EVENT_REPORTING) {
 
+    // report rate is limited
+    // check if it's already time for a new joystick report
+    if(ikbd.joy_pending[joystick] & 0x40) {
+      //    if(!CheckTimer(ikbd.joy_timer[joystick])) {
+      //      iprintf("too fast on joy %d\n", joystick);
+
+      // bit 7 marks this entry as valid
+      ikbd.joy_pending[joystick] = 0xc0 | map;
+      return;
+    }
+
+    // next report for this joystick earliest in 50 ms
+    ikbd.joy_timer[joystick] = GetTimer(50);
+    ikbd.joy_pending[joystick] = 0x40;   // 0x40 = "timeout is active" flag
+
     // only report joystick data for joystick 0 if the mouse is disabled
     if((ikbd.state & IKBD_STATE_MOUSE_DISABLED) || (joystick == 1)) {    
+      //      iprintf("tx for %d - %x\n", joystick, joystick_map2ikbd(map));
+      
       enqueue(0xfe + joystick);
       enqueue(joystick_map2ikbd(map));
     }
