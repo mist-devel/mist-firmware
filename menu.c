@@ -614,38 +614,33 @@ void HandleUI(void)
 
     case MENU_MIST_VIDEO1 :
 
-	menumask=0xff;
+	menumask=0x3f;
 	OsdSetTitle("A/V", 0);
 
-	strcpy(s, " PAL mode:    ");
-	if(tos_system_ctrl() & TOS_CONTROL_PAL50HZ) strcat(s, "50Hz");
-	else                                      strcat(s, "56Hz");
-	OsdWrite(0, s, menusub == 0,0);
-
-	strcpy(s, " Blitter:     ");
-	strcat(s, (tos_system_ctrl() & TOS_CONTROL_BLITTER)?"on":"off");
-	OsdWrite(1, s, menusub == 1, 0);
+	OsdWrite(0, "", 0, 0);
 
 	strcpy(s, " Screen:      ");
 	if(tos_system_ctrl() & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
 	else                                          strcat(s, "Mono");
-	OsdWrite(2, s, menusub == 2,0);
- 
-	strcpy(s, " Scanlines:   ");
-	strcat(s,scanlines[(tos_system_ctrl()>>20)&3]);
-	OsdWrite(3, s, menusub == 3,0);
+	OsdWrite(0, s, menusub == 0,0);
 
-        siprintf(s, " Hor. adj.:   %d", tos_get_video_adjust(0));
-	OsdWrite(4, s, menusub == 4,0);
+	strcpy(s, " Blitter:     ");
+	strcat(s, (tos_system_ctrl() & TOS_CONTROL_BLITTER)||(tos_system_ctrl() & TOS_CONTROL_STE)?"on":"off");
+	OsdWrite(1, s, menusub == 1, (tos_system_ctrl() & TOS_CONTROL_STE)?1:0);
 
-	siprintf(s, " Ver. adj.:   %d", tos_get_video_adjust(1));
-	OsdWrite(5, s, menusub == 5,0);
+	strcpy(s, " Chipset:     ");
+	strcat(s, (tos_system_ctrl() & TOS_CONTROL_STE)?"STE":"ST");
+	OsdWrite(2, s, menusub == 2, 0);
+
+        OsdWrite(3, " Video adjust              \x16", menusub == 3, 0);
+	OsdWrite(4, "", 0, 0);
 
 	strcpy(s, " Audio:       ");
 	strcat(s, stereo[(tos_system_ctrl() & TOS_CONTROL_STEREO)?1:0]);
-	OsdWrite(6, s, menusub == 6,0);
+	OsdWrite(5, s, menusub == 4,0);
+	OsdWrite(6, "", 0, 0);
 
-	OsdWrite(7, STD_EXIT, menusub == 7,0);
+	OsdWrite(7, STD_EXIT, menusub == 5,0);
 	
 	parentstate = menustate;
         menustate = MENU_MIST_VIDEO2;
@@ -657,16 +652,91 @@ void HandleUI(void)
 	menusub = 4;
       }
 
+      if(select) {
+	switch(menusub) {
+	case 0:
+	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIDEO_COLOR);
+	  menustate = MENU_MIST_VIDEO1;
+	  break;
+	  
+	case 1:
+	  if(!(tos_system_ctrl() & TOS_CONTROL_STE)) {
+	    tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_BLITTER );
+	    menustate = MENU_MIST_VIDEO1;
+	  }
+	  break;
+
+	case 2:
+	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_STE );
+	  menustate = MENU_MIST_VIDEO1;
+	  break;
+
+	case 3:
+	  menustate = MENU_MIST_VIDEO_ADJUST1;
+	  menusub = 0;
+	  break;
+
+	case 4:
+	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_STEREO);
+	  menustate = MENU_MIST_VIDEO1;
+	  break;
+	  
+	case 5:
+	  menustate = MENU_MIST_MAIN1;
+	  menusub = 4;
+	  break;
+	}
+      }
+      break;
+
+    case MENU_MIST_VIDEO_ADJUST1 :
+
+	menumask=0x1f;
+	OsdSetTitle("V-adjust", 0);
+
+	OsdWrite(0, "", 0,0);
+
+	strcpy(s, " PAL mode:    ");
+	if(tos_system_ctrl() & TOS_CONTROL_PAL50HZ) strcat(s, "50Hz");
+	else                                      strcat(s, "56Hz");
+	OsdWrite(1, s, menusub == 0,0);
+
+	strcpy(s, " Scanlines:   ");
+	strcat(s,scanlines[(tos_system_ctrl()>>20)&3]);
+	OsdWrite(2, s, menusub == 1,0);
+
+	OsdWrite(3, "", 0,0);
+
+        siprintf(s, " Horizontal:  %d", tos_get_video_adjust(0));
+	OsdWrite(4, s, menusub == 2,0);
+
+	siprintf(s, " Vertical:    %d", tos_get_video_adjust(1));
+	OsdWrite(5, s, menusub == 3,0);
+
+	OsdWrite(6, "", 0,0);
+
+	OsdWrite(7, STD_EXIT, menusub == 4,0);
+	
+	parentstate = menustate;
+        menustate = MENU_MIST_VIDEO_ADJUST2;
+	break;
+
+    case MENU_MIST_VIDEO_ADJUST2 :
+      if (menu) {
+	menustate = MENU_MIST_VIDEO1;
+	menusub = 3;
+      }
+
       // use left/right to adjust video position
       if(left || right) {
-	if((menusub == 4)||(menusub == 5)) {
-	  if(left && (tos_get_video_adjust(menusub - 4) > -100))
-	    tos_set_video_adjust(menusub - 4, -1);
+	if((menusub == 2)||(menusub == 3)) {
+	  if(left && (tos_get_video_adjust(menusub - 2) > -100))
+	    tos_set_video_adjust(menusub - 2, -1);
 	  
-	  if(right && (tos_get_video_adjust(menusub - 4) < 100))
-	    tos_set_video_adjust(menusub - 4, +1);
+	  if(right && (tos_get_video_adjust(menusub - 2) < 100))
+	    tos_set_video_adjust(menusub - 2, +1);
 	  
-	  menustate = MENU_MIST_VIDEO1;
+	  menustate = MENU_MIST_VIDEO_ADJUST1;
 	}
       }
 
@@ -674,36 +744,21 @@ void HandleUI(void)
 	switch(menusub) {
 	case 0:
 	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_PAL50HZ);
-	  menustate = MENU_MIST_VIDEO1;
+	  menustate = MENU_MIST_VIDEO_ADJUST1;
 	  break;
 
-	case 1:
-	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_BLITTER );
-	  menustate = MENU_MIST_VIDEO1;
-	  break;
-	  
-	case 2:
-	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIDEO_COLOR);
-	  menustate = MENU_MIST_VIDEO1;
-	  break;
-	  
-	case 3: {
+	case 1: {
 	  // next scanline state
 	  int scan = ((tos_system_ctrl() >> 20)+1)&3;
 	  tos_update_sysctrl((tos_system_ctrl() & ~TOS_CONTROL_SCANLINES) | (scan << 20));
-	  menustate=MENU_MIST_VIDEO1;
+	  menustate=MENU_MIST_VIDEO_ADJUST1;
 	} break;
 
-	  // entries 4 and 5 used left/right
-
-	case 6:
-	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_STEREO);
-	  menustate = MENU_MIST_VIDEO1;
-	  break;
+	  // entries 2 and 3 use left/right
 	  
-	case 7:
-	  menustate = MENU_MIST_MAIN1;
-	  menusub = 4;
+	case 4:
+	  menustate = MENU_MIST_VIDEO1;
+	  menusub = 3;
 	  break;
 	}
       }

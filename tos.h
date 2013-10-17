@@ -68,6 +68,7 @@
 #define TOS_CONTROL_SCANLINES     (TOS_CONTROL_SCANLINES0|TOS_CONTROL_SCANLINES1)
 
 #define TOS_CONTROL_STEREO        0x00400000
+#define TOS_CONTROL_STE           0x00800000
 
 unsigned long tos_system_ctrl(void);
 

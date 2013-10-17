@@ -82,6 +82,8 @@ enum MENU
     MENU_MIST_SYSTEM_FILE_SELECTED,
     MENU_MIST_VIDEO1,
     MENU_MIST_VIDEO2,
+    MENU_MIST_VIDEO_ADJUST1,
+    MENU_MIST_VIDEO_ADJUST2,
 };
 
 // UI strings, used by boot messages
