@@ -106,7 +106,7 @@ static void hexdump(void *data, unsigned long size, unsigned long offset) {
     iprintf("  ");
     for(i=0;i<(16-b2c);i++) iprintf("   ");
     for(i=0;i<b2c;i++)      iprintf("%c", isprint(ptr[i])?ptr[i]:'.');
-    iprintff("\n");
+    iprintf("\n");
     ptr  += b2c;
     size -= b2c;
     n    += b2c;
@@ -136,15 +136,6 @@ static void mist_memory_read(char *data, unsigned long words) {
   mist_bus_request(0);
 }
 
-static void mist_memory_read_block(char *data) {
-  EnableFpga();
-  SPI(MIST_READ_MEMORY);
-
-  SPI_block_read(data);
-
-  DisableFpga();
-}
-
 static void mist_memory_write(char *data, unsigned long words) {
   mist_bus_request(1);
 
@@ -161,16 +152,35 @@ static void mist_memory_write(char *data, unsigned long words) {
   mist_bus_request(0);
 }
 
+static void mist_memory_read_block(char *data) {
+  mist_bus_request(1);
+
+  EnableFpga();
+  SPI(MIST_READ_MEMORY);
+
+  SPI_block_read(data);
+
+  DisableFpga();
+
+  mist_bus_request(0);
+}
+
 static void mist_memory_write_block(char *data) {
+  mist_bus_request(1);
+
   EnableFpga();
   SPI(MIST_WRITE_MEMORY);
 
   SPI_block_write(data);
 
   DisableFpga();
+
+  mist_bus_request(0);
 }
 
 void mist_memory_set(char data, unsigned long words) {
+  mist_bus_request(1);
+
   EnableFpga();
   SPI(MIST_WRITE_MEMORY);
 
@@ -180,6 +190,8 @@ void mist_memory_set(char data, unsigned long words) {
  }
 
   DisableFpga();
+
+  mist_bus_request(0);
 }
 
 static void handle_acsi(unsigned char *buffer) {
@@ -312,7 +324,29 @@ static void handle_fdc(unsigned char *buffer) {
 	dma_address += 512;
 	offset += 1;
       }
-      
+      EnableFpga();
+      SPI(MIST_ACK_DMA);
+      DisableFpga(); 
+    } else if((fdc_cmd & 0xc0) == 0xc0) {
+      char msg[32];
+
+      if((fdc_cmd & 0xe0) == 0xc0) iprintf("READ ADDRESS\n");
+
+      if((fdc_cmd & 0xf0) == 0xe0) {
+	iprintf("READ TRACK %d SIDE %d\n", fdc_track, drv_side);
+	siprintf(msg, "RD TRK %d S %d", fdc_track, drv_side);
+	InfoMessage(msg);
+      }
+
+      if((fdc_cmd & 0xf0) == 0xf0) {
+	iprintf("WRITE TRACK %d SIDE %d\n", fdc_track, drv_side);
+	siprintf(msg, "WR TRK %d S %d", fdc_track, drv_side);
+	InfoMessage(msg);
+      }
+
+      iprintf("scnt = %d\n", scnt);
+
+
       EnableFpga();
       SPI(MIST_ACK_DMA);
       DisableFpga(); 
@@ -509,8 +543,6 @@ void tos_upload(char *name) {
   tos_font_load();
   tos_clr();
 
-  //  tos_color_test();
-
   // do the MiST core handling
   tos_write("\x0e\x0f MIST core \x0e\x0f ");
   tos_write("Uploading TOS ... ");
@@ -542,7 +574,7 @@ void tos_upload(char *name) {
     mist_memory_set(0x00, 8192);
 
 #if 0  // spi transfer tests
-    tos_debugf("SPI transfer test\n");
+    iprintf("SPI transfer test\n");
 
     // draw some max power pattern on screen
     mist_memory_set_address(VIDEO_BASE_ADDRESS);
@@ -564,8 +596,8 @@ void tos_upload(char *name) {
       mist_memory_set(0xaa, 256);
 
       mist_memory_set_address(0);
-      mist_memory_write_block(buffer);
-      //      mist_memory_write(buffer, 256);
+      //      mist_memory_write_block(buffer);
+      mist_memory_write(buffer, 256);
 
       mist_memory_set_address(0);
       //      mist_memory_read_block(b2);
@@ -582,11 +614,17 @@ void tos_upload(char *name) {
       if(!ok) {
 	hexdump(buffer, 512, 0);
 	hexdump(b2, 512, 0);
+
+	// re-read to check whether reading fails
+	mist_memory_set_address(0);
+	mist_memory_read(b2, 256);
+	hexdump(b2, 512, 0);
+
 	for(;;);
       }
 
       if(!((run_ok + run_fail)%10))
-	tos_debugf("ok %d, failed %d\r", run_ok, run_fail);
+	iprintf("ok %d, failed %d\r", run_ok, run_fail);
     }
 #endif
 
@@ -621,6 +659,46 @@ void tos_upload(char *name) {
       if(i != blocks-1)
 	FileNextSector(&file);
     }
+
+#if 0
+    // verify
+    {
+      char ok = -1;
+      char b2[512];
+      int j;
+	  
+      FileSeek(&file, 0, SEEK_SET);    
+      mist_memory_set_address(tos_base);
+      for(i=0;i<blocks;i++) {
+	FileRead(&file, b2);
+	mist_memory_read(buffer, 256);
+
+	// toggle reset for trigger
+	config.system_ctrl &= ~TOS_CONTROL_CPU_RESET;
+	mist_set_control(config.system_ctrl & ~TOS_CONTROL_CPU_RESET);
+	mist_set_control(config.system_ctrl |  TOS_CONTROL_CPU_RESET);
+	
+	for(j=0;j<512;j++)
+	  if(buffer[j] != b2[j])
+	    if(ok < 0)
+	      ok = j;
+
+	if(ok >= 0) {
+	  iprintf("Failed in block %d/%d\n", i, ok);
+
+	  hexdump(buffer, 512, 0);
+	  hexdump(b2, 512, 0);
+
+	  for(;;);
+	}
+	
+	if(i != blocks-1)
+	  FileNextSector(&file);
+      }
+      iprintf("Verify: %s\n", ok?"ok":"failed");
+    }
+
+#endif
     
     time = GetTimer(0) - time;
     tos_debugf("TOS.IMG uploaded in %lu ms (%d kB/s / %d kBit/s)", 
@@ -710,7 +788,6 @@ void tos_update_sysctrl(unsigned long n) {
   mist_set_control(config.system_ctrl);
 }
 
-static char buffer[13];  // local buffer to assemble file name (8+3+2)
 static void nice_name(char *dest, char *src) {
   char *c;
 
@@ -722,6 +799,8 @@ static void nice_name(char *dest, char *src) {
   for(c+=2;*c==' ';c--); c++;
   *c++='\0';
 }
+
+static char buffer[17];  // local buffer to assemble file name (8+3+2)
 
 char *tos_get_disk_name(char index) {
   fileTYPE file;
@@ -738,6 +817,7 @@ char *tos_get_disk_name(char index) {
   }
   
   nice_name(buffer, file.name);
+
   return buffer;
 }
 
@@ -859,9 +939,13 @@ void tos_reset(char cold) {
   tos_update_sysctrl(config.system_ctrl |  TOS_CONTROL_CPU_RESET);  // set reset
 
   if(cold) {
+#if 0 // clearing mem should be sifficient. But currently we upload TOS as it may be damaged
     // clear first 16k
     mist_memory_set_address(8);
     mist_memory_set(0x00, 8192-4);
+#else
+    tos_upload(NULL);
+#endif
   }
 
   tos_update_sysctrl(config.system_ctrl & ~TOS_CONTROL_CPU_RESET);  // release reset
