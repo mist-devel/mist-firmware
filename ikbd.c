@@ -10,7 +10,7 @@
   mouse y at bottom            Bolo                         X     X
   mouse button key events      Goldrunner/A_008             X     X
   joystick interrogation mode  Xevious/A_004                X     X
-  Absolute mouse mode          Addicataball/A_050           X    (broken)
+  Absolute mouse mode          Addicataball/A_050           X     X
   disable mouse                ?                            X
   disable joystick             ?                            X
   Joysticks also generate      Goldrunner                   X     X
@@ -137,9 +137,9 @@ void ikbd_handle_input(unsigned char cmd) {
       break;
 
     case 0x09:
-      if(ikbd.expect == 3) ikbd.mouse_abs_max_x = cmd;
+      if(ikbd.expect == 3) ikbd.mouse_abs_max_x = ((unsigned short)cmd) << 8;
       if(ikbd.expect == 2) ikbd.mouse_abs_max_x = (ikbd.mouse_abs_max_x & 0xff00) | cmd;
-      if(ikbd.expect == 1) ikbd.mouse_abs_max_y = cmd;
+      if(ikbd.expect == 1) ikbd.mouse_abs_max_y = ((unsigned short)cmd) << 8;
       if(ikbd.expect == 0) ikbd.mouse_abs_max_y = (ikbd.mouse_abs_max_y & 0xff00) | cmd;
       
       if(!ikbd.expect) 
@@ -147,9 +147,9 @@ void ikbd_handle_input(unsigned char cmd) {
       break;
       
     case 0x0e:
-      if(ikbd.expect == 3) ikbd.mouse_pos_x = cmd;
+      if(ikbd.expect == 3) ikbd.mouse_pos_x = ((unsigned short)cmd) << 8;
       if(ikbd.expect == 2) ikbd.mouse_pos_x = (ikbd.mouse_pos_x & 0xff00) | cmd;
-      if(ikbd.expect == 1) ikbd.mouse_pos_y = cmd;
+      if(ikbd.expect == 1) ikbd.mouse_pos_y = ((unsigned short)cmd) << 8;
       if(ikbd.expect == 0) ikbd.mouse_pos_y = (ikbd.mouse_pos_y & 0xff00) | cmd;
       
       if(!ikbd.expect) 
