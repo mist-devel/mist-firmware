@@ -102,8 +102,8 @@ const char *helptexts[]={
 
 
 const char* scanlines[]={"Off","25%","50%","75%"};
-
 const char* stereo[]={"Mono","Stereo"};
+const char* atari_chipset[]={"ST","STE","na","MegaSTE"};
 
 unsigned char config_autofire = 0;
 
@@ -629,7 +629,8 @@ void HandleUI(void)
 	OsdWrite(1, s, menusub == 1, (tos_system_ctrl() & TOS_CONTROL_STE)?1:0);
 
 	strcpy(s, " Chipset:     ");
-	strcat(s, (tos_system_ctrl() & TOS_CONTROL_STE)?"STE":"ST");
+	// extract  TOS_CONTROL_STE and  TOS_CONTROL_MSTE bits
+	strcat(s, atari_chipset[(tos_system_ctrl()>>23)&3]);
 	OsdWrite(2, s, menusub == 2, 0);
 
         OsdWrite(3, " Video adjust              \x16", menusub == 3, 0);
@@ -666,11 +667,15 @@ void HandleUI(void)
 	  }
 	  break;
 
-	case 2:
-	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_STE );
+	case 2: {
+	  unsigned long chipset = (tos_system_ctrl() >> 23)+1;
+	  if(chipset == 2) chipset = 3;
+	  if(chipset == 4) chipset = 0;
+	  tos_update_sysctrl(tos_system_ctrl() & ~(TOS_CONTROL_STE | TOS_CONTROL_MSTE) | 
+			     (chipset << 23));
 	  menustate = MENU_MIST_VIDEO1;
-	  break;
-
+	} break;
+	  
 	case 3:
 	  menustate = MENU_MIST_VIDEO_ADJUST1;
 	  menusub = 0;
