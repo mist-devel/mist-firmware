@@ -103,7 +103,7 @@ const char *helptexts[]={
 
 const char* scanlines[]={"Off","25%","50%","75%"};
 const char* stereo[]={"Mono","Stereo"};
-const char* atari_chipset[]={"ST","STE","na","MegaSTE"};
+const char* atari_chipset[]={"ST","STE","MegaSTE","STEroids"};
 
 unsigned char config_autofire = 0;
 
@@ -625,8 +625,8 @@ void HandleUI(void)
 	OsdWrite(0, s, menusub == 0,0);
 
 	strcpy(s, " Blitter:     ");
-	strcat(s, (tos_system_ctrl() & TOS_CONTROL_BLITTER)||(tos_system_ctrl() & TOS_CONTROL_STE)?"on":"off");
-	OsdWrite(1, s, menusub == 1, (tos_system_ctrl() & TOS_CONTROL_STE)?1:0);
+	strcat(s, (tos_system_ctrl() & TOS_CONTROL_BLITTER)||(tos_system_ctrl() & (TOS_CONTROL_STE | TOS_CONTROL_MSTE))?"on":"off");
+	OsdWrite(1, s, menusub == 1, (tos_system_ctrl() & (TOS_CONTROL_STE | TOS_CONTROL_MSTE))?1:0);
 
 	strcpy(s, " Chipset:     ");
 	// extract  TOS_CONTROL_STE and  TOS_CONTROL_MSTE bits
@@ -669,7 +669,6 @@ void HandleUI(void)
 
 	case 2: {
 	  unsigned long chipset = (tos_system_ctrl() >> 23)+1;
-	  if(chipset == 2) chipset = 3;
 	  if(chipset == 4) chipset = 0;
 	  tos_update_sysctrl(tos_system_ctrl() & ~(TOS_CONTROL_STE | TOS_CONTROL_MSTE) | 
 			     (chipset << 23));

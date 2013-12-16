@@ -660,12 +660,11 @@ void tos_upload(char *name) {
 	FileNextSector(&file);
     }
 
-#if 0
+#if 1
     // verify
-    {
-      char ok = -1;
+    if(user_io_dip_switch1()) {
       char b2[512];
-      int j;
+      int j, ok;
 	  
       FileSeek(&file, 0, SEEK_SET);    
       mist_memory_set_address(tos_base);
@@ -678,16 +677,35 @@ void tos_upload(char *name) {
 	mist_set_control(config.system_ctrl & ~TOS_CONTROL_CPU_RESET);
 	mist_set_control(config.system_ctrl |  TOS_CONTROL_CPU_RESET);
 	
+	ok = -1;
 	for(j=0;j<512;j++)
 	  if(buffer[j] != b2[j])
 	    if(ok < 0)
 	      ok = j;
 
 	if(ok >= 0) {
-	  iprintf("Failed in block %d/%d\n", i, ok);
+	  iprintf("Failed in block %d/%x (%x != %x)\n", i, ok, 0xff & buffer[ok], 0xff & b2[ok]);
 
 	  hexdump(buffer, 512, 0);
+	  puts("");
 	  hexdump(b2, 512, 0);
+
+	  // re-read to check whether read or write failed
+	  memset(buffer, 0, 512);
+	  mist_memory_set_address(tos_base + i*512);
+	  mist_memory_read(buffer, 256);
+
+	  ok = -1;
+	  for(j=0;j<512;j++)
+	    if(buffer[j] != b2[j])
+	      if(ok < 0)
+		ok = j;
+
+	  if(ok >= 0) {
+	    iprintf("Re-read failed in block %d/%x (%x != %x)\n", i, ok, 0xff & buffer[ok], 0xff & b2[ok]);
+	    hexdump(buffer, 512, 0);
+	  } else
+	    iprintf("Re-read ok!\n");
 
 	  for(;;);
 	}
