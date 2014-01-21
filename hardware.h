@@ -87,7 +87,7 @@
 #define VBL           AT91C_PIO_PA7
 
 void USART_Init(unsigned long baudrate);
-void USART_Write(unsigned char c) RAMFUNC;
+void USART_Write(unsigned char c);
 unsigned char USART_Read(void);
 
 static inline unsigned char SPI(unsigned char outByte) {

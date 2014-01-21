@@ -53,6 +53,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "user_io.h"
 #include "boot_logo.h"
 #include "tos.h"
+#include "debug.h"
+
+#include "cdc_control.h"
 
 // #include "xmenu.h"
 
@@ -67,42 +70,38 @@ extern hdfTYPE hdf[2];
 unsigned char Error;
 char s[40];
 
-void FatalError(unsigned long error)
-{
-    unsigned long i;
-
-    iprintf("Fatal error: %lu\r", error);
-
-    while (1)
-    {
-        for (i = 0; i < error; i++)
-        {
-            DISKLED_ON;
-            WaitTimer(250);
-            DISKLED_OFF;
-            WaitTimer(250);
-        }
-        WaitTimer(1000);
+void FatalError(unsigned long error) {
+  unsigned long i;
+  
+  iprintf("Fatal error: %lu\r", error);
+  
+  while (1) {
+    for (i = 0; i < error; i++) {
+      DISKLED_ON;
+      WaitTimer(250);
+      DISKLED_OFF;
+      WaitTimer(250);
     }
+    WaitTimer(1000);
+  }
 }
 
-void HandleFpga(void)
-{
-    unsigned char  c1, c2;
-
-    EnableFpga();
-    c1 = SPI(0); // cmd request and drive number
-    c2 = SPI(0); // track number
-    SPI(0);
-    SPI(0);
-    SPI(0);
-    SPI(0);
-    DisableFpga();
-
-    HandleFDD(c1, c2);
-    HandleHDD(c1, c2);
-
-    UpdateDriveStatus();
+void HandleFpga(void) {
+  unsigned char  c1, c2;
+  
+  EnableFpga();
+  c1 = SPI(0); // cmd request and drive number
+  c2 = SPI(0); // track number
+  SPI(0);
+  SPI(0);
+  SPI(0);
+  SPI(0);
+  DisableFpga();
+  
+  HandleFDD(c1, c2);
+  HandleHDD(c1, c2);
+  
+  UpdateDriveStatus();
 }
 
 extern void inserttestfloppy();
@@ -154,7 +153,13 @@ int main(void)
 
     fpga_init(NULL);
 
+    cdc_control_open();
+
+    usb_cdc_open();
+
     while (1) {
+      cdc_control_poll();
+
       user_io_poll();
 
 #ifdef USB_SEL

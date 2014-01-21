@@ -40,4 +40,12 @@
 #define ikbd_debugf(...)
 #endif
 
+#if 1
+// cdc debug output in blue
+#define CDC_DEBUG
+#define cdc_debugf(a, ...) iprintf("\033[1;34mCDC: " a "\033[0m\n", ##__VA_ARGS__)
+#else
+#define cdc_debugf(...)
+#endif
+
 #endif // DEBUG_H

@@ -15,8 +15,10 @@
 #include <errno.h>
 #include <reent.h>
 #include <unistd.h>
+
+#include "debug.h"
+#include "hardware.h"
 #include "swi.h"
-#include "AT91SAM7S256.h"
 
 /* Forward prototypes.  */
 int     _system     _PARAMS ((const char *));
@@ -335,22 +337,12 @@ int
 _write (int    file,
 	char * ptr,
 	int    len) {
-  volatile AT91PS_USART pUart = AT91C_BASE_US0;
-  
+
   int l = len;
   while(l--) {
-    if(*ptr == '\n') {
-      while(!(pUart->US_CSR & AT91C_US_TXRDY));
-      pUart->US_THR = '\r';
-    }
-
-    while(!(pUart->US_CSR & AT91C_US_TXRDY));
-    pUart->US_THR = *ptr;
-
-    if(*ptr == '\r') {
-      while(!(pUart->US_CSR & AT91C_US_TXRDY));
-      pUart->US_THR = '\n';
-    }
+    if(*ptr == '\n') USART_Write('\r');
+    USART_Write(*ptr);
+    if(*ptr == '\r') USART_Write('\n');
 
     ptr++;
   }

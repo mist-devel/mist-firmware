@@ -105,9 +105,40 @@ void __init_hardware(void)
     AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_PIOA;
 }
 
-volatile int cnt = 0;
-void __attribute__((naked)) Usart0IrqHandler (void) {
-  //  cnt++;
+// A buffer of 256 bytes makes index handling pretty trivial
+static unsigned char tx_buf[256];
+volatile static unsigned char tx_rptr, tx_wptr;
+
+void Usart0IrqHandler(void) {
+  // Read USART status
+  if(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY) {
+
+    // further bytes to send in buffer? 
+    if(tx_wptr != tx_rptr)
+      // yes, simply send it and leave irq enabled
+      AT91C_BASE_US0->US_THR = tx_buf[tx_rptr++];
+    else
+      // nothing else to send, disable interrupt
+      AT91C_BASE_US0->US_IDR = AT91C_US_TXRDY;
+  }
+}
+
+void USART_Write(unsigned char c) {
+  // without interrupt:
+  //  while (!(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY));
+  //  AT91C_BASE_US0->US_THR = c;
+
+  if(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY) {
+    // transmitter is ready: simply start transmission
+    AT91C_BASE_US0->US_THR = c;
+    AT91C_BASE_US0->US_IER = AT91C_US_TXRDY;  // enable interrupt
+  } else {
+    // transmitter is not ready: wait until space in buffer
+    while((unsigned char)(tx_wptr + 1) == tx_rptr);
+
+    // there's space in buffer: use it
+    tx_buf[tx_wptr++] = c;
+  }
 }
 
 void USART_Init(unsigned long baudrate)
@@ -130,35 +161,12 @@ void USART_Init(unsigned long baudrate)
     // Enable receiver & transmitter
     AT91C_BASE_US0->US_CR = AT91C_US_RXEN | AT91C_US_TXEN;
 
-#if 0
-    // configure tx irqs
-    // TODO: reset tx/rw pointers
-
-    // http://www.procyonengineering.com/embedded/arm/armlib/docs/html/uartdma_8c-source.html
-    // http://www.mikrocontroller.net/articles/DMA
-    // http://svn.code.sf.net/p/lejos/code/tags/lejos_nxj_0.9.0/nxtvm/platform/nxt/hs.c
-
-    // setup DMA controller for transmit
-    //    AT91C_BASE_US0->US_TNPR = 0;
-
-    puts("Vorher");
+    // tx buffer is initially empty
+    tx_rptr = tx_wptr = 0;
 
     // Set the USART0 IRQ handler address in AIC Source
     AT91C_BASE_AIC->AIC_SVR[AT91C_ID_US0] = (unsigned int)Usart0IrqHandler; 
     AT91C_BASE_AIC->AIC_IECR = (1<<AT91C_ID_US0);
-    AT91C_BASE_US0->US_IER = AT91C_US_ENDTX;
-    AT91C_BASE_US0->US_IDR = ~AT91C_US_ENDTX;
-
-    puts("Hallo3!");
-
-    for(;;);
-#endif
-}
-
-RAMFUNC void USART_Write(unsigned char c)
-{
-    while (!(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY));
-    AT91C_BASE_US0->US_THR = c;
 }
 
 unsigned char USART_Read(void) {
@@ -166,21 +174,7 @@ unsigned char USART_Read(void) {
     return AT91C_BASE_US0->US_RHR;
 }
 
-#ifndef __GNUC__
-signed int fputc(signed int c, FILE *pStream)
-{
-    if ((pStream == stdout) || (pStream == stderr))
-    {
-        USART_Write((unsigned char)c);
-        return c;
-    }
-
-    return EOF;
-}
-#endif
-
-void SPI_Init()
-{
+void SPI_Init() {
     // Enable the peripheral clock in the PMC
     AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_SPI;
 
@@ -283,8 +277,6 @@ void Timer_Init(void) {
   
   //* Start timer0
   AT91C_BASE_TC0->TC_CCR = AT91C_TC_SWTRG ;
-  
-  
   
   *AT91C_PITC_PIMR = AT91C_PITC_PITEN | ((MCLK / 16 / 1000 - 1) & AT91C_PITC_PIV); // counting period 1ms
 }

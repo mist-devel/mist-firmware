@@ -7,7 +7,6 @@
 #include "fat.h"
 #include "fpga.h"
 #include "debug.h"
-
 #define CONFIG_FILENAME  "MIST    CFG"
 
 typedef struct {
@@ -673,9 +672,9 @@ void tos_upload(char *name) {
 	mist_memory_read(buffer, 256);
 
 	// toggle reset for trigger
-	config.system_ctrl &= ~TOS_CONTROL_CPU_RESET;
-	mist_set_control(config.system_ctrl & ~TOS_CONTROL_CPU_RESET);
-	mist_set_control(config.system_ctrl |  TOS_CONTROL_CPU_RESET);
+	//	config.system_ctrl &= ~TOS_CONTROL_CPU_RESET;
+	//	mist_set_control(config.system_ctrl & ~TOS_CONTROL_CPU_RESET);
+	//	mist_set_control(config.system_ctrl |  TOS_CONTROL_CPU_RESET);
 	
 	ok = -1;
 	for(j=0;j<512;j++)
