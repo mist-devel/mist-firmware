@@ -124,16 +124,13 @@ void Usart0IrqHandler(void) {
 }
 
 void USART_Write(unsigned char c) {
-  // without interrupt:
-  //  while (!(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY));
-  //  AT91C_BASE_US0->US_THR = c;
 
-  if(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY) {
-    // transmitter is ready: simply start transmission
+  if((AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY) && (tx_wptr == tx_rptr)) {
+    // transmitter ready and buffer empty? -> send directly
     AT91C_BASE_US0->US_THR = c;
     AT91C_BASE_US0->US_IER = AT91C_US_TXRDY;  // enable interrupt
   } else {
-    // transmitter is not ready: wait until space in buffer
+    // transmitter is not ready: block until space in buffer
     while((unsigned char)(tx_wptr + 1) == tx_rptr);
 
     // there's space in buffer: use it
@@ -141,8 +138,7 @@ void USART_Write(unsigned char c) {
   }
 }
 
-void USART_Init(unsigned long baudrate)
-{
+void USART_Init(unsigned long baudrate) {
     // Configure PA5 and PA6 for USART0 use
     AT91C_BASE_PIOA->PIO_PDR = AT91C_PA5_RXD0 | AT91C_PA6_TXD0;
 
@@ -153,7 +149,8 @@ void USART_Init(unsigned long baudrate)
     AT91C_BASE_US0->US_CR = AT91C_US_RSTRX | AT91C_US_RSTTX | AT91C_US_RXDIS | AT91C_US_TXDIS;
 
     // Configure USART0 mode
-    AT91C_BASE_US0->US_MR = AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK | AT91C_US_CHRL_8_BITS | AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT | AT91C_US_CHMODE_NORMAL;
+    AT91C_BASE_US0->US_MR = AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK | AT91C_US_CHRL_8_BITS | 
+      AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT | AT91C_US_CHMODE_NORMAL;
 
     // Configure USART0 rate
     AT91C_BASE_US0->US_BRGR = MCLK / 16 / baudrate;
@@ -169,10 +166,10 @@ void USART_Init(unsigned long baudrate)
     AT91C_BASE_AIC->AIC_IECR = (1<<AT91C_ID_US0);
 }
 
-unsigned char USART_Read(void) {
-    while (!(AT91C_BASE_US0->US_CSR & AT91C_US_RXRDY));
-    return AT91C_BASE_US0->US_RHR;
-}
+//unsigned char USART_Read(void) {
+//    while (!(AT91C_BASE_US0->US_CSR & AT91C_US_RXRDY));
+//    return AT91C_BASE_US0->US_RHR;
+//}
 
 void SPI_Init() {
     // Enable the peripheral clock in the PMC

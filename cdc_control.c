@@ -9,6 +9,11 @@
 #include "tos.h"
 #include "debug.h"
 
+// if cdc itself is to be debugged the debug output cannot be redirected to USB
+#ifndef CDC_DEBUG
+char cdc_control_debug = 0;
+#endif
+
 extern const char version[];
 
 void cdc_control_open(void) {
@@ -17,7 +22,7 @@ void cdc_control_open(void) {
   usb_cdc_open();
 }
 
-static void cdc_tx(char c, char flush) {
+void cdc_control_tx(char c, char flush) {
   static char buffer[32];
   static unsigned char fill = 0;
 
@@ -35,13 +40,13 @@ static void cdc_puts(char *str) {
   
   while(*str) {
     if(*str == '\n')
-      cdc_tx('\r', 0);
+      cdc_control_tx('\r', 0);
 
-    cdc_tx(*str++, 0);
+    cdc_control_tx(*str++, 0);
   }
 
-  cdc_tx('\r', 0);
-  cdc_tx('\n', 1);
+  cdc_control_tx('\r', 0);
+  cdc_control_tx('\n', 1);
 }
 
 void cdc_control_poll(void) {
@@ -63,6 +68,9 @@ void cdc_control_poll(void) {
 	cdc_puts("Commands:");
 	cdc_puts("\033[7mR\033[0meset");
 	cdc_puts("\033[7mC\033[0moldreset");
+#ifndef CDC_DEBUG
+	cdc_puts("\033[7mD\033[0mebug");
+#endif
 	cdc_puts("");
 	break;
 
@@ -75,6 +83,13 @@ void cdc_control_poll(void) {
 	cdc_puts("Coldreset ...");
 	tos_reset(1);
 	break;
+
+#ifndef CDC_DEBUG
+      case 'd':
+	cdc_puts("Debug enabled");
+	cdc_control_debug = 1;
+	break;
+#endif
       }
     }
   }

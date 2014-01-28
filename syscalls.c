@@ -19,6 +19,7 @@
 #include "debug.h"
 #include "hardware.h"
 #include "swi.h"
+#include "cdc_control.h"
 
 /* Forward prototypes.  */
 int     _system     _PARAMS ((const char *));
@@ -333,6 +334,15 @@ _swiwrite (
 #endif
 }
 
+static void write_byte(char byte) {
+  USART_Write(byte);
+
+#ifndef CDC_DEBUG
+  if(cdc_control_debug)
+    cdc_control_tx(byte, byte == '\n');
+#endif
+}
+
 int
 _write (int    file,
 	char * ptr,
@@ -340,9 +350,9 @@ _write (int    file,
 
   int l = len;
   while(l--) {
-    if(*ptr == '\n') USART_Write('\r');
-    USART_Write(*ptr);
-    if(*ptr == '\r') USART_Write('\n');
+    if(*ptr == '\n') write_byte('\r');
+    write_byte(*ptr);
+    if(*ptr == '\r') write_byte('\n');
 
     ptr++;
   }

@@ -142,8 +142,12 @@ void ikbd_handle_input(unsigned char cmd) {
       if(ikbd.expect == 1) ikbd.mouse_abs_max_y = ((unsigned short)cmd) << 8;
       if(ikbd.expect == 0) ikbd.mouse_abs_max_y = (ikbd.mouse_abs_max_y & 0xff00) | cmd;
       
-      if(!ikbd.expect) 
+      if(!ikbd.expect) {
 	ikbd_debugf("new abs max = %u/%u", ikbd.mouse_abs_max_x, ikbd.mouse_abs_max_y);
+	ikbd.state &= ~IKBD_STATE_MOUSE_DISABLED;
+	ikbd.state |=  IKBD_STATE_MOUSE_ABSOLUTE;
+	ikbd.mouse_abs_buttons = 2 | 8;
+      }
       break;
       
     case 0x0e:
@@ -188,6 +192,10 @@ void ikbd_handle_input(unsigned char cmd) {
 
   ikbd.cmd = cmd;
 
+  // Caution: Reacting on incomplete commands may cause problems. E.g. Revenge of Doh on Automation 3
+  // sends an incomplete "set absolute mouse mode" command before the game starts. The game itself
+  // runs in relative mouse mode. Switching to absolute mouse mode causes the game not to work
+  // anymore.
   switch(cmd) {
   case 0x07:
     ikbd_debugf("Set mouse button action");
@@ -202,10 +210,7 @@ void ikbd_handle_input(unsigned char cmd) {
 
   case 0x09:
     ikbd_debugf("Set absolute mouse positioning");
-    ikbd.state &= ~IKBD_STATE_MOUSE_DISABLED;
-    ikbd.state |=  IKBD_STATE_MOUSE_ABSOLUTE;
     ikbd.expect = 4;
-    ikbd.mouse_abs_buttons = 2 | 8;
     break;
 
   case 0x0b:
@@ -497,7 +502,7 @@ void ikbd_mouse(unsigned char b, char x, char y) {
     x /= ikbd.mouse_abs_scale_x;
     y /= ikbd.mouse_abs_scale_y;
 
-     //    ikbd_debugf("abs inc %d %d -> ", x, y);
+    //    ikbd_debugf("abs inc %d %d -> ", x, y);
 
     if(x < 0) {
       x = -x;
@@ -523,7 +528,6 @@ void ikbd_mouse(unsigned char b, char x, char y) {
     }
 
     //    ikbd_debugf("%d %d\n", ikbd.mouse_pos_x, ikbd.mouse_pos_y);
-
   } else {
     // atari has mouse button bits swapped
     enqueue(0xf8|((b&1)?2:0)|((b&2)?1:0));
