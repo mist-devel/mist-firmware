@@ -15,7 +15,7 @@
   disable joystick             ?                            X
   Joysticks also generate      Goldrunner                   X     X
   mouse button events!
-  Pause (cmd 0x13)             Wings of Death/A_427
+  Pause                        PACMANIA_STE
   pause/resume                 Gembench
   mouse keycode mode           
  */
@@ -36,6 +36,7 @@
 #define IKBD_STATE_MOUSE_ABSOLUTE              0x10
 #define IKBD_STATE_MOUSE_ABSOLUTE_IN_PROGRESS  0x20
 #define IKBD_STATE_WAIT4RESET                  0x40
+#define IKBD_STATE_PAUSED                      0x80
 
 #define IKBD_DEFAULT IKBD_STATE_JOYSTICK_EVENT_REPORTING
 
@@ -258,19 +259,30 @@ void ikbd_handle_input(unsigned char cmd) {
     ikbd.state &= ~IKBD_STATE_MOUSE_Y_BOTTOM;
     break;
 
+  case 0x11:
+    //    ikbd_debugf("Resume");
+    ikbd.state &= ~IKBD_STATE_PAUSED;
+    break;
+
   case 0x12:
     ikbd_debugf("Disable mouse");
     ikbd.state |= IKBD_STATE_MOUSE_DISABLED;
     break;
 
+  case 0x13:
+    ikbd.state |= IKBD_STATE_PAUSED;
+    break;
+
   case 0x14:
     ikbd_debugf("Set Joystick event reporting");
     ikbd.state |= IKBD_STATE_JOYSTICK_EVENT_REPORTING;
+    ikbd.state &= ~IKBD_STATE_PAUSED;
     break;
 
   case 0x15:
     ikbd_debugf("Set Joystick interrogation mode");
     ikbd.state &= ~IKBD_STATE_JOYSTICK_EVENT_REPORTING;
+    ikbd.state &= ~IKBD_STATE_PAUSED;
     break;
 
   case 0x16: // interrogate joystick
