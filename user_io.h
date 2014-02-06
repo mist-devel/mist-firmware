@@ -50,6 +50,7 @@ char user_io_menu_button();
 char user_io_button_dip_switch1();
 char user_io_user_button();
 void user_io_osd_key_enable(char);
+void user_io_serial_tx(char);
 
 // hooks from the usb layer
 void user_io_mouse(unsigned char b, char x, char y);

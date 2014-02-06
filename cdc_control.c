@@ -6,6 +6,7 @@
 #include "cdc_enumerate.h"
 #include "cdc_control.h"
 #include "hardware.h"
+#include "user_io.h"
 #include "tos.h"
 #include "debug.h"
 
@@ -13,6 +14,8 @@
 #ifndef CDC_DEBUG
 char cdc_control_debug = 0;
 #endif
+
+char cdc_control_rs232_redirect = 0;
 
 extern const char version[];
 
@@ -57,39 +60,49 @@ void cdc_control_poll(void) {
     // check for user input
     if(usb_cdc_read(&key, 1)) {
 
-      // force lower case
-      if((key >= 'A') && (key <= 'Z'))
-	key = key - 'A' + 'a';
-
-      switch(key) {
-      case '\r':
-	cdc_puts("\n\033[7m <<< MIST board controller >>> \033[0m");
-	cdc_puts("Firmware version ATH" VDATE);
-	cdc_puts("Commands:");
-	cdc_puts("\033[7mR\033[0meset");
-	cdc_puts("\033[7mC\033[0moldreset");
+      if(cdc_control_rs232_redirect)
+	user_io_serial_tx(key);
+      else {
+	// force lower case
+	if((key >= 'A') && (key <= 'Z'))
+	  key = key - 'A' + 'a';
+	
+	switch(key) {
+	case '\r':
+	  cdc_puts("\n\033[7m <<< MIST board controller >>> \033[0m");
+	  cdc_puts("Firmware version ATH" VDATE);
+	  cdc_puts("Commands:");
+	  cdc_puts("\033[7mR\033[0meset");
+	  cdc_puts("\033[7mC\033[0moldreset");
 #ifndef CDC_DEBUG
-	cdc_puts("\033[7mD\033[0mebug");
+	  cdc_puts("\033[7mD\033[0mebug");
 #endif
-	cdc_puts("");
-	break;
-
-      case 'r':
-	cdc_puts("Reset ...");
-	tos_reset(0);
-	break;
-
+	  cdc_puts("R\033[7mS\033[0m232 redirect");
+	  cdc_puts("");
+	  break;
+	  
+	case 'r':
+	  cdc_puts("Reset ...");
+	  tos_reset(0);
+	  break;
+	  
       case 'c':
 	cdc_puts("Coldreset ...");
 	tos_reset(1);
 	break;
-
+	
 #ifndef CDC_DEBUG
-      case 'd':
-	cdc_puts("Debug enabled");
-	cdc_control_debug = 1;
-	break;
+	case 'd':
+	  cdc_puts("Debug enabled");
+	  cdc_control_debug = 1;
+	  break;
 #endif
+	  
+	case 's':
+	  cdc_puts("RS232 redirect enabled");
+	  cdc_control_rs232_redirect = 1;
+	  break;
+	}
       }
     }
   }

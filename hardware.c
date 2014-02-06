@@ -123,6 +123,14 @@ void Usart0IrqHandler(void) {
   }
 }
 
+void USART_Poll(void) {
+  // data available
+  if(AT91C_BASE_US0->US_CSR & AT91C_US_RXRDY) {
+    // send via user_io to core
+    user_io_serial_tx(AT91C_BASE_US0->US_RHR);
+  }
+}
+
 void USART_Write(unsigned char c) {
 
   if((AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY) && (tx_wptr == tx_rptr)) {

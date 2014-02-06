@@ -5,6 +5,7 @@
 #include "osd.h"
 
 #include "user_io.h"
+#include "cdc_control.h"
 #include "usb.h"
 
 #include "keycodes.h"
@@ -138,6 +139,13 @@ void user_io_joystick(unsigned char joystick, unsigned char map) {
     ikbd_joystick(joystick, map);
 }
 
+void user_io_serial_tx(char chr) {
+  EnableIO();
+  SPI(UIO_SERIAL_OUT);
+  SPI(chr);
+  DisableIO();
+}
+  
 void user_io_poll() {
   if((core_type != CORE_TYPE_MINIMIG) &&
      (core_type != CORE_TYPE_PACE) &&
@@ -148,15 +156,24 @@ void user_io_poll() {
   if(core_type == CORE_TYPE_MIST) {
     ikbd_poll();
 
-#if 0
+#if 1
+    // check for inout data on usart
+    USART_Poll();
+
+    unsigned char c = 0;
     // check for incoming serial data. thisis directly forwarded to the
     // arm rs232 and mixes with debug output. Useful for debugging only of
     // e.g. the diagnostic cartridge
     EnableIO();
     SPI(UIO_SERIAL_IN);
     
-    while(SPI(0))
-      putchar(SPI(0));
+    // character 0xff is returned if FPGA isn't configured
+    while(SPI(0) && (c!= 0xff)) {
+      c = SPI(0);
+      putchar(c);
+      if(cdc_control_rs232_redirect)
+	cdc_control_tx(c, 1);
+    }
     
     DisableIO();
 #endif

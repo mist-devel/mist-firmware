@@ -151,6 +151,8 @@ void EnableDMode();
 void DisableDMode();
 void SPI_block(unsigned short num);
 
+void USART_Poll(void);
+
 #define SPI_BLOCK_READ
 RAMFUNC void SPI_block_read(char *addr);
 void SPI_block_write(char *addr);
