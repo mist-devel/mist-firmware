@@ -25,6 +25,9 @@ AT91PS_PMC a_pPMC = AT91C_BASE_PMC;
 
 static char caps_lock_toggle = 0;
 
+// a 128 bit (16 bytes) bitmap containing a single bit for every possible key
+static unsigned char keymap[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
+
 static void PollOneAdc() {
   static unsigned char adc_cnt = 0xff;
 
@@ -101,7 +104,8 @@ void user_io_detect_core_type() {
   if((core_type != CORE_TYPE_DUMB) &&
      (core_type != CORE_TYPE_MINIMIG) &&
      (core_type != CORE_TYPE_PACE) &&
-     (core_type != CORE_TYPE_MIST))
+     (core_type != CORE_TYPE_MIST) &&
+     (core_type != CORE_TYPE_8BIT))
     core_type = CORE_TYPE_UNKNOWN;
 
   switch(core_type) {
@@ -124,17 +128,25 @@ void user_io_detect_core_type() {
   case CORE_TYPE_MIST:
     puts("Identified MiST core");
     break;
+
+  case CORE_TYPE_8BIT:
+    puts("Identified 8BIT core");
+    break;
   }
 }
 
 void user_io_joystick(unsigned char joystick, unsigned char map) {
-  if(core_type == CORE_TYPE_MINIMIG || core_type == CORE_TYPE_PACE) {
+  // most cores process joystick events themselves
+  if((core_type == CORE_TYPE_MINIMIG) || 
+     (core_type == CORE_TYPE_PACE)  || 
+     (core_type == CORE_TYPE_8BIT)) {
     EnableIO();
     SPI(UIO_JOYSTICK0 + joystick);
     SPI(map);
     DisableIO();
   }
 
+  // atari ST handles joystick through the ikbd emulated by the io controller
   if(core_type == CORE_TYPE_MIST)
     ikbd_joystick(joystick, map);
 }
@@ -149,7 +161,8 @@ void user_io_serial_tx(char chr) {
 void user_io_poll() {
   if((core_type != CORE_TYPE_MINIMIG) &&
      (core_type != CORE_TYPE_PACE) &&
-     (core_type != CORE_TYPE_MIST)) {
+     (core_type != CORE_TYPE_MIST) &&
+     (core_type != CORE_TYPE_8BIT)) {
     return;  // no user io for the installed core
   }
 
@@ -157,7 +170,7 @@ void user_io_poll() {
     ikbd_poll();
 
 #if 1
-    // check for inout data on usart
+    // check for input data on usart
     USART_Poll();
 
     unsigned char c = 0;
@@ -281,6 +294,20 @@ static void send_keycode(unsigned short code) {
 
   if(core_type == CORE_TYPE_MIST)
     ikbd_keyboard(code);
+
+  if(core_type == CORE_TYPE_8BIT) {
+    char i;
+    unsigned char idx = (code>>3)&15;     // keymap byte index 0..15
+    unsigned char bit = 1 << (code & 7);  // keymap bit index 0..7
+    if(code & 0x80) keymap[idx] &= ~bit;
+    else            keymap[idx] |=  bit;
+
+    // send 128 bit keymap on every key event
+    EnableIO();
+    SPI(UIO_KEYBOARD);
+    for(i=0;i<16;i++) SPI(keymap[i]);
+    DisableIO();
+  }
 }
 
 void user_io_mouse(unsigned char b, char x, char y) {
@@ -322,7 +349,10 @@ unsigned short keycode(unsigned char in) {
   if(core_type == CORE_TYPE_MINIMIG) 
     return usb2ami[in];
 
-  if(core_type == CORE_TYPE_MIST) 
+  // atari st and the 8 bit core (currently only used for atari 800)
+  // use the same key codes
+  if((core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_8BIT))
     return usb2atari[in];
 
   return MISS;
@@ -347,7 +377,7 @@ unsigned char modifier_keycode(unsigned char index) {
     return amiga_modifier[index];
   }
 
- if(core_type == CORE_TYPE_MIST) {
+  if((core_type == CORE_TYPE_MIST)||(core_type == CORE_TYPE_8BIT)) {
     static const unsigned char atari_modifier[] = 
       { 0x1d, 0x2a, 0x38, MISS, 0x1d, 0x36, 0x38, MISS };
     return atari_modifier[index];
@@ -374,12 +404,13 @@ static char key_used_by_osd(unsigned short s) {
   // in atari mode eat all keys if the OSD is online,
   // else none as it's up to the core to forward keys
   // to the OSD
-  return (core_type == CORE_TYPE_MIST);
+  return(core_type == CORE_TYPE_MIST);
 }
 
 void user_io_kbd(unsigned char m, unsigned char *k) {
   if((core_type == CORE_TYPE_MINIMIG) ||
-     (core_type == CORE_TYPE_MIST)) {
+     (core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_8BIT)) {
 
     static unsigned char modifier = 0, pressed[6] = { 0,0,0,0,0,0 };
     int i, j;
