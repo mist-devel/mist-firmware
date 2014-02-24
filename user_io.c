@@ -7,9 +7,10 @@
 #include "user_io.h"
 #include "cdc_control.h"
 #include "usb.h"
-
+#include "debug.h"
 #include "keycodes.h"
 #include "ikbd.h"
+#include "fat.h"
 
 typedef enum { EMU_NONE, EMU_MOUSE, EMU_JOY0, EMU_JOY1 } emu_mode_t;
 static emu_mode_t emu_mode = EMU_NONE;
@@ -269,6 +270,51 @@ void user_io_poll() {
     // do some tos specific monitoring here
     tos_poll();
   }
+
+  if(core_type == CORE_TYPE_8BIT) {
+    static unsigned long poll_timer = 0;
+    static unsigned long bit8_status = 0;
+
+    if(CheckTimer(poll_timer)) {
+      unsigned long status;
+      poll_timer = GetTimer(100);  // 10 hz (100ms) poll frequency
+
+      /* read status byte */
+      EnableFpga();
+      SPI(0x50);                   // get_status
+      status = (status << 8) | SPI(0);
+      status = (status << 8) | SPI(0);
+      status = (status << 8) | SPI(0);
+      status = (status << 8) | SPI(0);
+      DisableFpga();
+
+      if(status != bit8_status) {
+	bit8_debugf("status changed to %08x", status);
+	bit8_status = status;
+
+	// sector read testing 
+	if((status & 0xff) == 0xa5) {
+	  unsigned long sector = (status>>8)&0xffffff;
+	  bit8_debugf("sector read command for sector %u", sector);
+
+	  if(MMC_Read(sector, sector_buffer)) {
+	    short i;
+
+	    bit8_debugf("read ok, sending data");
+	    
+	    // data is now stored in sector buffer. send it to fpga
+	    EnableFpga();
+	    SPI(0x51);                   // send sector data IO->FPGA
+	    for(i=0;i<512;i++)
+	      SPI(sector_buffer[i]);
+	    DisableFpga();
+
+	  } else
+	    bit8_debugf("read failed!");
+	}
+      }
+    }
+  }
 }
 
 char user_io_dip_switch1() {
@@ -301,6 +347,14 @@ static void send_keycode(unsigned short code) {
     unsigned char bit = 1 << (code & 7);  // keymap bit index 0..7
     if(code & 0x80) keymap[idx] &= ~bit;
     else            keymap[idx] |=  bit;
+
+    bit8_debugf("Sending 128 bit keymap: "
+		"%02x %02x %02x %02x %02x %02x %02x %02x "
+		"%02x %02x %02x %02x %02x %02x %02x %02x",
+		keymap[0]  & 0xff, keymap[1]  & 0xff, keymap[2]  & 0xff, keymap[3]  & 0xff, 
+		keymap[4]  & 0xff, keymap[5]  & 0xff, keymap[6]  & 0xff, keymap[7]  & 0xff, 
+		keymap[8]  & 0xff, keymap[9]  & 0xff, keymap[10] & 0xff, keymap[11] & 0xff, 
+		keymap[12] & 0xff, keymap[13] & 0xff, keymap[14] & 0xff, keymap[15] & 0xff);
 
     // send 128 bit keymap on every key event
     EnableIO();
