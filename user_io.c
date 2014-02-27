@@ -168,28 +168,48 @@ void user_io_poll() {
   }
 
   if(core_type == CORE_TYPE_MIST) {
+    static unsigned long timer = 0;
+
     ikbd_poll();
 
 #if 1
-    // check for input data on usart
-    USART_Poll();
+    if(CheckTimer(timer)) {
+      timer = GetTimer(10);
 
-    unsigned char c = 0;
-    // check for incoming serial data. thisis directly forwarded to the
-    // arm rs232 and mixes with debug output. Useful for debugging only of
-    // e.g. the diagnostic cartridge
-    EnableIO();
-    SPI(UIO_SERIAL_IN);
-    
-    // character 0xff is returned if FPGA isn't configured
-    while(SPI(0) && (c!= 0xff)) {
-      c = SPI(0);
-      putchar(c);
-      if(cdc_control_rs232_redirect)
-	cdc_control_tx(c, 1);
+      // check for input data on usart
+      USART_Poll();
+      
+      unsigned char c = 0;
+
+      // check for incoming serial data. this is directly forwarded to the
+      // arm rs232 and mixes with debug output. Useful for debugging only of
+      // e.g. the diagnostic cartridge
+      EnableIO();
+      SPI(UIO_SERIAL_IN);
+      // character 0xff is returned if FPGA isn't configured
+      while(SPI(0) && (c!= 0xff)) {
+	c = SPI(0);
+	putchar(c);
+
+	// forward to USB if redirection via USB/CDC enabled
+	if(cdc_control_redirect == CDC_REDIRECT_RS232)
+	  cdc_control_tx(c);
+      }
+      DisableIO();
+
+      // check for incoming parallel data
+      if(cdc_control_redirect == CDC_REDIRECT_PARALLEL) {
+	EnableIO();
+	SPI(UIO_PARALLEL_IN);
+	// character 0xff is returned if FPGA isn't configured
+	c = 0;
+	while(SPI(0) && (c!= 0xff)) {
+	  c = SPI(0);
+	  cdc_control_tx(c);
+	}
+	DisableIO();
+      }
     }
-    
-    DisableIO();
 #endif
   }
 

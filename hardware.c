@@ -106,12 +106,30 @@ void __init_hardware(void)
 }
 
 // A buffer of 256 bytes makes index handling pretty trivial
-static unsigned char tx_buf[256];
+volatile static unsigned char tx_buf[256];
 volatile static unsigned char tx_rptr, tx_wptr;
+
+volatile static unsigned char rx_buf[256];
+volatile static unsigned char rx_rptr, rx_wptr;
 
 void Usart0IrqHandler(void) {
   // Read USART status
-  if(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY) {
+  unsigned char status = AT91C_BASE_US0->US_CSR;
+
+  // received something?
+  if(status & AT91C_US_RXRDY) {
+    // read byte from usart
+    unsigned char c = AT91C_BASE_US0->US_RHR;
+
+    // only store byte if rx buffer is not full
+    if((unsigned char)(rx_wptr + 1) != rx_rptr) {
+      // there's space in buffer: use it
+      rx_buf[rx_wptr++] = c;
+    }
+  }
+    
+  // ready to transmit further bytes?
+  if(status & AT91C_US_TXRDY) {
 
     // further bytes to send in buffer? 
     if(tx_wptr != tx_rptr)
@@ -123,11 +141,13 @@ void Usart0IrqHandler(void) {
   }
 }
 
+// check usart rx buffer for data
 void USART_Poll(void) {
-  // data available
-  if(AT91C_BASE_US0->US_CSR & AT91C_US_RXRDY) {
-    // send via user_io to core
-    user_io_serial_tx(AT91C_BASE_US0->US_RHR);
+  while(rx_wptr != rx_rptr) {
+    iprintf("USART RX %d (%c)\n", rx_buf[rx_rptr], rx_buf[rx_rptr]);
+
+    // data available -> send via user_io to core
+    user_io_serial_tx(rx_buf[rx_rptr++]);
   }
 }
 
@@ -169,15 +189,15 @@ void USART_Init(unsigned long baudrate) {
     // tx buffer is initially empty
     tx_rptr = tx_wptr = 0;
 
+    // and so is rx buffer
+    rx_rptr = rx_wptr = 0;
+
     // Set the USART0 IRQ handler address in AIC Source
     AT91C_BASE_AIC->AIC_SVR[AT91C_ID_US0] = (unsigned int)Usart0IrqHandler; 
     AT91C_BASE_AIC->AIC_IECR = (1<<AT91C_ID_US0);
-}
 
-//unsigned char USART_Read(void) {
-//    while (!(AT91C_BASE_US0->US_CSR & AT91C_US_RXRDY));
-//    return AT91C_BASE_US0->US_RHR;
-//}
+    AT91C_BASE_US0->US_IER = AT91C_US_RXRDY;  // enable rx interrupt
+}
 
 void SPI_Init() {
     // Enable the peripheral clock in the PMC

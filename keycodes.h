@@ -198,7 +198,7 @@ const unsigned short usb2atari[] = {
   0x1a,  // 2f: [
   0x1b,  // 30: ]
   0x2b,  // 31: backslash
-  MISS,  // 32: Europe 1
+  0x29,  // 32: Europe 1  -> same atari key code as 35
   0x27,  // 33: ; 
   0x28,  // 34: '
   0x29,  // 35: `

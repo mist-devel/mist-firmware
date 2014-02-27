@@ -338,8 +338,10 @@ static void write_byte(char byte) {
   USART_Write(byte);
 
 #ifndef CDC_DEBUG
-  if(cdc_control_debug)
-    cdc_control_tx(byte, byte == '\n');
+  if(cdc_control_debug) {
+    cdc_control_tx(byte);
+    if(byte == '\n') cdc_control_flush();
+  }
 #endif
 }
 

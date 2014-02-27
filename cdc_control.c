@@ -15,7 +15,11 @@
 char cdc_control_debug = 0;
 #endif
 
-char cdc_control_rs232_redirect = 0;
+char cdc_control_redirect = 0;
+
+static char buffer[32];
+static unsigned char fill = 0;
+static unsigned long flush_timer = 0;
 
 extern const char version[];
 
@@ -25,17 +29,19 @@ void cdc_control_open(void) {
   usb_cdc_open();
 }
 
-void cdc_control_tx(char c, char flush) {
-  static char buffer[32];
-  static unsigned char fill = 0;
+// send everything in buffer 
+void cdc_control_flush(void) {
+  if(fill) usb_cdc_write(buffer, fill);
+  fill = 0;
+}
 
-  if(c)
-    buffer[fill++] = c;
+void cdc_control_tx(char c) {
+  // buffer full? flush it!
+  if(fill == sizeof(buffer))
+    cdc_control_flush();
 
-  if(fill && ((fill == sizeof(buffer)) || flush)) {
-    usb_cdc_write(buffer, fill);
-    fill = 0;
-  }
+  flush_timer = GetTimer(100);
+  buffer[fill++] = c;
 }
 
 static void cdc_puts(char *str) {
@@ -43,16 +49,24 @@ static void cdc_puts(char *str) {
   
   while(*str) {
     if(*str == '\n')
-      cdc_control_tx('\r', 0);
+      cdc_control_tx('\r');
 
-    cdc_control_tx(*str++, 0);
+    cdc_control_tx(*str++);
   }
 
-  cdc_control_tx('\r', 0);
-  cdc_control_tx('\n', 1);
+  cdc_control_tx('\r');
+  cdc_control_tx('\n');
+
+  cdc_control_flush();
 }
 
 void cdc_control_poll(void) {
+  // flush out queue every now and then
+  if(flush_timer && CheckTimer(flush_timer)) {
+    cdc_control_flush();
+    flush_timer = 0;
+  }
+
   // low level usb handling happens inside usb_cdc_poll
   if(usb_cdc_poll()) {
     char key;
@@ -60,7 +74,7 @@ void cdc_control_poll(void) {
     // check for user input
     if(usb_cdc_read(&key, 1)) {
 
-      if(cdc_control_rs232_redirect)
+      if(cdc_control_redirect == CDC_REDIRECT_RS232)
 	user_io_serial_tx(key);
       else {
 	// force lower case
@@ -78,6 +92,7 @@ void cdc_control_poll(void) {
 	  cdc_puts("\033[7mD\033[0mebug");
 #endif
 	  cdc_puts("R\033[7mS\033[0m232 redirect");
+	  cdc_puts("\033[7mP\033[0marallel redirect");
 	  cdc_puts("");
 	  break;
 	  
@@ -100,7 +115,12 @@ void cdc_control_poll(void) {
 	  
 	case 's':
 	  cdc_puts("RS232 redirect enabled");
-	  cdc_control_rs232_redirect = 1;
+	  cdc_control_redirect = CDC_REDIRECT_RS232;
+	  break;
+
+	case 'p':
+	  cdc_puts("Parallel redirect enabled");
+	  cdc_control_redirect = CDC_REDIRECT_PARALLEL;
 	  break;
 	}
       }
