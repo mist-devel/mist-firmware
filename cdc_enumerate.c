@@ -201,8 +201,8 @@ AT91S_CDC_LINE_CODING line = {
 static void AT91F_CDC_Enumerate(void);
 
 static void tx(char c) {
-  while(!(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY));
-  AT91C_BASE_US0->US_THR = c;
+  //  while(!(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY));
+  //  AT91C_BASE_US0->US_THR = c;
 }
 
 static void tx_str(char *str) {
@@ -477,7 +477,6 @@ static void AT91F_CDC_Enumerate(void) {
   // Handle supported standard device request Cf Table 9-3 in USB specification Rev 1.1
   switch ((bRequest << 8) | bmRequestType) {
   case STD_GET_DESCRIPTOR:
-    cdc_debugf("get descriptor %x (%d)", wValue, wLength);
     if (wValue == 0x100)       // Return Device Descriptor
       AT91F_USB_SendData(devDescriptor, MIN(sizeof(devDescriptor), wLength));
     else if (wValue == 0x200)  // Return Configuration Descriptor

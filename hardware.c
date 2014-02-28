@@ -156,7 +156,6 @@ void USART_Write(unsigned char c) {
   if((AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY) && (tx_wptr == tx_rptr)) {
     // transmitter ready and buffer empty? -> send directly
     AT91C_BASE_US0->US_THR = c;
-    AT91C_BASE_US0->US_IER = AT91C_US_TXRDY;  // enable interrupt
   } else {
     // transmitter is not ready: block until space in buffer
     while((unsigned char)(tx_wptr + 1) == tx_rptr);
@@ -164,6 +163,8 @@ void USART_Write(unsigned char c) {
     // there's space in buffer: use it
     tx_buf[tx_wptr++] = c;
   }
+
+  AT91C_BASE_US0->US_IER = AT91C_US_TXRDY;  // enable interrupt
 }
 
 void USART_Init(unsigned long baudrate) {

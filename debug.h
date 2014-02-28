@@ -40,14 +40,6 @@
 #define ikbd_debugf(...)
 #endif
 
-#if 0
-// cdc debug output in blue
-#define CDC_DEBUG
-#define cdc_debugf(a, ...) iprintf("\033[1;34mCDC: " a "\033[0m\n", ##__VA_ARGS__)
-#else
-#define cdc_debugf(...)
-#endif
-
 #if 1
 // 8bit debug output in blue
 #define bit8_debugf(a, ...) iprintf("\033[1;34m8BIT: " a "\033[0m\n", ##__VA_ARGS__)

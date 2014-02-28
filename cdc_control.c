@@ -10,13 +10,6 @@
 #include "tos.h"
 #include "debug.h"
 
-// if cdc itself is to be debugged the debug output cannot be redirected to USB
-#ifndef CDC_DEBUG
-char cdc_control_debug = 0;
-#endif
-
-char cdc_control_redirect = 0;
-
 static char buffer[32];
 static unsigned char fill = 0;
 static unsigned long flush_timer = 0;
@@ -73,10 +66,13 @@ void cdc_control_poll(void) {
 
     // check for user input
     if(usb_cdc_read(&key, 1)) {
-
-      if(cdc_control_redirect == CDC_REDIRECT_RS232)
+      
+      switch(tos_get_cdc_control_redirect()) {
+      case CDC_REDIRECT_RS232:
 	user_io_serial_tx(key);
-      else {
+	break;
+	
+      case CDC_REDIRECT_CONTROL:
 	// force lower case
 	if((key >= 'A') && (key <= 'Z'))
 	  key = key - 'A' + 'a';
@@ -88,11 +84,10 @@ void cdc_control_poll(void) {
 	  cdc_puts("Commands:");
 	  cdc_puts("\033[7mR\033[0meset");
 	  cdc_puts("\033[7mC\033[0moldreset");
-#ifndef CDC_DEBUG
-	  cdc_puts("\033[7mD\033[0mebug");
-#endif
+	  cdc_puts("\033[7mD\033[0mebug output redirect");
 	  cdc_puts("R\033[7mS\033[0m232 redirect");
 	  cdc_puts("\033[7mP\033[0marallel redirect");
+	  cdc_puts("\033[7mM\033[0mIDI redirect");
 	  cdc_puts("");
 	  break;
 	  
@@ -101,28 +96,36 @@ void cdc_control_poll(void) {
 	  tos_reset(0);
 	  break;
 	  
-      case 'c':
-	cdc_puts("Coldreset ...");
-	tos_reset(1);
-	break;
-	
-#ifndef CDC_DEBUG
-	case 'd':
-	  cdc_puts("Debug enabled");
-	  cdc_control_debug = 1;
+	case 'c':
+	  cdc_puts("Coldreset ...");
+	  tos_reset(1);
 	  break;
-#endif
+	  
+	case 'd':
+	  cdc_puts("Debug output redirect enabled");
+	  tos_set_cdc_control_redirect(CDC_REDIRECT_DEBUG);
+	  break;
 	  
 	case 's':
 	  cdc_puts("RS232 redirect enabled");
-	  cdc_control_redirect = CDC_REDIRECT_RS232;
+	  tos_set_cdc_control_redirect(CDC_REDIRECT_RS232);
 	  break;
-
+	  
 	case 'p':
 	  cdc_puts("Parallel redirect enabled");
-	  cdc_control_redirect = CDC_REDIRECT_PARALLEL;
+	  tos_set_cdc_control_redirect(CDC_REDIRECT_PARALLEL);
 	  break;
+
+	case 'm':
+	  cdc_puts("MIDI redirect enabled");
+	  tos_set_cdc_control_redirect(CDC_REDIRECT_MIDI);
+	  break;
+
 	}
+	break;
+
+      default:
+	break;
       }
     }
   }

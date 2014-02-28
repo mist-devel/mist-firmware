@@ -192,13 +192,13 @@ void user_io_poll() {
 	putchar(c);
 
 	// forward to USB if redirection via USB/CDC enabled
-	if(cdc_control_redirect == CDC_REDIRECT_RS232)
+	if(tos_get_cdc_control_redirect() == CDC_REDIRECT_RS232)
 	  cdc_control_tx(c);
       }
       DisableIO();
 
       // check for incoming parallel data
-      if(cdc_control_redirect == CDC_REDIRECT_PARALLEL) {
+      if(tos_get_cdc_control_redirect() == CDC_REDIRECT_PARALLEL) {
 	EnableIO();
 	SPI(UIO_PARALLEL_IN);
 	// character 0xff is returned if FPGA isn't configured

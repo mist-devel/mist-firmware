@@ -6,7 +6,9 @@
 #include "tos.h"
 #include "fat.h"
 #include "fpga.h"
+#include "cdc_control.h"
 #include "debug.h"
+
 #define CONFIG_FILENAME  "MIST    CFG"
 
 typedef struct {
@@ -15,6 +17,7 @@ typedef struct {
   char cart_img[12];
   char acsi_img[2][12];
   char video_adjust[2];
+  char cdc_control_redirect;
 } tos_config_t;
 
 static tos_config_t config;
@@ -51,6 +54,15 @@ static const char *acsi_cmd_name(int cmd) {
   };
   
   return cmdname[cmd];
+}
+
+char tos_get_cdc_control_redirect(void) {
+  return config.cdc_control_redirect;
+}
+
+void tos_set_cdc_control_redirect(char mode) {
+  if((mode >= CDC_REDIRECT_NONE) && (mode <= CDC_REDIRECT_MIDI))
+    config.cdc_control_redirect = mode;
 }
 
 void tos_set_video_adjust(char axis, char value) {
@@ -982,6 +994,7 @@ void tos_config_init(void) {
   memcpy(config.acsi_img[0], "HARDDISKHD ", 12);
   config.acsi_img[1][0] = 0;
   config.video_adjust[0] = config.video_adjust[1] = 0;
+  config.cdc_control_redirect = CDC_REDIRECT_NONE;
 
   // try to load config
   if (FileOpen(&file, CONFIG_FILENAME))  {

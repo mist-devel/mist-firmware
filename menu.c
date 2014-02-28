@@ -39,6 +39,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "menu.h"
 #include "user_io.h"
 #include "tos.h"
+#include "cdc_control.h"
 #include "debug.h"
 
 // other constants
@@ -72,6 +73,7 @@ extern const char version[];
 
 const char *config_tos_mem[] =  {"512 kB", "1 MB", "2 MB", "4 MB", "8 MB", "14 MB", "--", "--" };
 const char *config_tos_wrprot[] =  {"none", "A:", "B:", "A: and B:"};
+const char *config_tos_usb[] =  {"none", "control", "debug", "serial", "parallel", "midi"};
 
 const char *config_filter_msg[] =  {"none", "HORIZONTAL", "VERTICAL", "H+V"};
 const char *config_memory_chip_msg[] = {"0.5 MB", "1.0 MB", "1.5 MB", "2.0 MB"};
@@ -473,11 +475,7 @@ void HandleUI(void)
       break;
 
     case MENU_MIST_SYSTEM1 :
-#ifdef ENABLE_TURBO
 	menumask=0xff;
-#else
-	menumask=0x7f;
-#endif
 
 	OsdSetTitle("System", 0);
 
@@ -497,25 +495,14 @@ void HandleUI(void)
 	strcat(s, tos_get_cartridge_name());
         OsdWrite(3, s, menusub == 3, 0);
 
-#ifdef ENABLE_TURBO
-	strcpy(s, " Turbo:     ");
-	strcat(s, (tos_system_ctrl() & TOS_CONTROL_TURBO)?"on":"off");
+	strcpy(s, " USB I/O:   ");
+	strcat(s, config_tos_usb[tos_get_cdc_control_redirect()]);
         OsdWrite(4, s, menusub == 4, 0);
 
         OsdWrite(5, " Reset",     menusub == 5, 0);
         OsdWrite(6, " Cold boot", menusub == 6, 0);
 
         OsdWrite(7, STD_EXIT, menusub == 7,0);
-#else
-	strcpy(s, " Turbo:     ");
-	strcat(s, (tos_system_ctrl() & TOS_CONTROL_TURBO)?"on":"off");
-        OsdWrite(4, s, 0, 1);
-
-        OsdWrite(5, " Reset",     menusub == 4, 0);
-        OsdWrite(6, " Cold boot", menusub == 5, 0);
-
-        OsdWrite(7, STD_EXIT, menusub == 6,0);
-#endif
 
 	parentstate = menustate;
         menustate = MENU_MIST_SYSTEM2;
@@ -559,9 +546,11 @@ void HandleUI(void)
 	    SelectFile("IMG", SCAN_LFN, MENU_MIST_SYSTEM_FILE_SELECTED, MENU_MIST_SYSTEM1);
 	  break;
 
-#ifdef ENABLE_TURBO
 	case 4:
-	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_TURBO );
+	  if(tos_get_cdc_control_redirect() == CDC_REDIRECT_MIDI) 
+	    tos_set_cdc_control_redirect(CDC_REDIRECT_NONE);
+	  else 
+	    tos_set_cdc_control_redirect(tos_get_cdc_control_redirect()+1);
 	  menustate = MENU_MIST_SYSTEM1;
 	  break;
 
@@ -579,23 +568,6 @@ void HandleUI(void)
 	  menustate = MENU_MIST_MAIN1;
 	  menusub = 3;
 	  break;
-
-#else
-	case 4:  // Reset
-	  tos_reset(0);
-	  menustate = MENU_NONE1;
-	  break;
-
-	case 5:  // Cold Boot
-	  tos_reset(1);
-	  menustate = MENU_NONE1;
-	  break;
-
-	case 6:
-	  menustate = MENU_MIST_MAIN1;
-	  menusub = 3;
-	  break;
-#endif
 	}
       }
       break;

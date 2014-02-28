@@ -18,6 +18,7 @@
 
 #include "debug.h"
 #include "hardware.h"
+#include "tos.h"
 #include "swi.h"
 #include "cdc_control.h"
 
@@ -337,12 +338,10 @@ _swiwrite (
 static void write_byte(char byte) {
   USART_Write(byte);
 
-#ifndef CDC_DEBUG
-  if(cdc_control_debug) {
+  if(tos_get_cdc_control_redirect() == CDC_REDIRECT_DEBUG) {
     cdc_control_tx(byte);
     if(byte == '\n') cdc_control_flush();
   }
-#endif
 }
 
 int

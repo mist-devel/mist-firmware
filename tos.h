@@ -90,6 +90,9 @@ void tos_load_cartridge(char *);
 void tos_set_video_adjust(char axis, char value);
 char tos_get_video_adjust(char axis);
 
+char tos_get_cdc_control_redirect(void);
+void tos_set_cdc_control_redirect(char mode);
+
 void tos_config_init(void);
 void tos_config_save(void);
 
