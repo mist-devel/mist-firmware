@@ -41,7 +41,6 @@ typedef unsigned int   uint;
 #define WORD(a) (a)&0xff, ((a)>>8)&0xff
 
 // Private members
-unsigned char currentConnection;
 unsigned int  currentRcvBank;
 
 const char langDescriptor[] = {
@@ -196,13 +195,11 @@ AT91S_CDC_LINE_CODING line = {
 	0,      // None Parity
 	8};     // 8 Data bits
 
-/// mt uint currentReceiveBank = AT91C_UDP_RX_DATA_BK0;
-
 static void AT91F_CDC_Enumerate(void);
 
 static void tx(char c) {
-  //  while(!(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY));
-  //  AT91C_BASE_US0->US_THR = c;
+  while(!(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY));
+  AT91C_BASE_US0->US_THR = c;
 }
 
 static void tx_str(char *str) {
@@ -227,7 +224,7 @@ static void tx_hex(char *str, unsigned int num) {
 static void usb_irq_handler(void) {
   AT91_REG isr = AT91C_BASE_UDP->UDP_ISR & AT91C_BASE_UDP->UDP_IMR;
 
-  //  tx_hex("USB s: ", isr);
+  //  tx_hex("i: ", isr);
 
   // handle all known interrupt sources
   if(isr & AT91C_UDP_ENDBUSRES) {
@@ -276,7 +273,6 @@ void usb_cdc_open(void) {
   AT91C_BASE_PIOA->PIO_OER = USB_PUP;
   AT91C_BASE_PIOA->PIO_CODR = USB_PUP;
 
-  currentConnection    = 0;
   currentRcvBank       = AT91C_UDP_RX_DATA_BK0;
 
   /* Enable usb_interrupt */
@@ -322,7 +318,6 @@ uint usb_cdc_read(char *pData, uint length) {
       currentRcvBank = AT91C_UDP_RX_DATA_BK0;
   }
 
-  //  currentRcvBank = currentReceiveBank;
   return nbBytesRcv;
 }
 
@@ -398,7 +393,7 @@ static void AT91F_USB_SendData(const char *pData, uint length) {
     } while (( !(csr & AT91C_UDP_TXCOMP) ) && !CheckTimer(to));
 
     // clear flag (clear irq)
-    AT91C_BASE_UDP->UDP_CSR[0] &= ~(AT91C_UDP_TXCOMP);
+    AT91C_BASE_UDP->UDP_CSR[0] &= ~AT91C_UDP_TXCOMP;
 
     // wait for register clear to succeed
     while (AT91C_BASE_UDP->UDP_CSR[0] & AT91C_UDP_TXCOMP);
@@ -455,9 +450,17 @@ static void AT91F_CDC_Enumerate(void) {
   uchar bmRequestType, bRequest, bConf;
   ushort wValue, wIndex, wLength, wStatus;
 
+  //  tx_hex("1: ", AT91C_BASE_UDP->UDP_CSR[0]);
+
   // setup packet available?
-  if ( !(AT91C_BASE_UDP->UDP_CSR[0] & AT91C_UDP_RXSETUP) )
+  if ( !(AT91C_BASE_UDP->UDP_CSR[0] & AT91C_UDP_RXSETUP) ) {
+
+    // discard any pending payload
+    AT91C_BASE_UDP->UDP_CSR[0] &= ~(AT91C_UDP_RX_DATA_BK0 | AT91C_UDP_RX_DATA_BK1);
+
+    //    tx('x');
     return;
+  }
   
   bmRequestType = AT91C_BASE_UDP->UDP_FDR[0];
   bRequest      = AT91C_BASE_UDP->UDP_FDR[0];
@@ -492,14 +495,14 @@ static void AT91F_CDC_Enumerate(void) {
     break;
 
   case STD_SET_ADDRESS:
-    tx_hex("address set ", wValue);
+    //    tx_hex("address set ", wValue);
     AT91F_USB_SendZlp();
     AT91C_BASE_UDP->UDP_FADDR = (AT91C_UDP_FEN | wValue);
     AT91C_BASE_UDP->UDP_GLBSTATE  = (wValue) ? AT91C_UDP_FADDEN : 0;
     break;
 
   case STD_SET_CONFIGURATION:
-    tx_hex("config selected ", wValue);
+    //    tx_hex("config selected ", wValue);
     AT91F_USB_SendZlp();
     AT91C_BASE_UDP->UDP_GLBSTATE  = (wValue) ? AT91C_UDP_CONFG : AT91C_UDP_FADDEN;
     AT91C_BASE_UDP->UDP_CSR[1] = (wValue) ? (AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT) : 0;
@@ -562,6 +565,7 @@ static void AT91F_CDC_Enumerate(void) {
     
     // handle CDC class requests
   case SET_LINE_CODING:
+    // simply drop all incoming payload
     while ( !(AT91C_BASE_UDP->UDP_CSR[0] & AT91C_UDP_RX_DATA_BK0) );
     AT91C_BASE_UDP->UDP_CSR[0] &= ~(AT91C_UDP_RX_DATA_BK0);
     AT91F_USB_SendZlp();
@@ -572,7 +576,6 @@ static void AT91F_CDC_Enumerate(void) {
     break;
 
   case SET_CONTROL_LINE_STATE:
-    currentConnection = wValue;
     AT91F_USB_SendZlp();
     break;
 
