@@ -152,9 +152,18 @@ void user_io_joystick(unsigned char joystick, unsigned char map) {
     ikbd_joystick(joystick, map);
 }
 
+// transmit serial/rs232 data into core
 void user_io_serial_tx(char chr) {
   EnableIO();
   SPI(UIO_SERIAL_OUT);
+  SPI(chr);
+  DisableIO();
+}
+  
+// transmit midi data into core
+void user_io_midi_tx(char chr) {
+  EnableIO();
+  SPI(UIO_MIDI_OUT);
   SPI(chr);
   DisableIO();
 }
@@ -168,49 +177,47 @@ void user_io_poll() {
   }
 
   if(core_type == CORE_TYPE_MIST) {
-    static unsigned long timer = 0;
+    char redirect = tos_get_cdc_control_redirect();
 
     ikbd_poll();
 
-#if 1
-    if(CheckTimer(timer)) {
-      timer = GetTimer(10);
-
-      // check for input data on usart
-      USART_Poll();
+    // check for input data on usart
+    USART_Poll();
       
-      unsigned char c = 0;
+    unsigned char c = 0;
 
-      // check for incoming serial data. this is directly forwarded to the
-      // arm rs232 and mixes with debug output. Useful for debugging only of
-      // e.g. the diagnostic cartridge
+    // check for incoming serial data. this is directly forwarded to the
+    // arm rs232 and mixes with debug output. Useful for debugging only of
+    // e.g. the diagnostic cartridge
+    EnableIO();
+    SPI(UIO_SERIAL_IN);
+    // character 0xff is returned if FPGA isn't configured
+    while(SPI(0) && (c!= 0xff)) {
+      c = SPI(0);
+      putchar(c);
+      
+      // forward to USB if redirection via USB/CDC enabled
+      if(redirect == CDC_REDIRECT_RS232)
+	cdc_control_tx(c);
+    }
+    DisableIO();
+    
+    // check for incoming parallel/midi data
+    if((redirect == CDC_REDIRECT_PARALLEL) || (redirect == CDC_REDIRECT_MIDI)) {
       EnableIO();
-      SPI(UIO_SERIAL_IN);
+      SPI((redirect == CDC_REDIRECT_PARALLEL)?UIO_PARALLEL_IN:UIO_MIDI_IN);
       // character 0xff is returned if FPGA isn't configured
+      c = 0;
       while(SPI(0) && (c!= 0xff)) {
 	c = SPI(0);
-	putchar(c);
-
-	// forward to USB if redirection via USB/CDC enabled
-	if(tos_get_cdc_control_redirect() == CDC_REDIRECT_RS232)
-	  cdc_control_tx(c);
+	cdc_control_tx(c);
       }
       DisableIO();
-
-      // check for incoming parallel data
-      if(tos_get_cdc_control_redirect() == CDC_REDIRECT_PARALLEL) {
-	EnableIO();
-	SPI(UIO_PARALLEL_IN);
-	// character 0xff is returned if FPGA isn't configured
-	c = 0;
-	while(SPI(0) && (c!= 0xff)) {
-	  c = SPI(0);
-	  cdc_control_tx(c);
-	}
-	DisableIO();
-      }
+      
+      // always flush when doing midi to reduce latencies
+      if(redirect == CDC_REDIRECT_MIDI)
+	cdc_control_flush();
     }
-#endif
   }
 
   // poll db9 joysticks
@@ -292,47 +299,45 @@ void user_io_poll() {
   }
 
   if(core_type == CORE_TYPE_8BIT) {
-    static unsigned long poll_timer = 0;
     static unsigned long bit8_status = 0;
+    unsigned long status;
 
-    if(CheckTimer(poll_timer)) {
-      unsigned long status;
-      poll_timer = GetTimer(100);  // 10 hz (100ms) poll frequency
+    /* read status byte */
+    EnableFpga();
+    SPI(UIO_GET_STATUS);
+    status = (status << 8) | SPI(0);
+    status = (status << 8) | SPI(0);
+    status = (status << 8) | SPI(0);
+    status = (status << 8) | SPI(0);
+    DisableFpga();
+    
+    if(status != bit8_status) {
+      char buffer[512];
 
-      /* read status byte */
-      EnableFpga();
-      SPI(0x50);                   // get_status
-      status = (status << 8) | SPI(0);
-      status = (status << 8) | SPI(0);
-      status = (status << 8) | SPI(0);
-      status = (status << 8) | SPI(0);
-      DisableFpga();
+      bit8_debugf("st %08x", status);
+      bit8_status = status;
+      
+      // sector read testing 
+      DISKLED_ON;
 
-      if(status != bit8_status) {
-	bit8_debugf("status changed to %08x", status);
-	bit8_status = status;
+      if((status & 0xff) == 0xa5) {
+	unsigned long sector = (status>>8)&0xffffff;
+	bit8_debugf("sec rd %u", sector);
 
-	// sector read testing 
-	if((status & 0xff) == 0xa5) {
-	  unsigned long sector = (status>>8)&0xffffff;
-	  bit8_debugf("sector read command for sector %u", sector);
-
-	  if(MMC_Read(sector, sector_buffer)) {
-	    short i;
-
-	    bit8_debugf("read ok, sending data");
-	    
-	    // data is now stored in sector buffer. send it to fpga
-	    EnableFpga();
-	    SPI(0x51);                   // send sector data IO->FPGA
-	    for(i=0;i<512;i++)
-	      SPI(sector_buffer[i]);
-	    DisableFpga();
-
-	  } else
-	    bit8_debugf("read failed!");
-	}
+	if(MMC_Read(sector, buffer)) {
+	  short i;
+	  
+	  // data is now stored in buffer. send it to fpga
+	  EnableFpga();
+	  SPI(UIO_SECTOR_SND);     // send sector data IO->FPGA
+	  SPI_block_write(buffer);
+	  DisableFpga();
+	  
+	} else
+	  bit8_debugf("read failed!");
       }
+
+      DISKLED_OFF;
     }
   }
 }

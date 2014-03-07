@@ -22,6 +22,13 @@
 #define UIO_SERIAL_OUT  0x04
 #define UIO_SERIAL_IN   0x05
 #define UIO_PARALLEL_IN 0x06
+#define UIO_MIDI_OUT    0x07
+#define UIO_MIDI_IN     0x08
+
+// codes as used by 8bit (atari 800)
+#define UIO_GET_STATUS  0x50
+#define UIO_SECTOR_SND  0x51
+#define UIO_SECTOR_RCV  0x52
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
