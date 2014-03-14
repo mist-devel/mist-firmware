@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <inttypes.h>
+#include "hidparser.h"
 
 #define HID_LED_NUM_LOCK    0x01
 #define HID_LED_CAPS_LOCK   0x02
@@ -40,6 +41,7 @@
 #define HID_DEVICE_UNKNOWN  0
 #define HID_DEVICE_MOUSE    1
 #define HID_DEVICE_KEYBOARD 2
+#define HID_DEVICE_JOYSTICK 3
 
 typedef struct {
   uint8_t iface_idx;
@@ -48,6 +50,12 @@ typedef struct {
   uint8_t device_type;
   bool has_boot_mode;     // device supports boot mode
   
+  // additional info extracted from the report descriptor
+  // (currently only used for joysticks) 
+  uint8_t jmap;           // last reported joystick state
+  uint8_t jindex;         // joystick index
+  hid_config_t conf;
+
 } usb_hid_iface_info_t;
 
 typedef struct {

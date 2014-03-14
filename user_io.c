@@ -137,6 +137,8 @@ void user_io_detect_core_type() {
 }
 
 void user_io_joystick(unsigned char joystick, unsigned char map) {
+  iprintf("j%d: %x\n", joystick, map);
+
   // most cores process joystick events themselves
   if((core_type == CORE_TYPE_MINIMIG) || 
      (core_type == CORE_TYPE_PACE)  || 
@@ -314,7 +316,7 @@ void user_io_poll() {
     if(status != bit8_status) {
       char buffer[512];
 
-      bit8_debugf("st %08x", status);
+      //      bit8_debugf("st %08x", status);
       bit8_status = status;
       
       // sector read testing 
@@ -322,7 +324,7 @@ void user_io_poll() {
 
       if((status & 0xff) == 0xa5) {
 	unsigned long sector = (status>>8)&0xffffff;
-	bit8_debugf("sec rd %u", sector);
+	//	bit8_debugf("sec rd %u", sector);
 
 	if(MMC_Read(sector, buffer)) {
 	  short i;

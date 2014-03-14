@@ -3,9 +3,17 @@
 #include "usb.h"
 #include "max3421e.h"
 #include "timer.h"
+#include "hidparser.h"
 #include "../user_io.h"
 
+// joystick todo:
+// - renumber on unplug
+// - shift legacy joysticks up
+// - emulate extra joysticks (at printerport, ...)
+// - second fire button (no known system uses it, but OSD may have a use ...)
+
 static unsigned char kbd_led_state = 0;  // default: all leds off
+static unsigned char joysticks = 0;      // number of detected usb joysticks
 
 static void hexdump(void *data, int size) {
   int i,n = 0, b2c;
@@ -42,12 +50,26 @@ static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t iface, uint16_t s
   iprintf("%s(%x, if=%d, size=%d)\n", __FUNCTION__, dev->bAddress, iface, size);
 
   uint8_t buf[size];
+  usb_hid_info_t *info = &(dev->hid_info);
   uint8_t rcode = usb_ctrl_req( dev, HID_REQ_HIDREPORT, USB_REQUEST_GET_DESCRIPTOR, 0x00, 
 			      HID_DESCRIPTOR_REPORT, iface, size, size, buf, NULL);
   
-  if(!rcode)
+  if(!rcode) {
+    iprintf("HID report descriptor:\n");
     hexdump(buf, size);
-  
+
+    // we got a report descriptor. Try to parse it
+    if(parse_report_descriptor(buf, size)) {
+      if(hid_conf[0].type == CONFIG_TYPE_JOYSTICK) {
+	iprintf("Detected USB joystick %d\n", joysticks);
+
+	info->iface_info[iface].device_type = HID_DEVICE_JOYSTICK;
+	info->iface_info[iface].conf = hid_conf[0];
+	info->iface_info[iface].jindex = joysticks++;
+      }
+    }
+  }
+    
   return rcode;
 }
 
@@ -119,6 +141,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	  info->iface_info[info->bNumIfaces].iface_idx = p->iface_desc.bInterfaceNumber;
 	  info->iface_info[info->bNumIfaces].has_boot_mode = false;
 	  info->iface_info[info->bNumIfaces].device_type = HID_DEVICE_UNKNOWN;
+	  info->iface_info[info->bNumIfaces].conf.type = CONFIG_TYPE_NONE;
 
 	  if(p->iface_desc.bInterfaceSubClass == HID_BOOT_INTF_SUBCLASS) {
 	    iprintf("Iface %d is Boot sub class\n", info->bNumIfaces);
@@ -265,10 +288,13 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 
   // process all supported interfaces
   for(i=0; i<info->bNumIfaces; i++) {
-    rcode = hid_get_report_descr(dev, 
-	       info->iface_info[i].iface_idx, info->iface_info[i].report_size);
-    if (rcode)
-      return rcode;
+    // no boot mode, try to parse HID report descriptor
+    if(!info->iface_info[info->bNumIfaces].has_boot_mode) {
+      rcode = hid_get_report_descr(dev, 
+	   info->iface_info[i].iface_idx, info->iface_info[i].report_size);
+      if (rcode)
+	return rcode;
+    }
 
     rcode = hid_set_idle(dev, info->iface_info[i].iface_idx, 0, 0);
     if (rcode && rcode != hrSTALL)
@@ -291,7 +317,19 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 }
 
 static uint8_t usb_hid_release(usb_device_t *dev) {
+  usb_hid_info_t *info = &(dev->hid_info);
+
   puts(__FUNCTION__);
+
+  int8_t i;
+  // check if a joystick is released
+  for(i=0;i<info->bNumIfaces;i++) {
+    if(info->iface_info[i].device_type == HID_DEVICE_JOYSTICK) {
+      iprintf("releasing joystick #%d, renumbering\n", info->iface_info[i].jindex);
+      
+    }
+  }
+
   return 0;
 }
 
@@ -335,6 +373,39 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	    if(read >= 8) {
 	      user_io_kbd(buf[0], buf+2);
 	    }
+	  }
+	}
+
+	if(info->iface_info[i].device_type == HID_DEVICE_JOYSTICK) {
+	  hid_config_t *conf = &info->iface_info[i].conf;
+	  uint8_t jmap = 0;
+	  uint8_t ax;
+
+	  iprintf("Joystick data:\n");
+	  hexdump(buf, read);
+
+	  // currently only byte sized axes are allowed
+	  ax = buf[conf->joystick.axis_byte_offset[0]];
+	  if(ax <  64) jmap |= JOY_LEFT;
+	  if(ax > 192) jmap |= JOY_RIGHT;
+	  ax = buf[conf->joystick.axis_byte_offset[1]];
+	  if(ax <  64) jmap |= JOY_UP;
+	  if(ax > 192) jmap |= JOY_DOWN;
+
+	  // ... and one button
+	  if(buf[conf->joystick.button_byte_offset] & conf->joystick.button0_bitmask)
+	    jmap |= JOY_BTN1;
+
+	  // swap joystick 0 and 1 since 1 is the one used primarily on most systems
+	  ax = info->iface_info[i].jindex;
+	  if(ax == 0)      ax = 1;
+	  else if(ax == 1) ax = 0;
+
+	  // check if joystick state has changed
+	  if(jmap != info->iface_info[i].jmap) {
+	    // and feed into joystick input system
+	    user_io_joystick(ax, jmap);
+	    info->iface_info[i].jmap = jmap;
 	  }
 	}
       }

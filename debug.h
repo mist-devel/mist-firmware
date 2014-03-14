@@ -2,6 +2,14 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+// ------------ usb debugging -----------
+
+#if 1
+#define hidp_debugf(...) iprintf(__VA_ARGS__)
+#else
+#define hidp_debugf(...)
+#endif
+
 // ------------ generic debugging -----------
 
 #if 0
