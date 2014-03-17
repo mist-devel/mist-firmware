@@ -137,7 +137,7 @@ void user_io_detect_core_type() {
 }
 
 void user_io_joystick(unsigned char joystick, unsigned char map) {
-  iprintf("j%d: %x\n", joystick, map);
+  // iprintf("j%d: %x\n", joystick, map);
 
   // most cores process joystick events themselves
   if((core_type == CORE_TYPE_MINIMIG) || 
@@ -235,6 +235,16 @@ void user_io_poll() {
     if(!(joy0_state & JOY0_BTN1))  joy_map |= JOY_BTN1;
     if(!(joy0_state & JOY0_BTN2))  joy_map |= JOY_BTN2;
 
+    // Thw slighlty odd handling of joystick numbering is required 
+    // since the primary joystick is in port 1 and thus
+    // the first usb joystick becomes joystick 1 and omly the second
+    // one becomes joystick 0 (mouse port)
+
+    // if usb joysticks are present, then physical joystick 0 (mouse port)
+    // becomes becomes 2,3,...
+    uint8_t j = 0;
+    if(hid_get_joysticks() > 0) j = hid_get_joysticks() + 1;
+
     user_io_joystick(0, joy_map);
   }
   
@@ -250,7 +260,14 @@ void user_io_poll() {
     if(!(joy1_state & JOY1_BTN1))  joy_map |= JOY_BTN1;
     if(!(joy1_state & JOY1_BTN2))  joy_map |= JOY_BTN2;
     
-    user_io_joystick(1, joy_map);
+    // if one usb joystick is present, then physical joystick 1 (joystick port)
+    // becomes physical joystick 0 (mouse) port. If more than 1 usb joystick
+    // is present it becomes 2,3,...
+    uint8_t j = 1;
+    if(hid_get_joysticks() == 1) j = 0;
+    else if(hid_get_joysticks() > 1) j = hid_get_joysticks();
+
+    user_io_joystick(j, joy_map);
   }
 
   // frequently poll the adc the switches 
@@ -314,29 +331,37 @@ void user_io_poll() {
     DisableFpga();
     
     if(status != bit8_status) {
+      unsigned long sector = (status>>8)&0xffffff;
       char buffer[512];
 
-      //      bit8_debugf("st %08x", status);
       bit8_status = status;
       
       // sector read testing 
       DISKLED_ON;
 
+      // sector read
       if((status & 0xff) == 0xa5) {
-	unsigned long sector = (status>>8)&0xffffff;
-	//	bit8_debugf("sec rd %u", sector);
-
 	if(MMC_Read(sector, buffer)) {
-	  short i;
-	  
 	  // data is now stored in buffer. send it to fpga
 	  EnableFpga();
 	  SPI(UIO_SECTOR_SND);     // send sector data IO->FPGA
 	  SPI_block_write(buffer);
 	  DisableFpga();
-	  
 	} else
-	  bit8_debugf("read failed!");
+	  bit8_debugf("rd %ld fail", sector);
+      }
+
+      // sector write
+      if((status & 0xff) == 0xa6) {
+
+	// read sector from FPGA
+	EnableFpga();
+	SPI(UIO_SECTOR_RCV);     // receive sector data FPGA->IO
+	SPI_block_read(buffer);
+	DisableFpga();
+
+	if(!MMC_Write(sector, buffer)) 
+	  bit8_debugf("wr %ld fail", sector);
       }
 
       DISKLED_OFF;

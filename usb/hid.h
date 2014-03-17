@@ -83,5 +83,6 @@ typedef struct  {
 extern const usb_device_class_config_t usb_hid_class;
 
 void hid_set_kbd_led(unsigned char led, bool on);
+uint8_t hid_get_joysticks(void);
 
 #endif // HID_H

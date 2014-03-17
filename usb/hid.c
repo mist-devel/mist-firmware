@@ -7,8 +7,8 @@
 #include "../user_io.h"
 
 // joystick todo:
-// - renumber on unplug
-// - shift legacy joysticks up
+// + renumber on unplug
+// + shift legacy joysticks up
 // - emulate extra joysticks (at printerport, ...)
 // - second fire button (no known system uses it, but OSD may have a use ...)
 
@@ -45,6 +45,10 @@ static void hexdump(void *data, int size) {
   }
 }
 
+uint8_t hid_get_joysticks(void) {
+  return joysticks;
+}
+
 //get HID report descriptor 
 static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t iface, uint16_t size)  {
   iprintf("%s(%x, if=%d, size=%d)\n", __FUNCTION__, dev->bAddress, iface, size);
@@ -61,7 +65,7 @@ static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t iface, uint16_t s
     // we got a report descriptor. Try to parse it
     if(parse_report_descriptor(buf, size)) {
       if(hid_conf[0].type == CONFIG_TYPE_JOYSTICK) {
-	iprintf("Detected USB joystick %d\n", joysticks);
+	iprintf("Detected USB joystick #%d\n", joysticks);
 
 	info->iface_info[iface].device_type = HID_DEVICE_JOYSTICK;
 	info->iface_info[iface].conf = hid_conf[0];
@@ -321,12 +325,35 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
 
   puts(__FUNCTION__);
 
-  int8_t i;
+  uint8_t i;
   // check if a joystick is released
   for(i=0;i<info->bNumIfaces;i++) {
     if(info->iface_info[i].device_type == HID_DEVICE_JOYSTICK) {
-      iprintf("releasing joystick #%d, renumbering\n", info->iface_info[i].jindex);
-      
+      uint8_t c_jindex = info->iface_info[i].jindex;
+      iprintf("releasing joystick #%d, renumbering\n", c_jindex);
+
+      // walk through all devices and search for sticks with a higher id
+
+      // search for all joystick interfaces on all hid devices
+      usb_device_t *dev = usb_get_devices();
+      uint8_t j;
+      for(j=0;j<USB_NUMDEVICES;j++) {
+	if(dev[j].bAddress && (dev[j].class == &usb_hid_class)) {
+	  // search for joystick interfaces
+	  uint8_t k;
+	  for(k=0;k<MAX_IFACES;k++) {
+	    if(dev[j].hid_info.iface_info[k].device_type == HID_DEVICE_JOYSTICK) {
+	      if(dev[j].hid_info.iface_info[k].jindex > c_jindex) {
+		iprintf("decreasing jindex of dev #%d from %d to %d\n", j, 
+			dev[j].hid_info.iface_info[k].jindex, dev[j].hid_info.iface_info[k].jindex-1);
+		dev[j].hid_info.iface_info[k].jindex--;
+	      }
+	    }
+	  }
+	}
+      }
+      // one less joystick in the system ...
+      joysticks--;
     }
   }
 
