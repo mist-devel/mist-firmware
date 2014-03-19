@@ -153,7 +153,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size) {
 	  for(c=0;c<2;c++) {
 	    if(axis[c] >= 0) {
 	      uint16_t cnt = bit_count + report_size * axis[c];
-	      hidp_debugf("%c-AXIS @ %d (byte %d)\n", 'X'+c,
+	      hidp_debugf("  (%c-AXIS @ %d (byte %d))\n", 'X'+c,
 		     cnt, cnt/8);
 
 	      // only 8 bit axes at byte boundaries are supported for
@@ -194,6 +194,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size) {
 	case 10:
 	  hidp_extreme_debugf("COLLECTION(%d)\n", value);
 	  collection_depth++;
+	  usage_count = 0;
 
 	  if(value == 1) {	   // app collection
 	    hidp_extreme_debugf("  -> application\n");
@@ -335,9 +336,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size) {
 
 	    hidp_debugf(" -> Pointer\n");
 
-	  } else if((value == USAGE_X || value == USAGE_Y ||
-		     value == USAGE_Z || value == USAGE_WHEEL) && 
-		    app_collection) {
+	  } else if((value == USAGE_X || value == USAGE_Y) && app_collection) {
 	    // usage(x) and usage(y) are allowed within the app collection
 	    hidp_extreme_debugf(" -> axis usage\n");
 

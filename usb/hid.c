@@ -56,7 +56,7 @@ static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t iface, uint16_t s
   uint8_t buf[size];
   usb_hid_info_t *info = &(dev->hid_info);
   uint8_t rcode = usb_ctrl_req( dev, HID_REQ_HIDREPORT, USB_REQUEST_GET_DESCRIPTOR, 0x00, 
-			      HID_DESCRIPTOR_REPORT, iface, size, size, buf, NULL);
+			      HID_DESCRIPTOR_REPORT, iface, size, buf);
   
   if(!rcode) {
     iprintf("HID report descriptor:\n");
@@ -81,14 +81,14 @@ static uint8_t hid_set_idle(usb_device_t *dev, uint8_t iface, uint8_t reportID, 
   iprintf("%s(%x, if=%d id=%d, dur=%d)\n", __FUNCTION__, dev->bAddress, iface, reportID, duration);
 
   return( usb_ctrl_req( dev, HID_REQ_HIDOUT, HID_REQUEST_SET_IDLE, reportID, 
-		       duration, iface, 0x0000, 0x0000, NULL, NULL ));
+		       duration, iface, 0x0000, NULL));
 }
 
 static uint8_t hid_set_protocol(usb_device_t *dev, uint8_t iface, uint8_t protocol) {
   iprintf("%s(%x, if=%d proto=%d)\n", __FUNCTION__, dev->bAddress, iface, protocol);
 
   return( usb_ctrl_req( dev, HID_REQ_HIDOUT, HID_REQUEST_SET_PROTOCOL, protocol, 
-		       0x00, iface, 0x0000, 0x0000, NULL, NULL ));
+		       0x00, iface, 0x0000, NULL));
 }
 
 static uint8_t hid_set_report(usb_device_t *dev, uint8_t iface, uint8_t report_type, uint8_t report_id, 
@@ -96,7 +96,7 @@ static uint8_t hid_set_report(usb_device_t *dev, uint8_t iface, uint8_t report_t
   //  iprintf("%s(%x, if=%d data=%x)\n", __FUNCTION__, dev->bAddress, iface, dataptr[0]);
 
   return( usb_ctrl_req(dev, HID_REQ_HIDOUT, HID_REQUEST_SET_REPORT, report_id, 
-		       report_type, iface, nbytes, nbytes, dataptr, NULL ));
+		       report_type, iface, nbytes, dataptr));
 }
 
 /* todo: handle parsing in chunks */
@@ -121,7 +121,6 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
   /* scan through all descriptors */
   p = &buf;
   while(len > 0) {
-
     switch(p->conf_desc.bDescriptorType) {
     case USB_DESCRIPTOR_CONFIGURATION:
       iprintf("conf descriptor size %d\n", p->conf_desc.bLength);
@@ -160,7 +159,6 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	  case HID_PROTOCOL_KEYBOARD:
 	    iprintf("HID protocol is KEYBOARD\n");
 	    info->iface_info[info->bNumIfaces].device_type = HID_DEVICE_KEYBOARD;
-	    //	    hid_set_report(dev, info->iface_info[info->bNumIfaces].iface_idx, 2, 0, 1, &kbd_led_state);
 	    break;
 	    
 	  case HID_PROTOCOL_MOUSE:
@@ -225,8 +223,6 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
     iprintf("URGS, underrun: %d\n", len);
     return USB_ERROR_CONFIGURAION_SIZE_MISMATCH;
   }
-
-  iprintf("done\n");
 
   return 0;
 }
@@ -372,7 +368,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
       //      iprintf("poll %d...\n", info->ep[i].epAddr);
 
       uint16_t read = info->ep[i].maxPktSize;
-      uint8_t buf[32];
+      uint8_t buf[info->ep[i].maxPktSize];
       uint8_t rcode = 
 	usb_in_transfer(dev, &(info->ep[i]), &read, buf);
 

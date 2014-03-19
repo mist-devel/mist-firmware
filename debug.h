@@ -55,4 +55,12 @@
 #define bit8_debugf(...)
 #endif
 
+
+#if 1
+// usb asix debug output in blue
+#define asix_debugf(a, ...) iprintf("\033[1;34mASIX: " a "\033[0m\n", ##__VA_ARGS__)
+#else
+#define asix_debugf(...)
+#endif
+
 #endif // DEBUG_H

@@ -5,32 +5,31 @@
 
 static uint8_t usb_hub_clear_hub_feature(usb_device_t *dev, uint8_t fid )  {
   return( usb_ctrl_req( dev, USB_HUB_REQ_CLEAR_HUB_FEATURE, 
-       USB_REQUEST_CLEAR_FEATURE, fid, 0, 0, 0, 0, NULL, NULL ));
+       USB_REQUEST_CLEAR_FEATURE, fid, 0, 0, 0, NULL));
 }
 
 // Clear Port Feature
 static uint8_t usb_hub_clear_port_feature(usb_device_t *dev, uint8_t fid, uint8_t port, uint8_t sel )  {
   return( usb_ctrl_req( dev , USB_HUB_REQ_CLEAR_PORT_FEATURE, 
-       USB_REQUEST_CLEAR_FEATURE, fid, 0, ((0x0000|port)|(sel<<8)), 0, 0, NULL, NULL ));
+       USB_REQUEST_CLEAR_FEATURE, fid, 0, ((0x0000|port)|(sel<<8)), 0, NULL));
 }
 // Get Hub Descriptor
 static uint8_t usb_hub_get_hub_descriptor(usb_device_t *dev, uint8_t index, 
 					  uint16_t nbytes, usb_hub_descriptor_t *dataptr )  {
   return( usb_ctrl_req( dev, USB_HUB_REQ_GET_HUB_DESCRIPTOR, 
-			USB_REQUEST_GET_DESCRIPTOR, index, 0x29, 0, nbytes, nbytes, 
-			(uint8_t*)dataptr, NULL ));
+			USB_REQUEST_GET_DESCRIPTOR, index, 0x29, 0, nbytes, (uint8_t*)dataptr));
 }
 
 // Set Port Feature
 static uint8_t usb_hub_set_port_feature(usb_device_t *dev, uint8_t fid, uint8_t port, uint8_t sel ) {
   return( usb_ctrl_req( dev, USB_HUB_REQ_SET_PORT_FEATURE, 
-       USB_REQUEST_SET_FEATURE, fid, 0, (((0x0000|sel)<<8)|port), 0, 0, NULL, NULL ));
+       USB_REQUEST_SET_FEATURE, fid, 0, (((0x0000|sel)<<8)|port), 0, NULL));
 }
 
 // Get Port Status
 static uint8_t usb_hub_get_port_status(usb_device_t *dev, uint8_t port, uint16_t nbytes, uint8_t* dataptr )  {
   return( usb_ctrl_req( dev, USB_HUB_REQ_GET_PORT_STATUS, 
-       USB_REQUEST_GET_STATUS, 0, 0, port, nbytes, nbytes, dataptr, NULL ));
+       USB_REQUEST_GET_STATUS, 0, 0, port, nbytes, dataptr));
 }
 
 static uint8_t usb_hub_init(usb_device_t *dev) {
@@ -209,7 +208,8 @@ static uint8_t usb_hub_check_hub_status(usb_device_t *dev, uint8_t ports) {
   uint8_t	buf[8];
   uint16_t	read = 1;
 
-  //  iprintf("%s(addr=%x)\n", __FUNCTION__, addr);
+  //   iprintf("%s(addr=%x)\n", __FUNCTION__, dev->bAddress);
+
   rcode = usb_in_transfer(dev, &(info->ep), &read, buf);
   if(rcode)
     return rcode;
@@ -219,13 +219,11 @@ static uint8_t usb_hub_check_hub_status(usb_device_t *dev, uint8_t ports) {
     if (buf[0] & mask) {
       hub_event_t evt;
       evt.bmEvent = 0;
-      
-      // TODO XXXX: try sizeof(evt.evtBuff)
-      rcode = usb_hub_get_port_status(dev, port, 4, evt.evtBuff);
-      
+
+      rcode = usb_hub_get_port_status(dev, port, sizeof(evt.evtBuff), evt.evtBuff);
       if (rcode)
 	continue;
-      
+
       rcode = usb_hub_port_status_change(dev, port, evt);
       
       if (rcode == HUB_ERROR_PORT_HAS_BEEN_RESET)
@@ -241,7 +239,6 @@ static uint8_t usb_hub_check_hub_status(usb_device_t *dev, uint8_t ports) {
     evt.bmEvent = 0;
     
     rcode = usb_hub_get_port_status(dev, port, 4, evt.evtBuff);
-    
     if (rcode)
       continue;
     
@@ -252,7 +249,6 @@ static uint8_t usb_hub_check_hub_status(usb_device_t *dev, uint8_t ports) {
     evt.bmChange |= USB_HUB_PORT_STATUS_PORT_CONNECTION;
     
     rcode = usb_hub_port_status_change(dev, port, evt);
-    
     if (rcode == HUB_ERROR_PORT_HAS_BEEN_RESET)
       return 0;
     

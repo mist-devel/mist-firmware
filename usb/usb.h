@@ -95,6 +95,7 @@ typedef struct {
 
 #include "hub.h"
 #include "hid.h"
+#include "asix.h"
 
 // entry used for list of connected devices
 typedef struct usb_device_entry {
@@ -108,6 +109,7 @@ typedef struct usb_device_entry {
   union {
     usb_hub_info_t hub_info;
     usb_hid_info_t hid_info;
+    usb_asix_info_t asix_info;
   };
 } usb_device_t;
 
@@ -228,8 +230,6 @@ typedef struct {
 #define USB_DESCRIPTOR_OTHER_SPEED      0x07    // bDescriptorType for a Other Speed Configuration.
 #define USB_DESCRIPTOR_INTERFACE_POWER  0x08    // bDescriptorType for Interface Power.
 
-typedef void(*usb_parser_t)(const uint16_t, const uint8_t *, const uint16_t);
-
 void usb_init();
 void usb_poll();
 void usb_SetHubPreMask(void);
@@ -238,8 +238,7 @@ void usb_ResetHubPreMask(void);
 uint8_t usb_set_addr( usb_device_t *, uint8_t );
 uint8_t usb_ctrl_req( usb_device_t *, uint8_t bmReqType, 
 		      uint8_t bRequest, uint8_t wValLo, uint8_t wValHi, 
-		      uint16_t wInd, uint16_t total, uint16_t nbytes, 
-		      uint8_t* dataptr, usb_parser_t *p);
+		      uint16_t wInd, uint16_t nbytes, uint8_t* dataptr);
 uint8_t usb_get_dev_descr( usb_device_t *, uint16_t nbytes, usb_device_descriptor_t* dataptr );
 uint8_t usb_get_conf_descr( usb_device_t *, uint16_t nbytes, uint8_t conf, usb_configuration_descriptor_t* dataptr );
 uint8_t usb_set_conf( usb_device_t *dev, uint8_t conf_value );

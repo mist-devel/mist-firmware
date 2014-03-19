@@ -278,8 +278,7 @@ uint8_t usb_OutTransfer(ep_t *pep, uint16_t nak_limit,
 
 uint8_t usb_ctrl_req(usb_device_t *dev, uint8_t bmReqType, 
 		    uint8_t bRequest, uint8_t wValLo, uint8_t wValHi, 
-		    uint16_t wInd, uint16_t total, uint16_t nbytes, 
-		    uint8_t* dataptr, usb_parser_t *p) {
+		    uint16_t wInd, uint16_t nbytes, uint8_t* dataptr) {
   iprintf("%s(addr=%x, len=%d, ptr=%p)\n", __FUNCTION__,
 	  dev->bAddress, nbytes, dataptr);
   bool direction = false;     //request direction, IN or OUT
@@ -299,7 +298,7 @@ uint8_t usb_ctrl_req(usb_device_t *dev, uint8_t bmReqType,
   setup_pkt.wVal_u.wValueLo		= wValLo;
   setup_pkt.wVal_u.wValueHi		= wValHi;
   setup_pkt.wIndex			= wInd;
-  setup_pkt.wLength			= total;
+  setup_pkt.wLength			= nbytes;
   
   // transfer to setup packet FIFO
   max3421e_write(MAX3421E_SUDFIFO, sizeof(setup_pkt_t), (uint8_t*)&setup_pkt );
@@ -311,39 +310,15 @@ uint8_t usb_ctrl_req(usb_device_t *dev, uint8_t bmReqType,
   // data stage, if present
   if( dataptr != NULL )	{
     if( direction ) { //IN transfer
-      uint16_t left = total;
-
-      dev->ep0.bmRcvToggle = 1;	//bmRCVTOG1;
-      
-      while (left) {
-	// Bytes read into buffer
-	uint16_t read = nbytes;
-	//uint16_t read = (left<nbytes) ? left : nbytes;
-	
-	rcode = usb_InTransfer( &(dev->ep0), nak_limit, &read, dataptr );
-	
-	if (rcode)
-	  return rcode;
-	
-	// Invoke callback function if inTransfer completed 
-	// successfuly and callback function pointer is specified
-	if (!rcode && p)
-	  (*p)(read, dataptr, total - left);
-	
-	left -= read;
-	
-	if (read < nbytes)
-	  break;
-      }
-    } else {
-      //OUT transfer
+      dev->ep0.bmRcvToggle = 1;
+      rcode = usb_InTransfer( &(dev->ep0), nak_limit, &nbytes, dataptr );
+    } else { //OUT transfer
       dev->ep0.bmSndToggle = 1;
       rcode = usb_OutTransfer( &(dev->ep0), nak_limit, nbytes, dataptr );
     }    
 
     //return error
-    if( rcode )	
-      return( rcode );
+    if( rcode )	return( rcode );
   }
 
   // Status stage
@@ -355,6 +330,7 @@ uint8_t usb_ctrl_req(usb_device_t *dev, uint8_t bmReqType,
 static const usb_device_class_config_t *class_list[] = {
   &usb_hub_class,
   &usb_hid_class,
+  &usb_asix_class,
   NULL
 };
 
@@ -465,7 +441,7 @@ void usb_poll() {
     // poll all configured devices
     uint8_t i;
     for (i=0; i<USB_NUMDEVICES; i++)
-      if(dev[i].bAddress)
+      if(dev[i].bAddress && dev[i].class)
 	rcode = dev[i].class->poll(dev+i);
     
     switch( usb_task_state ) {
@@ -474,7 +450,7 @@ void usb_poll() {
       
       // just remove everything ...
       for (i=0; i<USB_NUMDEVICES; i++) {
-	if (dev[i].bAddress) {
+	if(dev[i].bAddress && dev[i].class) {
 	  rcode = dev[i].class->release(dev+i);
 	  dev[i].bAddress = 0;
 	}
@@ -556,21 +532,21 @@ uint8_t usb_release_device(uint8_t parent, uint8_t port) {
 
 uint8_t usb_get_dev_descr( usb_device_t *dev, uint16_t nbytes, usb_device_descriptor_t* p )  {
   return( usb_ctrl_req( dev, USB_REQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 
-	       0x00, USB_DESCRIPTOR_DEVICE, 0x0000, nbytes, nbytes, (uint8_t*)p, NULL ));
+	       0x00, USB_DESCRIPTOR_DEVICE, 0x0000, nbytes, (uint8_t*)p));
 }
 
 //get configuration descriptor  
 uint8_t usb_get_conf_descr( usb_device_t *dev, uint16_t nbytes, 
 			    uint8_t conf, usb_configuration_descriptor_t* p )  {
   return( usb_ctrl_req( dev, USB_REQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 
-	       conf, USB_DESCRIPTOR_CONFIGURATION, 0x0000, nbytes, nbytes, (uint8_t*)p, NULL ));
+	       conf, USB_DESCRIPTOR_CONFIGURATION, 0x0000, nbytes, (uint8_t*)p));
 }
 
 uint8_t usb_set_addr( usb_device_t *dev, uint8_t newaddr )  {
   iprintf("%s(new=%x)\n", __FUNCTION__, newaddr);
   
   uint8_t rcode = usb_ctrl_req( dev, USB_REQ_SET, USB_REQUEST_SET_ADDRESS, newaddr, 
-				0x00, 0x0000, 0x0000, 0x0000, NULL, NULL );
+				0x00, 0x0000, 0x0000, NULL);
   if(!rcode) dev->bAddress = newaddr;
   return rcode;
 }
@@ -578,7 +554,7 @@ uint8_t usb_set_addr( usb_device_t *dev, uint8_t newaddr )  {
 //set configuration
 uint8_t usb_set_conf( usb_device_t *dev, uint8_t conf_value )  {
   return( usb_ctrl_req( dev, USB_REQ_SET, USB_REQUEST_SET_CONFIGURATION,
-			conf_value, 0x00, 0x0000, 0x0000, 0x0000, NULL, NULL ));         
+			conf_value, 0x00, 0x0000, 0x0000, NULL));
 }
 
 void usb_SetHubPreMask() { 

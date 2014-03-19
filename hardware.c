@@ -152,7 +152,10 @@ void USART_Poll(void) {
 }
 
 void USART_Write(unsigned char c) {
-
+#if 0
+  while(!(AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY));
+  AT91C_BASE_US0->US_THR = c;
+#else
   if((AT91C_BASE_US0->US_CSR & AT91C_US_TXRDY) && (tx_wptr == tx_rptr)) {
     // transmitter ready and buffer empty? -> send directly
     AT91C_BASE_US0->US_THR = c;
@@ -165,6 +168,7 @@ void USART_Write(unsigned char c) {
   }
 
   AT91C_BASE_US0->US_IER = AT91C_US_TXRDY;  // enable interrupt
+#endif
 }
 
 void USART_Init(unsigned long baudrate) {

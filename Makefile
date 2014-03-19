@@ -9,7 +9,7 @@ TODAY = `date +"%m/%d/%y"`
 
 PRJ = firmware
 SRC = Cstartup_SAM7.c  fat.c  fdd.c  firmware.c  fpga.c  hardware.c  hdd.c  main.c  menu.c  mmc.c  osd.c syscalls.c user_io.c boot_print.c boot_logo.c rafile.c config.c tos.c ikbd.c
-SRC += usb/max3421e.c usb/usb.c usb/hub.c usb/hid.c usb/hidparser.c usb/timer.c
+SRC += usb/max3421e.c usb/usb.c usb/hub.c usb/hid.c usb/hidparser.c usb/timer.c usb/asix.c
 SRC += cdc_enumerate.c cdc_control.c
 
 OBJ = $(SRC:.c=.o)
@@ -20,7 +20,7 @@ LIBDIR   =
 
 # Commandline options for each tool.
 DFLAGS  = -I. -Iusb -DMIST
-CFLAGS  = $(DFLAGS) -c -fno-common -O3 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
+CFLAGS  = $(DFLAGS) -c -fno-common -O2 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
 AFLAGS  = -ahls -mapcs-32
 LFLAGS  = -nostartfiles -Wl,-Map,$(PRJ).map -T$(LINKMAP) $(LIBDIR)
 CPFLAGS = --output-target=ihex
