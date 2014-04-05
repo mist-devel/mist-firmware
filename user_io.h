@@ -6,6 +6,8 @@
 #ifndef USER_IO_H
 #define USER_IO_H
 
+#include <inttypes.h>
+
 #define UIO_STATUS      0x00
 #define UIO_BUT_SW      0x01
 
@@ -17,6 +19,7 @@
 #define UIO_KBD_OSD     0x06  // keycodes used by OSD only
 
 // codes as used by MiST (atari)
+// directions (in/out) are from an io controller view
 #define UIO_IKBD_OUT    0x02
 #define UIO_IKBD_IN     0x03
 #define UIO_SERIAL_OUT  0x04
@@ -24,6 +27,10 @@
 #define UIO_PARALLEL_IN 0x06
 #define UIO_MIDI_OUT    0x07
 #define UIO_MIDI_IN     0x08
+#define UIO_ETH_MAC     0x09
+#define UIO_ETH_STATUS  0x0a
+#define UIO_ETH_FRM_IN  0x0b
+#define UIO_ETH_FRM_OUT 0x0c
 
 // codes as used by 8bit (atari 800)
 #define UIO_GET_STATUS  0x50
@@ -59,7 +66,14 @@ char user_io_menu_button();
 char user_io_button_dip_switch1();
 char user_io_user_button();
 void user_io_osd_key_enable(char);
-void user_io_serial_tx(char);
+void user_io_serial_tx(char *, uint16_t);
+
+// io controllers interface for FPGA ethernet emulation using usb ethernet
+// devices attached to the io controller (ethernec emulation)
+void user_io_eth_send_mac(uint8_t *);
+uint32_t user_io_eth_get_status(void);
+void user_io_eth_send_rx_frame(uint8_t *, uint16_t);
+void user_io_eth_receive_tx_frame(uint8_t *, uint16_t);
 
 // hooks from the usb layer
 void user_io_mouse(unsigned char b, char x, char y);

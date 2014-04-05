@@ -3,6 +3,8 @@
 #ifndef HARDWARE_H
 #define HARDWARE_H
 
+#include <inttypes.h>
+
 #define MCLK 48000000
 #define FWS 1 // Flash wait states
 
@@ -163,6 +165,7 @@ void EnableIO(void);
 void DisableIO(void);
 #endif
 
+void hexdump(void *data, uint16_t size, uint16_t offset);
 #define DEBUG_FUNC_IN() 
 
 #endif // HARDWARE_H

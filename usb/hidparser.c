@@ -387,6 +387,8 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size) {
   hidp_debugf("total bit count: %d (%d bytes, %d bits)\n", 
 	 bit_count, bit_count/8, bit_count%8);
 
+  hid_conf[config_idx].report_size = bit_count/8;
+
   // check if something useful was detected
   if(hid_conf[config_idx].type == CONFIG_TYPE_JOYSTICK) {
     if(setup_complete == JOYSTICK_COMPLETE) {

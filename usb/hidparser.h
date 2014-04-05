@@ -10,6 +10,7 @@
 typedef struct {
   uint8_t type: 2;             // CONFIG_TYPE_...
   uint8_t report_id;
+  uint8_t report_size;
 
   union {
     struct {

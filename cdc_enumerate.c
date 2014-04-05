@@ -32,12 +32,6 @@ typedef unsigned int   uint;
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
-#define AT91C_EP_IN_SIZE 0x40
-
-#define AT91C_EP_OUT 1
-#define AT91C_EP_OUT_SIZE 0x40
-#define AT91C_EP_IN  2
-
 #define WORD(a) (a)&0xff, ((a)>>8)&0xff
 
 // Private members
@@ -293,8 +287,8 @@ uchar usb_cdc_is_configured(void) {
 //* \fn    usb_cdc_read
 //* \brief Read available data from Endpoint OUT
 //*----------------------------------------------------------------------------
-uint usb_cdc_read(char *pData, uint length) {
-  uint packetSize, nbBytesRcv = 0;
+uint16_t usb_cdc_read(char *pData, uint16_t length) {
+  uint16_t packetSize, nbBytesRcv = 0;
   
   if ( !usb_cdc_is_configured() )
     return 0;

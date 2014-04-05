@@ -45,7 +45,7 @@
 
 typedef struct {
   uint8_t iface_idx;
-  uint16_t report_size;
+  uint16_t report_desc_size;
 
   uint8_t device_type;
   bool has_boot_mode;     // device supports boot mode

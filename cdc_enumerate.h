@@ -15,10 +15,18 @@
 #ifndef CDC_ENUMERATE_H
 #define CDC_ENUMERATE_H
 
+#include <inttypes.h>
+
+#define AT91C_EP_OUT_SIZE 0x40
+#define AT91C_EP_OUT 1
+
+#define AT91C_EP_IN_SIZE 0x40
+#define AT91C_EP_IN  2
+
 void usb_cdc_open(void);
 unsigned char usb_cdc_is_configured(void);
 unsigned int  usb_cdc_write(const char *pData, unsigned int length);
-unsigned int  usb_cdc_read(char *pData, unsigned int length);
+uint16_t  usb_cdc_read(char *pData, uint16_t length);
 
 #define usb_cdc_poll() usb_cdc_is_configured()
 

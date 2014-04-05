@@ -102,28 +102,6 @@ static void mist_set_control(unsigned long ctrl) {
   DisableFpga();
 }
 
-static void hexdump(void *data, unsigned long size, unsigned long offset) {
-  int i, b2c;
-  unsigned long n=0;
-  char *ptr = data;
-
-  if(!size) return;
-
-  while(size>0) {
-    iprintf("%08x: ", n + offset);
-
-    b2c = (size>16)?16:size;
-    for(i=0;i<b2c;i++)      iprintf("%02x ", 0xff&ptr[i]);
-    iprintf("  ");
-    for(i=0;i<(16-b2c);i++) iprintf("   ");
-    for(i=0;i<b2c;i++)      iprintf("%c", isprint(ptr[i])?ptr[i]:'.');
-    iprintf("\n");
-    ptr  += b2c;
-    size -= b2c;
-    n    += b2c;
-  }
-}
-
 static void mist_bus_request(char req) {
   EnableFpga();
   SPI(req?MIST_BUS_REQ:MIST_BUS_REL);
@@ -295,6 +273,8 @@ static void handle_fdc(unsigned char *buffer) {
   unsigned char fdc_data = buffer[7];
   unsigned char drv_sel = 3-((buffer[8]>>2)&3); 
   unsigned char drv_side = 1-((buffer[8]>>1)&1); 
+
+  //  iprintf("FDC: sel %d, cmd %d\n", drv_sel, fdc_cmd);
   
   // check if a matching disk image has been inserted
   if(drv_sel && fdd_image[drv_sel-1].file.size) {
@@ -306,12 +286,14 @@ static void handle_fdc(unsigned char *buffer) {
     if((fdc_cmd & 0xc0) == 0x80) {
 
       // convert track/sector/side into disk offset
-      unsigned int offset = drv_side;
+      unsigned int offset = drv_side; 
       offset += fdc_track * fdd_image[drv_sel-1].sides;
       offset *= fdd_image[drv_sel-1].spt;
       offset += fdc_sector-1;
       
       while(scnt) {
+	//	iprintf("  sector %d\n", offset);
+
 	DISKLED_ON;
 	
 	FileSeek(&fdd_image[drv_sel-1].file, offset, SEEK_SET);
@@ -338,6 +320,9 @@ static void handle_fdc(unsigned char *buffer) {
       EnableFpga();
       SPI(MIST_ACK_DMA);
       DisableFpga(); 
+
+      //      iprintf("done\n");
+
     } else if((fdc_cmd & 0xc0) == 0xc0) {
       char msg[32];
 

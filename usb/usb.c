@@ -186,15 +186,14 @@ uint8_t usb_in_transfer( usb_device_t *dev, ep_t *ep, uint16_t *nbytesptr, uint8
   uint16_t nak_limit = 0;
 
   uint8_t rcode = usb_set_address(dev, ep, &nak_limit);
-  if (rcode)    
-    return rcode;
+  if (rcode) return rcode;
 
   return usb_InTransfer(ep, nak_limit, nbytesptr, data);
 }
 
 uint8_t usb_OutTransfer(ep_t *pep, uint16_t nak_limit, 
 			uint16_t nbytes, uint8_t *data) {
-  iprintf("%s(%d)\n", __FUNCTION__, nbytes);
+  //  iprintf("%s(%d)\n", __FUNCTION__, nbytes);
 
   uint8_t rcode = 0, retry_count;
   uint16_t bytes_tosend, nak_count;
@@ -268,6 +267,18 @@ uint8_t usb_OutTransfer(ep_t *pep, uint16_t nak_limit,
   return( rcode );    //should be 0 in all cases
 }
 
+/* OUT transfer to arbitrary endpoint. Handles multiple packets if necessary. Transfers 'nbytes' bytes. */
+/* Handles NAK bug per Maxim Application Note 4000 for single buffer transfer   */
+/* rcode 0 if no errors. rcode 01-0f is relayed from HRSL                       */
+uint8_t usb_out_transfer(usb_device_t *dev, ep_t *ep, uint16_t nbytes, uint8_t* data ) {
+  uint16_t nak_limit = 0;
+
+  uint8_t rcode = usb_set_address(dev, ep, &nak_limit);
+  if (rcode) return rcode;
+
+  return usb_OutTransfer(ep, nak_limit, nbytes, data);
+}
+
 /* Control transfer. Sets address, endpoint, fills control packet */
 /* with necessary data, dispatches control packet, and initiates */
 /* bulk IN transfer, depending on request. Actual requests are defined */
@@ -279,8 +290,8 @@ uint8_t usb_OutTransfer(ep_t *pep, uint16_t nak_limit,
 uint8_t usb_ctrl_req(usb_device_t *dev, uint8_t bmReqType, 
 		    uint8_t bRequest, uint8_t wValLo, uint8_t wValHi, 
 		    uint16_t wInd, uint16_t nbytes, uint8_t* dataptr) {
-  iprintf("%s(addr=%x, len=%d, ptr=%p)\n", __FUNCTION__,
-	  dev->bAddress, nbytes, dataptr);
+  //  iprintf("%s(addr=%x, len=%d, ptr=%p)\n", __FUNCTION__,
+  //	  dev->bAddress, nbytes, dataptr);
   bool direction = false;     //request direction, IN or OUT
   uint8_t rcode;   
   setup_pkt_t setup_pkt;

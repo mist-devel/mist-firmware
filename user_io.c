@@ -155,10 +155,10 @@ void user_io_joystick(unsigned char joystick, unsigned char map) {
 }
 
 // transmit serial/rs232 data into core
-void user_io_serial_tx(char chr) {
+void user_io_serial_tx(char *chr, uint16_t cnt) {
   EnableIO();
   SPI(UIO_SERIAL_OUT);
-  SPI(chr);
+  while(cnt--) SPI(*chr++);
   DisableIO();
 }
   
@@ -169,7 +169,48 @@ void user_io_midi_tx(char chr) {
   SPI(chr);
   DisableIO();
 }
-  
+
+// send ethernet mac address into FPGA
+void user_io_eth_send_mac(uint8_t *mac) {
+  uint8_t i;
+
+  EnableIO();
+  SPI(UIO_ETH_MAC);
+  for(i=0;i<6;i++) SPI(*mac++);
+  DisableIO();
+}
+
+// read 32 bit ethernet status word from FPGA
+uint32_t user_io_eth_get_status(void) {
+  uint32_t s;
+
+  EnableIO();
+  SPI(UIO_ETH_STATUS);
+  s = SPI(0);
+  s = (s<<8) | SPI(0);
+  s = (s<<8) | SPI(0);
+  s = (s<<8) | SPI(0);
+  DisableIO();
+
+  return s;
+}
+
+// read ethernet frame from FPGAs ethernet tx buffer
+void user_io_eth_receive_tx_frame(uint8_t *d, uint16_t len) {
+  EnableIO();
+  SPI(UIO_ETH_FRM_IN);
+  while(len--) *d++=SPI(0);
+  DisableIO();
+}
+
+// write ethernet frame to FPGAs rx buffer
+void user_io_eth_send_rx_frame(uint8_t *s, uint16_t len) {
+  EnableIO();
+  SPI(UIO_ETH_FRM_OUT);
+  while(len--) SPI(*s++);
+  DisableIO();
+}
+
 void user_io_poll() {
   if((core_type != CORE_TYPE_MINIMIG) &&
      (core_type != CORE_TYPE_PACE) &&

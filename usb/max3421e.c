@@ -4,35 +4,6 @@
 #include "timer.h"
 #include "spi.h"
 
-static void hexdump(void *data, int size) {
-  int i,n = 0, b2c;
-  char *ptr = data;
-
-  if(!size) return;
-
-  while(size>0) {
-    iprintf("%04x: ", n);
-
-    b2c = (size>16)?16:size;
-
-    for(i=0;i<b2c;i++)
-      iprintf("%02x ", 0xff&ptr[i]);
-
-    iprintf("  ");
-
-    for(i=0;i<(16-b2c);i++)
-      iprintf("   ");
-
-    for(i=0;i<b2c;i++)
-      iprintf("%c", isprint(ptr[i])?ptr[i]:'.');
-
-    iprintf("\n");
-
-    ptr  += b2c;
-    size -= b2c;
-    n    += b2c;
-  }
-}
 void max3421e_write_u08(uint8_t reg, uint8_t data) {
   //  iprintf("write %x %x\n", reg, data);
 
@@ -51,7 +22,6 @@ uint8_t max3421e_read_u08(uint8_t reg) {
 }
 
 uint8_t *max3421e_write(uint8_t reg, uint8_t n, uint8_t* data) {
-  //  hexdump(data, n);
 
   spi_start(0);
   spi_xmit(reg | MAX3421E_WRITE);
@@ -61,10 +31,15 @@ uint8_t *max3421e_write(uint8_t reg, uint8_t n, uint8_t* data) {
   return data;
 }
 
+// discard data if NULL ptr was provided
 uint8_t *max3421e_read(uint8_t reg, uint8_t n, uint8_t* data) {
   spi_start(0);
   spi_xmit(reg);
-  while(n--) *data++ = spi_xmit(0);
+  if(data)
+    while(n--) *data++ = spi_xmit(0);
+  else
+    while(n--) spi_xmit(0);
+
   spi_end();
 
   return data;

@@ -243,6 +243,7 @@ uint8_t usb_get_dev_descr( usb_device_t *, uint16_t nbytes, usb_device_descripto
 uint8_t usb_get_conf_descr( usb_device_t *, uint16_t nbytes, uint8_t conf, usb_configuration_descriptor_t* dataptr );
 uint8_t usb_set_conf( usb_device_t *dev, uint8_t conf_value );
 uint8_t usb_in_transfer( usb_device_t *, ep_t *ep, uint16_t *nbytesptr, uint8_t* data);
+uint8_t usb_out_transfer( usb_device_t *, ep_t *ep, uint16_t nbytes, uint8_t* data );
 uint8_t usb_release_device(uint8_t parent, uint8_t port);
 usb_device_t *usb_get_devices();
 

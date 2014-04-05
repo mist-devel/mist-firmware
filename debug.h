@@ -2,6 +2,8 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#include "hardware.h"
+
 // ------------ usb debugging -----------
 
 #if 1

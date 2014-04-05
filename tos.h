@@ -70,6 +70,7 @@
 #define TOS_CONTROL_STEREO        0x00400000
 #define TOS_CONTROL_STE           0x00800000
 #define TOS_CONTROL_MSTE          0x01000000
+#define TOS_CONTROL_ETHERNET      0x02000000
 
 unsigned long tos_system_ctrl(void);
 

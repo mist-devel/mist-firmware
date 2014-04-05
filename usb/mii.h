@@ -21,6 +21,23 @@
 #define BMCR_LOOPBACK           0x4000  /* TXD loopback bits           */
 #define BMCR_RESET              0x8000  /* Reset the DP83840           */
 
+/* Basic mode status register. */
+#define BMSR_ERCAP              0x0001  /* Ext-reg capability          */
+#define BMSR_JCD                0x0002  /* Jabber detected             */
+#define BMSR_LSTATUS            0x0004  /* Link status                 */
+#define BMSR_ANEGCAPABLE        0x0008  /* Able to do auto-negotiation */
+#define BMSR_RFAULT             0x0010  /* Remote fault detected       */
+#define BMSR_ANEGCOMPLETE       0x0020  /* Auto-negotiation complete   */
+#define BMSR_RESV               0x00c0  /* Unused...                   */
+#define BMSR_ESTATEN            0x0100  /* Extended Status in R15 */
+#define BMSR_100HALF2           0x0200  /* Can do 100BASE-T2 HDX */
+#define BMSR_100FULL2           0x0400  /* Can do 100BASE-T2 FDX */
+#define BMSR_10HALF             0x0800  /* Can do 10mbps, half-duplex  */
+#define BMSR_10FULL             0x1000  /* Can do 10mbps, full-duplex  */
+#define BMSR_100HALF            0x2000  /* Can do 100mbps, half-duplex */
+#define BMSR_100FULL            0x4000  /* Can do 100mbps, full-duplex */
+#define BMSR_100BASE4           0x8000  /* Can do 100mbps, 4k packets  */
+
 /* Advertisement control register. */
 #define ADVERTISE_SLCT          0x001f  /* Selector bits               */
 #define ADVERTISE_CSMA          0x0001  /* Only selector supported     */
