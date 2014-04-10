@@ -12,10 +12,10 @@
 #define UIO_BUT_SW      0x01
 
 // codes as used by minimig (amiga)
-#define UIO_JOYSTICK0   0x02
-#define UIO_JOYSTICK1   0x03
-#define UIO_MOUSE       0x04
-#define UIO_KEYBOARD    0x05
+#define UIO_JOYSTICK0   0x02  // also used by 8 bit
+#define UIO_JOYSTICK1   0x03  // -"-
+#define UIO_MOUSE       0x04  // -"-
+#define UIO_KEYBOARD    0x05  // -"-
 #define UIO_KBD_OSD     0x06  // keycodes used by OSD only
 
 // codes as used by MiST (atari)
@@ -31,6 +31,11 @@
 #define UIO_ETH_STATUS  0x0a
 #define UIO_ETH_FRM_IN  0x0b
 #define UIO_ETH_FRM_OUT 0x0c
+
+#define UIO_JOYSTICK3   0x10  // also used by minimig and 8 bit
+#define UIO_JOYSTICK4   0x11  // -"-
+#define UIO_JOYSTICK5   0x12  // -"-
+#define UIO_JOYSTICK6   0x13  // -"-
 
 // codes as used by 8bit (atari 800)
 #define UIO_GET_STATUS  0x50

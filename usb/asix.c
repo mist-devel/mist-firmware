@@ -18,10 +18,10 @@
 
 #define MAX_FRAMELEN 1536
 
-static unsigned char rx_buf[MAX_FRAMELEN];
+static unsigned char rx_buf[MAX_FRAMELEN+64];
 static uint16_t rx_cnt;
 
-static unsigned char tx_buf[MAX_FRAMELEN];
+static unsigned char tx_buf[4+MAX_FRAMELEN];
 static uint16_t tx_cnt, tx_offset;
 
 static bool eth_present = 0;
@@ -526,22 +526,15 @@ static uint8_t usb_asix_release(usb_device_t *dev) {
   return 0;
 }
 
-void usb_asix_xmit(uint8_t *data, uint16_t len) {
+void usb_asix_xmit(uint16_t len) {
   asix_debugf("out %d", len);
 
-  if(!tx_cnt && (len <= MAX_FRAMELEN)) {
-    memcpy(tx_buf, data, len);
-    tx_cnt = len;
-    tx_offset = 0;
-  }
-}
+  *(uint16_t*)tx_buf = len;
+  *(uint16_t*)(tx_buf+2) = ~len;
 
-char testframe[] = {
-  0x3c, 0x00, 0xc3, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x12, 0x34, 0x80, 0x5d, 0x4c, 0x67,
-  0x08, 0x06, 0x00, 0x01, 0x08, 0x00, 0x06, 0x04, 0x00, 0x01, 0x00, 0x01, 0x80, 0x5d, 0x4c, 0x67,
-  0xc0, 0xa8, 0x00, 0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8, 0x01, 0x64, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 
-};
+  tx_cnt = len+4;
+  tx_offset = 0;
+}
 
 static uint8_t usb_asix_poll(usb_device_t *dev) {
   usb_asix_info_t *info = &(dev->asix_info);
@@ -552,15 +545,37 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
 
   // poll interrupt endpoint
   if (info->qNextPollTime <= timer_get_msec()) {
+    static uint32_t old_status = 0;
+    uint32_t status = user_io_eth_get_status();
 
-    // ------------ v TEST STUFF v --------------
-    { static cnt = 20; if(!--cnt) {
-	iprintf("ETH status: %x\n", user_io_eth_get_status());
+    if(status != old_status) {
+      asix_debugf("status changed to cmd %x, eq=%d, prx=%d, ptx=%d, len=%d",
+		  status >> 24, (status & 0x4000)?1:0, (status & 0x2000)?1:0,
+		  (status & 0x1000)?1:0, status & 0xffff);
+      old_status = status;
+    }
 
-	usb_asix_xmit(testframe, sizeof(testframe));
-	cnt = 20;
-      }}
-    // ------------ ^ TEST STUFF ^ --------------
+    // --------- poll FPGA for data to be transmitted ------------
+
+    // no transmission in progress?
+    if(!tx_cnt) {
+      //	  iprintf("ETH status: %x\n", status);
+      if((status >> 24) == 0xa5) {
+	if((status & 0xffff) <= MAX_FRAMELEN) {
+	  iprintf("TX %d\n", status & 0xffff);
+	  
+	  // read frame into local tx buffer, leave 4 bytes space for
+	  // axis packet header marker
+	  user_io_eth_receive_tx_frame(tx_buf+4, status & 0xffff);
+	  
+	  hexdump(tx_buf+4, status & 0xffff, 0);
+	  
+	  // schedule packet for transmissoin
+	  usb_asix_xmit(status & 0xffff);
+	}
+      }
+    }
+
 
     uint16_t read = info->ep[info->ep_int_idx].maxPktSize;
     uint8_t buf[info->ep[info->ep_int_idx].maxPktSize];
@@ -570,8 +585,8 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
       if (rcode != hrNAK)
 	iprintf("%s() error: %x\n", __FUNCTION__, rcode);
     } else {
-      //      iprintf("ASIX: int %d bytes\n", read);
-      //      hexdump(buf, read, 0);
+      //            iprintf("ASIX: int %d bytes\n", read);
+      //            hexdump(buf, read, 0);
 
       // primary or secondary link detected?
       bool link_detected = ((buf[2] & 3) != 0); 
@@ -613,12 +628,12 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
     {
       uint16_t read = info->ep[1].maxPktSize;
       
-      // the rx buffer size (1536) is a multiple of the maxPktSize (64),
-      // so a transfer still fits into the buffer or it is already 
-      // completely full. If it's full we drop all data. This will leave 
+      // the rx buffer size (1536+64) can hold an additional maxPktSize (64),
+      // so a transfer still fits into the buffer or there's already 
+      // a full frame present. If it's full we drop all data. This will leave 
       // the buffered packet incomplete which isn't a problem since
       // the packet was too long, anyway.
-      uint8_t *data = (rx_cnt <= MAX_FRAMELEN - info->ep[1].maxPktSize)?(rx_buf + rx_cnt):NULL;
+      uint8_t *data = (rx_cnt < MAX_FRAMELEN)?(rx_buf + rx_cnt):NULL;
       rcode = usb_in_transfer(dev, &(info->ep[1]), &read, data);
       
       if (rcode) {
@@ -626,13 +641,37 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
 	  asix_debugf("%s() error: %x", __FUNCTION__, rcode);
       } else {
 	rx_cnt += read;
-	
-	if(read == info->ep[1].maxPktSize) {
-	  
-	} else {
-	  asix_debugf("in %d", rx_cnt);
-	  //	hexdump(rx_buf, rx_cnt, 0);
+
+	// check if packet has a valid header
+	uint16_t len0 = *(uint16_t*)rx_buf;
+	uint16_t len1 = ~(*(uint16_t*)(rx_buf+2));
+
+	if(len0 != len1) {
+	  asix_debugf("dropping malformed packet (len %d:%d)\n", len0, len1);
 	  rx_cnt = 0;
+	} else if(rx_cnt-4 >= len0) {
+	  // enough room to store the entire packet
+
+	  // process packet
+	  asix_debugf("RX %d", len0);
+	  hexdump(rx_buf+4, 32, 0);
+
+	  // todo: check if rx frame has been read
+
+	  // forward frame to FPGA
+	  user_io_eth_send_rx_frame(rx_buf, len0);
+
+	  if((rx_cnt-4 > len0) && (rx_cnt < MAX_FRAMELEN+64)) {
+	    // packets are 16 bit padded
+	    if(len0 & 1) len0++;
+	    
+	    // remove len0+4 bytes from buffer
+	    memcpy(rx_buf, rx_buf + len0 + 4, MAX_FRAMELEN + 64 - len0 - 4);
+	    rx_cnt -= len0 + 4;
+	    
+	    //	    asix_debugf("bytes left in buffer: %d", rx_cnt);
+	  } else
+	    rx_cnt = 0;
 	}
       }
     }    

@@ -137,20 +137,27 @@ void user_io_detect_core_type() {
 }
 
 void user_io_joystick(unsigned char joystick, unsigned char map) {
-  // iprintf("j%d: %x\n", joystick, map);
+  //  iprintf("j%d: %x\n", joystick, map);
 
-  // most cores process joystick events themselves
+  // "only" 6 joysticks are supported
+  if(joystick >= 6)
+    return;
+
+  // mist cores process joystick events for joystick 0 and 1 via the 
+  // ikbd
   if((core_type == CORE_TYPE_MINIMIG) || 
      (core_type == CORE_TYPE_PACE)  || 
+     ((core_type == CORE_TYPE_MIST) && (joystick >= 2))  || 
      (core_type == CORE_TYPE_8BIT)) {
+    // joystick 3 and 4 were introduced later
     EnableIO();
-    SPI(UIO_JOYSTICK0 + joystick);
+    SPI((joystick < 2)?(UIO_JOYSTICK0 + joystick):((UIO_JOYSTICK3 + joystick - 2)));
     SPI(map);
     DisableIO();
   }
 
-  // atari ST handles joystick through the ikbd emulated by the io controller
-  if(core_type == CORE_TYPE_MIST)
+  // atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
+  if((core_type == CORE_TYPE_MIST) && (joystick < 2))
     ikbd_joystick(joystick, map);
 }
 
@@ -209,6 +216,35 @@ void user_io_eth_send_rx_frame(uint8_t *s, uint16_t len) {
   SPI(UIO_ETH_FRM_OUT);
   while(len--) SPI(*s++);
   DisableIO();
+}
+
+// the physical joysticks (db9 ports at the right device side)
+// as well as the joystick emulation are renumbered if usb joysticks
+// are present in the system. The USB joystick(s) replace joystick 1
+// and 0 and the physical joysticks are "shifted up". 
+//
+// Since the primary joystick is in port 1 the first usb joystick 
+// becomes joystick 1 and only the second one becomes joystick 0
+// (mouse port)
+
+static uint8_t joystick_renumber(uint8_t j) {
+  uint8_t usb_sticks = hid_get_joysticks();
+
+  // no usb sticks present: no changes are being made
+  if(!usb_sticks) return j;
+
+  if(j == 0) {
+    // if usb joysticks are present, then physical joystick 0 (mouse port)
+    // becomes becomes 2,3,...
+    j = usb_sticks + 1;
+  } else {
+    // if one usb joystick is present, then physical joystick 1 (joystick port)
+    // becomes physical joystick 0 (mouse) port. If more than 1 usb joystick
+    // is present it becomes 2,3,...
+    if(usb_sticks == 1) j = 0;
+    else                j = usb_sticks;
+  }
+  return j;
 }
 
 void user_io_poll() {
@@ -276,17 +312,7 @@ void user_io_poll() {
     if(!(joy0_state & JOY0_BTN1))  joy_map |= JOY_BTN1;
     if(!(joy0_state & JOY0_BTN2))  joy_map |= JOY_BTN2;
 
-    // Thw slighlty odd handling of joystick numbering is required 
-    // since the primary joystick is in port 1 and thus
-    // the first usb joystick becomes joystick 1 and omly the second
-    // one becomes joystick 0 (mouse port)
-
-    // if usb joysticks are present, then physical joystick 0 (mouse port)
-    // becomes becomes 2,3,...
-    uint8_t j = 0;
-    if(hid_get_joysticks() > 0) j = hid_get_joysticks() + 1;
-
-    user_io_joystick(0, joy_map);
+    user_io_joystick(joystick_renumber(0), joy_map);
   }
   
   static int joy1_state = JOY1;
@@ -301,14 +327,7 @@ void user_io_poll() {
     if(!(joy1_state & JOY1_BTN1))  joy_map |= JOY_BTN1;
     if(!(joy1_state & JOY1_BTN2))  joy_map |= JOY_BTN2;
     
-    // if one usb joystick is present, then physical joystick 1 (joystick port)
-    // becomes physical joystick 0 (mouse) port. If more than 1 usb joystick
-    // is present it becomes 2,3,...
-    uint8_t j = 1;
-    if(hid_get_joysticks() == 1) j = 0;
-    else if(hid_get_joysticks() > 1) j = hid_get_joysticks();
-
-    user_io_joystick(j, joy_map);
+    user_io_joystick(joystick_renumber(1), joy_map);
   }
 
   // frequently poll the adc the switches 
@@ -365,7 +384,7 @@ void user_io_poll() {
     /* read status byte */
     EnableFpga();
     SPI(UIO_GET_STATUS);
-    status = (status << 8) | SPI(0);
+    status = SPI(0);
     status = (status << 8) | SPI(0);
     status = (status << 8) | SPI(0);
     status = (status << 8) | SPI(0);
@@ -460,7 +479,8 @@ static void send_keycode(unsigned short code) {
 void user_io_mouse(unsigned char b, char x, char y) {
 
   // send mouse data as minimig expects it
-  if(core_type == CORE_TYPE_MINIMIG) {
+  if((core_type == CORE_TYPE_MINIMIG) || 
+     (core_type == CORE_TYPE_8BIT)) {
     EnableIO();
     SPI(UIO_MOUSE);
     SPI(x);
@@ -580,19 +600,21 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 	}
 	
 	if(emu_mode == EMU_JOY0) 
-	  user_io_joystick(0, emu_state);
+	  user_io_joystick(joystick_renumber(0), emu_state);
 	
 	if(emu_mode == EMU_JOY1) 
-	  user_io_joystick(1, emu_state);
+	  user_io_joystick(joystick_renumber(1), emu_state);
       }
     }
     
     // handle modifier keys
     if(m != modifier) {
       for(i=0;i<8;i++) {
-	if((m & (1<<i)) && !(modifier & (1<<i)))	// Do we have a downstroke on a modifier key?
-	{
+	// Do we have a downstroke on a modifier key?
+	if((m & (1<<i)) && !(modifier & (1<<i))) {
+	  // check for special events in modifier presses
 	  check_reset(m);
+
 	  // shift keys are used for mouse joystick emulation in emu mode
 	  if(((i != EMU_BTN1) && (i != EMU_BTN2)) || (emu_mode == EMU_NONE))
 	    if(modifier_keycode(i) != MISS)
@@ -625,10 +647,11 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 	      emu_state &= ~is_emu_key(pressed[i]);
 	    
 	      if(emu_mode == EMU_JOY0) 
-		user_io_joystick(0, emu_state);
+		user_io_joystick(joystick_renumber(0), emu_state);
 	      
 	      if(emu_mode == EMU_JOY1) 
-		user_io_joystick(1, emu_state);
+		user_io_joystick(joystick_renumber(1), emu_state);
+
 	    } else if(!(code & CAPS_LOCK_TOGGLE) &&
 		      !(code & NUM_LOCK_TOGGLE))
 	      send_keycode(0x80 | code);	
@@ -653,12 +676,15 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 	  if(!key_used_by_osd(code)) {
 	    if (is_emu_key(k[i])) {
 	      emu_state |= is_emu_key(k[i]);
-	    
+
+	      // joystick emulation is also affected by the presence of
+	      // usb joysticks
 	      if(emu_mode == EMU_JOY0) 
-		user_io_joystick(0, emu_state);
+		user_io_joystick(joystick_renumber(0), emu_state);
 	      
 	      if(emu_mode == EMU_JOY1) 
-		user_io_joystick(1, emu_state);
+		user_io_joystick(joystick_renumber(1), emu_state);
+
 	    } else if(!(code & CAPS_LOCK_TOGGLE)&&
 		      !(code & NUM_LOCK_TOGGLE)) 
 	      send_keycode(code);
