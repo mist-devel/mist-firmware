@@ -61,8 +61,18 @@ char tos_get_cdc_control_redirect(void) {
 }
 
 void tos_set_cdc_control_redirect(char mode) {
-  if((mode >= CDC_REDIRECT_NONE) && (mode <= CDC_REDIRECT_MIDI))
+  if((mode >= CDC_REDIRECT_NONE) && (mode <= CDC_REDIRECT_MIDI)) {
     config.cdc_control_redirect = mode;
+
+    // core is only informed about redirections of rs232/par/midi
+    if(mode < CDC_REDIRECT_RS232)
+      mode = 0;
+    else
+      mode -= CDC_REDIRECT_RS232 - 1;
+
+    tos_update_sysctrl((tos_system_ctrl() & ~0x0c000000) | 
+		       (((unsigned long)mode) << 26) );
+  }
 }
 
 void tos_set_video_adjust(char axis, char value) {
@@ -798,6 +808,8 @@ void tos_poll() {
 }
 
 void tos_update_sysctrl(unsigned long n) {
+  //  iprintf(">>>>>>>>>>>> set sys %x, eth is %s\n", n, (n&TOS_CONTROL_ETHERNET)?"on":"off");
+
   config.system_ctrl = n;
   mist_set_control(config.system_ctrl);
 }
@@ -989,6 +1001,9 @@ void tos_config_init(void) {
       memcpy(&config, sector_buffer, sizeof(tos_config_t));
     }
   }
+
+  // ethernet is auto detected later
+  config.system_ctrl &= ~TOS_CONTROL_ETHERNET;
 }
 
 // save configuration
