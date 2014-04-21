@@ -214,7 +214,8 @@ void user_io_eth_receive_tx_frame(uint8_t *d, uint16_t len) {
 void user_io_eth_send_rx_frame(uint8_t *s, uint16_t len) {
   EnableIO();
   SPI(UIO_ETH_FRM_OUT);
-  while(len--) SPI(*s++);
+  SPI_write(s, len);
+  SPI(0);     // one additional byte to allow fpga to store the previous one
   DisableIO();
 }
 

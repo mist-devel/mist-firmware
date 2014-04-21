@@ -158,6 +158,7 @@ void USART_Poll(void);
 #define SPI_BLOCK_READ
 RAMFUNC void SPI_block_read(char *addr);
 void SPI_block_write(char *addr);
+void SPI_write(char *addr, uint16_t len);
 
 #ifdef FPGA3
 // the MiST has the user inout on the arm controller

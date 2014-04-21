@@ -7,11 +7,12 @@
 typedef struct {
   ep_t ep[3];
   uint16_t phy_id;
-  uint32_t qNextPollTime;     // next poll time
+  uint32_t qNextIrqPollTime;     // next irq poll time
   uint8_t ep_int_idx;         // index of interrupt ep
   uint8_t int_poll_ms;        // poll interval in ms
   bool bPollEnable;
   bool linkDetected;
+  uint32_t qNextBulkPollTime;     // next bulk poll time
 } usb_asix_info_t;
 
 // interface to usb core
