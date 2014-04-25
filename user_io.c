@@ -276,10 +276,13 @@ static void kbd_fifo_enqueue(unsigned short code) {
 
 // send pending bytes if timer has run up
 static void kbd_fifo_poll() {
-  if(kbd_fifo_w == kbd_fifo_r)
+  // timer enabled and runnig?
+  if(kbd_timer && !CheckTimer(kbd_timer))
     return;
+ 
+  kbd_timer = 0;  // timer == 0 means timer is not running anymore
 
-  if(!CheckTimer(kbd_timer))
+  if(kbd_fifo_w == kbd_fifo_r)
     return;
 
   kbd_fifo_minimig_send(kbd_fifo[kbd_fifo_r]);
