@@ -248,6 +248,44 @@ static uint8_t joystick_renumber(uint8_t j) {
   return j;
 }
 
+// 16 byte fifo for amiga key codes to limit max key rate sent into the core
+#define KBD_FIFO_SIZE  16   // must be power of 2
+static unsigned short kbd_fifo[KBD_FIFO_SIZE];
+static unsigned char kbd_fifo_r=0, kbd_fifo_w=0;
+static long kbd_timer = 0;
+
+static void kbd_fifo_minimig_send(unsigned short code) {
+  EnableIO();
+  if(code & OSD) SPI(UIO_KBD_OSD);   // code for OSD
+  else           SPI(UIO_KEYBOARD);
+  SPI(code & 0xff);
+  DisableIO();
+
+  kbd_timer = GetTimer(10);  // next key after 10ms earliest
+}
+
+static void kbd_fifo_enqueue(unsigned short code) {
+  // if fifo full just drop the value. This should never happen
+  if(((kbd_fifo_w+1)&(KBD_FIFO_SIZE-1)) == kbd_fifo_r)
+    return;
+
+  // store in queue
+  kbd_fifo[kbd_fifo_w] = code;
+  kbd_fifo_w = (kbd_fifo_w + 1)&(KBD_FIFO_SIZE-1);
+}
+
+// send pending bytes if timer has run up
+static void kbd_fifo_poll() {
+  if(kbd_fifo_w == kbd_fifo_r)
+    return;
+
+  if(!CheckTimer(kbd_timer))
+    return;
+
+  kbd_fifo_minimig_send(kbd_fifo[kbd_fifo_r]);
+  kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
+}
+
 void user_io_poll() {
   if((core_type != CORE_TYPE_MINIMIG) &&
      (core_type != CORE_TYPE_PACE) &&
@@ -373,6 +411,10 @@ void user_io_poll() {
     }
   }
 
+  if(core_type == CORE_TYPE_MINIMIG) {
+    kbd_fifo_poll();
+  }
+
   if(core_type == CORE_TYPE_MIST) {
     // do some tos specific monitoring here
     tos_poll();
@@ -444,11 +486,11 @@ char user_io_user_button() {
 
 static void send_keycode(unsigned short code) {
   if(core_type == CORE_TYPE_MINIMIG) {
-    EnableIO();
-    if(code & OSD) SPI(UIO_KBD_OSD);   // code for OSD
-    else           SPI(UIO_KEYBOARD);
-    SPI(code & 0xff);
-    DisableIO();
+    // send immediately if possible
+    if(CheckTimer(kbd_timer) &&(kbd_fifo_w == kbd_fifo_r) )
+      kbd_fifo_minimig_send(code);
+    else
+      kbd_fifo_enqueue(code);
   }
 
   if(core_type == CORE_TYPE_MIST)

@@ -135,6 +135,8 @@ int main(void)
     if (!MMC_Init())
       FatalError(1);
     
+    // TODO: If MMC fails try to wait for USB storage
+
     spiclk = MCLK / ((AT91C_SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) / 1000000;
     iprintf("spiclk: %u MHz\r", spiclk);
 

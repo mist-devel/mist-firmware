@@ -4,14 +4,6 @@
 
 #include "hardware.h"
 
-// ------------ usb debugging -----------
-
-#if 1
-#define hidp_debugf(...) iprintf(__VA_ARGS__)
-#else
-#define hidp_debugf(...)
-#endif
-
 // ------------ generic debugging -----------
 
 #if 0
@@ -57,12 +49,33 @@
 #define bit8_debugf(...)
 #endif
 
+// ------------ usb debugging -----------
 
-#if 1
+#if 0
+#define hidp_debugf(...) iprintf(__VA_ARGS__)
+#else
+#define hidp_debugf(...)
+#endif
+
+#if 0
 // usb asix debug output in blue
 #define asix_debugf(a, ...) iprintf("\033[1;34mASIX: " a "\033[0m\n", ##__VA_ARGS__)
 #else
 #define asix_debugf(...)
+#endif
+
+#if 1
+// usb hid debug output in green
+#define hid_debugf(a, ...) iprintf("\033[1;32mHID: " a "\033[0m\n", ##__VA_ARGS__)
+#else
+#define hid_debugf(...)
+#endif
+
+#if 1
+// usb mass storage debug output in purple
+#define storage_debugf(a, ...) iprintf("\033[1;35mSTORAGE: " a "\033[0m\n", ##__VA_ARGS__)
+#else
+#define storage_debugf(...)
 #endif
 
 #endif // DEBUG_H

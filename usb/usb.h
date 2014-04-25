@@ -96,6 +96,7 @@ typedef struct {
 #include "hub.h"
 #include "hid.h"
 #include "asix.h"
+#include "storage.h"
 
 // entry used for list of connected devices
 typedef struct usb_device_entry {
@@ -110,6 +111,7 @@ typedef struct usb_device_entry {
     usb_hub_info_t hub_info;
     usb_hid_info_t hid_info;
     usb_asix_info_t asix_info;
+    usb_storage_info_t storage_info;
   };
 } usb_device_t;
 

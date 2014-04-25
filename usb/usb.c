@@ -342,6 +342,7 @@ static const usb_device_class_config_t *class_list[] = {
   &usb_hub_class,
   &usb_hid_class,
   &usb_asix_class,
+  &usb_storage_class,
   NULL
 };
 

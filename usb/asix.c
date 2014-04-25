@@ -264,24 +264,9 @@ static uint8_t asix_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len) {
   /* scan through all descriptors */
   p = &buf;
   while(len > 0) {
-    switch(p->conf_desc.bDescriptorType) {
-    case USB_DESCRIPTOR_CONFIGURATION:
-      iprintf("conf descriptor size %d\n", p->conf_desc.bLength);
-      // we already had this, so we simply ignore it
-      break;
-
-    case USB_DESCRIPTOR_INTERFACE:
-      iprintf("iface descriptor size %d\n", p->iface_desc.bLength);
-
-      /* check the interface descriptors for supported class */
-      break;
-
-    case USB_DESCRIPTOR_ENDPOINT:
-      iprintf("endpoint descriptor size %d\n", p->ep_desc.bLength);
-
+    if(p->conf_desc.bDescriptorType == USB_DESCRIPTOR_ENDPOINT) {
       if(epidx < 3) {
-	//	hexdump(p, p->conf_desc.bLength, 0);
-
+	
 	// Handle interrupt endpoints
 	if ((p->ep_desc.bmAttributes & 0x03) == 3 && 
 	    (p->ep_desc.bEndpointAddress & 0x80) == 0x80) {
@@ -314,19 +299,15 @@ static uint8_t asix_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len) {
 	info->ep[epidx].bmNakPower = USB_NAK_NOWAIT;
 	epidx++;
       }
-      break;
-
-    default:
-      iprintf("unsupported descriptor type %d size %d\n", p->raw[1], p->raw[0]);
     }
-
+    
     // advance to next descriptor
     len -= p->conf_desc.bLength;
     p = (union buf_u*)(p->raw + p->conf_desc.bLength);
   }
   
   if(len != 0) {
-    iprintf("URGS, underrun: %d\n", len);
+    asix_debugf("Config underrun: %d\n", len);
     return USB_ERROR_CONFIGURAION_SIZE_MISMATCH;
   }
 
@@ -385,20 +366,20 @@ static uint8_t usb_asix_init(usb_device_t *dev) {
   }
     
   // Set Configuration Value
-  iprintf("conf value = %d\n", buf.conf_desc.bConfigurationValue);
+  //  iprintf("conf value = %d\n", buf.conf_desc.bConfigurationValue);
   rcode = usb_set_conf(dev, buf.conf_desc.bConfigurationValue);
   
   uint8_t num_of_conf = buf.dev_desc.bNumConfigurations;
-  iprintf("number of configurations: %d\n", num_of_conf);
+  //  iprintf("number of configurations: %d\n", num_of_conf);
 
   for(i=0; i<num_of_conf; i++) {
     if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &buf.conf_desc)) 
       return rcode;
     
-    iprintf("conf descriptor %d has total size %d\n", i, buf.conf_desc.wTotalLength);
+    //    iprintf("conf descriptor %d has total size %d\n", i, buf.conf_desc.wTotalLength);
 
     // extract number of interfaces
-    iprintf("number of interfaces: %d\n", buf.conf_desc.bNumInterfaces);
+    //    iprintf("number of interfaces: %d\n", buf.conf_desc.bNumInterfaces);
     
     // parse directly if it already fitted completely into the buffer
     if((rcode = asix_parse_conf(dev, i, buf.conf_desc.wTotalLength)) != 0) {
@@ -499,10 +480,10 @@ static uint8_t usb_asix_init(usb_device_t *dev) {
     return rcode;
 
   rx_ctl = asix_read_rx_ctl(dev);
-  iprintf("ASIX: RX_CTL is 0x%04x after all initializations\n", rx_ctl);
+  asix_debugf("RX_CTL is 0x%04x after all initializations\n", rx_ctl);
 
   rx_ctl = asix_read_medium_status(dev);
-  iprintf("ASIX: Medium Status is 0x%04x after all initializations\n", rx_ctl);
+  asix_debugf("Medium Status is 0x%04x after all initializations\n", rx_ctl);
 
   info->bPollEnable = true;
 

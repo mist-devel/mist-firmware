@@ -8,7 +8,7 @@
 #include "debug.h"
 
 #if 0
-#define hidp_extreme_debugf(...) iprintf(__VA_ARGS__)
+#define hidp_extreme_debugf(...) hidp_debugf(__VA_ARGS__)
 #else
 #define hidp_extreme_debugf(...)
 #endif

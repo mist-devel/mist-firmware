@@ -4,13 +4,14 @@
 #include "max3421e.h"
 #include "timer.h"
 #include "hidparser.h"
+#include "debug.h"
 #include "../user_io.h"
 #include "../hardware.h"
 
 // joystick todo:
 // + renumber on unplug
 // + shift legacy joysticks up
-// - emulate extra joysticks (at printerport, ...)
+// + emulate extra joysticks (at printerport, ...)
 // - second fire button (no known system uses it, but OSD may have a use ...)
 
 static unsigned char kbd_led_state = 0;  // default: all leds off
@@ -22,21 +23,21 @@ uint8_t hid_get_joysticks(void) {
 
 //get HID report descriptor 
 static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t iface, uint16_t size)  {
-  iprintf("%s(%x, if=%d, size=%d)\n", __FUNCTION__, dev->bAddress, iface, size);
+  //  hid_debugf("%s(%x, if=%d, size=%d)", __FUNCTION__, dev->bAddress, iface, size);
 
   uint8_t buf[size];
   usb_hid_info_t *info = &(dev->hid_info);
   uint8_t rcode = usb_ctrl_req( dev, HID_REQ_HIDREPORT, USB_REQUEST_GET_DESCRIPTOR, 0x00, 
 			      HID_DESCRIPTOR_REPORT, iface, size, buf);
-  
+ 
   if(!rcode) {
-    iprintf("HID report descriptor:\n");
+    hid_debugf("HID report descriptor:");
     hexdump(buf, size, 0);
 
     // we got a report descriptor. Try to parse it
     if(parse_report_descriptor(buf, size)) {
       if(hid_conf[0].type == CONFIG_TYPE_JOYSTICK) {
-	iprintf("Detected USB joystick #%d\n", joysticks);
+	hid_debugf("Detected USB joystick #%d", joysticks);
 
 	info->iface_info[iface].device_type = HID_DEVICE_JOYSTICK;
 	info->iface_info[iface].conf = hid_conf[0];
@@ -49,14 +50,14 @@ static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t iface, uint16_t s
 }
 
 static uint8_t hid_set_idle(usb_device_t *dev, uint8_t iface, uint8_t reportID, uint8_t duration ) {
-  iprintf("%s(%x, if=%d id=%d, dur=%d)\n", __FUNCTION__, dev->bAddress, iface, reportID, duration);
+  //  hid_debugf("%s(%x, if=%d id=%d, dur=%d)", __FUNCTION__, dev->bAddress, iface, reportID, duration);
 
   return( usb_ctrl_req( dev, HID_REQ_HIDOUT, HID_REQUEST_SET_IDLE, reportID, 
 		       duration, iface, 0x0000, NULL));
 }
 
 static uint8_t hid_set_protocol(usb_device_t *dev, uint8_t iface, uint8_t protocol) {
-  iprintf("%s(%x, if=%d proto=%d)\n", __FUNCTION__, dev->bAddress, iface, protocol);
+  //  hid_debugf("%s(%x, if=%d proto=%d)", __FUNCTION__, dev->bAddress, iface, protocol);
 
   return( usb_ctrl_req( dev, HID_REQ_HIDOUT, HID_REQUEST_SET_PROTOCOL, protocol, 
 		       0x00, iface, 0x0000, NULL));
@@ -64,7 +65,7 @@ static uint8_t hid_set_protocol(usb_device_t *dev, uint8_t iface, uint8_t protoc
 
 static uint8_t hid_set_report(usb_device_t *dev, uint8_t iface, uint8_t report_type, uint8_t report_id, 
 			      uint16_t nbytes, uint8_t* dataptr ) {
-  //  iprintf("%s(%x, if=%d data=%x)\n", __FUNCTION__, dev->bAddress, iface, dataptr[0]);
+  //  hid_debugf("%s(%x, if=%d data=%x)", __FUNCTION__, dev->bAddress, iface, dataptr[0]);
 
   return( usb_ctrl_req(dev, HID_REQ_HIDOUT, HID_REQUEST_SET_REPORT, report_id, 
 		       report_type, iface, nbytes, dataptr));
@@ -94,13 +95,13 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
   while(len > 0) {
     switch(p->conf_desc.bDescriptorType) {
     case USB_DESCRIPTOR_CONFIGURATION:
-      iprintf("conf descriptor size %d\n", p->conf_desc.bLength);
+      // hid_debugf("conf descriptor size %d", p->conf_desc.bLength);
       // we already had this, so we simply ignore it
       break;
 
     case USB_DESCRIPTOR_INTERFACE:
       isGoodInterface = false;
-      iprintf("iface descriptor size %d\n", p->iface_desc.bLength);
+      // hid_debugf("iface descriptor size %d", p->iface_desc.bLength);
 
       /* check the interface descriptors for supported class */
 
@@ -118,27 +119,27 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	  info->iface_info[info->bNumIfaces].conf.type = CONFIG_TYPE_NONE;
 
 	  if(p->iface_desc.bInterfaceSubClass == HID_BOOT_INTF_SUBCLASS) {
-	    iprintf("Iface %d is Boot sub class\n", info->bNumIfaces);
+	    // hid_debugf("Iface %d is Boot sub class", info->bNumIfaces);
 	    info->iface_info[info->bNumIfaces].has_boot_mode = true;
 	  }
 	  
 	  switch(p->iface_desc.bInterfaceProtocol) {
 	  case HID_PROTOCOL_NONE:
-	    iprintf("HID protocol is NONE\n");
+	    hid_debugf("HID protocol is NONE");
 	    break;
 	    
 	  case HID_PROTOCOL_KEYBOARD:
-	    iprintf("HID protocol is KEYBOARD\n");
+	    hid_debugf("HID protocol is KEYBOARD");
 	    info->iface_info[info->bNumIfaces].device_type = HID_DEVICE_KEYBOARD;
 	    break;
 	    
 	  case HID_PROTOCOL_MOUSE:
-	    iprintf("HID protocol is MOUSE\n");
+	    hid_debugf("HID protocol is MOUSE");
 	    info->iface_info[info->bNumIfaces].device_type = HID_DEVICE_MOUSE;
 	    break;
 	    
 	  default:
-	    iprintf("HID protocol is %d\n", p->iface_desc.bInterfaceProtocol);
+	    hid_debugf("HID protocol is %d", p->iface_desc.bInterfaceProtocol);
 	    break;
 	  }
 	}
@@ -146,13 +147,13 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
       break;
 
     case USB_DESCRIPTOR_ENDPOINT:
-      iprintf("endpoint descriptor size %d\n", p->ep_desc.bLength);
+      //      hid_debugf("endpoint descriptor size %d", p->ep_desc.bLength);
 
       if(isGoodInterface) {
 
 	// only interrupt in endpoints are supported
 	if ((p->ep_desc.bmAttributes & 0x03) == 3 && (p->ep_desc.bEndpointAddress & 0x80) == 0x80) {
-	  iprintf("endpint %d, interval = %dms\n", 
+	  hid_debugf("endpoint %d, interval = %dms", 
 		  p->ep_desc.bEndpointAddress & 0x0F, p->ep_desc.bInterval);
 
 	  // Fill in the endpoint info structure
@@ -167,14 +168,14 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
       break;
 
     case HID_DESCRIPTOR_HID:
-      iprintf("hid descriptor size %d\n", p->ep_desc.bLength);
+      hid_debugf("hid descriptor size %d", p->ep_desc.bLength);
 
       if(isGoodInterface) {
 	// we need a report descriptor
 	if(p->hid_desc.bDescrType == HID_DESCRIPTOR_REPORT) {
 	  uint16_t len = p->hid_desc.wDescriptorLength[0] + 
 	    256 * p->hid_desc.wDescriptorLength[1];
-	  iprintf(" -> report descriptor size = %d\n", len);
+	  hid_debugf(" -> report descriptor size = %d", len);
 	  
 	  info->iface_info[info->bNumIfaces].report_desc_size = len;
 	}
@@ -182,7 +183,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
       break;
 
     default:
-      iprintf("unsupported descriptor type %d size %d\n", p->raw[1], p->raw[0]);
+      hid_debugf("unsupported descriptor type %d size %d", p->raw[1], p->raw[0]);
     }
 
     // advance to next descriptor
@@ -191,7 +192,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
   }
   
   if(len != 0) {
-    iprintf("URGS, underrun: %d\n", len);
+    hid_debugf("Config underrun: %d", len);
     return USB_ERROR_CONFIGURAION_SIZE_MISMATCH;
   }
 
@@ -199,9 +200,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 }
 
 static uint8_t usb_hid_init(usb_device_t *dev) {
-  iprintf("%s()\n", __FUNCTION__);
-
-  iprintf("init with address %x\n", dev->bAddress);
+  hid_debugf("%s(%x)", __FUNCTION__, dev->bAddress);
 
   uint8_t rcode;
   uint8_t i;
@@ -226,35 +225,29 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
   }
 
   // try to re-read full device descriptor from newly assigned address
-  if(rcode = usb_get_dev_descr( dev, sizeof(usb_device_descriptor_t), &buf.dev_desc )) {
-    puts("failed to get device descriptor");
+  if(rcode = usb_get_dev_descr( dev, sizeof(usb_device_descriptor_t), &buf.dev_desc ))
     return rcode;
-  }
 
   uint8_t num_of_conf = buf.dev_desc.bNumConfigurations;
-  iprintf("number of configurations: %d\n", num_of_conf);
+  //  hid_debugf("number of configurations: %d", num_of_conf);
 
   for(i=0; i<num_of_conf; i++) {
     if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &buf.conf_desc)) 
       return rcode;
     
-    iprintf("conf descriptor %d has total size %d\n", i, buf.conf_desc.wTotalLength);
+    //    hid_debugf("conf descriptor %d has total size %d", i, buf.conf_desc.wTotalLength);
 
-    // extract number of interfaces
-    iprintf("number of interfaces: %d\n", buf.conf_desc.bNumInterfaces);
-    
     // parse directly if it already fitted completely into the buffer
     usb_hid_parse_conf(dev, i, buf.conf_desc.wTotalLength);
   }
 
   // check if we found valid hid interfaces
   if(!info->bNumIfaces) {
-    puts("no hid interfaces found");
+    hid_debugf("no hid interfaces found");
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
   }
 
   // Set Configuration Value
-  iprintf("conf value = %d\n", buf.conf_desc.bConfigurationValue);
   rcode = usb_set_conf(dev, buf.conf_desc.bConfigurationValue);
 
   // process all supported interfaces
@@ -297,7 +290,7 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
   for(i=0;i<info->bNumIfaces;i++) {
     if(info->iface_info[i].device_type == HID_DEVICE_JOYSTICK) {
       uint8_t c_jindex = info->iface_info[i].jindex;
-      iprintf("releasing joystick #%d, renumbering\n", c_jindex);
+      hid_debugf("releasing joystick #%d, renumbering", c_jindex);
 
       // walk through all devices and search for sticks with a higher id
 
@@ -311,7 +304,7 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
 	  for(k=0;k<MAX_IFACES;k++) {
 	    if(dev[j].hid_info.iface_info[k].device_type == HID_DEVICE_JOYSTICK) {
 	      if(dev[j].hid_info.iface_info[k].jindex > c_jindex) {
-		iprintf("decreasing jindex of dev #%d from %d to %d\n", j, 
+		hid_debugf("decreasing jindex of dev #%d from %d to %d", j, 
 			dev[j].hid_info.iface_info[k].jindex, dev[j].hid_info.iface_info[k].jindex-1);
 		dev[j].hid_info.iface_info[k].jindex--;
 	      }
@@ -336,7 +329,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
   if (info->qNextPollTime <= timer_get_msec()) {
     int8_t i;
     for(i=0;i<info->bNumIfaces;i++) {
-      //      iprintf("poll %d...\n", info->ep[i].epAddr);
+      //      hid_debugf("poll %d...", info->ep[i].epAddr);
 
       uint16_t read = info->ep[i].maxPktSize;
       uint8_t buf[info->ep[i].maxPktSize];
@@ -345,7 +338,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 
       if (rcode) {
 	if (rcode != hrNAK)
-	  iprintf("%s() error: %d\n", __FUNCTION__, rcode);
+	  hid_debugf("%s() error: %d", __FUNCTION__, rcode);
       } else {
 
 	// successfully received some bytes
@@ -372,7 +365,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	    uint8_t jmap = 0;
 	    uint8_t ax;
 
-	    //	  iprintf("Joystick data:\n");
+	    //	  hid_debugf("Joystick data:");
 	    //	  hexdump(buf, read, 0);
 
 	    // currently only byte sized axes are allowed
