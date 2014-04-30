@@ -144,11 +144,11 @@ void HandleUI(void)
     static hardfileTYPE t_hardfile[2]; // temporary copy of former hardfile configuration
     static unsigned char ctrl = false;
     static unsigned char lalt = false;
-	char enable;
-	static long helptext_timer;
-	static const char *helptext;
-	static char helpstate=0;
-
+    char enable;
+    static long helptext_timer;
+    static const char *helptext;
+    static char helpstate=0;
+    
     // get user control codes
     c = OsdGetCtrl();
 
@@ -586,34 +586,39 @@ void HandleUI(void)
 
     case MENU_MIST_VIDEO1 :
 
-	menumask=0x3f;
+	menumask=0x7f;
 	OsdSetTitle("A/V", 0);
 
-	OsdWrite(0, "", 0, 0);
-
-	strcpy(s, " Screen:      ");
+	strcpy(s, " Screen:        ");
 	if(tos_system_ctrl() & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
-	else                                          strcat(s, "Mono");
+	else                                            strcat(s, "Mono");
 	OsdWrite(0, s, menusub == 0,0);
 
-	strcpy(s, " Blitter:     ");
-	strcat(s, (tos_system_ctrl() & TOS_CONTROL_BLITTER)||(tos_system_ctrl() & (TOS_CONTROL_STE | TOS_CONTROL_MSTE))?"on":"off");
-	OsdWrite(1, s, menusub == 1, (tos_system_ctrl() & (TOS_CONTROL_STE | TOS_CONTROL_MSTE))?1:0);
+	// Viking card can only be enabled with max 8MB RAM
+	enable = (tos_system_ctrl()&0xe) <= TOS_MEMCONFIG_8M;
+	strcpy(s, " Viking/SM194:  ");
+	strcat(s, ((tos_system_ctrl() & TOS_CONTROL_VIKING) && enable)?"on":"off");
+	OsdWrite(1, s, menusub == 1, enable?0:1);
+	
+	// Blitter is always present in >= STE
+	enable = (tos_system_ctrl() & (TOS_CONTROL_STE | TOS_CONTROL_MSTE))?1:0;
+	strcpy(s, " Blitter:       ");
+	strcat(s, ((tos_system_ctrl() & TOS_CONTROL_BLITTER) || enable)?"on":"off");
+	OsdWrite(2, s, menusub == 2, enable);
 
-	strcpy(s, " Chipset:     ");
+	strcpy(s, " Chipset:       ");
 	// extract  TOS_CONTROL_STE and  TOS_CONTROL_MSTE bits
 	strcat(s, atari_chipset[(tos_system_ctrl()>>23)&3]);
-	OsdWrite(2, s, menusub == 2, 0);
+	OsdWrite(3, s, menusub == 3, 0);
 
-        OsdWrite(3, " Video adjust              \x16", menusub == 3, 0);
-	OsdWrite(4, "", 0, 0);
+        OsdWrite(4, " Video adjust              \x16", menusub == 4, 0);
 
-	strcpy(s, " Audio:       ");
+	strcpy(s, " YM-Audio:      ");
 	strcat(s, stereo[(tos_system_ctrl() & TOS_CONTROL_STEREO)?1:0]);
-	OsdWrite(5, s, menusub == 4,0);
+	OsdWrite(5, s, menusub == 5,0);
 	OsdWrite(6, "", 0, 0);
 
-	OsdWrite(7, STD_EXIT, menusub == 5,0);
+	OsdWrite(7, STD_EXIT, menusub == 6,0);
 	
 	parentstate = menustate;
         menustate = MENU_MIST_VIDEO2;
@@ -633,13 +638,19 @@ void HandleUI(void)
 	  break;
 	  
 	case 1:
+	  // viking/sm194
+	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIKING);
+	  menustate = MENU_MIST_VIDEO1;
+	  break;
+
+	case 2:
 	  if(!(tos_system_ctrl() & TOS_CONTROL_STE)) {
 	    tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_BLITTER );
 	    menustate = MENU_MIST_VIDEO1;
 	  }
 	  break;
 
-	case 2: {
+	case 3: {
 	  unsigned long chipset = (tos_system_ctrl() >> 23)+1;
 	  if(chipset == 4) chipset = 0;
 	  tos_update_sysctrl(tos_system_ctrl() & ~(TOS_CONTROL_STE | TOS_CONTROL_MSTE) | 
@@ -647,17 +658,17 @@ void HandleUI(void)
 	  menustate = MENU_MIST_VIDEO1;
 	} break;
 	  
-	case 3:
+	case 4:
 	  menustate = MENU_MIST_VIDEO_ADJUST1;
 	  menusub = 0;
 	  break;
 
-	case 4:
+	case 5:
 	  tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_STEREO);
 	  menustate = MENU_MIST_VIDEO1;
 	  break;
 	  
-	case 5:
+	case 6:
 	  menustate = MENU_MIST_MAIN1;
 	  menusub = 4;
 	  break;
@@ -700,7 +711,7 @@ void HandleUI(void)
     case MENU_MIST_VIDEO_ADJUST2 :
       if (menu) {
 	menustate = MENU_MIST_VIDEO1;
-	menusub = 3;
+	menusub = 4;
       }
 
       // use left/right to adjust video position
@@ -734,7 +745,7 @@ void HandleUI(void)
 	  
 	case 4:
 	  menustate = MENU_MIST_VIDEO1;
-	  menusub = 3;
+	  menusub = 4;
 	  break;
 	}
       }
@@ -1613,102 +1624,6 @@ void HandleUI(void)
             menusub = 0;
         }
         break;
-
-        /******************************************************************/
-        /* drive settings menu                                            */
-        /******************************************************************/
-/*
-    case MENU_SETTINGS_DRIVES1 :
-		menumask=0;
- 
-		OsdSetTitle("Drives",OSD_ARROW_LEFT|OSD_ARROW_RIGHT);
-
-        OsdWrite(0, "", 0,0);
-        siprintf(s, "        drives : %d", config.floppy.drives + 1,0);
-        OsdWrite(1, s, menusub == 0,0);
-        strcpy(s, "         speed : ");
-        strcat(s, config.floppy.speed ? "fast " : "normal");
-        OsdWrite(2, s, menusub == 1,0);
-        OsdWrite(3, "", 0,0);
-        strcpy(s, "      A600 IDE : ");
-        strcat(s, config.enable_ide ? "on " : "off");
-        OsdWrite(4, s, menusub == 2,0);
-        siprintf(s, "     hardfiles : %d", (config.hardfile[0].present & config.hardfile[0].enabled) + (config.hardfile[1].present & config.hardfile[1].enabled));
-        OsdWrite(5,s, menusub == 3,0);
-        OsdWrite(6, "", 0,0);
-        OsdWrite(7, STD_EXIT, menusub == 4,0);
-
-        menustate = MENU_SETTINGS_DRIVES2;
-        break;
-
-    case MENU_SETTINGS_DRIVES2 :
-
-        if (down && menusub < 4)
-        {
-            menusub++;
-            menustate = MENU_SETTINGS_DRIVES1;
-        }
-
-        if (up && menusub > 0)
-        {
-            menusub--;
-            menustate = MENU_SETTINGS_DRIVES1;
-        }
-
-        if (select)
-        {
-            if (menusub == 0)
-            {
-                config.floppy.drives++;
-                config.floppy.drives &= 0x03;
-                menustate = MENU_SETTINGS_DRIVES1;
-                ConfigFloppy(config.floppy.drives, config.floppy.speed);
-            }
-            else if (menusub == 1)
-            {
-                config.floppy.speed++;
-                config.floppy.speed &= 0x01;
-                menustate = MENU_SETTINGS_DRIVES1;
-                ConfigFloppy(config.floppy.drives, config.floppy.speed);
-            }
-            else if (menusub == 2)
-            {
-                config.enable_ide ^= 0x01;
-                menustate = MENU_SETTINGS_DRIVES1;
-                ConfigIDE(config.enable_ide, config.hardfile[0].present && config.hardfile[0].enabled, config.hardfile[1].present && config.hardfile[1].enabled);
-            }
-            else if (menusub == 3)
-            {
-                t_hardfile[0] = config.hardfile[0];
-                t_hardfile[1] = config.hardfile[1];
-                menustate = MENU_SETTINGS_HARDFILE1;
-                menusub = 4;
-            }
-            else if (menusub == 4)
-            {
-                menustate = MENU_SETTINGS1;
-                menusub = 2;
-            }
-        }
-
-        if (menu)
-        {
-            menustate = MENU_SETTINGS1;
-            menusub = 2;
-        }
-        else if (right)
-        {
-            menustate = MENU_SETTINGS_VIDEO1;
-            menusub = 0;
-        }
-        else if (left)
-        {
-            menustate = MENU_SETTINGS_MEMORY1;
-            menusub = 0;
-        }
-        break;
-
-*/
 
         /******************************************************************/
         /* hardfile settings menu                                         */

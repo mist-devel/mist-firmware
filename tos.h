@@ -76,7 +76,9 @@
 // (NONE=0, RS232=1, PARALLEL=2, MIDI=3)
 #define TOS_CONTROL_REDIR0        0x04000000
 #define TOS_CONTROL_REDIR1        0x08000000
-                                                       
+
+#define TOS_CONTROL_VIKING        0x10000000   // Viking graphics card
+
 unsigned long tos_system_ctrl(void);
 
 void tos_upload(char *);

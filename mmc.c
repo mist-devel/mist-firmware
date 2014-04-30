@@ -381,7 +381,6 @@ unsigned long MMC_GetCapacity()
     }
 }
 
-
 // read multiple 512-byte blocks
 unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, unsigned long nBlockCount)
 {
@@ -453,7 +452,6 @@ unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, un
     DisableCard();
     return(1);
 }
-
 
 // write 512-byte block
 unsigned char MMC_Write(unsigned long lba, unsigned char *pWriteBuffer)

@@ -13,6 +13,7 @@
 #include "max3421e.h"
 #include "hardware.h"
 #include "tos.h"
+#include "fat.h"
 
 uint8_t storage_devices = 0;
 
@@ -286,6 +287,31 @@ static uint8_t test_unit_ready(usb_device_t *dev, uint8_t lun) {
   return transaction(dev, &cbw, 0, NULL, 0);
 }
 
+static uint8_t read(usb_device_t *dev, uint8_t lun, 
+		    uint32_t addr, uint16_t bsize, char *buf) {
+  command_block_wrapper_t cbw; 
+  uint8_t i;
+  
+  cbw.dCBWSignature             = STORAGE_CBW_SIGNATURE;
+  cbw.dCBWTag                   = 0xdeadbeef;
+  cbw.dCBWDataTransferLength    = bsize;
+  cbw.bmCBWFlags                = STORAGE_CMD_DIR_IN;
+  cbw.bmCBWLUN                  = lun;
+  cbw.bmCBWCBLength             = 10;
+
+  for (i=0; i<16; i++)
+    cbw.CBWCB[i] = 0;
+
+  cbw.CBWCB[0] = SCSI_CMD_READ_10;
+  cbw.CBWCB[8] = 1;
+  cbw.CBWCB[5] = (addr & 0xff);
+  cbw.CBWCB[4] = ((addr >> 8) & 0xff);
+  cbw.CBWCB[3] = ((addr >> 16) & 0xff);
+  cbw.CBWCB[2] = ((addr >> 24) & 0xff);
+  
+  return transaction(dev, &cbw, bsize, buf, 0);
+}
+
 static uint8_t usb_storage_init(usb_device_t *dev) {
   usb_storage_info_t *info = &(dev->storage_info);
   uint8_t i, rcode = 0;
@@ -300,6 +326,7 @@ static uint8_t usb_storage_init(usb_device_t *dev) {
     usb_configuration_descriptor_t conf_desc;
     inquiry_response_t inquiry_rsp;
     read_capacity_response_t read_cap_rsp;
+    uint8_t data[12];
   } buf;
 
   // read full device descriptor 
@@ -370,6 +397,12 @@ static uint8_t usb_storage_init(usb_device_t *dev) {
 
   storage_devices++;
   storage_debugf("supported device, total USB storage devices now %d", storage_devices);
+
+  rcode = read(dev, 0, 0, 512, sector_buffer);
+  if(rcode) {
+    storage_debugf("Read sector 0 failed");
+    return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
+  }
 
   return 0;
 }
