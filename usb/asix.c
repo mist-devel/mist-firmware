@@ -339,7 +339,6 @@ static uint8_t usb_asix_init(usb_device_t *dev) {
   union {
     usb_device_descriptor_t dev_desc;
     usb_configuration_descriptor_t conf_desc;
-    uint8_t eaddr[ETH_ALEN];
   } buf;
 
   // read full device descriptor 
@@ -431,17 +430,17 @@ static uint8_t usb_asix_init(usb_device_t *dev) {
 
   /* Get the MAC address */
   if ((rcode = asix_read_cmd(dev, AX_CMD_READ_NODE_ID,
-			   0, 0, ETH_ALEN, &buf.eaddr)) != 0) {
+			   0, 0, ETH_ALEN, info->mac)) != 0) {
     asix_debugf("Failed to read MAC address: %d", rcode);
     return rcode;
   }
 
   iprintf("ASIX: MAC %02x:%02x:%02x:%02x:%02x:%02x\n", 
-	  buf.eaddr[0], buf.eaddr[1], buf.eaddr[2], 
-	  buf.eaddr[3], buf.eaddr[4], buf.eaddr[5]); 
+	  info->mac[0], info->mac[1], info->mac[2], 
+	  info->mac[3], info->mac[4], info->mac[5]); 
 
   // tell fpga about the mac address
-  user_io_eth_send_mac(buf.eaddr);
+  user_io_eth_send_mac(info->mac);
 
   info->phy_id = asix_get_phy_addr(dev);
 
@@ -573,7 +572,7 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
 	uint16_t len = status & 0xffff;
 	
 	if(len <= MAX_FRAMELEN) {
-	  iprintf("TX %d\n", len);
+	  //	  iprintf("TX %d\n", len);
 	  
 	  // read frame into local tx buffer, leave 4 bytes space for
 	  // axis packet header marker
@@ -634,19 +633,43 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
 	  asix_debugf("dropping malformed packet (len %d:%d)\n", len0, len1);
 	  rx_cnt = 0;
 	} else if(rx_cnt-4 >= len0) {
+	  bool ok2fwd = 0;
+
 	  // enough room to store the entire packet
 
 	  // process packet
-	  asix_debugf("RX %d", len0);
+	  //	  iprintf("RX %d\n", len0);
 	  //	  hexdump(rx_buf+4, len0, 0);
-
-	  // todo: check if rx frame has been read
+	  //	  hexdump(rx_buf+4, 32, 0);
 
 	  uint16_t frame_size = len0;
 	  if(frame_size < 64) frame_size = 64;
+
+	  // do some sanity checks on frame
+	  //	  iprintf("RX mac = %02x:%02x:%02x:%02x:%02x:%02x\n",
+	  //		  rx_buf[4]&0xff,rx_buf[5]&0xff,rx_buf[6]&0xff,
+	  //		  rx_buf[7]&0xff,rx_buf[8]&0xff,rx_buf[9]&0xff);
+
+	  /* check for own or braodcast mac */
+	  if(!memcmp(rx_buf+4, info->mac, ETH_ALEN)) {
+	    //	    iprintf("MY MAC!!\n");
+	    ok2fwd = 1;  // forward packet into core
+	  }
 	  
+	  if((rx_buf[4] == 0xff)&&(rx_buf[5] == 0xff)&&(rx_buf[6] == 0xff)&&
+	     (rx_buf[7] == 0xff)&&(rx_buf[8] == 0xff)&&(rx_buf[9] == 0xff)) {
+	    //	    iprintf("BROADCAST MAC %x/%x\n", rx_buf[16], rx_buf[17]);
+
+	    // accept broadcasts only for arp
+	    if((rx_buf[16] == 0x08) && (rx_buf[17] == 0x06))
+	      ok2fwd = 1;  // forward packet into core
+	  }
+
 	  // forward frame to FPGA
-	  user_io_eth_send_rx_frame(rx_buf+4, frame_size);
+	  if(ok2fwd)
+	    user_io_eth_send_rx_frame(rx_buf+4, frame_size);
+	  else
+	    iprintf("ASIX: frame dropped\n");
 
 	  if((rx_cnt-4 > len0) && (rx_cnt < MAX_FRAMELEN+64)) {
 	    // packets are 16 bit padded
@@ -663,8 +686,8 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
       }
     }    
 
-    // bulk ep polling at fixed 100Hz
-    info->qNextBulkPollTime = timer_get_msec() + 10;
+    // bulk ep polling at fixed 500Hz
+    info->qNextBulkPollTime = timer_get_msec() + 2;
   }
 
   return rcode;

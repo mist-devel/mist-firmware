@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <inttypes.h>
+#include "asix_const.h"
 
 typedef struct {
   ep_t ep[3];
@@ -12,6 +13,7 @@ typedef struct {
   uint8_t int_poll_ms;        // poll interval in ms
   bool bPollEnable;
   bool linkDetected;
+  uint8_t mac[ETH_ALEN];
   uint32_t qNextBulkPollTime;     // next bulk poll time
 } usb_asix_info_t;
 
