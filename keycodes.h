@@ -77,7 +77,7 @@ const unsigned short usb2ami[] = {
   0x0c,  // 2e: =
   0x1a,  // 2f: [
   0x1b,  // 30: ]
-  MISS,  // 31: backslash
+  0x0d,  // 31: backslash
   0x2b,  // 32: Europe 1
   0x29,  // 33: ; 
   0x2a,  // 34: '
