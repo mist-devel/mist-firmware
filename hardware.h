@@ -157,6 +157,7 @@ void USART_Poll(void);
 
 #define SPI_BLOCK_READ
 RAMFUNC void SPI_block_read(char *addr);
+RAMFUNC void SPI_read(char *addr, uint16_t len);
 void SPI_block_write(char *addr);
 void SPI_write(char *addr, uint16_t len);
 

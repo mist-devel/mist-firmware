@@ -25,24 +25,27 @@ uint8_t *max3421e_write(uint8_t reg, uint8_t n, uint8_t* data) {
 
   spi_start(0);
   spi_xmit(reg | MAX3421E_WRITE);
-  while(n--) spi_xmit(*data++);
+
+  SPI_write(data, n);
   spi_end();
 
-  return data;
+  return data+n;
 }
 
 // discard data if NULL ptr was provided
 uint8_t *max3421e_read(uint8_t reg, uint8_t n, uint8_t* data) {
   spi_start(0);
   spi_xmit(reg);
-  if(data)
-    while(n--) *data++ = spi_xmit(0);
+
+  if(data) 
+    SPI_read(data, n);
   else
+    //    SPI_Write(0, n);  // spi write sends something, but we don't care
     while(n--) spi_xmit(0);
 
   spi_end();
 
-  return data;
+  return data+n;
 }
 
 static uint8_t vbusState = MAX3421E_STATE_SE0;

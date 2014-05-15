@@ -2102,7 +2102,8 @@ void HandleUI(void)
     case MENU_FIRMWARE1 :
         helptext=helptexts[HELPTEXT_NONE];
         parentstate=menustate;
-	menumask=0x07;
+
+	menumask = fat_uses_mmc()?0x07:0x03;
 
         OsdSetTitle("FW & Core",0);
         OsdWrite(0, "", 0, 0);
@@ -2114,14 +2115,20 @@ void HandleUI(void)
 	  OsdWrite(2, s, 0, 0);
 	} else
 	  OsdWrite(2, "", 0, 0);
-	OsdWrite(3, "           Update", menusub == 0, 0);
+
+	// don't allow update when running from USB
+	if(fat_uses_mmc()) {
+	  i=1;
+	  OsdWrite(3, "           Update", menusub == 0, 0);
+	} else {
+	  i=0;
+	  OsdWrite(3, "           Update", 0, 1);
+	}
 
 	OsdWrite(4, "", 0, 0);
-
-	OsdWrite(5, "      Change FPGA core", menusub == 1, 0);
+	OsdWrite(5, "      Change FPGA core", menusub == i, 0);
 	OsdWrite(6, "", 0, 0);
-
-        OsdWrite(7, STD_EXIT, menusub == 2,0);
+        OsdWrite(7, STD_EXIT, menusub == i+1,0);
 	
         menustate = MENU_FIRMWARE2;
         break;
@@ -2137,7 +2144,7 @@ void HandleUI(void)
 	}
       }
       else if (select) {
-	if (menusub == 0) {
+	if (fat_uses_mmc() && (menusub == 0)) {
 	  if (CheckFirmware(&file, "FIRMWAREUPG"))
 	    menustate = MENU_FIRMWARE_UPDATE1;
 	  else
@@ -2145,10 +2152,10 @@ void HandleUI(void)
 	  menusub = 1;
 	  OsdClear();
 	}
-	else if (menusub == 1) {
+	else if (menusub == fat_uses_mmc()?1:0) {
 	  SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1);
 	}
-	else if (menusub == 2) {
+	else if (menusub == fat_uses_mmc()?2:1) {
 	  if(user_io_core_type() == CORE_TYPE_MINIMIG) {
 	    menusub = 1;
 	    menustate = MENU_MISC1;

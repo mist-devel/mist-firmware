@@ -111,6 +111,7 @@ int main(void)
     unsigned char rc;
     unsigned char key;
     unsigned short spiclk;
+    uint8_t mmc_ok = 0;
 
 #ifdef __GNUC__
     __init_hardware();
@@ -132,17 +133,30 @@ int main(void)
 
     SPI_Init();
 
-    if (!MMC_Init())
-      FatalError(1);
-    
+    if(MMC_Init()) mmc_ok = 1;
+    else           SPI_fast();
+
     // TODO: If MMC fails try to wait for USB storage
 
     spiclk = MCLK / ((AT91C_SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) / 1000000;
     iprintf("spiclk: %u MHz\r", spiclk);
 
-#ifdef USB_SEL
     usb_init();
-#endif
+
+    // mmc init failed, try to wait for usb
+    if(!mmc_ok) {
+      uint32_t to = GetTimer(2000);
+
+      // poll usb 2 seconds or until a mass storage device becomes ready
+      while(!storage_devices && !CheckTimer(to)) 
+	usb_poll();
+
+      // no usb storage device after 2 seconds ...
+      if(!storage_devices)
+        FatalError(1);	
+
+      fat_switch_to_usb();  // redirect file io to usb
+    }
 
     if (!FindDrive())
         FatalError(2);
@@ -165,13 +179,11 @@ int main(void)
 
       user_io_poll();
 
-#ifdef USB_SEL
       usb_poll();
-#endif
 
       // MIST (atari) core supports the same UI as Minimig
       if(user_io_core_type() == CORE_TYPE_MIST) {
-	if(!MMC_CheckCard()) 
+	if(!fat_medium_present()) 
 	  tos_eject_all();
 
 	HandleUI();
@@ -179,7 +191,7 @@ int main(void)
 
       // call original minimig handlers if minimig core is found
       if(user_io_core_type() == CORE_TYPE_MINIMIG) {
-	if(!MMC_CheckCard()) 
+	if(!fat_medium_present()) 
 	  EjectAllFloppies();
 
 	HandleFpga();

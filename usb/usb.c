@@ -147,14 +147,11 @@ uint8_t usb_InTransfer(ep_t *pep, uint16_t nak_limit,
     
     pktsize = max3421e_read_u08( MAX3421E_RCVBC ); // number of received bytes
         
-    //XXX    assert(pktsize <= nbytes);
-   
     int16_t mem_left = (int16_t)nbytes - *((int16_t*)nbytesptr);
 
     if (mem_left < 0)
       mem_left = 0;
 
-    //    iprintf("rx %d of %d\n", pktsize, mem_left);
     data = max3421e_read(MAX3421E_RCVFIFO, 
 		 ((pktsize > mem_left) ? mem_left : pktsize), data );
     

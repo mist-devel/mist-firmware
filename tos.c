@@ -238,7 +238,7 @@ static void handle_acsi(unsigned char *buffer) {
 
     case 0x12: // inquiry
       tos_debugf("ACSI: Inquiry %11s", hdd_image[target].name);
-      memset(dma_buffer, 0, 512);
+      bzero(dma_buffer, 512);
       dma_buffer[2] = 1;                                   // ANSI version
       dma_buffer[4] = length-8;                            // len
       memcpy(dma_buffer+8,  "MIST    ", 8);                // Vendor
@@ -250,7 +250,7 @@ static void handle_acsi(unsigned char *buffer) {
     case 0x1a: // mode sense
       { unsigned int blocks = hdd_image[target].size / 512;
 	tos_debugf("ACSI: mode sense, blocks = %u", blocks);
-	memset(dma_buffer, 0, 512);
+	bzero(dma_buffer, 512);
 	dma_buffer[3] = 8;            // size of extent descriptor list
 	dma_buffer[5] = blocks >> 16;
 	dma_buffer[6] = blocks >> 8;
@@ -697,7 +697,7 @@ void tos_upload(char *name) {
 	  hexdump(b2, 512, 0);
 
 	  // re-read to check whether read or write failed
-	  memset(buffer, 0, 512);
+	  bzero(buffer, 512);
 	  mist_memory_set_address(tos_base + i*512);
 	  mist_memory_read(buffer, 256);
 
@@ -721,15 +721,19 @@ void tos_upload(char *name) {
       }
       iprintf("Verify: %s\n", ok?"ok":"failed");
     }
-
 #endif
     
     time = GetTimer(0) - time;
     tos_debugf("TOS.IMG uploaded in %lu ms (%d kB/s / %d kBit/s)", 
 	    time >> 20, file.size/(time >> 20), 8*file.size/(time >> 20));
     
-  } else
+  } else {
     tos_debugf("Unable to find tos.img");
+    tos_write("Unable to find tos.img");
+
+    DISKLED_OFF;
+    return;
+  }
   
   DISKLED_OFF;
 

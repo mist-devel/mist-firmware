@@ -122,14 +122,8 @@ unsigned char MMC_Init(void)
                             DisableCard();
 
                             // set appropriate SPI speed
-#ifdef ARM_FW
-                            if (GetSPIMode() == SPIMODE_FAST)
-                                AT91C_SPI_CSR[0] = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SDHC card)
-                            else
-                                AT91C_SPI_CSR[0] = AT91C_SPI_CPOL | (6 << 8); // 8 MHz SPI clock (no SPI mod)
-#else
                             SPI_fast();
-#endif
+
                             return(CardType);
                         }
                     }

@@ -43,15 +43,21 @@ JB:
 #include "mmc.h"
 #include "fat.h"
 #include "swap.h"
+#include "usb.h"
 
 int tolower(int c);
+
+#define MAX_FS  2
+
+// 
+typedef unsigned char (*rw_func_t)(unsigned long, unsigned char *);
 
 unsigned short directory_cluster;       // first cluster of directory (0 if root)
 unsigned short entries_per_cluster;     // number of directory entries per cluster
 
 // internal global variables
 unsigned char fattype;              	// volume format 
-unsigned char fat32 = 0;                // volume format is FAT32
+unsigned char fat32;                  // volume format is FAT32
 unsigned long boot_sector;              // partition boot sector
 unsigned long fat_start;                // start LBA of first FAT table
 unsigned long data_start;               // start LBA of data field
@@ -64,10 +70,10 @@ unsigned long cluster_mask;             // binary mask of cluster number
 unsigned short dir_entries;             // number of entry's in directory table
 unsigned long fat_size;                 // size of fat
 
-unsigned char sector_buffer[1024];       // sector buffer - room for two consecutive sectors...
-
 struct PartitionEntry partitions[4];	// lbastart and sectors will be byteswapped as necessary
 int partitioncount;
+
+unsigned char sector_buffer[1024];       // sector buffer - room for two consecutive sectors...
 
 FATBUFFER fat_buffer;                   // buffer for caching fat entries
 unsigned long buffered_fat_index;       // index of buffered FAT sector
@@ -89,241 +95,232 @@ unsigned char t_sort_table[MAXDIRENTRIES];
 extern unsigned long GetTimer(unsigned long);
 extern void ErrorMessage(const char *message, unsigned char code);
 
-// 
-typedef unsigned char (*rw_func_t)(unsigned long, unsigned char *);
-
 // current read/write functions
 rw_func_t lread = MMC_Read;
 rw_func_t lwrite = MMC_Write;
 
-unsigned long SwapEndianL(unsigned long l)
-{
-	unsigned char c[4];
-	c[0] = (unsigned char)(l & 0xff);
-	c[1] = (unsigned char)((l >> 8) & 0xff);
-	c[2] = (unsigned char)((l >> 16) & 0xff);
-	c[3] = (unsigned char)((l >> 24) & 0xff);
-	return((c[0]<<24)+(c[1]<<16)+(c[2]<<8)+c[3]);
+int8_t fat_uses_mmc(void) {
+  return(lread == MMC_Read);
 }
 
-void SwapPartitionBytes(int i)
-{
-	// We don't bother to byteswap the CHS geometry fields since we don't use them.
-	partitions[i].startlba=SwapEndianL(partitions[i].startlba);
-	partitions[i].sectors=SwapEndianL(partitions[i].sectors);
+int8_t fat_medium_present() {
+  if(lread == MMC_Read) 
+    return MMC_CheckCard();
+  
+  return(storage_devices > 0);
 }
 
-extern char BootPrint(const char *s);
-void bprintfl(const char *fmt,unsigned long l)
-{
-	char s[64];
-	siprintf(s,fmt,l);
-	BootPrint(s);
+void fat_switch_to_usb(void) {
+  lread = usb_storage_read;
+  lwrite = usb_storage_write; 
+}
+
+unsigned long SwapEndianL(unsigned long l) {
+  unsigned char c[4];
+  c[0] = (unsigned char)(l & 0xff);
+  c[1] = (unsigned char)((l >> 8) & 0xff);
+  c[2] = (unsigned char)((l >> 16) & 0xff);
+  c[3] = (unsigned char)((l >> 24) & 0xff);
+  return((c[0]<<24)+(c[1]<<16)+(c[2]<<8)+c[3]);
+}
+
+void SwapPartitionBytes(int i) {
+  // We don't bother to byteswap the CHS geometry fields since we don't use them.
+  partitions[i].startlba=SwapEndianL(partitions[i].startlba);
+  partitions[i].sectors=SwapEndianL(partitions[i].sectors);
 }
 
 // FindDrive() checks if a card is present and contains FAT formatted primary partition
-unsigned char FindDrive(void)
-{
-    buffered_fat_index = -1;
+unsigned char FindDrive(void) {
+  buffered_fat_index = -1;
 
-    if (!lread(0, sector_buffer)) // read MBR
-        return(0);
-
-	boot_sector=0;
-	partitioncount=1;
-
-	// If we can identify a filesystem on block 0 we don't look for partitions
-    if (strncmp((const char*)&sector_buffer[0x36], "FAT16   ", 8)==0) // check for FAT16
-		partitioncount=0;
-    if (strncmp((const char*)&sector_buffer[0x52], "FAT32   ", 8)==0) // check for FAT32
-		partitioncount=0;
-
-	if(partitioncount)
-	{
-		// We have at least one partition, parse the MBR.
-		struct MasterBootRecord *mbr=(struct MasterBootRecord *)sector_buffer;
-		memcpy(&partitions[0],&mbr->Partition[0],sizeof(struct PartitionEntry));
-		memcpy(&partitions[1],&mbr->Partition[1],sizeof(struct PartitionEntry));
-		memcpy(&partitions[2],&mbr->Partition[2],sizeof(struct PartitionEntry));
-		memcpy(&partitions[3],&mbr->Partition[3],sizeof(struct PartitionEntry));
-
-		switch(mbr->Signature)
-		{
-			case 0x55aa:	// Little-endian MBR on a big-endian system
-				BootPrint("Swapping byte order of partition entries");
-				SwapPartitionBytes(0);
-				SwapPartitionBytes(1);
-				SwapPartitionBytes(2);
-				SwapPartitionBytes(3);
+  fat32 = 0;  
+  
+  iprintf("finddrive!!!\n");
+  
+  if (!lread(0, sector_buffer)) // read MBR
+    return(0);
+  
+  boot_sector=0;
+  partitioncount=1;
+  
+  // If we can identify a filesystem on block 0 we don't look for partitions
+  if (strncmp((const char*)&sector_buffer[0x36], "FAT16   ", 8)==0) // check for FAT16
+    partitioncount=0;
+  if (strncmp((const char*)&sector_buffer[0x52], "FAT32   ", 8)==0) // check for FAT32
+    partitioncount=0;
+  
+  iprintf("partitioncount = %d\n", partitioncount);
+  
+  if(partitioncount) {
+    // We have at least one partition, parse the MBR.
+    struct MasterBootRecord *mbr=(struct MasterBootRecord *)sector_buffer;
+    memcpy(&partitions[0],&mbr->Partition[0],sizeof(struct PartitionEntry));
+    memcpy(&partitions[1],&mbr->Partition[1],sizeof(struct PartitionEntry));
+    memcpy(&partitions[2],&mbr->Partition[2],sizeof(struct PartitionEntry));
+    memcpy(&partitions[3],&mbr->Partition[3],sizeof(struct PartitionEntry));
+    
+    switch(mbr->Signature) {
+    case 0x55aa:	// Little-endian MBR on a big-endian system
+      BootPrint("Swapping byte order of partition entries");
+      SwapPartitionBytes(0);
+      SwapPartitionBytes(1);
+      SwapPartitionBytes(2);
+      SwapPartitionBytes(3);
 				// fall through...
-			case 0xaa55:
-				// get start of first partition
-				boot_sector = partitions[0].startlba;
-				bprintfl("Start: %ld\n",partitions[0].startlba);
-				for(partitioncount=4;(partitions[partitioncount-1].sectors==0) && (partitioncount>1); --partitioncount)
-					;
-				bprintfl("PartitionCount: %ld\n",partitioncount);
-				int i;
-				for(i=0;i<partitioncount;++i)
-				{
-					bprintfl("Partition: %ld",i);
-					bprintfl("  Start: %ld",partitions[i].startlba);
-					bprintfl("  Size: %ld\n",partitions[i].sectors);
-				}
-//				WaitTimer(5000);
-				if (!lread(boot_sector, sector_buffer)) // read discriptor
-				    return(0);
-				BootPrint("Read boot sector from first partition\n");
-				break;
-			default:
-				BootPrint("No partition signature found\n");
-				break;
-		}
+    case 0xaa55:
+      // get start of first partition
+      boot_sector = partitions[0].startlba;
+      iprintf("Start: %ld\n",partitions[0].startlba);
+      for(partitioncount=4;(partitions[partitioncount-1].sectors==0) && (partitioncount>1); --partitioncount)
+	;
+      iprintf("PartitionCount: %ld\n",partitioncount);
+      int i;
+      for(i=0;i<partitioncount;++i)
+	{
+	  iprintf("Partition: %ld",i);
+	  iprintf("  Start: %ld",partitions[i].startlba);
+	  iprintf("  Size: %ld\n",partitions[i].sectors);
 	}
-
-    if (strncmp((const char*)&sector_buffer[0x36], "FAT16   ", 8)==0) // check for FAT16
-		fattype = 16;
-
-    if (strncmp((const char*)&sector_buffer[0x52], "FAT32   ", 8)==0) // check for FAT32
-		fattype = 32;
-	
-    iprintf("partition type: 0x%02X (", sector_buffer[450]);
-    switch (fattype)
-    {
-		case 0:
-		    iprintf("NONE");
-		    break;
-		case 12:
-		    iprintf("FAT12");
-		    break;
-		case 16:
-		    iprintf("FAT16");
-		    break;
-		case 32:
-		    iprintf("FAT32");
-		    fat32 = 1;
-		    break;
-		default:
-		    iprintf("UNKNOWN");
-		    break;
+      //				WaitTimer(5000);
+      if (!lread(boot_sector, sector_buffer)) // read discriptor
+	return(0);
+      BootPrint("Read boot sector from first partition\n");
+      break;
+    default:
+      BootPrint("No partition signature found\n");
+      break;
     }
-    iprintf(")\r");
+  }
+  
+  if (strncmp((const char*)&sector_buffer[0x36], "FAT16   ", 8)==0) // check for FAT16
+    fattype = 16;
+  
+  if (strncmp((const char*)&sector_buffer[0x52], "FAT32   ", 8)==0) // check for FAT32
+    fattype = 32;
+  
+  iprintf("partition type: 0x%02X (", sector_buffer[450]);
+  switch (fattype) {
+  case 0:
+    iprintf("NONE");
+    break;
+  case 12:
+    iprintf("FAT12");
+    break;
+  case 16:
+    iprintf("FAT16");
+    break;
+  case 32:
+    iprintf("FAT32");
+    fat32 = 1;
+    break;
+  default:
+    iprintf("UNKNOWN");
+    break;
+  }
+  iprintf(")\r");
+  
+  if (fattype != 32 && fattype != 16) { // first partition filesystem type: FAT16 or FAT32
+    iprintf("Unsupported partition type!\r");
+    return(0);
+  }
+  
+  if (sector_buffer[510] != 0x55 || sector_buffer[511] != 0xaa)  // check signature
+    return(0);
+  
+  // check for near-jump or short-jump opcode
+  if (sector_buffer[0] != 0xe9 && sector_buffer[0] != 0xeb)
+    return(0);
+  
+  // check if blocksize is really 512 bytes
+  if (sector_buffer[11] != 0x00 || sector_buffer[12] != 0x02)
+    return(0);
+  
+  // check medium descriptor byte, must be 0xf8 for hard drive
+  if (sector_buffer[21] != 0xf8)
+    return(0);
+  
+  if (fat32) {
+    if (strncmp((const char*)&sector_buffer[0x52], "FAT32   ", 8) != 0) // check file system type
+      return(0);
+    
+    cluster_size = sector_buffer[0x0D]; // get cluster_size in sectors
+    cluster_mask = ~(cluster_size - 1); // calculate cluster mask
+    dir_entries = cluster_size << 4; // total number of dir entries (16 entries per sector)
+    root_directory_size = cluster_size; // root directory size in sectors
+    fat_start = boot_sector + sector_buffer[0x0E] + (sector_buffer[0x0F] << 8); // reserved sector count before FAT table (usually 32 for FAT32)
+    fat_number = sector_buffer[0x10];
+    fat_size = sector_buffer[0x24] + (sector_buffer[0x25] << 8) + (sector_buffer[0x26] << 16) + (sector_buffer[0x27] << 24);
+    data_start = fat_start + (fat_number * fat_size);
+    root_directory_cluster = sector_buffer[0x2C] + (sector_buffer[0x2D] << 8) + (sector_buffer[0x2E] << 16) + ((sector_buffer[0x2F] & 0x0F) << 24);
+    root_directory_start = (root_directory_cluster - 2) * cluster_size + data_start;
+  } else {
+    // calculate drive's parameters from bootsector, first up is size of directory
+    dir_entries = sector_buffer[17] + (sector_buffer[18] << 8);
+    root_directory_size = ((dir_entries << 5) + 511) >> 9;
+    
+    // calculate start of FAT,size of FAT and number of FAT's
+    fat_start = boot_sector + sector_buffer[14] + (sector_buffer[15] << 8);
+    fat_size = sector_buffer[22] + (sector_buffer[23] << 8);
+    fat_number = sector_buffer[16];
+    
+    // calculate start of directory
+    root_directory_start = fat_start + (fat_number * fat_size);
+    root_directory_cluster = 0; // unused
+    
+    // get cluster_size
+    cluster_size = sector_buffer[13];
+    
+    // calculate cluster mask
+    cluster_mask = ~(cluster_size - 1);
+    
+    // calculate start of data
+    data_start = root_directory_start + root_directory_size;
+  }
+  
 
-    if (fattype != 32 && fattype != 16) // first partition filesystem type: FAT16 or FAT32
-    {
-        iprintf("Unsupported partition type!\r");
-        return(0);
-    }
-
-    if (sector_buffer[510] != 0x55 || sector_buffer[511] != 0xaa)  // check signature
-        return(0);
-
-    // check for near-jump or short-jump opcode
-    if (sector_buffer[0] != 0xe9 && sector_buffer[0] != 0xeb)
-        return(0);
-
-    // check if blocksize is really 512 bytes
-    if (sector_buffer[11] != 0x00 || sector_buffer[12] != 0x02)
-        return(0);
-
-    // check medium descriptor byte, must be 0xf8 for hard drive
-    if (sector_buffer[21] != 0xf8)
-        return(0);
-
-    if (fat32)
-    {
-        if (strncmp((const char*)&sector_buffer[0x52], "FAT32   ", 8) != 0) // check file system type
-            return(0);
-
-        cluster_size = sector_buffer[0x0D]; // get cluster_size in sectors
-        cluster_mask = ~(cluster_size - 1); // calculate cluster mask
-        dir_entries = cluster_size << 4; // total number of dir entries (16 entries per sector)
-        root_directory_size = cluster_size; // root directory size in sectors
-        fat_start = boot_sector + sector_buffer[0x0E] + (sector_buffer[0x0F] << 8); // reserved sector count before FAT table (usually 32 for FAT32)
-        fat_number = sector_buffer[0x10];
-        fat_size = sector_buffer[0x24] + (sector_buffer[0x25] << 8) + (sector_buffer[0x26] << 16) + (sector_buffer[0x27] << 24);
-        data_start = fat_start + (fat_number * fat_size);
-        root_directory_cluster = sector_buffer[0x2C] + (sector_buffer[0x2D] << 8) + (sector_buffer[0x2E] << 16) + ((sector_buffer[0x2F] & 0x0F) << 24);
-        root_directory_start = (root_directory_cluster - 2) * cluster_size + data_start;
-    }
-    else
-    {
-        // calculate drive's parameters from bootsector, first up is size of directory
-        dir_entries = sector_buffer[17] + (sector_buffer[18] << 8);
-        root_directory_size = ((dir_entries << 5) + 511) >> 9;
-
-        // calculate start of FAT,size of FAT and number of FAT's
-        fat_start = boot_sector + sector_buffer[14] + (sector_buffer[15] << 8);
-        fat_size = sector_buffer[22] + (sector_buffer[23] << 8);
-        fat_number = sector_buffer[16];
-
-        // calculate start of directory
-        root_directory_start = fat_start + (fat_number * fat_size);
-        root_directory_cluster = 0; // unused
-
-        // get cluster_size
-        cluster_size = sector_buffer[13];
-
-        // calculate cluster mask
-        cluster_mask = ~(cluster_size - 1);
-
-        // calculate start of data
-        data_start = root_directory_start + root_directory_size;
-    }
-
-
-    // some debug output
-    iprintf("fat_size: %lu\r", fat_size);
-    iprintf("fat_number: %u\r", fat_number);
-    iprintf("fat_start: %lu\r", fat_start);
-    iprintf("root_directory_start: %lu\r", root_directory_start);
-    iprintf("dir_entries: %u\r", dir_entries);
-    iprintf("data_start: %lu\r", data_start);
-    iprintf("cluster_size: %u\r", cluster_size);
-    iprintf("cluster_mask: %08lX\r", cluster_mask);
-
-    return(1);
+  // some debug output
+  iprintf("fat_size: %lu\r", fat_size);
+  iprintf("fat_number: %u\r", fat_number);
+  iprintf("fat_start: %lu\r", fat_start);
+  iprintf("root_directory_start: %lu\r", root_directory_start);
+  iprintf("dir_entries: %u\r", dir_entries);
+  iprintf("data_start: %lu\r", data_start);
+  iprintf("cluster_size: %u\r", cluster_size);
+  iprintf("cluster_mask: %08lX\r", cluster_mask);
+  
+  return(1);
 }
 
-unsigned char FileOpen(fileTYPE *file, const char *name)
-{
-    unsigned long  iDirectory = 0;       // only root directory is supported
-    DIRENTRY      *pEntry = NULL;        // pointer to current entry in sector buffer
-    unsigned long  iDirectorySector;     // current sector of directory entries table
-    unsigned long  iDirectoryCluster;    // start cluster of subdirectory or FAT32 root directory
-    unsigned long  iEntry;               // entry index in directory cluster or FAT16 root directory
-    unsigned long  nEntries;             // number of entries per cluster or FAT16 root directory size
+unsigned char FileOpen(fileTYPE *file, const char *name) {
+  unsigned long  iDirectory = 0;       // only root directory is supported
+  DIRENTRY      *pEntry = NULL;        // pointer to current entry in sector buffer
+  unsigned long  iDirectorySector;     // current sector of directory entries table
+  unsigned long  iDirectoryCluster;    // start cluster of subdirectory or FAT32 root directory
+  unsigned long  iEntry;               // entry index in directory cluster or FAT16 root directory
+  unsigned long  nEntries;             // number of entries per cluster or FAT16 root directory size
+  
+  if (iDirectory) { // subdirectory
+    iDirectoryCluster = iDirectory;
+    iDirectorySector = data_start + cluster_size * (iDirectoryCluster - 2);
+    nEntries = cluster_size << 4; // 16 entries per sector
+  } else { // root directory
+    iDirectoryCluster = root_directory_cluster;
+    iDirectorySector = root_directory_start;
+    nEntries = fat32 ?  cluster_size << 4 : root_directory_size << 4; // 16 entries per sector
+  }
+  
+  while (1) {
+    for (iEntry = 0; iEntry < nEntries; iEntry++) {
+      if ((iEntry & 0x0F) == 0) { // first entry in sector, load the sector
+	lread(iDirectorySector++, sector_buffer); // root directory is linear
+	pEntry = (DIRENTRY*)sector_buffer;
+      } else
+	pEntry++;
 
-    if (iDirectory) // subdirectory
-    {
-        iDirectoryCluster = iDirectory;
-        iDirectorySector = data_start + cluster_size * (iDirectoryCluster - 2);
-        nEntries = cluster_size << 4; // 16 entries per sector
-    }
-    else // root directory
-    {
-        iDirectoryCluster = root_directory_cluster;
-        iDirectorySector = root_directory_start;
-        nEntries = fat32 ?  cluster_size << 4 : root_directory_size << 4; // 16 entries per sector
-    }
-
-    while (1)
-    {
-        for (iEntry = 0; iEntry < nEntries; iEntry++)
-        {
-            if ((iEntry & 0x0F) == 0) // first entry in sector, load the sector
-            {
-                lread(iDirectorySector++, sector_buffer); // root directory is linear
-                pEntry = (DIRENTRY*)sector_buffer;
-            }
-            else
-                pEntry++;
-
-
-            if (pEntry->Name[0] != SLOT_EMPTY && pEntry->Name[0] != SLOT_DELETED) // valid entry??
-            {
-                if (!(pEntry->Attributes & (ATTR_VOLUME | ATTR_DIRECTORY))) // not a volume nor directory
-                {
+      if (pEntry->Name[0] != SLOT_EMPTY && pEntry->Name[0] != SLOT_DELETED) { // valid entry??
+	if (!(pEntry->Attributes & (ATTR_VOLUME | ATTR_DIRECTORY))) // not a volume nor directory
+	  {
                     if (strncmp((const char*)pEntry->Name, name, sizeof(file->name)) == 0)
                     {
                         strncpy(file->name, (const char*)pEntry->Name, sizeof(file->name));
@@ -439,8 +436,7 @@ int CompareDirEntries(DIRENTRY *pDirEntry1, char *pLFN1, DIRENTRY *pDirEntry2, c
     return(rc);
 }
 
-char ScanDirectory(unsigned long mode, char *extension, unsigned char options)
-{
+char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
     DIRENTRY *pEntry = NULL;            // pointer to current entry in sector buffer
     unsigned long iDirectorySector;     // current sector of directory entries table
     unsigned long iDirectoryCluster;
@@ -1171,6 +1167,7 @@ unsigned char FileReadEx(fileTYPE *file, unsigned char *pBuffer, unsigned long n
         if (nSize < bc)
             bc = nSize;
 
+	// !!!!!!!!
 	if (!MMC_ReadMultiple(sb, pBuffer, bc))
 	  return 0;
 
@@ -1186,6 +1183,8 @@ unsigned char FileReadEx(fileTYPE *file, unsigned char *pBuffer, unsigned long n
 unsigned char FileWrite(fileTYPE *file,unsigned char *pBuffer)
 {
     unsigned long sector;
+
+    if(!lwrite) return 0;  // error
 
     sector = data_start;                       // start of data in partition
     sector += cluster_size * (file->cluster-2);  // cluster offset
@@ -1207,6 +1206,8 @@ unsigned char FileCreate(unsigned long iDirectory, fileTYPE *file)
     update fat copy
     update dir entry
     */
+
+    if(!lwrite) return 0;  // error
 
     DIRENTRY *pEntry = NULL;            // pointer to current entry in sector buffer
     unsigned long iDirectorySector;     // current sector of directory entries table
@@ -1361,6 +1362,8 @@ unsigned char FileCreate(unsigned long iDirectory, fileTYPE *file)
 // changing of allocated cluster number is not supported - new size must be within current cluster number
 unsigned char UpdateEntry(fileTYPE *file) {
   DIRENTRY *pEntry;
+
+  if(!lwrite) return 0;  // error
 
   if (!lread(file->entry.sector, sector_buffer)) {
     iprintf("UpdateEntry(): directory read failed!\r");

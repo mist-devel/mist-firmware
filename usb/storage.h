@@ -31,11 +31,6 @@ extern uint8_t storage_devices;
 #define STORAGE_REQ_MASSOUT       USB_SETUP_HOST_TO_DEVICE|USB_SETUP_TYPE_CLASS|USB_SETUP_RECIPIENT_INTERFACE
 #define STORAGE_REQ_MASSIN        USB_SETUP_DEVICE_TO_HOST|USB_SETUP_TYPE_CLASS|USB_SETUP_RECIPIENT_INTERFACE 
 
-#define STORAGE_TRANS_FLG_CALLBACK				0x01	// Callback is involved
-#define STORAGE_TRANS_FLG_NO_STALL_CHECK		0x02	// STALL condition is not checked
-#define STORAGE_TRANS_FLG_NO_PHASE_CHECK		0x04	// PHASE_ERROR is not checked
-
-
 // Request Codes
 #define STORAGE_REQ_ADSC				0x00		
 #define STORAGE_REQ_GET					0xFC		
@@ -141,9 +136,14 @@ typedef struct {
   ep_t ep[2];
   uint8_t max_lun;
   uint8_t last_error;		// Last USB error
+  uint8_t state;
+  uint32_t qNextPollTime;
+  uint32_t capacity;
 } usb_storage_info_t;
 
 // interface to usb core
 extern const usb_device_class_config_t usb_storage_class;
+extern unsigned char usb_storage_read(unsigned long lba, unsigned char *pReadBuffer);
+extern unsigned char usb_storage_write(unsigned long lba, unsigned char *pWriteBuffer);
 
 #endif // STORAGE_H

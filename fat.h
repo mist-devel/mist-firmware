@@ -20,6 +20,7 @@ typedef struct
     unsigned long size;            /* file size */
     unsigned long cluster;         /* current cluster */
     unsigned long start_cluster;   /* first cluster of file */
+    unsigned char device;          /* device index (0=sd, 1=usb) */
     char          long_name[261];
 }  fileTYPE;
 
@@ -123,6 +124,10 @@ unsigned char UpdateEntry(fileTYPE *file);
 
 char ScanDirectory(unsigned long mode, char *extension, unsigned char options);
 void ChangeDirectory(unsigned long iStartCluster);
+
+void fat_switch_to_usb(void);
+int8_t fat_medium_present(void);
+int8_t fat_uses_mmc(void);
 
 #endif
 
