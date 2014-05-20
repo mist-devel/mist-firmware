@@ -136,8 +136,6 @@ unsigned char FindDrive(void) {
 
   fat32 = 0;  
   
-  iprintf("finddrive!!!\n");
-  
   if (!lread(0, sector_buffer)) // read MBR
     return(0);
   

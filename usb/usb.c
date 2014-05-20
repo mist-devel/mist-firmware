@@ -340,6 +340,7 @@ static const usb_device_class_config_t *class_list[] = {
   &usb_hid_class,
   &usb_asix_class,
   &usb_storage_class,
+  &usb_usbrtc_class,
   NULL
 };
 
@@ -450,7 +451,7 @@ void usb_poll() {
     // poll all configured devices
     uint8_t i;
     for (i=0; i<USB_NUMDEVICES; i++)
-      if(dev[i].bAddress && dev[i].class)
+      if(dev[i].bAddress && dev[i].class && dev[i].class->poll)
 	rcode = dev[i].class->poll(dev+i);
     
     switch( usb_task_state ) {

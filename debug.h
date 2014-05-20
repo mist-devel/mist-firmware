@@ -78,4 +78,11 @@
 #define storage_debugf(...)
 #endif
 
+#if 1
+// usb rts debug output in blue
+#define usbrtc_debugf(a, ...) iprintf("\033[1;34mUSBRTC: " a "\033[0m\n", ##__VA_ARGS__)
+#else
+#define usbrtc_debugf(...)
+#endif
+
 #endif // DEBUG_H

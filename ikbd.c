@@ -31,6 +31,7 @@
 #include "hardware.h"
 #include "ikbd.h"
 #include "debug.h"
+#include "usb.h"
 
 #define IKBD_AUTO_MS   20
 
@@ -267,7 +268,17 @@ void ikbd_handler_time_set(void) {
   for(c=0;c<6;c++) 
     ikbd.date[c] = bcd2bin(ikbd.buffer.command.date[c]);
 
-  ikbd_debugf("Time of day clock set: %u:%u:%u %u.%u.%u", 
+  // release SPI since it will be used by usb when
+  // reading the time from the rtc
+  DisableIO();
+
+  // try to set time on rtc if present
+  usb_rtc_set_time(ikbd.date);
+
+  EnableIO();
+  SPI(UIO_IKBD_IN);
+
+  ikbd_debugf("Time of day clock set: %u:%02u:%02u %u.%u.%u", 
 	      ikbd.date[3], ikbd.date[4], ikbd.date[5],
 	      ikbd.date[2], ikbd.date[1], 1900 + ikbd.date[0]);
 }
@@ -275,7 +286,17 @@ void ikbd_handler_time_set(void) {
 void ikbd_handler_interrogate_time(void) {
   unsigned char i;
 
-  ikbd_debugf("Interrogate time of day %u:%u:%u %u.%u.%u", 
+  // release SPI since it will be used by usb when
+  // reading the time from the rtc
+  DisableIO();
+
+  // try to fetch time from rtc if present
+  usb_rtc_get_time(ikbd.date);
+
+  EnableIO();
+  SPI(UIO_IKBD_IN);
+    
+  ikbd_debugf("Interrogate time of day %u:%02u:%02u %u.%u.%u", 
 	      ikbd.date[3], ikbd.date[4], ikbd.date[5],
 	      ikbd.date[2], ikbd.date[1], 1900 + ikbd.date[0]);
   
@@ -332,7 +353,9 @@ void ikbd_init() {
   ikbd.mouse.abs.max.x = ikbd.mouse.abs.max.y = 65535;
   ikbd.mouse.abs.scale.x = ikbd.mouse.abs.scale.y = 1;
 
-  // init ikbd date
+  ikbd_debugf("Init");
+
+  // init ikbd date to some default
   ikbd.date[0] = 113;
   ikbd.date[1] = 7;
   ikbd.date[2] = 20;
