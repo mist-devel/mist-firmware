@@ -37,7 +37,7 @@
 #define UIO_JOYSTICK5   0x12  // -"-
 #define UIO_JOYSTICK6   0x13  // -"-
 
-// codes as used by 8bit (atari 800)
+// codes as used by 8bit (atari 800, zx81)
 #define UIO_GET_STATUS  0x50
 #define UIO_SECTOR_SND  0x51
 #define UIO_SECTOR_RCV  0x52

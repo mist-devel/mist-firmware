@@ -18,7 +18,7 @@
 #define OSD_LOC           0x0200     // OSD key not forwarded to core, but queued in arm controller
 #define CAPS_LOCK_TOGGLE  0x0400     // caps lock toggle behaviour
 #define NUM_LOCK_TOGGLE   0x0800
-
+#define PS2_EXT           0x1000     // extended PS/2 keycode
 
 // amiga unmapped: 
 // 0x0d |
@@ -250,6 +250,122 @@ const unsigned short usb2atari[] = {
   0x71,  // 63: KP .
   0x60,  // 64: Europe 2
   OSD_LOC, // 65: App
+  MISS,  // 66: Power
+  MISS,  // 67: KP =
+  MISS,  // 68: F13
+  MISS,  // 69: F14
+  MISS,  // 6a: F15
+  MISS,  // 6b: F16
+  MISS,  // 6c: F17
+  MISS,  // 6d: F18
+  MISS,  // 6e: F19
+  MISS   // 6f: F20
+};
+
+// keycode translation table for ps2 emulation
+const unsigned short usb2ps2[] = {
+  MISS,  // 00: NoEvent
+  MISS,  // 01: Overrun Error
+  MISS,  // 02: POST fail
+  MISS,  // 03: ErrorUndefined
+  0x1c,  // 04: a
+  0x32,  // 05: b
+  0x21,  // 06: c
+  0x23,  // 07: d
+  0x24,  // 08: e
+  0x2b,  // 09: f
+  0x34,  // 0a: g
+  0x33,  // 0b: h
+  0x43,  // 0c: i
+  0x3b,  // 0d: j
+  0x42,  // 0e: k
+  0x4b,  // 0f: l
+  0x3a,  // 10: m
+  0x31,  // 11: n
+  0x44,  // 12: o
+  0x4d,  // 13: p
+  0x15,  // 14: q
+  0x2d,  // 15: r
+  0x1b,  // 16: s
+  0x2c,  // 17: t
+  0x3c,  // 18: u
+  0x2a,  // 19: v
+  0x1d,  // 1a: w
+  0x22,  // 1b: x
+  0x35,  // 1c: y
+  0x1a,  // 1d: z
+  0x16,  // 1e: 1
+  0x1e,  // 1f: 2
+  0x26,  // 20: 3
+  0x25,  // 21: 4
+  0x2e,  // 22: 5
+  0x36,  // 23: 6
+  0x3d,  // 24: 7
+  0x3e,  // 25: 8
+  0x46,  // 26: 9
+  0x45,  // 27: 0
+  0x5a,  // 28: Return
+  0x76,  // 29: Escape
+  0x66,  // 2a: Backspace
+  0x0d,  // 2b: Tab
+  0x29,  // 2c: Space
+  0x4e,  // 2d: -
+  0x55,  // 2e: =
+  0x54,  // 2f: [
+  0x5b,  // 30: ]
+  0x5d,  // 31: backslash
+  0x5d,  // 32: Europe 1
+  0x4c,  // 33: ; 
+  0x52,  // 34: '
+  0x0e,  // 35: `
+  0x41,  // 36: ,
+  0x49,  // 37: .
+  0x4a,  // 38: /
+  0x58 | CAPS_LOCK_TOGGLE,  // 39: Caps Lock
+  0x05,  // 3a: F1
+  0x06,  // 3b: F2
+  0x04,  // 3c: F3
+  0x0c,  // 3d: F4
+  0x03,  // 3e: F5
+  0x0b,  // 3f: F6
+  0x83,  // 40: F7
+  0x0a,  // 41: F8
+  0x01,  // 42: F9
+  0x09,  // 43: F10
+  0x78,  // 44: F11
+  0x07,  // 45: F12
+  MISS,  // 46: Print Screen
+  NUM_LOCK_TOGGLE,  // 47: Scroll Lock
+  MISS,  // 48: Pause
+  MISS,  // 49: Insert
+  MISS,  // 4a: Home
+  MISS,  // 4b: Page Up
+  MISS,  // 4c: Delete
+  MISS,  // 4d: End
+  MISS,  // 4e: Page Down
+  MISS,  // 4f: Right Arrow
+  MISS,  // 50: Left Arrow
+  MISS,  // 51: Down Arrow
+  MISS,  // 52: Up Arrow
+  NUM_LOCK_TOGGLE,  // 53: Num Lock
+  MISS,  // 54: KP /
+  MISS,  // 55: KP *
+  MISS,  // 56: KP -
+  MISS,  // 57: KP +
+  MISS,  // 58: KP Enter
+  MISS,  // 59: KP 1
+  MISS,  // 5a: KP 2
+  MISS,  // 5b: KP 3
+  MISS,  // 5c: KP 4
+  MISS,  // 5d: KP 5
+  MISS,  // 5e: KP 6
+  MISS,  // 5f: KP 7
+  MISS,  // 60: KP 8
+  MISS,  // 61: KP 9
+  MISS,  // 62: KP 0
+  MISS,  // 63: KP .
+  MISS,  // 64: Europe 2
+  MISS,  // 65: App
   MISS,  // 66: Power
   MISS,  // 67: KP =
   MISS,  // 68: F13

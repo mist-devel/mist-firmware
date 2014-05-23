@@ -500,12 +500,14 @@ static void send_keycode(unsigned short code) {
     ikbd_keyboard(code);
 
   if(core_type == CORE_TYPE_8BIT) {
+#ifdef SEND_KBD_MATRIX
     char i;
     unsigned char idx = (code>>3)&15;     // keymap byte index 0..15
     unsigned char bit = 1 << (code & 7);  // keymap bit index 0..7
     if(code & 0x80) keymap[idx] &= ~bit;
     else            keymap[idx] |=  bit;
 
+#if 0
     bit8_debugf("Sending 128 bit keymap: "
 		"%02x %02x %02x %02x %02x %02x %02x %02x "
 		"%02x %02x %02x %02x %02x %02x %02x %02x",
@@ -513,12 +515,32 @@ static void send_keycode(unsigned short code) {
 		keymap[4]  & 0xff, keymap[5]  & 0xff, keymap[6]  & 0xff, keymap[7]  & 0xff, 
 		keymap[8]  & 0xff, keymap[9]  & 0xff, keymap[10] & 0xff, keymap[11] & 0xff, 
 		keymap[12] & 0xff, keymap[13] & 0xff, keymap[14] & 0xff, keymap[15] & 0xff);
+#endif
 
     // send 128 bit keymap on every key event
     EnableIO();
     SPI(UIO_KEYBOARD);
     for(i=0;i<16;i++) SPI(keymap[i]);
     DisableIO();
+#else // SEND_KBD_MATRIX
+
+    // send ps2 keycodes for those cores that prefer ps2
+    EnableIO();
+    SPI(UIO_KEYBOARD);
+
+    // F7 is a little problematic as itis the only key with a make code
+    // >= 0x80 in ps2 encoding. To keep things simple we simple use an 
+    // unused code and translate it here ...
+
+    if(code & 0x80) iprintf("TX PS2 %x %x\n", 0xf0, code & 0x7f);
+    else            iprintf("TX PS2 %x\n", code & 0x7f);
+
+    if(code & 0x80)    // prepend break code if required
+      SPI(0xf0);
+    
+    SPI(code & 0x7f);  // send code itself
+    DisableIO();
+#endif
   }
 }
 
@@ -564,9 +586,11 @@ unsigned short keycode(unsigned char in) {
 
   // atari st and the 8 bit core (currently only used for atari 800)
   // use the same key codes
-  if((core_type == CORE_TYPE_MIST) ||
-     (core_type == CORE_TYPE_8BIT))
+  if(core_type == CORE_TYPE_MIST)
     return usb2atari[in];
+
+  if(core_type == CORE_TYPE_8BIT)
+    return usb2ps2[in];
 
   return MISS;
 }
@@ -590,10 +614,16 @@ unsigned char modifier_keycode(unsigned char index) {
     return amiga_modifier[index];
   }
 
-  if((core_type == CORE_TYPE_MIST)||(core_type == CORE_TYPE_8BIT)) {
+  if(core_type == CORE_TYPE_MIST) {
     static const unsigned char atari_modifier[] = 
       { 0x1d, 0x2a, 0x38, MISS, 0x1d, 0x36, 0x38, MISS };
     return atari_modifier[index];
+  } 
+
+  if(core_type == CORE_TYPE_8BIT) {
+    static const unsigned char ps2_modifier[] = 
+      { 0x14, 0x12, 0x11, MISS, MISS, 0x59, MISS, MISS };
+    return ps2_modifier[index];
   } 
 
   return MISS;
