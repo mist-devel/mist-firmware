@@ -12,6 +12,8 @@
 #include "ikbd.h"
 #include "fat.h"
 
+#define BREAK  0x8000
+
 typedef enum { EMU_NONE, EMU_MOUSE, EMU_JOY0, EMU_JOY1 } emu_mode_t;
 static emu_mode_t emu_mode = EMU_NONE;
 static unsigned char emu_state = 0;
@@ -25,9 +27,6 @@ AT91PS_ADC a_pADC = AT91C_BASE_ADC;
 AT91PS_PMC a_pPMC = AT91C_BASE_PMC;
 
 static char caps_lock_toggle = 0;
-
-// a 128 bit (16 bytes) bitmap containing a single bit for every possible key
-static unsigned char keymap[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
 
 static void PollOneAdc() {
   static unsigned char adc_cnt = 0xff;
@@ -489,6 +488,9 @@ char user_io_user_button() {
 
 static void send_keycode(unsigned short code) {
   if(core_type == CORE_TYPE_MINIMIG) {
+    // amiga has "break" marker in msb
+    if(code & BREAK) code = (code & 0xff) | 0x80;
+
     // send immediately if possible
     if(CheckTimer(kbd_timer) &&(kbd_fifo_w == kbd_fifo_r) )
       kbd_fifo_minimig_send(code);
@@ -496,51 +498,51 @@ static void send_keycode(unsigned short code) {
       kbd_fifo_enqueue(code);
   }
 
-  if(core_type == CORE_TYPE_MIST)
+  if(core_type == CORE_TYPE_MIST) {
+    // atari has "break" marker in msb
+    if(code & BREAK) code = (code & 0xff) | 0x80;
+
     ikbd_keyboard(code);
+  }
 
   if(core_type == CORE_TYPE_8BIT) {
-#ifdef SEND_KBD_MATRIX
-    char i;
-    unsigned char idx = (code>>3)&15;     // keymap byte index 0..15
-    unsigned char bit = 1 << (code & 7);  // keymap bit index 0..7
-    if(code & 0x80) keymap[idx] &= ~bit;
-    else            keymap[idx] |=  bit;
-
-#if 0
-    bit8_debugf("Sending 128 bit keymap: "
-		"%02x %02x %02x %02x %02x %02x %02x %02x "
-		"%02x %02x %02x %02x %02x %02x %02x %02x",
-		keymap[0]  & 0xff, keymap[1]  & 0xff, keymap[2]  & 0xff, keymap[3]  & 0xff, 
-		keymap[4]  & 0xff, keymap[5]  & 0xff, keymap[6]  & 0xff, keymap[7]  & 0xff, 
-		keymap[8]  & 0xff, keymap[9]  & 0xff, keymap[10] & 0xff, keymap[11] & 0xff, 
-		keymap[12] & 0xff, keymap[13] & 0xff, keymap[14] & 0xff, keymap[15] & 0xff);
-#endif
-
-    // send 128 bit keymap on every key event
-    EnableIO();
-    SPI(UIO_KEYBOARD);
-    for(i=0;i<16;i++) SPI(keymap[i]);
-    DisableIO();
-#else // SEND_KBD_MATRIX
-
     // send ps2 keycodes for those cores that prefer ps2
     EnableIO();
     SPI(UIO_KEYBOARD);
 
-    // F7 is a little problematic as itis the only key with a make code
-    // >= 0x80 in ps2 encoding. To keep things simple we simple use an 
-    // unused code and translate it here ...
+    // "pause" has a complex code 
+    if((code&0xff) == 0x77) {
 
-    if(code & 0x80) iprintf("TX PS2 %x %x\n", 0xf0, code & 0x7f);
-    else            iprintf("TX PS2 %x\n", code & 0x7f);
+      // pause does not have a break code
+      if(!(code & BREAK)) {
 
-    if(code & 0x80)    // prepend break code if required
-      SPI(0xf0);
-    
-    SPI(code & 0x7f);  // send code itself
+	// Pause key sends E11477E1F014E077
+	static const unsigned char c[] = { 0xe1, 0x14, 0x77, 0xe1, 0xf0, 0x14, 0xf0, 0x77, 0x00 };
+	const unsigned char *p = c;
+	
+	iprintf("TX PS2 ");
+	while(*p) {
+	  iprintf("%x ", *p);
+	  SPI(*p++);
+	}
+	iprintf("\n");
+      }
+    } else {
+      iprintf("TX PS2 ");
+      if(code & EXT)   iprintf("e0 ");
+      if(code & BREAK) iprintf("f0 ");
+      iprintf("%x\n", code & 0xff);
+      
+      if(code & EXT)    // prepend extended code flag if required
+	SPI(0xe0);
+      
+      if(code & BREAK)  // prepend break code if required
+	SPI(0xf0);
+      
+      SPI(code & 0xff);  // send code itself
+    }
+
     DisableIO();
-#endif
   }
 }
 
@@ -602,27 +604,27 @@ void check_reset(unsigned char modifiers) {
   }
 }
 
-unsigned char modifier_keycode(unsigned char index) {
+unsigned short modifier_keycode(unsigned char index) {
   /* usb modifer bits: 
         0     1     2    3    4     5     6    7
       LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
   */
 
   if(core_type == CORE_TYPE_MINIMIG) {
-    static const unsigned char amiga_modifier[] = 
+    static const unsigned short amiga_modifier[] = 
       { 0x63, 0x60, 0x64, 0x66, 0x63, 0x61, 0x65, 0x67 };
     return amiga_modifier[index];
   }
 
   if(core_type == CORE_TYPE_MIST) {
-    static const unsigned char atari_modifier[] = 
+    static const unsigned short atari_modifier[] = 
       { 0x1d, 0x2a, 0x38, MISS, 0x1d, 0x36, 0x38, MISS };
     return atari_modifier[index];
   } 
 
   if(core_type == CORE_TYPE_8BIT) {
-    static const unsigned char ps2_modifier[] = 
-      { 0x14, 0x12, 0x11, MISS, MISS, 0x59, MISS, MISS };
+    static const unsigned short ps2_modifier[] = 
+      { 0x14, 0x12, 0x11, EXT|0x1f, EXT|0x14, 0x59, EXT|0x11, EXT|0x27 };
     return ps2_modifier[index];
   } 
 
@@ -699,7 +701,7 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 	if(!(m & (1<<i)) && (modifier & (1<<i)))
 	  if(((i != EMU_BTN1) && (i != EMU_BTN2)) || (emu_mode == EMU_NONE))
 	    if(modifier_keycode(i) != MISS)
-	      send_keycode(0x80 | modifier_keycode(i));
+	      send_keycode(BREAK | modifier_keycode(i));
       }
       
       modifier = m;
@@ -730,7 +732,7 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 
 	    } else if(!(code & CAPS_LOCK_TOGGLE) &&
 		      !(code & NUM_LOCK_TOGGLE))
-	      send_keycode(0x80 | code);	
+	      send_keycode(BREAK | code);	
 	  }
 	}
       }  
@@ -767,7 +769,7 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 	    else {
 	      if(code & CAPS_LOCK_TOGGLE) {
 		// send alternating make and break codes for caps lock
-		send_keycode((code & 0xff) | (caps_lock_toggle?0x80:0));
+		send_keycode((code & 0xff) | (caps_lock_toggle?BREAK:0));
 		caps_lock_toggle = !caps_lock_toggle;
 		
 		hid_set_kbd_led(HID_LED_CAPS_LOCK, caps_lock_toggle);

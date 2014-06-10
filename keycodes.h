@@ -18,10 +18,9 @@
 #define OSD_LOC           0x0200     // OSD key not forwarded to core, but queued in arm controller
 #define CAPS_LOCK_TOGGLE  0x0400     // caps lock toggle behaviour
 #define NUM_LOCK_TOGGLE   0x0800
-#define PS2_EXT           0x1000     // extended PS/2 keycode
+#define EXT               0x1000     // extended PS/2 keycode
 
 // amiga unmapped: 
-// 0x0d |
 // 0x5a KP-(
 // 0x5b KP-)
 // codes >= 0x69 are for OSD only and are not sent to the amiga itself
@@ -334,47 +333,47 @@ const unsigned short usb2ps2[] = {
   0x09,  // 43: F10
   0x78,  // 44: F11
   0x07,  // 45: F12
-  MISS,  // 46: Print Screen
+  EXT | 0x7c, // 46: Print Screen
   NUM_LOCK_TOGGLE,  // 47: Scroll Lock
-  MISS,  // 48: Pause
-  MISS,  // 49: Insert
-  MISS,  // 4a: Home
-  MISS,  // 4b: Page Up
-  MISS,  // 4c: Delete
-  MISS,  // 4d: End
-  MISS,  // 4e: Page Down
-  MISS,  // 4f: Right Arrow
-  MISS,  // 50: Left Arrow
-  MISS,  // 51: Down Arrow
-  MISS,  // 52: Up Arrow
+  0x77,  // 48: Pause (special key handled inside user_io)
+  EXT | 0x70, // 49: Insert
+  EXT | 0x6c, // 4a: Home
+  EXT | 0x7d, // 4b: Page Up
+  EXT | 0x71, // 4c: Delete
+  EXT | 0x69, // 4d: End
+  EXT | 0x7a, // 4e: Page Down
+  EXT | 0x74, // 4f: Right Arrow
+  EXT | 0x6b, // 50: Left Arrow
+  EXT | 0x72, // 51: Down Arrow
+  EXT | 0x75, // 52: Up Arrow
   NUM_LOCK_TOGGLE,  // 53: Num Lock
-  MISS,  // 54: KP /
-  MISS,  // 55: KP *
-  MISS,  // 56: KP -
-  MISS,  // 57: KP +
-  MISS,  // 58: KP Enter
-  MISS,  // 59: KP 1
-  MISS,  // 5a: KP 2
-  MISS,  // 5b: KP 3
-  MISS,  // 5c: KP 4
-  MISS,  // 5d: KP 5
-  MISS,  // 5e: KP 6
-  MISS,  // 5f: KP 7
-  MISS,  // 60: KP 8
-  MISS,  // 61: KP 9
-  MISS,  // 62: KP 0
-  MISS,  // 63: KP .
-  MISS,  // 64: Europe 2
-  MISS,  // 65: App
-  MISS,  // 66: Power
-  MISS,  // 67: KP =
-  MISS,  // 68: F13
-  MISS,  // 69: F14
-  MISS,  // 6a: F15
-  MISS,  // 6b: F16
-  MISS,  // 6c: F17
-  MISS,  // 6d: F18
-  MISS,  // 6e: F19
-  MISS   // 6f: F20
+  EXT | 0x4a, // 54: KP /
+  0x7c,  // 55: KP *
+  0x7b,  // 56: KP -
+  0x79,  // 57: KP +
+  EXT | 0x5a, // 58: KP Enter
+  0x69,  // 59: KP 1
+  0x72,  // 5a: KP 2
+  0x7a,  // 5b: KP 3
+  0x6b,  // 5c: KP 4
+  0x73,  // 5d: KP 5
+  0x74,  // 5e: KP 6
+  0x6c,  // 5f: KP 7
+  0x75,  // 60: KP 8
+  0x7d,  // 61: KP 9
+  0x70,  // 62: KP 0
+  0x71,  // 63: KP .
+  0x61,  // 64: Europe 2
+  EXT | 0x2f, // 65: App
+  EXT | 0x37, // 66: Power
+  0x0f,  // 67: KP =
+  0x08,  // 68: F13
+  0x10,  // 69: F14
+  0x18,  // 6a: F15
+  0x20,  // 6b: F16
+  0x28,  // 6c: F17
+  0x30,  // 6d: F18
+  0x38,  // 6e: F19
+  0x40   // 6f: F20
 };
 
