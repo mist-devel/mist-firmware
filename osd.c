@@ -660,8 +660,9 @@ unsigned char OsdGetCtrl(void)
       DisableOsd();
     }
 
-    // mist/atari core uses local queue
-    if(user_io_core_type() == CORE_TYPE_MIST)
+    // mist/atari and 8bit cores use local queue
+    if((user_io_core_type() == CORE_TYPE_MIST) ||
+       (user_io_core_type() == CORE_TYPE_8BIT))
       c1 = OsdKeyGet();
 
     // add front menu button

@@ -197,6 +197,11 @@ int main(void)
 	HandleFpga();
 	HandleUI();
       }
+
+      // 8 bit cores can also have a ui
+      if(user_io_core_type() == CORE_TYPE_8BIT) {
+	HandleUI();
+      }
     }
     return 0;
 }

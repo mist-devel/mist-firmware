@@ -84,6 +84,10 @@ enum MENU
     MENU_MIST_VIDEO2,
     MENU_MIST_VIDEO_ADJUST1,
     MENU_MIST_VIDEO_ADJUST2,
+
+    // Dummy menu entries
+    MENU_DUMMY_MAIN1,
+    MENU_DUMMY_MAIN2,
 };
 
 // UI strings, used by boot messages

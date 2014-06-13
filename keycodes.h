@@ -332,7 +332,8 @@ const unsigned short usb2ps2[] = {
   0x01,  // 42: F9
   0x09,  // 43: F10
   0x78,  // 44: F11
-  0x07,  // 45: F12
+  OSD_LOC,  // 45: F12 (OSD)
+  // 0x07,  // 45: F12
   EXT | 0x7c, // 46: Print Screen
   NUM_LOCK_TOGGLE,  // 47: Scroll Lock
   0x77,  // 48: Pause (special key handled inside user_io)

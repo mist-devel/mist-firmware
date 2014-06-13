@@ -295,13 +295,41 @@ void HandleUI(void)
         {
 	  if(user_io_core_type() == CORE_TYPE_MINIMIG)
 	    menustate = MENU_MAIN1;
-	  else
+	  else if(user_io_core_type() == CORE_TYPE_MIST)
 	    menustate = MENU_MIST_MAIN1;
-
-            menusub = 0;
+	  else
+	    menustate = MENU_DUMMY_MAIN1;
+	  
+	    menusub = 0;
             OsdClear();
             OsdEnable(DISABLE_KEYBOARD);
         }
+        break;
+
+        /******************************************************************/
+        /* dummy main menu                                                */
+        /******************************************************************/
+
+    case MENU_DUMMY_MAIN1 :
+	menumask=0;
+	OsdSetTitle("Menu", 0);
+
+	OsdWrite(0, "", 0,0);
+	OsdWrite(1, " Dummy menu test", 0,0);
+	OsdWrite(2, "", 0,0);
+	OsdWrite(3, "", 0,0);
+	OsdWrite(4, "", 0,0);
+	OsdWrite(5, "", 0,0);
+	OsdWrite(6, "", 0,0);
+	OsdWrite(7, "", 0,0);
+        menustate = MENU_DUMMY_MAIN2;
+	parentstate=MENU_DUMMY_MAIN1;
+        break;
+
+    case MENU_DUMMY_MAIN2 :
+        // menu key closes menu
+        if (menu)
+	  menustate = MENU_NONE1;
         break;
 
         /******************************************************************/
