@@ -365,8 +365,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	    uint8_t jmap = 0;
 	    uint8_t ax;
 
-	    //	  hid_debugf("Joystick data:");
-	    //	  hexdump(buf, read, 0);
+	    //	    hid_debugf("Joystick data:");
+	    //	    hexdump(buf, read, 0);
 
 	    // currently only byte sized axes are allowed
 	    ax = buf[conf->joystick.axis_byte_offset[0]];
@@ -389,6 +389,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	    
 	    // check if joystick state has changed
 	    if(jmap != info->iface_info[i].jmap) {
+	      //	      iprintf("jmap changed to %x\n", jmap);
+
 	      // and feed into joystick input system
 	      user_io_joystick(ax, jmap);
 	      info->iface_info[i].jmap = jmap;

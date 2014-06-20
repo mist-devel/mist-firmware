@@ -139,6 +139,7 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 
 void HandleUI(void)
 {
+    char *p;
     unsigned char i, c, up, down, select, menu, right, left, plus, minus;
     unsigned long len;
     static hardfileTYPE t_hardfile[2]; // temporary copy of former hardfile configuration
@@ -298,7 +299,7 @@ void HandleUI(void)
 	  else if(user_io_core_type() == CORE_TYPE_MIST)
 	    menustate = MENU_MIST_MAIN1;
 	  else
-	    menustate = MENU_DUMMY_MAIN1;
+	    menustate = MENU_8BIT_MAIN1;
 	  
 	    menusub = 0;
             OsdClear();
@@ -307,30 +308,57 @@ void HandleUI(void)
         break;
 
         /******************************************************************/
-        /* dummy main menu                                                */
+        /* 8 bit main menu                                                */
         /******************************************************************/
 
-    case MENU_DUMMY_MAIN1 :
+    case MENU_8BIT_MAIN1 :
 	menumask=0;
-	OsdSetTitle("Menu", 0);
+	// string at first index is the core name
+	p = user_io_8bit_get_string(0);
+	if(!p || !strlen(p)) OsdSetTitle("8BIT", 0);
+	else                 OsdSetTitle(p, 0);
 
-	OsdWrite(0, "", 0,0);
-	OsdWrite(1, " Dummy menu test", 0,0);
+	// check if there's a file type supported
+	p = user_io_8bit_get_string(1);
+	if(p && strlen(p)) {
+	  menumask = (menumask << 1) | 1;
+	  strcpy(s, " Load *.");
+	  strcat(s, p);
+	  OsdWrite(0, s, menusub==0, 0);
+	} else
+	  OsdWrite(0, " no file", 0,1);
+
+	OsdWrite(1, " 8 bit menu test", 0,0);
 	OsdWrite(2, "", 0,0);
 	OsdWrite(3, "", 0,0);
 	OsdWrite(4, "", 0,0);
 	OsdWrite(5, "", 0,0);
 	OsdWrite(6, "", 0,0);
 	OsdWrite(7, "", 0,0);
-        menustate = MENU_DUMMY_MAIN2;
-	parentstate=MENU_DUMMY_MAIN1;
+        menustate = MENU_8BIT_MAIN2;
+	parentstate=MENU_8BIT_MAIN1;
         break;
 
-    case MENU_DUMMY_MAIN2 :
+    case MENU_8BIT_MAIN2 :
         // menu key closes menu
         if (menu)
 	  menustate = MENU_NONE1;
+	if(select) {
+	  switch(menusub) {
+	  case 0: {
+	    p = user_io_8bit_get_string(1);
+	    strcat(p, "   ");  // expand short extensions to 3 bytes
+	    p[3] = 0;
+	    SelectFile(p, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1);
+	  }
+	  }
+	}
         break;
+	
+    case MENU_8BIT_MAIN_FILE_SELECTED : // file successfully selected
+        iprintf("selecte file %s\n", file.name);
+	menustate = MENU_8BIT_MAIN1;
+	break;
 
         /******************************************************************/
         /* mist main menu                                                 */

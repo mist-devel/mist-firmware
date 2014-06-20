@@ -288,6 +288,48 @@ static void kbd_fifo_poll() {
   kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
 }
 
+// 8 bit cores have a config string telling the firmware how
+// to treat it
+char *user_io_8bit_get_string(char index) {
+  unsigned char i, lidx = 0, j = 0;
+  static char buffer[16+1];  // max 16 bytes per config item
+
+  // clear buffer
+  buffer[0] = 0;
+
+  /* read status byte */
+  EnableIO();
+  SPI(UIO_GET_STRING);
+  
+  i = SPI(0);
+  // the first char returned will be 0xff if the core doesn't support
+  // config strings
+  if(i == 0xff) {
+    DisableIO();
+    return NULL;
+  }
+
+  iprintf("String: ");
+
+  while ((i != 0) && (i!=0xff)) {
+    if(i == ';') {
+      if(lidx == index) buffer[j++] = 0;
+      lidx++;
+    } else {
+      if(lidx == index)
+	buffer[j++] = i;
+    }
+
+    iprintf("%c", i);
+    i = SPI(0);
+  }
+    
+  DisableIO();
+  iprintf("\n");
+
+  return buffer;
+}    
+
 void user_io_poll() {
   if((core_type != CORE_TYPE_MINIMIG) &&
      (core_type != CORE_TYPE_PACE) &&

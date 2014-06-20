@@ -37,6 +37,8 @@
 #define UIO_JOYSTICK5   0x12  // -"-
 #define UIO_JOYSTICK6   0x13  // -"-
 
+#define UIO_GET_STRING  0x14
+
 // codes as used by 8bit (atari 800, zx81)
 #define UIO_GET_STATUS  0x50
 #define UIO_SECTOR_SND  0x51
@@ -72,6 +74,7 @@ char user_io_button_dip_switch1();
 char user_io_user_button();
 void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
+char *user_io_8bit_get_string(char);
 
 // io controllers interface for FPGA ethernet emulation using usb ethernet
 // devices attached to the io controller (ethernec emulation)
