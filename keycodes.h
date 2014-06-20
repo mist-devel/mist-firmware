@@ -320,7 +320,7 @@ const unsigned short usb2ps2[] = {
   0x41,  // 36: ,
   0x49,  // 37: .
   0x4a,  // 38: /
-  0x58 | CAPS_LOCK_TOGGLE,  // 39: Caps Lock
+  0x58,  // 39: Caps Lock
   0x05,  // 3a: F1
   0x06,  // 3b: F2
   0x04,  // 3c: F3
