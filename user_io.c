@@ -288,6 +288,37 @@ static void kbd_fifo_poll() {
   kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
 }
 
+void user_io_file_tx(fileTYPE *file) {
+  unsigned long bytes2send = file->size;
+
+  /* transmit the entire file using one transfer */
+
+  iprintf("Selected file %s with %lu bytes to send\n", file->name, bytes2send);
+
+  EnableFpga();
+  SPI(UIO_FILE_TX);
+
+  while(bytes2send) {
+    iprintf(".");
+
+    unsigned short c, chunk = (bytes2send>512)?512:bytes2send;
+    char *p;
+
+    FileRead(file, sector_buffer);
+
+    for(p = sector_buffer, c=0;c < chunk;c++) 
+      SPI(*p++);
+    
+    bytes2send -= chunk;
+
+    // still bytes to send? read next sector
+    if(bytes2send)
+      FileNextSector(file);
+  }
+  DisableFpga();
+  iprintf("\n");
+}
+
 // 8 bit cores have a config string telling the firmware how
 // to treat it
 char *user_io_8bit_get_string(char index) {
@@ -303,15 +334,15 @@ char *user_io_8bit_get_string(char index) {
   
   i = SPI(0);
   // the first char returned will be 0xff if the core doesn't support
-  // config strings
-  if(i == 0xff) {
+  // config strings. atari 800 returns 0xa4 which is the status byte
+  if((i == 0xff) || (i == 0xa4)) {
     DisableIO();
     return NULL;
   }
 
   iprintf("String: ");
 
-  while ((i != 0) && (i!=0xff)) {
+  while ((i != 0) && (i!=0xff) && (j<sizeof(buffer))) {
     if(i == ';') {
       if(lidx == index) buffer[j++] = 0;
       lidx++;
@@ -465,6 +496,8 @@ void user_io_poll() {
   }
 
   if(core_type == CORE_TYPE_8BIT) {
+    // raw sector io for cores like the atari800 core which include a full
+    // file system driver usually implemented using a second cpu
     static unsigned long bit8_status = 0;
     unsigned long status;
 
@@ -476,7 +509,7 @@ void user_io_poll() {
     status = (status << 8) | SPI(0);
     status = (status << 8) | SPI(0);
     DisableFpga();
-    
+
     if(status != bit8_status) {
       unsigned long sector = (status>>8)&0xffffff;
       char buffer[512];

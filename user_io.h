@@ -7,6 +7,7 @@
 #define USER_IO_H
 
 #include <inttypes.h>
+#include "fat.h"
 
 #define UIO_STATUS      0x00
 #define UIO_BUT_SW      0x01
@@ -43,6 +44,7 @@
 #define UIO_GET_STATUS  0x50
 #define UIO_SECTOR_SND  0x51
 #define UIO_SECTOR_RCV  0x52
+#define UIO_FILE_TX     0x53
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
@@ -75,6 +77,7 @@ char user_io_user_button();
 void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
 char *user_io_8bit_get_string(char);
+void user_io_file_tx(fileTYPE *);
 
 // io controllers interface for FPGA ethernet emulation using usb ethernet
 // devices attached to the io controller (ethernec emulation)

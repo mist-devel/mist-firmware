@@ -357,6 +357,7 @@ void HandleUI(void)
 	
     case MENU_8BIT_MAIN_FILE_SELECTED : // file successfully selected
         iprintf("selecte file %s\n", file.name);
+	user_io_file_tx(&file);
 	menustate = MENU_8BIT_MAIN1;
 	break;
 
