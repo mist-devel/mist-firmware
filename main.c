@@ -108,9 +108,7 @@ extern void inserttestfloppy();
 
 int main(void)
 {
-    unsigned char rc;
-    unsigned char key;
-    unsigned short spiclk;
+    uint8_t tmp;
     uint8_t mmc_ok = 0;
 
 #ifdef __GNUC__
@@ -138,8 +136,8 @@ int main(void)
 
     // TODO: If MMC fails try to wait for USB storage
 
-    spiclk = MCLK / ((AT91C_SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) / 1000000;
-    iprintf("spiclk: %u MHz\r", spiclk);
+    tmp = MCLK / ((AT91C_SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) / 1000000;
+    iprintf("spiclk: %u MHz\r", tmp);
 
     usb_init();
 
@@ -174,6 +172,11 @@ int main(void)
 
     usb_cdc_open();
 
+    // if it's a 8 bit core check if it has a config string
+    // (and thus has a user interface/osd)
+    if(user_io_core_type() == CORE_TYPE_8BIT)
+      tmp = (user_io_8bit_get_string(0) != NULL);
+
     while (1) {
       cdc_control_poll();
 
@@ -199,9 +202,8 @@ int main(void)
       }
 
       // 8 bit cores can also have a ui
-      if(user_io_core_type() == CORE_TYPE_8BIT) {
+      if((user_io_core_type() == CORE_TYPE_8BIT) &&  tmp)
 	HandleUI();
-      }
     }
     return 0;
 }

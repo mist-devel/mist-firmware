@@ -38,13 +38,16 @@
 #define UIO_JOYSTICK5   0x12  // -"-
 #define UIO_JOYSTICK6   0x13  // -"-
 
+// codes as currently used by 8bit only
 #define UIO_GET_STRING  0x14
+#define UIO_SET_STATUS  0x15
 
-// codes as used by 8bit (atari 800, zx81)
+// codes as used by 8bit (atari 800, zx81) via SS2
 #define UIO_GET_STATUS  0x50
 #define UIO_SECTOR_SND  0x51
 #define UIO_SECTOR_RCV  0x52
 #define UIO_FILE_TX     0x53
+#define UIO_FILE_TX_DAT 0x54
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
@@ -67,6 +70,9 @@
 #define CORE_TYPE_MIST      0xa3   // mist atari st core   
 #define CORE_TYPE_8BIT      0xa4   // atari 800/c64 like core
 
+// user io status bits (currently only used by 8bit)
+#define UIO_STATUS_RESET   0x01
+
 void user_io_init();
 void user_io_detect_core_type();
 unsigned char user_io_core_type();
@@ -77,6 +83,7 @@ char user_io_user_button();
 void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
 char *user_io_8bit_get_string(char);
+void user_io_8bit_set_status(unsigned char, unsigned char);
 void user_io_file_tx(fileTYPE *);
 
 // io controllers interface for FPGA ethernet emulation using usb ethernet

@@ -326,9 +326,9 @@ void HandleUI(void)
 	  strcat(s, p);
 	  OsdWrite(0, s, menusub==0, 0);
 	} else
-	  OsdWrite(0, " no file", 0,1);
+	  OsdWrite(0, " No file I/O", 0,1);
 
-	OsdWrite(1, " 8 bit menu test", 0,0);
+	OsdWrite(1, "", 0,0);
 	OsdWrite(2, "", 0,0);
 	OsdWrite(3, "", 0,0);
 	OsdWrite(4, "", 0,0);
@@ -356,9 +356,9 @@ void HandleUI(void)
         break;
 	
     case MENU_8BIT_MAIN_FILE_SELECTED : // file successfully selected
-        iprintf("selecte file %s\n", file.name);
 	user_io_file_tx(&file);
-	menustate = MENU_8BIT_MAIN1;
+	// close menu afterwards
+	menustate = MENU_NONE1;
 	break;
 
         /******************************************************************/

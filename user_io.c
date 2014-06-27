@@ -131,6 +131,14 @@ void user_io_detect_core_type() {
 
   case CORE_TYPE_8BIT:
     puts("Identified 8BIT core");
+
+    // send a reset
+    user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);
+    /* wait 5ms */
+    TIMER_wait(5);
+    // release reset
+    user_io_8bit_set_status(0, UIO_STATUS_RESET);
+
     break;
   }
 }
@@ -295,8 +303,11 @@ void user_io_file_tx(fileTYPE *file) {
 
   iprintf("Selected file %s with %lu bytes to send\n", file->name, bytes2send);
 
+  // prepare transmission of new file
   EnableFpga();
   SPI(UIO_FILE_TX);
+  SPI(0xff);
+  DisableFpga();
 
   while(bytes2send) {
     iprintf(".");
@@ -306,8 +317,13 @@ void user_io_file_tx(fileTYPE *file) {
 
     FileRead(file, sector_buffer);
 
-    for(p = sector_buffer, c=0;c < chunk;c++) 
+    EnableFpga();
+    SPI(UIO_FILE_TX_DAT);
+
+    for(p = sector_buffer, c=0;c < chunk;c++)
       SPI(*p++);
+
+    DisableFpga();
     
     bytes2send -= chunk;
 
@@ -315,7 +331,13 @@ void user_io_file_tx(fileTYPE *file) {
     if(bytes2send)
       FileNextSector(file);
   }
+
+  // signal end of transmission
+  EnableFpga();
+  SPI(UIO_FILE_TX);
+  SPI(0x00);
   DisableFpga();
+
   iprintf("\n");
 }
 
@@ -328,7 +350,6 @@ char *user_io_8bit_get_string(char index) {
   // clear buffer
   buffer[0] = 0;
 
-  /* read status byte */
   EnableIO();
   SPI(UIO_GET_STRING);
   
@@ -360,6 +381,20 @@ char *user_io_8bit_get_string(char index) {
 
   return buffer;
 }    
+
+void user_io_8bit_set_status(unsigned char new_status, unsigned char mask) {
+  static unsigned char status = 0;
+
+  // keep everything not masked
+  status &= ~mask;
+  // updated masked bits
+  status |= new_status & mask;
+
+  EnableIO();
+  SPI(UIO_SET_STATUS);
+  SPI(status);
+  DisableIO();
+}
 
 void user_io_poll() {
   if((core_type != CORE_TYPE_MINIMIG) &&
@@ -724,7 +759,8 @@ static char key_used_by_osd(unsigned short s) {
   // in atari mode eat all keys if the OSD is online,
   // else none as it's up to the core to forward keys
   // to the OSD
-  return(core_type == CORE_TYPE_MIST);
+  return((core_type == CORE_TYPE_MIST) ||
+	 (core_type == CORE_TYPE_8BIT));
 }
 
 void user_io_kbd(unsigned char m, unsigned char *k) {
