@@ -133,6 +133,22 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
     menustate = MENU_FILE_SELECT1;
 }
 
+static void substrcpy(char *d, char *s, char idx) {
+  char p = 0;
+
+  while(*s) {
+    if((p == idx) && *s && (*s != ','))
+      *d++ = *s;
+
+    if(*s == ',')
+      p++;
+
+    s++;
+  }
+
+  *d = 0;
+}
+
 #define STD_EXIT "            exit"
 #define HELPTEXT_DELAY 10000
 #define FRAME_DELAY 150
@@ -328,13 +344,43 @@ void HandleUI(void)
 	} else
 	  OsdWrite(0, " No file I/O", 0,1);
 
-	OsdWrite(1, "", 0,0);
-	OsdWrite(2, "", 0,0);
-	OsdWrite(3, "", 0,0);
-	OsdWrite(4, "", 0,0);
-	OsdWrite(5, "", 0,0);
-	OsdWrite(6, "", 0,0);
-	OsdWrite(7, "", 0,0);
+	// add options as requested by core
+	i = 2;
+	do {
+	  unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+
+	  p = user_io_8bit_get_string(i);
+	  //	  iprintf("Option %d: %s\n", i-1, p);
+
+	  // check for 'O'ption strings
+	  if(p && (p[0] == 'O')) {
+	    // p[1] is the digit after the O, so O1 is status bit 1
+	    char x = (status & (1<<(p[1]-'0')))?1:0;
+
+	    // get currently active option
+	    substrcpy(s, p, 2+x);
+	    char l = strlen(s);
+	    
+	    s[0] = ' ';
+	    substrcpy(s+1, p, 1);
+	    strcat(s, ":");
+	    l = 28-l-strlen(s); 
+	    while(l--) strcat(s, " ");
+
+	    substrcpy(s+strlen(s), p, 2+x);
+
+	    OsdWrite(i-1, s, menusub == i-1,0);
+
+	    // add bit in menu mask
+	    menumask = (menumask << 1) | 1;
+	  }
+	  i++;
+	} while(p);
+
+	// clear rest of OSD (the -=2 is on purpose!!)
+	for(i-=2;i<8;i++)
+	  OsdWrite(i, "", 0,0);
+
         menustate = MENU_8BIT_MAIN2;
 	parentstate=MENU_8BIT_MAIN1;
         break;
@@ -344,13 +390,24 @@ void HandleUI(void)
         if (menu)
 	  menustate = MENU_NONE1;
 	if(select) {
-	  switch(menusub) {
-	  case 0: {
-	    p = user_io_8bit_get_string(1);
+	  p = user_io_8bit_get_string(1+menusub);
+
+	  // entry 0 = file selector
+	  if(!menusub) {
 	    strcat(p, "   ");  // expand short extensions to 3 bytes
 	    p[3] = 0;
 	    SelectFile(p, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1);
-	  }
+	  } else {
+	    // determine which status bit is affected
+	    unsigned char mask = 1<<(p[1]-'0');
+	    unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+
+	    //	    iprintf("Option %s %x\n", p, status ^ mask);
+
+	    // toggle bit
+	    user_io_8bit_set_status(status ^ mask, mask);
+
+	    menustate = MENU_8BIT_MAIN1;
 	  }
 	}
         break;

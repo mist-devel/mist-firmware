@@ -345,7 +345,7 @@ void user_io_file_tx(fileTYPE *file) {
 // to treat it
 char *user_io_8bit_get_string(char index) {
   unsigned char i, lidx = 0, j = 0;
-  static char buffer[16+1];  // max 16 bytes per config item
+  static char buffer[32+1];  // max 32 bytes per config item
 
   // clear buffer
   buffer[0] = 0;
@@ -361,7 +361,7 @@ char *user_io_8bit_get_string(char index) {
     return NULL;
   }
 
-  iprintf("String: ");
+  //  iprintf("String: ");
 
   while ((i != 0) && (i!=0xff) && (j<sizeof(buffer))) {
     if(i == ';') {
@@ -372,28 +372,42 @@ char *user_io_8bit_get_string(char index) {
 	buffer[j++] = i;
     }
 
-    iprintf("%c", i);
+    //    iprintf("%c", i);
     i = SPI(0);
   }
     
   DisableIO();
-  iprintf("\n");
+  //  iprintf("\n");
+
+  // if this was the last string in the config string list, then it still
+  // needs to be terminated
+  if(lidx == index)
+    buffer[j] = 0;
+
+  // also return NULL for empty strings
+  if(!buffer[0]) 
+    return NULL;
 
   return buffer;
 }    
 
-void user_io_8bit_set_status(unsigned char new_status, unsigned char mask) {
+unsigned char user_io_8bit_set_status(unsigned char new_status, unsigned char mask) {
   static unsigned char status = 0;
 
-  // keep everything not masked
-  status &= ~mask;
-  // updated masked bits
-  status |= new_status & mask;
+  // if mask is 0 just return the current status 
+  if(mask) {
+    // keep everything not masked
+    status &= ~mask;
+    // updated masked bits
+    status |= new_status & mask;
+    
+    EnableIO();
+    SPI(UIO_SET_STATUS);
+    SPI(status);
+    DisableIO();
+  }
 
-  EnableIO();
-  SPI(UIO_SET_STATUS);
-  SPI(status);
-  DisableIO();
+  return status;
 }
 
 void user_io_poll() {

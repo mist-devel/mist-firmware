@@ -83,7 +83,7 @@ char user_io_user_button();
 void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
 char *user_io_8bit_get_string(char);
-void user_io_8bit_set_status(unsigned char, unsigned char);
+unsigned char user_io_8bit_set_status(unsigned char, unsigned char);
 void user_io_file_tx(fileTYPE *);
 
 // io controllers interface for FPGA ethernet emulation using usb ethernet
