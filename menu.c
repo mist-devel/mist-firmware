@@ -327,7 +327,9 @@ void HandleUI(void)
         /* 8 bit main menu                                                */
         /******************************************************************/
 
-    case MENU_8BIT_MAIN1 :
+    case MENU_8BIT_MAIN1: {
+        char entry=1;
+
 	menumask=0;
 	// string at first index is the core name
 	p = user_io_8bit_get_string(0);
@@ -369,21 +371,22 @@ void HandleUI(void)
 
 	    substrcpy(s+strlen(s), p, 2+x);
 
-	    OsdWrite(i-1, s, menusub == i-1,0);
+	    OsdWrite(entry, s, menusub == entry,0);
 
 	    // add bit in menu mask
 	    menumask = (menumask << 1) | 1;
+	    entry++;
 	  }
 	  i++;
 	} while(p);
 
 	// clear rest of OSD (the -=2 is on purpose!!)
-	for(i-=2;i<8;i++)
-	  OsdWrite(i, "", 0,0);
+	for(;entry<8;entry++) 
+	  OsdWrite(entry, "", 0,0);
 
         menustate = MENU_8BIT_MAIN2;
 	parentstate=MENU_8BIT_MAIN1;
-        break;
+    } break;
 
     case MENU_8BIT_MAIN2 :
         // menu key closes menu
