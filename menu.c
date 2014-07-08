@@ -333,8 +333,8 @@ void HandleUI(void)
 	menumask=0;
 	// string at first index is the core name
 	p = user_io_8bit_get_string(0);
-	if(!p || !strlen(p)) OsdSetTitle("8BIT", 0);
-	else                 OsdSetTitle(p, 0);
+	if(!p || !strlen(p)) OsdSetTitle("8BIT", OSD_ARROW_RIGHT);
+	else                 OsdSetTitle(p, OSD_ARROW_RIGHT);
 
 	// check if there's a file type supported
 	p = user_io_8bit_get_string(1);
@@ -354,6 +354,20 @@ void HandleUI(void)
 	  p = user_io_8bit_get_string(i);
 	  //	  iprintf("Option %d: %s\n", i-1, p);
 
+	  // check for 'T'oggle strings
+	  if(p && (p[0] == 'T')) {
+	    // p[1] is the digit after the O, so O1 is status bit 1
+	    char x = (status & (1<<(p[1]-'0')))?1:0;
+
+	    s[0] = ' ';
+	    substrcpy(s+1, p, 1);
+	    OsdWrite(entry, s, menusub == entry,0);
+
+	    // add bit in menu mask
+	    menumask = (menumask << 1) | 1;
+	    entry++;
+	  }
+
 	  // check for 'O'ption strings
 	  if(p && (p[0] == 'O')) {
 	    // p[1] is the digit after the O, so O1 is status bit 1
@@ -366,7 +380,7 @@ void HandleUI(void)
 	    s[0] = ' ';
 	    substrcpy(s+1, p, 1);
 	    strcat(s, ":");
-	    l = 28-l-strlen(s); 
+	    l = 26-l-strlen(s); 
 	    while(l--) strcat(s, " ");
 
 	    substrcpy(s+strlen(s), p, 2+x);
@@ -380,7 +394,7 @@ void HandleUI(void)
 	  i++;
 	} while(p);
 
-	// clear rest of OSD (the -=2 is on purpose!!)
+	// clear rest of OSD
 	for(;entry<8;entry++) 
 	  OsdWrite(entry, "", 0,0);
 
@@ -407,12 +421,21 @@ void HandleUI(void)
 
 	    //	    iprintf("Option %s %x\n", p, status ^ mask);
 
-	    // toggle bit
+	    // change bit
 	    user_io_8bit_set_status(status ^ mask, mask);
+
+	    // ... and change it again in case of a toggle bit
+	    if(p[0] == 'T')
+	      user_io_8bit_set_status(status, mask);
 
 	    menustate = MENU_8BIT_MAIN1;
 	  }
 	}
+        else if (right)
+        {
+            menustate = MENU_8BIT_SYSTEM1;
+            menusub = 0;
+        }
         break;
 	
     case MENU_8BIT_MAIN_FILE_SELECTED : // file successfully selected
@@ -421,6 +444,52 @@ void HandleUI(void)
 	menustate = MENU_NONE1;
 	break;
 
+    case MENU_8BIT_SYSTEM1:
+	menumask=3;
+	OsdSetTitle("System", OSD_ARROW_LEFT);
+        menustate = MENU_8BIT_SYSTEM2;
+	parentstate=MENU_8BIT_SYSTEM1;
+
+	OsdWrite(0, "", 0,0);
+        OsdWrite(1, " Firmware & Core           \x16", menusub == 0,0);
+	OsdWrite(2, "", 0,0);
+	OsdWrite(3, " Save settings", menusub == 1,0);
+	OsdWrite(4, "", 0,0);
+	OsdWrite(5, "", 0,0);
+	OsdWrite(6, "", 0,0);
+	OsdWrite(7, "", 0,0);
+      break;
+
+    case MENU_8BIT_SYSTEM2 :
+        // menu key closes menu
+        if (menu)
+	  menustate = MENU_NONE1;
+	if(select) {
+	  if(menusub == 0) {  // Firmware submenu
+	    menustate = MENU_FIRMWARE1;
+	    menusub = 1;
+	  }
+
+	  if(menusub == 1) {  // Save settings
+	    user_io_create_config_name(s);
+	    iprintf("Saving config to %s\n", s);
+
+	    if(FileNew(&file, s, 1)) {
+	      // finally write data
+	      sector_buffer[0] = user_io_8bit_set_status(0,0);
+	      FileWrite(&file, sector_buffer); 
+	      
+	      iprintf("Settings for %s written\n", s);
+	    }
+	  }
+	}
+        else if (left)
+        {
+            menustate = MENU_8BIT_MAIN1;
+            menusub = 0;
+        }
+        break;
+	
         /******************************************************************/
         /* mist main menu                                                 */
         /******************************************************************/
@@ -2252,12 +2321,19 @@ void HandleUI(void)
 
     case MENU_FIRMWARE2 :
       if (menu) {
-	if(user_io_core_type() == CORE_TYPE_MINIMIG) {
+	switch(user_io_core_type()) {
+	case CORE_TYPE_MINIMIG:
 	  menusub = 1;
 	  menustate = MENU_MISC1;
-	} else {
+	  break;
+	case CORE_TYPE_MIST:
 	  menusub = 5;
 	  menustate = MENU_MIST_MAIN1;
+	  break;
+	case CORE_TYPE_8BIT:
+	  menusub = 0;
+	  menustate = MENU_8BIT_SYSTEM1;
+	  break;
 	}
       }
       else if (select) {
@@ -2273,12 +2349,19 @@ void HandleUI(void)
 	  SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1);
 	}
 	else if (menusub == fat_uses_mmc()?2:1) {
-	  if(user_io_core_type() == CORE_TYPE_MINIMIG) {
+	  switch(user_io_core_type()) {
+	  case CORE_TYPE_MINIMIG:
 	    menusub = 1;
 	    menustate = MENU_MISC1;
-	  } else {
+	    break;
+	  case CORE_TYPE_MIST:
 	    menusub = 5;
 	    menustate = MENU_MIST_MAIN1;
+	    break;
+	  case CORE_TYPE_8BIT:
+	    menusub = 0;
+	    menustate = MENU_8BIT_SYSTEM1;
+	    break;
 	  }
 	}
       }

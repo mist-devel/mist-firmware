@@ -89,6 +89,8 @@ enum MENU
     MENU_8BIT_MAIN1,
     MENU_8BIT_MAIN2,
     MENU_8BIT_MAIN_FILE_SELECTED,
+    MENU_8BIT_SYSTEM1,
+    MENU_8BIT_SYSTEM2,
 };
 
 // UI strings, used by boot messages

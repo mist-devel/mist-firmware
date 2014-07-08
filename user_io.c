@@ -14,6 +14,9 @@
 
 #define BREAK  0x8000
 
+extern fileTYPE file;
+extern char s[40];
+
 typedef enum { EMU_NONE, EMU_MOUSE, EMU_JOY0, EMU_JOY1 } emu_mode_t;
 static emu_mode_t emu_mode = EMU_NONE;
 static unsigned char emu_state = 0;
@@ -96,6 +99,18 @@ unsigned char user_io_core_type() {
   return core_type;
 }
 
+char user_io_create_config_name(char *s) {
+  char *p = user_io_8bit_get_string(0);  // get core name
+  if(p && p[0]) {
+    strcpy(s, p);
+    while(strlen(s) < 8) strcat(s, " ");
+    strcat(s, "CFG");
+    
+    return 0;
+  }
+  return 1;
+}
+
 void user_io_detect_core_type() {
   EnableIO();
   core_type = SPI(0xff);
@@ -131,6 +146,18 @@ void user_io_detect_core_type() {
 
   case CORE_TYPE_8BIT:
     puts("Identified 8BIT core");
+
+    // try to load config
+    user_io_create_config_name(s);
+    iprintf("Loading config %s\n", s);
+
+    if (FileOpen(&file, s))  {
+      iprintf("Found config\n");
+      if(file.size == 1) {
+	FileRead(&file, sector_buffer);
+	user_io_8bit_set_status(sector_buffer[0], 0xff);
+      }
+    }
 
     // send a reset
     user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);

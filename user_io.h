@@ -96,5 +96,6 @@ void user_io_eth_receive_tx_frame(uint8_t *, uint16_t);
 // hooks from the usb layer
 void user_io_mouse(unsigned char b, char x, char y);
 void user_io_kbd(unsigned char m, unsigned char *k); 
+char user_io_create_config_name(char *s);
 
 #endif // USER_IO_H

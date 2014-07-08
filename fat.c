@@ -1392,4 +1392,28 @@ unsigned char UpdateEntry(fileTYPE *file) {
   return(1);
 }
 
+// start a new file or use existing one
+unsigned char FileNew(fileTYPE *file, char *name, int size) {
+  if(FileOpen(file, name) != 0) {
+    iprintf("File exists, using it\n");
 
+    // adjust file size if required
+    if(file->size != 1) {
+      file->size = 1;
+      if (!UpdateEntry(file)) {
+	iprintf("File size update failed\n");
+	return 0;
+      }
+    }
+  } else {
+    iprintf("File does not exist, creating it\n");
+    strncpy(file->name, name, 11);
+    file->attributes = 0;
+    file->size = 1;
+    if(!FileCreate(0, file)) {
+      iprintf("File creation failed\n");
+      return 0;
+    }
+  }
+  return 1;
+}

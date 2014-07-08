@@ -129,5 +129,7 @@ void fat_switch_to_usb(void);
 int8_t fat_medium_present(void);
 int8_t fat_uses_mmc(void);
 
+unsigned char FileNew(fileTYPE *file, char *name, int size);
+
 #endif
 
