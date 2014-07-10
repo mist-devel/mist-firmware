@@ -111,6 +111,10 @@ char user_io_create_config_name(char *s) {
   return 1;
 }
 
+extern DIRENTRY DirEntry[MAXDIRENTRIES];
+extern unsigned char sort_table[MAXDIRENTRIES];
+extern unsigned char nDirEntries;
+
 void user_io_detect_core_type() {
   EnableIO();
   core_type = SPI(0xff);
@@ -144,8 +148,11 @@ void user_io_detect_core_type() {
     puts("Identified MiST core");
     break;
 
-  case CORE_TYPE_8BIT:
+  case CORE_TYPE_8BIT: {
     puts("Identified 8BIT core");
+
+    // send a reset
+    user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);
 
     // try to load config
     user_io_create_config_name(s);
@@ -159,14 +166,10 @@ void user_io_detect_core_type() {
       }
     }
 
-    // send a reset
-    user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);
-    /* wait 5ms */
-    TIMER_wait(5);
     // release reset
     user_io_8bit_set_status(0, UIO_STATUS_RESET);
 
-    break;
+  } break;
   }
 }
 

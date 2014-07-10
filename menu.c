@@ -117,21 +117,41 @@ unsigned char fs_MenuCancel;
 
 void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect, unsigned char MenuCancel)
 {
-    // this function displays file selection menu
+  // this function displays file selection menu
 
-    if (strncmp(pFileExt, fs_pFileExt, 3) != 0) // check desired file extension
-    { // if different from the current one go to the root directory and init entry buffer
-        ChangeDirectory(DIRECTORY_ROOT);
-        ScanDirectory(SCAN_INIT, pFileExt, Options);
+  if (strncmp(pFileExt, fs_pFileExt, 3) != 0) // check desired file extension
+  { // if different from the current one go to the root directory and init entry buffer
+    ChangeDirectory(DIRECTORY_ROOT);
+    
+    // for 8 bit cores try to 
+    if(user_io_core_type() == CORE_TYPE_8BIT) {
+      user_io_create_config_name(s);
+      // try to change into subdir named after the core
+      strcpy(s+8, "   ");
+      iprintf("Trying to open work dir \"%s\"\n", s);
+      
+      ScanDirectory(SCAN_INIT, "",  SCAN_DIR | FIND_DIR);
+      
+      { int i;
+	for(i=0;i<nDirEntries;i++) {
+	  if(strncmp(DirEntry[i].Name, s, 11) == 0)
+	    ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
+	}
+      }
     }
 
-    fs_pFileExt = pFileExt;
-    fs_Options = Options;
-    fs_MenuSelect = MenuSelect;
-    fs_MenuCancel = MenuCancel;
+    ScanDirectory(SCAN_INIT, pFileExt, Options);
+  }
 
-    menustate = MENU_FILE_SELECT1;
+  iprintf("pFileExt = %3s\n", pFileExt);
+  fs_pFileExt = pFileExt;
+  fs_Options = Options;
+  fs_MenuSelect = MenuSelect;
+  fs_MenuCancel = MenuCancel;
+  
+  menustate = MENU_FILE_SELECT1;
 }
+
 
 static void substrcpy(char *d, char *s, char idx) {
   char p = 0;
@@ -411,9 +431,11 @@ void HandleUI(void)
 
 	  // entry 0 = file selector
 	  if(!menusub) {
-	    strcat(p, "   ");  // expand short extensions to 3 bytes
-	    p[3] = 0;
-	    SelectFile(p, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1);
+	    // use a local copy of "p" since SelectFile will destroy the buffer behind it
+	    char ext[4];
+	    strncpy(ext, p, 4);
+	    while(strlen(ext) < 3) strcat(ext, " ");
+	    SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1);
 	  } else {
 	    // determine which status bit is affected
 	    unsigned char mask = 1<<(p[1]-'0');
