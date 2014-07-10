@@ -115,16 +115,17 @@ unsigned char fs_Options;
 unsigned char fs_MenuSelect;
 unsigned char fs_MenuCancel;
 
-void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect, unsigned char MenuCancel)
+void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect, unsigned char MenuCancel, char chdir)
 {
   // this function displays file selection menu
 
   if (strncmp(pFileExt, fs_pFileExt, 3) != 0) // check desired file extension
   { // if different from the current one go to the root directory and init entry buffer
     ChangeDirectory(DIRECTORY_ROOT);
-    
+
     // for 8 bit cores try to 
-    if(user_io_core_type() == CORE_TYPE_8BIT) {
+    if((user_io_core_type() == CORE_TYPE_8BIT) && chdir) {
+
       user_io_create_config_name(s);
       // try to change into subdir named after the core
       strcpy(s+8, "   ");
@@ -432,10 +433,10 @@ void HandleUI(void)
 	  // entry 0 = file selector
 	  if(!menusub) {
 	    // use a local copy of "p" since SelectFile will destroy the buffer behind it
-	    char ext[4];
+	    static char ext[4];
 	    strncpy(ext, p, 4);
 	    while(strlen(ext) < 3) strcat(ext, " ");
-	    SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1);
+	    SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1, 1);
 	  } else {
 	    // determine which status bit is affected
 	    unsigned char mask = 1<<(p[1]-'0');
@@ -556,7 +557,7 @@ void HandleUI(void)
 	      tos_insert_disk(0, NULL);
 	      menustate = MENU_MIST_MAIN1;
 	    } else
-	      SelectFile("ST ", SCAN_DIR | SCAN_LFN, MENU_MIST_MAIN_FILE_SELECTED, MENU_MIST_MAIN1);
+	      SelectFile("ST ", SCAN_DIR | SCAN_LFN, MENU_MIST_MAIN_FILE_SELECTED, MENU_MIST_MAIN1, 0);
 	    break;
 
 	  case 1:
@@ -650,7 +651,7 @@ void HandleUI(void)
 	    tos_insert_disk(menusub, NULL);
 	    menustate = MENU_MIST_STORAGE1;
 	  } else
-	    SelectFile("ST ", SCAN_DIR | SCAN_LFN, MENU_MIST_STORAGE_FILE_SELECTED, MENU_MIST_STORAGE1);
+	    SelectFile("ST ", SCAN_DIR | SCAN_LFN, MENU_MIST_STORAGE_FILE_SELECTED, MENU_MIST_STORAGE1, 0);
 	}
 	
 	else if(menusub == 2) {
@@ -664,7 +665,7 @@ void HandleUI(void)
 	    tos_insert_disk(menusub-1, NULL);
 	    menustate = MENU_MIST_STORAGE1;
 	  } else
-	    SelectFile("HD ", SCAN_LFN, MENU_MIST_STORAGE_FILE_SELECTED, MENU_MIST_STORAGE1);
+	    SelectFile("HD ", SCAN_LFN, MENU_MIST_STORAGE_FILE_SELECTED, MENU_MIST_STORAGE1, 0);
 	} else if (menusub == 5) {
 	  menustate = MENU_MIST_MAIN1;
 	  menusub = 2;
@@ -742,7 +743,7 @@ void HandleUI(void)
 	} break;
 
 	case 2:  // TOS
-	  SelectFile("IMG", SCAN_LFN, MENU_MIST_SYSTEM_FILE_SELECTED, MENU_MIST_SYSTEM1);
+	  SelectFile("IMG", SCAN_LFN, MENU_MIST_SYSTEM_FILE_SELECTED, MENU_MIST_SYSTEM1, 0);
 	  break;
 
 	case 3:  // Cart
@@ -751,7 +752,7 @@ void HandleUI(void)
 	    tos_load_cartridge("");
 	    menustate = MENU_MIST_SYSTEM1;
 	  } else
-	    SelectFile("IMG", SCAN_LFN, MENU_MIST_SYSTEM_FILE_SELECTED, MENU_MIST_SYSTEM1);
+	    SelectFile("IMG", SCAN_LFN, MENU_MIST_SYSTEM_FILE_SELECTED, MENU_MIST_SYSTEM1, 0);
 	  break;
 
 	case 4:
@@ -1042,7 +1043,7 @@ void HandleUI(void)
                 else
                 {
                     df[menusub].status = 0;
-                    SelectFile("ADF", SCAN_DIR | SCAN_LFN, MENU_FILE_SELECTED, MENU_MAIN1);
+                    SelectFile("ADF", SCAN_DIR | SCAN_LFN, MENU_FILE_SELECTED, MENU_MAIN1, 0);
                 }
             }
             else if (menusub == 4)	// Toggle floppy turbo
@@ -1799,7 +1800,7 @@ void HandleUI(void)
             }
             else if (menusub == 3)
             {
-                SelectFile("ROM", SCAN_LFN, MENU_ROMFILE_SELECTED, MENU_SETTINGS_MEMORY1);
+	      SelectFile("ROM", SCAN_LFN, MENU_ROMFILE_SELECTED, MENU_SETTINGS_MEMORY1, 0);
             }
             else if (menusub == 4)
             {
@@ -1934,7 +1935,7 @@ void HandleUI(void)
             }
             else if (menusub == 2)
             {
-                SelectFile("HDF", SCAN_LFN, MENU_HARDFILE_SELECTED, MENU_SETTINGS_HARDFILE1);
+	      SelectFile("HDF", SCAN_LFN, MENU_HARDFILE_SELECTED, MENU_SETTINGS_HARDFILE1, 0);
             }
             else if (menusub == 3)
             {
@@ -1956,7 +1957,7 @@ void HandleUI(void)
             }
             else if (menusub == 4)
             {
-                SelectFile("HDF", SCAN_LFN, MENU_HARDFILE_SELECTED, MENU_SETTINGS_HARDFILE1);
+	      SelectFile("HDF", SCAN_LFN, MENU_HARDFILE_SELECTED, MENU_SETTINGS_HARDFILE1, 0);
             }
             else if (menusub == 5) // return to previous menu
             {
@@ -2368,7 +2369,7 @@ void HandleUI(void)
 	  OsdClear();
 	}
 	else if (menusub == fat_uses_mmc()?1:0) {
-	  SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1);
+	  SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
 	}
 	else if (menusub == fat_uses_mmc()?2:1) {
 	  switch(user_io_core_type()) {
