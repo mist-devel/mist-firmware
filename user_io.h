@@ -76,6 +76,7 @@
 void user_io_init();
 void user_io_detect_core_type();
 unsigned char user_io_core_type();
+char user_io_is_8bit_with_config_string();
 void user_io_poll();
 char user_io_menu_button();
 char user_io_button_dip_switch1();

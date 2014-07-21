@@ -493,7 +493,7 @@ void HandleUI(void)
 	    menusub = 1;
 	  }
 
-	  if(menusub == 1) {  // Save settings
+	  else if(menusub == 1) {  // Save settings
 	    user_io_create_config_name(s);
 	    iprintf("Saving config to %s\n", s);
 
@@ -2391,7 +2391,11 @@ void HandleUI(void)
       break;
 	
     case MENU_FIRMWARE_CORE_FILE_SELECTED :
+      OsdDisable();
+
+      // close OSD now as the new core may not even have one
       fpga_init(file.name);
+
       menustate = MENU_NONE1;
       break;
 

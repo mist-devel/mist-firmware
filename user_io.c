@@ -24,6 +24,7 @@ static long emu_timer;
 #define EMU_MOUSE_FREQ 5
 
 static unsigned char core_type = CORE_TYPE_UNKNOWN;
+static char core_type_8bit_with_config_string = 0;
 static unsigned char adc_state = 0;
 
 AT91PS_ADC a_pADC = AT91C_BASE_ADC;
@@ -111,9 +112,9 @@ char user_io_create_config_name(char *s) {
   return 1;
 }
 
-extern DIRENTRY DirEntry[MAXDIRENTRIES];
-extern unsigned char sort_table[MAXDIRENTRIES];
-extern unsigned char nDirEntries;
+char user_io_is_8bit_with_config_string() {
+  return core_type_8bit_with_config_string;
+}  
 
 void user_io_detect_core_type() {
   EnableIO();
@@ -151,18 +152,22 @@ void user_io_detect_core_type() {
   case CORE_TYPE_8BIT: {
     puts("Identified 8BIT core");
 
+    // check if core has a config string
+    core_type_8bit_with_config_string = (user_io_8bit_get_string(0) != NULL);
+
     // send a reset
     user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);
 
     // try to load config
-    user_io_create_config_name(s);
-    iprintf("Loading config %s\n", s);
+    if(user_io_create_config_name(s) == 0) {
+      iprintf("Loading config %s\n", s);
 
-    if (FileOpen(&file, s))  {
-      iprintf("Found config\n");
-      if(file.size == 1) {
-	FileRead(&file, sector_buffer);
-	user_io_8bit_set_status(sector_buffer[0], 0xff);
+      if (FileOpen(&file, s))  {
+	iprintf("Found config\n");
+	if(file.size == 1) {
+	  FileRead(&file, sector_buffer);
+	  user_io_8bit_set_status(sector_buffer[0], 0xff);
+	}
       }
     }
 
@@ -960,3 +965,4 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
     pressed[i] = k[i];
   }
 }
+

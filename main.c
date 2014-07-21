@@ -172,11 +172,6 @@ int main(void)
 
     usb_cdc_open();
 
-    // if it's a 8 bit core check if it has a config string
-    // (and thus has a user interface/osd)
-    if(user_io_core_type() == CORE_TYPE_8BIT)
-      tmp = (user_io_8bit_get_string(0) != NULL);
-
     while (1) {
       cdc_control_poll();
 
@@ -201,8 +196,9 @@ int main(void)
 	HandleUI();
       }
 
-      // 8 bit cores can also have a ui
-      if((user_io_core_type() == CORE_TYPE_8BIT) &&  tmp)
+      // 8 bit cores can also have a ui if a valid config string can be read from it
+      if((user_io_core_type() == CORE_TYPE_8BIT) && 
+	 user_io_is_8bit_with_config_string())
 	HandleUI();
     }
     return 0;

@@ -988,8 +988,6 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 
 void ChangeDirectory(unsigned long iStartCluster)
 {
-  iprintf(">>>>>>>>>>>> change to %d\n", iStartCluster);
-
     iPreviousDirectory = iCurrentDirectory;
     iCurrentDirectory = iStartCluster;
 }
