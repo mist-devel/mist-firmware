@@ -44,6 +44,8 @@
 #define HID_DEVICE_JOYSTICK 3
 
 typedef struct {
+  ep_t ep;    // interrupt endpoint info structure
+
   uint8_t iface_idx;
   uint16_t report_desc_size;
 
@@ -56,16 +58,16 @@ typedef struct {
   uint8_t jindex;         // joystick index
   hid_config_t conf;
 
+  uint8_t interval;
+  uint32_t qNextPollTime;     // next poll time
+
 } usb_hid_iface_info_t;
 
 typedef struct {
-  ep_t ep[MAX_IFACES];    // interrupt endpoint info structure
-  uint32_t qNextPollTime;     // next poll time
   bool	   bPollEnable;	      // poll enable flag
   uint8_t  bNumIfaces;
 
-  usb_hid_iface_info_t iface_info[MAX_IFACES];
-
+  usb_hid_iface_info_t iface[MAX_IFACES];
 } usb_hid_info_t;
 
 /* HID descriptor */

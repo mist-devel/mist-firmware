@@ -159,7 +159,8 @@ void user_io_detect_core_type() {
     user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);
 
     // try to load config
-    if(user_io_create_config_name(s) == 0) {
+    user_io_create_config_name(s);
+    if(strlen(s) > 0) {
       iprintf("Loading config %s\n", s);
 
       if (FileOpen(&file, s))  {
