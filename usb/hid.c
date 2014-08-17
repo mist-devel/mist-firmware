@@ -8,12 +8,6 @@
 #include "../user_io.h"
 #include "../hardware.h"
 
-// joystick todo:
-// + renumber on unplug
-// + shift legacy joysticks up
-// + emulate extra joysticks (at printerport, ...)
-// - second fire button (no known system uses it, but OSD may have a use ...)
-
 static unsigned char kbd_led_state = 0;  // default: all leds off
 static unsigned char joysticks = 0;      // number of detected usb joysticks
 
@@ -379,11 +373,12 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	    if(ax <  64) jmap |= JOY_UP;
 	    if(ax > 192) jmap |= JOY_DOWN;
 	    
-	    // ... and one button
-	    if(buf[conf->joystick.button_byte_offset] & 
-	       conf->joystick.button0_bitmask)
-	      jmap |= JOY_BTN1;
-	    
+	    // ... and buttons
+            if(buf[conf->joystick.button_byte_offset] & 
+               conf->joystick.button_bitmask[0]) jmap |= JOY_BTN1;
+            if(buf[conf->joystick.button_byte_offset] & 
+               conf->joystick.button_bitmask[1]) jmap |= JOY_BTN2;
+
 	    // swap joystick 0 and 1 since 1 is the one 
 	    // used primarily on most systems
 	    ax = iface->jindex;
@@ -392,7 +387,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	    
 	    // check if joystick state has changed
 	    if(jmap != iface->jmap) {
-	      //	      iprintf("jmap changed to %x\n", jmap);
+	      //	      iprintf("jmap %d changed to %x\n", ax, jmap);
 
 	      // and feed into joystick input system
 	      user_io_joystick(ax, jmap);

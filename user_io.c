@@ -345,6 +345,7 @@ void user_io_file_tx(fileTYPE *file) {
   SPI(0xff);
   DisableFpga();
 
+#if 1
   while(bytes2send) {
     iprintf(".");
 
@@ -367,6 +368,30 @@ void user_io_file_tx(fileTYPE *file) {
     if(bytes2send)
       FileNextSector(file);
   }
+#else
+  {
+    int i, j;
+    EnableFpga();
+    SPI(UIO_FILE_TX_DAT);
+
+    // zx spectrum video:
+    // 256*192 pixels = 6144 bytes
+    // _"_ = 768 attribute bytes
+
+    for(j=0;j<8;j++) 
+      for(i=0;i<32*8;i++) SPI(0xf0);
+
+    for(j=0;j<8;j++) 
+      for(i=0;i<32*8;i++) SPI(0xcc);
+
+    for(j=0;j<8;j++) 
+      for(i=0;i<32*8;i++) SPI(0x55);
+
+    for(i=0;i<768;i++) SPI(i/3);
+
+    DisableFpga();
+  }
+#endif
 
   // signal end of transmission
   EnableFpga();
@@ -740,7 +765,7 @@ static unsigned char is_emu_key(unsigned char c) {
 }  
 
 #define EMU_BTN1  0  // left control
-#define EMU_BTN2  4  // right control
+#define EMU_BTN2  1  // left shift
 
 unsigned short keycode(unsigned char in) {
   if(core_type == CORE_TYPE_MINIMIG) 
@@ -775,7 +800,6 @@ unsigned short modifier_keycode(unsigned char index) {
       { 0x63, 0x60, 0x64, 0x66, 0x63, 0x61, 0x65, 0x67 };
     return amiga_modifier[index];
   }
-
   if(core_type == CORE_TYPE_MIST) {
     static const unsigned short atari_modifier[] = 
       { 0x1d, 0x2a, 0x38, MISS, 0x1d, 0x36, 0x38, MISS };

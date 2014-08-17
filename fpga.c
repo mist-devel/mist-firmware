@@ -255,13 +255,14 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
     ptr = sector_buffer;
 
     /* Drive a transition of 0 to 1 to NCONFIG to indicate start of configuration */
-    *AT91C_PIOA_CODR = ALTERA_NCONFIG;
-    *AT91C_PIOA_CODR = ALTERA_NCONFIG;  // must be low for at least 500ns
+    for(i=0;i<10;i++)
+      *AT91C_PIOA_CODR = ALTERA_NCONFIG;  // must be low for at least 500ns
+
     *AT91C_PIOA_SODR = ALTERA_NCONFIG;
 
     // now wait for NSTATUS to go high
     // specs: max 800us
-    i = 100000;
+    i = 1000000;
     while (!(*AT91C_PIOA_PDSR & ALTERA_NSTATUS))
     {
         if (--i == 0)
@@ -789,7 +790,7 @@ void fpga_init(char *name) {
       iprintf("FPGA configured in %lu ms\r", time >> 20);
     } else {
       iprintf("FPGA configuration failed\r");
-      FatalError(3);
+      FatalError(8); // 3
     }
     
     WaitTimer(100); // let's wait some time till reset is inactive so we can get a valid keycode

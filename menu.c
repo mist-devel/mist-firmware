@@ -135,7 +135,9 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
       
       { int i;
 	for(i=0;i<nDirEntries;i++) {
-	  if(strncmp(DirEntry[i].Name, s, 11) == 0)
+	  //	  iprintf("cmp %11s %11s\n", DirEntry[i].Name, s);
+
+	  if(strncasecmp(DirEntry[i].Name, s, 11) == 0)
 	    ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
 	}
       }
