@@ -630,7 +630,11 @@ void user_io_poll() {
       DISKLED_ON;
 
       // sector read
-      if((status & 0xff) == 0xa5) {
+      if(((status & 0xff) == 0xa5) || ((status & 0xfc) == 0xa8)) {
+
+	// extended command with 26 bits (for 32GB SDHC)
+	if((status & 0xfc) == 0xa8) sector = (status>>6)&0x3ffffff;
+
 	if(MMC_Read(sector, buffer)) {
 	  // data is now stored in buffer. send it to fpga
 	  EnableFpga();
@@ -642,7 +646,10 @@ void user_io_poll() {
       }
 
       // sector write
-      if((status & 0xff) == 0xa6) {
+      if(((status & 0xff) == 0xa6) || ((status & 0xfc) == 0xac)) {
+
+	// extended command with 26 bits (for 32GB SDHC)
+	if((status & 0xfc) == 0xac) sector = (status>>6)&0x3ffffff;
 
 	// read sector from FPGA
 	EnableFpga();
