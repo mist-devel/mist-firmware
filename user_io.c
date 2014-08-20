@@ -606,7 +606,7 @@ void user_io_poll() {
   }
 
   if(core_type == CORE_TYPE_8BIT) {
-    // raw sector io for cores like the atari800 core which include a full
+    // raw sector io for the atari800 core which include a full
     // file system driver usually implemented using a second cpu
     static unsigned long bit8_status = 0;
     unsigned long status;
@@ -630,10 +630,10 @@ void user_io_poll() {
       DISKLED_ON;
 
       // sector read
-      if(((status & 0xff) == 0xa5) || ((status & 0xfc) == 0xa8)) {
+      if(((status & 0xff) == 0xa5) || ((status & 0x3f) == 0x29)) {
 
 	// extended command with 26 bits (for 32GB SDHC)
-	if((status & 0xfc) == 0xa8) sector = (status>>6)&0x3ffffff;
+	if((status & 0x3f) == 0x29) sector = (status>>6)&0x3ffffff;
 
 	if(MMC_Read(sector, buffer)) {
 	  // data is now stored in buffer. send it to fpga
@@ -646,10 +646,10 @@ void user_io_poll() {
       }
 
       // sector write
-      if(((status & 0xff) == 0xa6) || ((status & 0xfc) == 0xac)) {
+      if(((status & 0xff) == 0xa6) || ((status & 0x3f) == 0x2a)) {
 
 	// extended command with 26 bits (for 32GB SDHC)
-	if((status & 0xfc) == 0xac) sector = (status>>6)&0x3ffffff;
+	if((status & 0x3f) == 0x2a) sector = (status>>6)&0x3ffffff;
 
 	// read sector from FPGA
 	EnableFpga();
