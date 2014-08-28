@@ -351,7 +351,7 @@ void HandleUI(void)
         /******************************************************************/
 
     case MENU_8BIT_MAIN1: {
-        char entry=1;
+        char entry=0;
 
 	menumask=0;
 	// string at first index is the core name
@@ -362,12 +362,12 @@ void HandleUI(void)
 	// check if there's a file type supported
 	p = user_io_8bit_get_string(1);
 	if(p && strlen(p)) {
-	  menumask = (menumask << 1) | 1;
+	  entry = 1;
+	  menumask = 1;
 	  strcpy(s, " Load *.");
 	  strcat(s, p);
 	  OsdWrite(0, s, menusub==0, 0);
-	} else
-	  OsdWrite(0, " No file I/O", 0,1);
+	}
 
 	// add options as requested by core
 	i = 2;
@@ -430,16 +430,22 @@ void HandleUI(void)
         if (menu)
 	  menustate = MENU_NONE1;
 	if(select) {
-	  p = user_io_8bit_get_string(1+menusub);
+	  char fs_present;
+	  p = user_io_8bit_get_string(1);
+	  fs_present = p && strlen(p);
 
 	  // entry 0 = file selector
-	  if(!menusub) {
+	  if(!menusub && fs_present) {
+	    p = user_io_8bit_get_string(1);
+
 	    // use a local copy of "p" since SelectFile will destroy the buffer behind it
 	    static char ext[4];
 	    strncpy(ext, p, 4);
 	    while(strlen(ext) < 3) strcat(ext, " ");
 	    SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1, 1);
 	  } else {
+	    p = user_io_8bit_get_string(menusub + (fs_present?1:2));
+
 	    // determine which status bit is affected
 	    unsigned char mask = 1<<(p[1]-'0');
 	    unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status

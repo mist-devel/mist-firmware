@@ -41,6 +41,8 @@
 // codes as currently used by 8bit only
 #define UIO_GET_STRING  0x14
 #define UIO_SET_STATUS  0x15
+#define UIO_GET_SDSTAT  0x16  // read status of sd card emulation
+#define UIO_SECTOR_RD   0x17
 
 // codes as used by 8bit (atari 800, zx81) via SS2
 #define UIO_GET_STATUS  0x50
