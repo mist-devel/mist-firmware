@@ -593,3 +593,6 @@ static RAMFUNC void MMC_CRC(unsigned char c)
     }
 }
 
+unsigned char MMC_IsSDHC(void) {
+  return(CardType == CARDTYPE_SDHC);
+}

@@ -81,6 +81,7 @@ unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, un
 unsigned char MMC_GetCSD();
 unsigned long MMC_GetCapacity(); // Returns the capacity in 512 byte blocks
 unsigned char MMC_CheckCard();   // frequently check if card has been removed
+unsigned char MMC_IsSDHC();
 
 #endif
 

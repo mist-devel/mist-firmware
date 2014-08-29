@@ -360,7 +360,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	  hid_config_t *conf = &iface->conf;
 	  if(read >= conf->report_size) {
 	    uint8_t jmap = 0;
-	    uint8_t ax;
+	    uint8_t ax,ay,idx;
 
 	    //	    hid_debugf("Joystick data:");
 	    //	    hexdump(buf, read, 0);
@@ -369,9 +369,9 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	    ax = buf[conf->joystick.axis_byte_offset[0]];
 	    if(ax <  64) jmap |= JOY_LEFT;
 	    if(ax > 192) jmap |= JOY_RIGHT;
-	    ax = buf[conf->joystick.axis_byte_offset[1]];
-	    if(ax <  64) jmap |= JOY_UP;
-	    if(ax > 192) jmap |= JOY_DOWN;
+	    ay = buf[conf->joystick.axis_byte_offset[1]];
+	    if(ay <  64) jmap |= JOY_UP;
+	    if(ay > 192) jmap |= JOY_DOWN;
 	    
 	    // ... and buttons
             if(buf[conf->joystick.button_byte_offset] & 
@@ -381,18 +381,21 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 
 	    // swap joystick 0 and 1 since 1 is the one 
 	    // used primarily on most systems
-	    ax = iface->jindex;
-	    if(ax == 0)      ax = 1;
-	    else if(ax == 1) ax = 0;
+	    idx = iface->jindex;
+	    if(idx == 0)      idx = 1;
+	    else if(idx == 1) idx = 0;
 	    
 	    // check if joystick state has changed
 	    if(jmap != iface->jmap) {
 	      //	      iprintf("jmap %d changed to %x\n", ax, jmap);
 
 	      // and feed into joystick input system
-	      user_io_joystick(ax, jmap);
+	      user_io_digital_joystick(idx, jmap);
 	      iface->jmap = jmap;
 	    }
+
+	    // also send analog values
+	    user_io_analog_joystick(idx, ax-128, ay-128);
 	  }
 	}
       }

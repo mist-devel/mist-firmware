@@ -49,7 +49,7 @@ unsigned char menustate = MENU_NONE1;
 unsigned char parentstate;
 unsigned char menusub = 0;
 unsigned int menumask = 0; // Used to determine which rows are selectable...
-unsigned long menu_timer;
+unsigned long menu_timer = 0;
 
 extern unsigned char drives;
 extern adfTYPE df[4];
@@ -2524,7 +2524,7 @@ void HandleUI(void)
     case MENU_ERROR :
 
         if (menu)
-            menustate = MENU_MAIN1;
+            menustate = MENU_NONE1;
 
         break;
 
@@ -2534,7 +2534,7 @@ void HandleUI(void)
     case MENU_INFO :
 
         if (menu)
-            menustate = MENU_MAIN1;
+            menustate = MENU_NONE1;
         else if (CheckTimer(menu_timer))
             menustate = MENU_NONE1;
 
@@ -2812,52 +2812,51 @@ void InsertFloppy(adfTYPE *drive)
     menu_debugf("drive status: 0x%02X\r", drive->status);
 }
 
-/*  Error Message */
-void ErrorMessage(const char *message, unsigned char code) {
-  if (menustate == MENU_NONE2)
-    menustate = MENU_ERROR;
+static void set_text(const char *message, unsigned char code) {
+  char i=0, l=1;
+
+  OsdWrite(0, "", 0,0);
+
+  do {
+    s[i++] = *message;
+    
+    // line full or line break
+    if((i == 29) || (*message == '\n') || !*message) {
+	
+      s[i] = 0;
+      OsdWrite(l++, s, 0,0);
+      i=0;  // start next line
+    }
+  } while(*message++);
   
-  if (menustate == MENU_ERROR) {
-    OsdSetTitle("Error",0);
-    OsdWrite(0, "         *** ERROR ***", 1,0);
-    OsdWrite(1, "", 0,0);
-    strncpy(s, message, 32);
-    s[32] = 0;
-    OsdWrite(2, s, 0,0);
-    
-    s[0] = 0;
-    if (code)
-      siprintf(s, "    #%d", code);
-    
-    OsdWrite(3, "", 0,0);
-    OsdWrite(4, s, 0,0);
-    
-    OsdWrite(5, "", 0,0);
-    OsdWrite(6, "", 0,0);
-    OsdWrite(7, "", 0,0);
-    
-    OsdEnable(0); // do not disable KEYBOARD
+  if(code && (l <= 7)) {
+    siprintf(s, " Code: #%d", code);
+    OsdWrite(l++, s, 0,0);
   }
+  
+  while(l <= 7)
+    OsdWrite(l++, "", 0,0);
 }
 
-void InfoMessage(char *message)
-{
-    if (menustate != MENU_INFO)
-    {
-//        OsdClear();
- 		OsdSetTitle("Message",0);
-        OsdEnable(0); // do not disable keyboard
-    }
-    OsdWrite(0, "        *** MESSAGE ***", 1,0);
-    OsdWrite(1, "", 0,0);
-    OsdWrite(2, message, 0,0);
-    OsdWrite(3, "", 0,0);
-    OsdWrite(4, "", 0,0);
-    OsdWrite(5, "", 0,0);
-    OsdWrite(6, "", 0,0);
-    OsdWrite(7, "", 0,0);
-    menu_timer = GetTimer(1000);
-    menustate = MENU_INFO;
+/*  Error Message */
+void ErrorMessage(const char *message, unsigned char code) {
+  menustate = MENU_ERROR;
+  
+  OsdSetTitle("Error",0);
+  set_text(message, code);
+  OsdEnable(0); // do not disable KEYBOARD
+}
+
+void InfoMessage(char *message) {
+  if (menustate != MENU_INFO) {
+    OsdSetTitle("Message",0);
+    OsdEnable(0); // do not disable keyboard
+  }
+  
+  set_text(message, 0);
+  
+  menu_timer = GetTimer(2000);
+  menustate = MENU_INFO;
 }
 
 void EjectAllFloppies() {

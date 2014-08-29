@@ -33,16 +33,18 @@
 #define UIO_ETH_FRM_IN  0x0b
 #define UIO_ETH_FRM_OUT 0x0c
 
-#define UIO_JOYSTICK3   0x10  // also used by minimig and 8 bit
-#define UIO_JOYSTICK4   0x11  // -"-
-#define UIO_JOYSTICK5   0x12  // -"-
-#define UIO_JOYSTICK6   0x13  // -"-
+#define UIO_JOYSTICK2   0x10  // also used by minimig and 8 bit
+#define UIO_JOYSTICK3   0x11  // -"-
+#define UIO_JOYSTICK4   0x12  // -"-
+#define UIO_JOYSTICK5   0x13  // -"-
 
 // codes as currently used by 8bit only
 #define UIO_GET_STRING  0x14
 #define UIO_SET_STATUS  0x15
 #define UIO_GET_SDSTAT  0x16  // read status of sd card emulation
-#define UIO_SECTOR_RD   0x17
+#define UIO_SECTOR_RD   0x17  // SD card sector read
+#define UIO_SECTOR_WR   0x18  // SD card sector write
+#define UIO_ASTICK      0x19
 
 // codes as used by 8bit (atari 800, zx81) via SS2
 #define UIO_GET_STATUS  0x50
@@ -100,5 +102,7 @@ void user_io_eth_receive_tx_frame(uint8_t *, uint16_t);
 void user_io_mouse(unsigned char b, char x, char y);
 void user_io_kbd(unsigned char m, unsigned char *k); 
 char user_io_create_config_name(char *s);
+void user_io_digital_joystick(unsigned char, unsigned char);
+void user_io_analog_joystick(unsigned char, char, char);
 
 #endif // USER_IO_H
