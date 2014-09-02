@@ -372,6 +372,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	    ay = buf[conf->joystick.axis_byte_offset[1]];
 	    if(ay <  64) jmap |= JOY_UP;
 	    if(ay > 192) jmap |= JOY_DOWN;
+
+	    //	    iprintf("ax = %d ay = %d\n", ax, ay);
 	    
 	    // ... and buttons
             if(buf[conf->joystick.button_byte_offset] & 

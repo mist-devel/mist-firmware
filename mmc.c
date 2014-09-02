@@ -26,6 +26,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // FIXME - get capacity from SD card
 
+//1GB:
+//CSD:
+//0000: 00 7f 00 32 5b 59 83 bc f6 db ff 9f 96 40 00 93   ...2[Y.��.�.@.�
+//CID:
+//0000: 3e 00 00 34 38 32 44 00 00 73 2f 6f 93 00 c7 cd   >..482D..s/o�...
+
+
 #include "stdio.h"
 #include "string.h"
 #include "hardware.h"
@@ -38,8 +45,6 @@ static unsigned char crc;
 static unsigned long timeout;
 static unsigned char response;
 static unsigned char CardType;
-
-static unsigned char CSDData[16];
 
 // internal functions
 static void MMC_CRC(unsigned char c) RAMFUNC;
@@ -114,7 +119,6 @@ unsigned char MMC_Init(void)
                             { // check CCS (Card Capacity Status) bit in the OCR
                                 for (n = 0; n < 4; n++)
                                     ocr[n] = SPI(0xFF);
-
                                 CardType = (ocr[0] & 0x40) ? CARDTYPE_SDHC : CARDTYPE_SD; // if CCS set then the card is SDHC compatible
                             }
                             else
@@ -288,91 +292,75 @@ RAMFUNC unsigned char MMC_Read(unsigned long lba, unsigned char *pReadBuffer)
     return(1);
 }
 
-
-// Read CSD register
-unsigned char MMC_GetCSD()
-{
-	int i;
-    EnableCard();
-
-    if (MMC_Command(CMD9,0))
-    {
-        iprintf("CMD9 (GET_CSD): invalid response 0x%02X \r", response);
-        DisableCard();
-        return(0);
-    }
-
-    // now we are waiting for data token, it takes around 300us
-    timeout = 0;
-    while ((SPI(0xFF)) != 0xFE)
-    {
-        if (timeout++ >= 1000000) // we can't wait forever
-        {
-            iprintf("CMD9 (READ_BLOCK): no data token!\r");
-            DisableCard();
-            return(0);
-        }
-    }
-
-	for (i = 0; i < 16; i++)
-		CSDData[i]=SPI(0xFF);
-
-    SPI(0xFF); // read CRC lo byte
-    SPI(0xFF); // read CRC hi byte
-
+static unsigned char MMC_GetCXD(unsigned char cmd, unsigned char *ptr) {
+  int i;
+  EnableCard();
+  
+  if (MMC_Command(cmd,0)) {
+    iprintf("CMD%d (GET_C%cD): invalid response 0x%02X \r", 
+	    (cmd==CMD9)?9:10, (cmd==CMD9)?'S':'I', response);
     DisableCard();
-    return(1);
+    return(0);
+  }
+  
+  // now we are waiting for data token, it takes around 300us
+  timeout = 0;
+  while ((SPI(0xFF)) != 0xFE) {
+    if (timeout++ >= 1000000) { // we can't wait forever
+      iprintf("CMD%d (GET_C%cD): no data token!\r", 
+	      (cmd==CMD9)?9:10, (cmd==CMD9)?'S':'I');
+      DisableCard();
+      return(0);
+    }
+  }
+  
+  for (i = 0; i < 16; i++)
+    ptr[i]=SPI(0xFF);
+  
+  DisableCard();
+  
+  return(1);
 }
 
+// Read CSD register
+unsigned char MMC_GetCSD(unsigned char *csd) {
+  return MMC_GetCXD(CMD9, csd);
+}
+
+// Read CID register
+unsigned char MMC_GetCID(unsigned char *cid) {
+  return MMC_GetCXD(CMD10, cid);
+}
 
 // MMC get capacity
 unsigned long MMC_GetCapacity()
 {
 	unsigned long result=0;
-	MMC_GetCSD();
-//	switch(CardType)
-//	{
-//		case CARDTYPE_SDHC:
-//			result=(CSDData[7]&0x3f)<<26;
-//			result|=CSDData[8]<<18;
-//			result|=CSDData[9]<<10;
-//			result+=1024;
-//			return(result);
-//			break;
-//		default:
-//			int blocksize=CSDData[5]&15;	// READ_BL_LEN
-//			blocksize=1<<(blocksize-9);		// Now a scalar:  physical block size / 512.
-//			result=(CSDData[6]&3)<<10;
-//			result|=CSDData[7]<<2;
-// 			result|=(CSDData[8]>>6)&3;		// result now contains C_SIZE
-//			int cmult=(CSDData[9]&3)<<1;
-//			cmult|=(CSDData[10]>>7) & 1;
-//			++result;
-//			result<<=cmult+2;
-//			return(result);
-//			break;
-//	}
-    if ((CSDData[0] & 0xC0)==0x40)   //CSD Version 2.0 - SDHC
-    {
-			result=(CSDData[7]&0x3f)<<26;
-			result|=CSDData[8]<<18;
-			result|=CSDData[9]<<10;
-			result+=1024;
+	unsigned char CSDData[16];
+ 
+	MMC_GetCSD(CSDData);
+
+	if ((CSDData[0] & 0xC0)==0x40)   //CSD Version 2.0 - SDHC
+	{
+	  result=(CSDData[7]&0x3f)<<26;
+	  result|=CSDData[8]<<18;
+	  result|=CSDData[9]<<10;
+	  result+=1024;
 			return(result);
 	}
 	else
 	{    
-			int blocksize=CSDData[5]&15;	// READ_BL_LEN
-			blocksize=1<<(blocksize-9);		// Now a scalar:  physical block size / 512.
-			result=(CSDData[6]&3)<<10;
-			result|=CSDData[7]<<2;
- 			result|=(CSDData[8]>>6)&3;		// result now contains C_SIZE
-			int cmult=(CSDData[9]&3)<<1;
-			cmult|=(CSDData[10]>>7) & 1;
-			++result;
-			result<<=cmult+2;
-			return(result);
-    }
+	  int blocksize=CSDData[5]&15;	// READ_BL_LEN
+	  blocksize=1<<(blocksize-9);		// Now a scalar:  physical block size / 512.
+	  result=(CSDData[6]&3)<<10;
+	  result|=CSDData[7]<<2;
+	  result|=(CSDData[8]>>6)&3;		// result now contains C_SIZE
+	  int cmult=(CSDData[9]&3)<<1;
+	  cmult|=(CSDData[10]>>7) & 1;
+	  ++result;
+	  result<<=cmult+2;
+	  return(result);
+	}
 }
 
 // read multiple 512-byte blocks

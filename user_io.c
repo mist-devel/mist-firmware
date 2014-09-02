@@ -152,6 +152,10 @@ void user_io_detect_core_type() {
   case CORE_TYPE_8BIT: {
     puts("Identified 8BIT core");
 
+    // forward SD card config to core in case it uses the local
+    // SD card implementation
+    user_io_sd_set_config();
+
     // check if core has a config string
     core_type_8bit_with_config_string = (user_io_8bit_get_string(0) != NULL);
 
@@ -253,6 +257,25 @@ void user_io_eth_send_mac(uint8_t *mac) {
   SPI(UIO_ETH_MAC);
   for(i=0;i<6;i++) SPI(*mac++);
   DisableIO();
+}
+
+// set SD card info in FPGA (CSD, CID)
+void user_io_sd_set_config(void) {
+  unsigned char data[33];
+
+  // get CSD and CID from SD card
+  MMC_GetCID(data);
+  MMC_GetCSD(data+16);
+  // byte 32 is a generic config byte
+  data[32] = MMC_IsSDHC()?1:0;
+
+  // and forward it to the FPGA
+  EnableIO();
+  SPI(UIO_SET_SDCONF);
+  SPI_write(data, sizeof(data));
+  DisableIO();
+
+  hexdump(data, sizeof(data), 0);
 }
 
 // read 8+32 bit sd card status word from FPGA
@@ -497,15 +520,6 @@ char *user_io_8bit_get_string(char index) {
   return buffer;
 }    
 
-uint8_t checksum(uint8_t *buffer) {
-  int i;
-  uint8_t sum=0;
-  for(i=0;i<512;i++)
-    sum += buffer[i];
-
-  return sum;
-}
-
 unsigned char user_io_8bit_set_status(unsigned char new_status, unsigned char mask) {
   static unsigned char status = 0;
 
@@ -660,7 +674,7 @@ void user_io_poll() {
   }
 
   if(core_type == CORE_TYPE_8BIT) {
-    unsigned char c = 1, f;
+    unsigned char c = 1, f, p=0;
 
     // check for serial data to be sent
 
@@ -670,16 +684,17 @@ void user_io_poll() {
     EnableIO();
     SPI(UIO_SERIAL_IN);
     // status byte is 1000000A with A=1 if data is available
-    if((f = SPI(0)) == 0x81) {
+    if((f = SPI(0xff)) == 0x81) {
       iprintf("\033[1;36m");
       
       // character 0xff is returned if FPGA isn't configured
-      while((f == 0x81) && (c!= 0xff) && (c != 0x00)) {
-	c = SPI(0);
-	if(c != 0xff && c != 0x00) {
+      while((f == 0x81) && (c!= 0xff) && (c != 0x00) && (p < 32)) {
+	c = SPI(0xff);
+	if(c != 0xff && c != 0x00) 
 	  iprintf("%c", c);
-	  f = SPI(0);
-	}
+
+	f = SPI(0xff);
+	p++;
       }
       iprintf("\033[0m");
     }
@@ -689,16 +704,27 @@ void user_io_poll() {
     {
       static char buffer[512];
       static uint32_t buffer_lba = 0xffffffff;
-      static uint8_t buffer_chk;
       uint32_t lba;
       uint8_t c = user_io_sd_get_status(&lba);
 
       // valid sd commands start with "5x" to avoid problems with
       // cores that don't implement this command
       if((c & 0xf0) == 0x50) {
+
+	// debug: If the io controller reports and non-sdhc card, then
+	// the core should never set the sdhc flag
+	if((c & 3) && !MMC_IsSDHC() && (c & 0x04))
+	  iprintf("WARNING: SDHC access to non-sdhc card\n");
+ 	
+	// check if core requests configuration
+	if(c & 0x08) {
+	  iprintf("core requests SD config\n");
+	  user_io_sd_set_config();
+	}
+
 	// check if system is trying to access a sdhc card from 
 	// a sd/mmc setup
-	
+
 	// check if an SDHC card is inserted
 	if(MMC_IsSDHC()) {
 	  static char using_sdhc = 1;
@@ -719,55 +745,54 @@ void user_io_poll() {
 	    using_sdhc = 1;
 	}
 
-	if((c & 0x03) == 0x01) {
-	  //	  iprintf("%s sector read %ld\n", (c&0x04)?"SDHC":"SD", lba);
+	if((c & 0x03) == 0x02) {
+	  // only write if the inserted card is not sdhc or
+	  // if the core uses sdhc
+	  if((!MMC_IsSDHC()) || (c & 0x04)) {  
+	    uint8_t wr_buf[512];
 
+	    // Fetch sector data from FPGA ...
+	    EnableIO();
+	    SPI(UIO_SECTOR_WR);
+	    SPI_block_read(wr_buf);
+	    DisableIO();
+	    
+	    // ... and write it to disk
+	    DISKLED_ON;
+	    MMC_Write(lba, wr_buf);
+	    DISKLED_OFF;
+	  }
+	}
+
+	if((c & 0x03) == 0x01) {
 	  // sector read
 	  // read sector from sd card if it is not already present in
 	  // the buffer
 	  if(buffer_lba != lba) {
 	    DISKLED_ON;
-	    if(MMC_Read(lba, buffer)) {
+	    if(MMC_Read(lba, buffer))
 	      buffer_lba = lba;
-	      buffer_chk = checksum(buffer);
-	    }
+
 	    DISKLED_OFF;
 	  }
-
-#if 0
-	  // verify by re-read
-	  { char buf2[512];
-	    if(MMC_Read(lba, buf2)) {
-	      if(memcmp(buffer, buf2, 512) != 0)
-		iprintf("verify error lba %d\n", lba);
-	    } else
-	      iprintf("read error lba %d\n", lba);
-	  }
-#endif
 
 	  if(buffer_lba == lba) {
 	    // data is now stored in buffer. send it to fpga
 	    EnableIO();
 	    SPI(UIO_SECTOR_RD);
 	    SPI_block_write(buffer);
-	    SPI(buffer_chk);
 	    DisableIO();
 
 	    // the end of this transfer acknowledges the FPGA internal
 	    // sd card emulation
-
-	    // read status byte incl the checksum verification bit
-	    c = user_io_sd_get_status(NULL);
-	    if(!(c & 0x08)) iprintf("checksum failure in lbs %d\n", lba);
 	  }
 
 	  // just load the next sector now, so it may be prefetched
 	  // for the next request already
 	  DISKLED_ON;
-	  if(MMC_Read(lba+1, buffer)) {
+	  if(MMC_Read(lba+1, buffer))
 	    buffer_lba = lba+1;
-	    buffer_chk = checksum(buffer);
-	  }
+
 	  DISKLED_OFF;
 	}
       }

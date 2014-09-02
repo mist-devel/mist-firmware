@@ -44,7 +44,8 @@
 #define UIO_GET_SDSTAT  0x16  // read status of sd card emulation
 #define UIO_SECTOR_RD   0x17  // SD card sector read
 #define UIO_SECTOR_WR   0x18  // SD card sector write
-#define UIO_ASTICK      0x19
+#define UIO_SET_SDCONF  0x19  // send SD card configuration (CSD, CID)
+#define UIO_ASTICK      0x1a
 
 // codes as used by 8bit (atari 800, zx81) via SS2
 #define UIO_GET_STATUS  0x50
@@ -90,6 +91,7 @@ void user_io_serial_tx(char *, uint16_t);
 char *user_io_8bit_get_string(char);
 unsigned char user_io_8bit_set_status(unsigned char, unsigned char);
 void user_io_file_tx(fileTYPE *);
+void user_io_sd_set_config(void);
 
 // io controllers interface for FPGA ethernet emulation using usb ethernet
 // devices attached to the io controller (ethernec emulation)
