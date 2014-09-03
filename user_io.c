@@ -682,13 +682,13 @@ void user_io_poll() {
     // arm rs232 and mixes with debug output. Useful for debugging only of
     // e.g. the diagnostic cartridge
     EnableIO();
-    SPI(UIO_SERIAL_IN);
+    SPI(UIO_SIO_IN);
     // status byte is 1000000A with A=1 if data is available
     if((f = SPI(0xff)) == 0x81) {
       iprintf("\033[1;36m");
       
       // character 0xff is returned if FPGA isn't configured
-      while((f == 0x81) && (c!= 0xff) && (c != 0x00) && (p < 32)) {
+      while((f == 0x81) && (c!= 0xff) && (c != 0x00) && (p < 8)) {
 	c = SPI(0xff);
 	if(c != 0xff && c != 0x00) 
 	  iprintf("%c", c);
@@ -699,7 +699,7 @@ void user_io_poll() {
       iprintf("\033[0m");
     }
     DisableIO();
-    
+
     // sd card emulation
     {
       static char buffer[512];
