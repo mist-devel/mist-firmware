@@ -356,11 +356,12 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size) {
 		axis[1] = usage_count;
 	      }
 	    }
-	    usage_count++;
 	  } else {
 	    hidp_extreme_debugf(" -> UNSUPPORTED USAGE\n");
 	    //	    return false;
 	  }
+
+	  usage_count++;
 	  break;
 	  
 	case 1:
