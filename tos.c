@@ -301,6 +301,20 @@ static void handle_fdc(unsigned char *buffer) {
       offset *= fdd_image[drv_sel-1].spt;
       offset += fdc_sector-1;
       
+      iprintf("FDC req %d sec (%c, SD:%d, T:%d, S:%d = %d) -> %p\n", scnt, 
+	      'A'+drv_sel-1, drv_side, fdc_track, fdc_sector, offset,
+	      dma_address);
+
+#if 0
+      static int nix = 0;
+      if((drv_side == 0) && (fdc_track==0) && (fdc_sector == 1) && 
+	 (dma_address == 0x12414) && !nix) {
+	iprintf("urgs ...\n");
+	scnt = 0;
+	nix = 1;
+      }
+#endif
+
       while(scnt) {
 	//	iprintf("  sector %d\n", offset);
 
@@ -326,6 +340,9 @@ static void handle_fdc(unsigned char *buffer) {
 	scnt--;
 	dma_address += 512;
 	offset += 1;
+
+	// tell DMA that one sector has been read
+	// ...
       }
       EnableFpga();
       SPI(MIST_ACK_DMA);

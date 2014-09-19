@@ -556,16 +556,41 @@ void user_io_poll() {
     USART_Poll();
       
     unsigned char c = 0;
+    unsigned char cntff = 0;
 
     // check for incoming serial data. this is directly forwarded to the
     // arm rs232 and mixes with debug output. Useful for debugging only of
-    // e.g. the diagnostic cartridge
+    // e.g. the diagnostic cartridge    
     EnableIO();
     SPI(UIO_SERIAL_IN);
-    // character 0xff is returned if FPGA isn't configured
-    while(SPI(0) && (c!= 0xff)) {
+    while(SPI(0)) {
       c = SPI(0);
-      putchar(c);
+      if(c != 0xff) 
+	putchar(c);
+
+      // character 0xff is returned if FPGA isn't configured
+      if(c == 0xff) {
+	if(user_io_dip_switch1()) {
+	  cntff++;
+	  if(cntff = 255) {
+	    // 255 subsequent 0xff bytes likely mean that the core has been restarted
+	    // so we reset the io controller
+	    tos_debugf("Core seems to have reloaded. Waiting for valid core id ...");
+	    DisableIO();
+
+	    /* core type */
+	    do {
+	      EnableIO();
+	      c = SPI(0xff);
+	      DisableIO();
+	    } while((c & 0xf0) != 0xa0);
+	    
+	    *AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
+	    for(;;);
+	  }
+	}
+      } else
+	cntff = 0;
       
       // forward to USB if redirection via USB/CDC enabled
       if(redirect == CDC_REDIRECT_RS232)
@@ -963,8 +988,14 @@ static unsigned char is_emu_key(unsigned char c) {
   return 0;
 }  
 
+/* usb modifer bits: 
+      0     1     2    3    4     5     6    7
+   LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
+*/
 #define EMU_BTN1  0  // left control
 #define EMU_BTN2  1  // left shift
+#define EMU_BTN3  2  // left alt
+#define EMU_BTN4  3  // left gui (usually windows key)
 
 unsigned short keycode(unsigned char in) {
   if(core_type == CORE_TYPE_MINIMIG) 
@@ -1046,21 +1077,30 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
     
     // modifier keys are used as buttons in emu mode
     if(emu_mode != EMU_NONE) {
-      char last_btn = emu_state & (JOY_BTN1 | JOY_BTN2);
+      char last_btn = emu_state & (JOY_BTN1 | JOY_BTN2 | JOY_BTN3 | JOY_BTN4);
       if(m & (1<<EMU_BTN1)) emu_state |=  JOY_BTN1;
       else                  emu_state &= ~JOY_BTN1;
       if(m & (1<<EMU_BTN2)) emu_state |=  JOY_BTN2;
       else                  emu_state &= ~JOY_BTN2;
+      if(m & (1<<EMU_BTN3)) emu_state |=  JOY_BTN3;
+      else                  emu_state &= ~JOY_BTN3;
+      if(m & (1<<EMU_BTN4)) emu_state |=  JOY_BTN4;
+      else                  emu_state &= ~JOY_BTN4;
       
       // check if state of mouse buttons has changed
-      if(last_btn != (emu_state & (JOY_BTN1 | JOY_BTN2))) {
+      // (on a mouse only two buttons are supported)
+      if((last_btn  & (JOY_BTN1 | JOY_BTN2)) != 
+	 (emu_state & (JOY_BTN1 | JOY_BTN2))) {
 	if(emu_mode == EMU_MOUSE) {
 	  unsigned char b;
 	  if(emu_state & JOY_BTN1) b |= 1;
 	  if(emu_state & JOY_BTN2) b |= 2;
 	  user_io_mouse(b, 0, 0);
 	}
+      }
 	
+      // check if state of joystick buttons has changed
+      if(last_btn != (emu_state & (JOY_BTN1|JOY_BTN2|JOY_BTN3|JOY_BTN4))) {
 	if(emu_mode == EMU_JOY0) 
 	  user_io_joystick(joystick_renumber(0), emu_state);
 	
@@ -1078,12 +1118,14 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 	  check_reset(m);
 
 	  // shift keys are used for mouse joystick emulation in emu mode
-	  if(((i != EMU_BTN1) && (i != EMU_BTN2)) || (emu_mode == EMU_NONE))
+	  if(((i != EMU_BTN1) && (i != EMU_BTN2) &&
+	      (i != EMU_BTN3) && (i != EMU_BTN4)) || (emu_mode == EMU_NONE))
 	    if(modifier_keycode(i) != MISS)
 	      send_keycode(modifier_keycode(i));
 	}
 	if(!(m & (1<<i)) && (modifier & (1<<i)))
-	  if(((i != EMU_BTN1) && (i != EMU_BTN2)) || (emu_mode == EMU_NONE))
+	  if(((i != EMU_BTN1) && (i != EMU_BTN2) &&
+	      (i != EMU_BTN3) && (i != EMU_BTN4)) || (emu_mode == EMU_NONE))
 	    if(modifier_keycode(i) != MISS)
 	      send_keycode(BREAK | modifier_keycode(i));
       }

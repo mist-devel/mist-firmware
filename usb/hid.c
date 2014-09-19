@@ -360,7 +360,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	  hid_config_t *conf = &iface->conf;
 	  if(read >= conf->report_size) {
 	    uint8_t jmap = 0;
-	    uint8_t ax,ay,idx;
+	    uint8_t ax,ay,idx,b;
 
 	    //	    hid_debugf("Joystick data:");
 	    //	    hexdump(buf, read, 0);
@@ -376,10 +376,9 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 	    //	    iprintf("ax = %d ay = %d\n", ax, ay);
 	    
 	    // ... and buttons
-            if(buf[conf->joystick.button_byte_offset] & 
-               conf->joystick.button_bitmask[0]) jmap |= JOY_BTN1;
-            if(buf[conf->joystick.button_byte_offset] & 
-               conf->joystick.button_bitmask[1]) jmap |= JOY_BTN2;
+	    for(b=0;b<4;b++)
+	      if(buf[conf->joystick.button_byte_offset] & 
+		 conf->joystick.button_bitmask[b]) jmap |= (JOY_BTN1<<b);
 
 	    // swap joystick 0 and 1 since 1 is the one 
 	    // used primarily on most systems

@@ -143,12 +143,15 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size) {
 		   bit_count, bit_count/8, 1 << (bit_count%8));
 	    if(hid_conf[config_idx].type == CONFIG_TYPE_JOYSTICK) {
 	      hid_conf[config_idx].joystick.button_byte_offset = bit_count/8;
-	      hid_conf[config_idx].joystick.button_bitmask[0] = 1 << (bit_count%8);
 
-	      // second button present?
-	      if(report_count > 1)
-		hid_conf[config_idx].joystick.button_bitmask[1] = 1 << ((bit_count+1)%8);
+	      // scan for up to four buttons
+	      char b;
+	      for(b=0;b<4;b++)
+		if(report_count > b)
+		  hid_conf[config_idx].joystick.button_bitmask[b] = 1 << ((bit_count+b)%8);
 
+	      // we found at least one button which is all we want to accept this as a valid 
+	      // joystick
 	      setup_complete |= JOYSTICK_REQ_BTN_0;
 	    }
 	  }

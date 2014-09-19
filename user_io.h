@@ -61,6 +61,8 @@
 #define JOY_UP          0x08
 #define JOY_BTN1        0x10
 #define JOY_BTN2        0x20
+#define JOY_BTN3        0x40
+#define JOY_BTN4        0x80
 #define JOY_MOVE        (JOY_RIGHT|JOY_LEFT|JOY_UP|JOY_DOWN)
 
 #define BUTTON1         0x01
@@ -93,6 +95,7 @@ char *user_io_8bit_get_string(char);
 unsigned char user_io_8bit_set_status(unsigned char, unsigned char);
 void user_io_file_tx(fileTYPE *);
 void user_io_sd_set_config(void);
+char user_io_dip_switch1(void);
 
 // io controllers interface for FPGA ethernet emulation using usb ethernet
 // devices attached to the io controller (ethernec emulation)
