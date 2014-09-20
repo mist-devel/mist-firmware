@@ -15,8 +15,10 @@ typedef struct {
   union {
     struct {
       uint8_t axis_byte_offset[2];   // x and y axis
-      uint8_t button_byte_offset;
-      uint8_t button_bitmask[4];
+      struct {
+	uint8_t byte_offset;
+	uint8_t bitmask;
+      } button[4];
     } joystick;
   };
 } hid_config_t;

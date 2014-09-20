@@ -139,16 +139,20 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size) {
 	case 8:
 	  // 
 	  if(btns) {
-	    hidp_debugf("BUTTON0 @ %d (byte %d, mask %d)\n", 
-		   bit_count, bit_count/8, 1 << (bit_count%8));
 	    if(hid_conf[config_idx].type == CONFIG_TYPE_JOYSTICK) {
-	      hid_conf[config_idx].joystick.button_byte_offset = bit_count/8;
-
 	      // scan for up to four buttons
 	      char b;
-	      for(b=0;b<4;b++)
-		if(report_count > b)
-		  hid_conf[config_idx].joystick.button_bitmask[b] = 1 << ((bit_count+b)%8);
+	      for(b=0;b<4;b++) {
+		if(report_count > b) {
+		  uint16_t this_bit = bit_count+b;
+
+		  hidp_debugf("BUTTON%d @ %d (byte %d, mask %d)\n", b, 
+			      this_bit, this_bit/8, 1 << (this_bit%8));
+
+		  hid_conf[config_idx].joystick.button[b].byte_offset = this_bit/8;
+		  hid_conf[config_idx].joystick.button[b].bitmask = 1 << (this_bit%8);
+		}
+	      }
 
 	      // we found at least one button which is all we want to accept this as a valid 
 	      // joystick
