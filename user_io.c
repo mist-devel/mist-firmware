@@ -958,13 +958,29 @@ static void send_keycode(unsigned short code) {
 void user_io_mouse(unsigned char b, char x, char y) {
 
   // send mouse data as minimig expects it
-  if((core_type == CORE_TYPE_MINIMIG) || 
-     (core_type == CORE_TYPE_8BIT)) {
+  if(core_type == CORE_TYPE_MINIMIG) {
     EnableIO();
     SPI(UIO_MOUSE);
     SPI(x);
     SPI(y);
     SPI(b);
+    DisableIO();
+  }
+
+  // 8 bit core expects ps2 like data
+  if(core_type == CORE_TYPE_8BIT) {
+    EnableIO();
+    SPI(UIO_MOUSE);
+  
+    // PS2 format: 
+    // XOvfl, YOvfl, dy8, dx8, 1, mbtn, rbtn, lbtn
+    // dx[7:0]
+    // dy[7:0]
+
+    SPI(8 | (b&3));
+    SPI(x);
+    SPI(y);
+    
     DisableIO();
   }
 
