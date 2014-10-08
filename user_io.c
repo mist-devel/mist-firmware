@@ -801,6 +801,8 @@ void user_io_poll() {
 	    DISKLED_OFF;
 	  }
 
+	  iprintf("rd sec %d\n", lba);
+	  
 	  if(buffer_lba == lba) {
 	    // data is now stored in buffer. send it to fpga
 	    EnableIO();
@@ -929,7 +931,7 @@ static void send_keycode(unsigned short code) {
 	static const unsigned char c[] = { 0xe1, 0x14, 0x77, 0xe1, 0xf0, 0x14, 0xf0, 0x77, 0x00 };
 	const unsigned char *p = c;
 	
-	iprintf("TX PS2 ");
+	iprintf("PS2 KBD ");
 	while(*p) {
 	  iprintf("%x ", *p);
 	  SPI(*p++);
@@ -937,7 +939,7 @@ static void send_keycode(unsigned short code) {
 	iprintf("\n");
       }
     } else {
-      iprintf("TX PS2 ");
+      iprintf("PS2 KBD ");
       if(code & EXT)   iprintf("e0 ");
       if(code & BREAK) iprintf("f0 ");
       iprintf("%x\n", code & 0xff);
@@ -969,6 +971,8 @@ void user_io_mouse(unsigned char b, char x, char y) {
 
   // 8 bit core expects ps2 like data
   if(core_type == CORE_TYPE_8BIT) {
+    // collect movement info and send at predefined rate
+
     EnableIO();
     SPI(UIO_MOUSE);
   
@@ -977,9 +981,12 @@ void user_io_mouse(unsigned char b, char x, char y) {
     // dx[7:0]
     // dy[7:0]
 
-    SPI(8 | (b&3));
+    iprintf("PS2 MOUSE: %x %d %d\n", 
+	    ((y>0)?0x20:0) | ((x<0)?0x10:0) | 0x08 | (b&3), x, -y);
+
+    SPI(((y>0)?0x20:0) | ((x<0)?0x10:0) | 0x08 | (b&3));
     SPI(x);
-    SPI(y);
+    SPI(-y);
     
     DisableIO();
   }
