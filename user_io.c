@@ -17,20 +17,32 @@
 extern fileTYPE file;
 extern char s[40];
 
+// mouse and keyboard emulation state
 typedef enum { EMU_NONE, EMU_MOUSE, EMU_JOY0, EMU_JOY1 } emu_mode_t;
 static emu_mode_t emu_mode = EMU_NONE;
 static unsigned char emu_state = 0;
-static long emu_timer;
+static unsigned long emu_timer = 0;
 #define EMU_MOUSE_FREQ 5
 
+// keep state over core type and its capabilities
 static unsigned char core_type = CORE_TYPE_UNKNOWN;
 static char core_type_8bit_with_config_string = 0;
-static unsigned char adc_state = 0;
 
+// permanent state of adc inputs used for dip switches
+static unsigned char adc_state = 0;
 AT91PS_ADC a_pADC = AT91C_BASE_ADC;
 AT91PS_PMC a_pPMC = AT91C_BASE_PMC;
 
+// keep state of caps lock
 static char caps_lock_toggle = 0;
+
+// mouse position storage for ps2 rate limitation
+#define X 0
+#define Y 1
+#define PS2_MOUSE_FREQ 20   // 20 ms -> 50hz
+static int16_t ps2_mouse_pos[2] = { 0, 0};
+static uint8_t ps2_mouse_flags = 0;
+static unsigned long ps2_mouse_timer;
 
 static void PollOneAdc() {
   static unsigned char adc_cnt = 0xff;
@@ -825,6 +837,69 @@ void user_io_poll() {
       }
     }
 
+    // frequently check ps2 mouse for events
+    if(CheckTimer(ps2_mouse_timer)) {
+      ps2_mouse_timer = GetTimer(PS2_MOUSE_FREQ);
+
+      // has ps2 mouse data been updated in the meantime
+      if(ps2_mouse_flags & 0x08) {
+	unsigned char ps2_mouse[3];
+
+	// PS2 format: 
+	// YOvfl, XOvfl, dy8, dx8, 1, mbtn, rbtn, lbtn
+	// dx[7:0]
+	// dy[7:0]
+	ps2_mouse[0] = ps2_mouse_flags;
+
+	// ------ X axis -----------
+	// store sign bit in first byte
+	ps2_mouse[0] |= (ps2_mouse_pos[X] < 0)?0x10:0x00;
+	if(ps2_mouse_pos[X] < -255) {
+	  // min possible value + overflow flag
+	  ps2_mouse[0] |= 0x40;
+	  ps2_mouse[1] = -128;
+	} else if(ps2_mouse_pos[X] > 255) {
+	  // max possible value + overflow flag
+	  ps2_mouse[0] |= 0x40;
+	  ps2_mouse[1] = 255;
+	} else 
+	  ps2_mouse[1] = ps2_mouse_pos[X];
+
+	// ------ Y axis -----------
+	// store sign bit in first byte
+	ps2_mouse[0] |= (ps2_mouse_pos[Y] < 0)?0x20:0x00;
+	if(ps2_mouse_pos[Y] < -255) {
+	  // min possible value + overflow flag
+	  ps2_mouse[0] |= 0x80;
+	  ps2_mouse[2] = -128;
+	} else if(ps2_mouse_pos[Y] > 255) {
+	  // max possible value + overflow flag
+	  ps2_mouse[0] |= 0x80;
+	  ps2_mouse[2] = 255;
+	} else 
+	  ps2_mouse[2] = ps2_mouse_pos[Y];
+	
+	// collect movement info and send at predefined rate
+	EnableIO();
+	SPI(UIO_MOUSE);
+	iprintf("PS2 MOUSE: %x %d %d\n", 
+		ps2_mouse[0], ps2_mouse[1], ps2_mouse[2]);
+
+	SPI(ps2_mouse[0]);
+	SPI(ps2_mouse[1]);
+	SPI(ps2_mouse[2]);
+    
+	DisableIO();
+
+	// reset counters
+	ps2_mouse_flags = 0;
+	ps2_mouse_pos[X] = ps2_mouse_pos[Y] = 0;
+      }
+    }
+
+    // --------------- THE FOLLOWING IS DEPRECATED AND WILL BE REMOVED ------------
+    // ------------------------ USE SD CARD EMULATION INSTEAD ---------------------
+
     // raw sector io for the atari800 core which include a full
     // file system driver usually implemented using a second cpu
     static unsigned long bit8_status = 0;
@@ -971,24 +1046,9 @@ void user_io_mouse(unsigned char b, char x, char y) {
 
   // 8 bit core expects ps2 like data
   if(core_type == CORE_TYPE_8BIT) {
-    // collect movement info and send at predefined rate
-
-    EnableIO();
-    SPI(UIO_MOUSE);
-  
-    // PS2 format: 
-    // XOvfl, YOvfl, dy8, dx8, 1, mbtn, rbtn, lbtn
-    // dx[7:0]
-    // dy[7:0]
-
-    iprintf("PS2 MOUSE: %x %d %d\n", 
-	    ((y>0)?0x20:0) | ((x<0)?0x10:0) | 0x08 | (b&3), x, -y);
-
-    SPI(((y>0)?0x20:0) | ((x<0)?0x10:0) | 0x08 | (b&3));
-    SPI(x);
-    SPI(-y);
-    
-    DisableIO();
+    ps2_mouse_pos[X] += x;
+    ps2_mouse_pos[Y] -= y;  // ps2 y axis is reversed over usb
+    ps2_mouse_flags = 0x08 | (b&3); 
   }
 
   // send mouse data as mist expects it
