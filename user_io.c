@@ -788,6 +788,8 @@ void user_io_poll() {
 	  if((!MMC_IsSDHC()) || (c & 0x04)) {  
 	    uint8_t wr_buf[512];
 
+	    iprintf("SD WR %d\n", lba);
+
 	    // Fetch sector data from FPGA ...
 	    EnableIO();
 	    SPI(UIO_SECTOR_WR);
@@ -813,7 +815,7 @@ void user_io_poll() {
 	    DISKLED_OFF;
 	  }
 
-	  iprintf("rd sec %d\n", lba);
+	  iprintf("SD RD %d\n", lba);
 	  
 	  if(buffer_lba == lba) {
 	    // data is now stored in buffer. send it to fpga
