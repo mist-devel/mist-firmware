@@ -112,6 +112,14 @@ unsigned char user_io_core_type() {
   return core_type;
 }
 
+char minimig_v1() {
+  return(core_type == CORE_TYPE_MINIMIG);
+}
+
+char minimig_v2() {
+  return(core_type == CORE_TYPE_MINIMIG2);
+}
+
 char user_io_create_config_name(char *s) {
   char *p = user_io_8bit_get_string(0);  // get core name
   if(p && p[0]) {
@@ -135,6 +143,7 @@ void user_io_detect_core_type() {
 
   if((core_type != CORE_TYPE_DUMB) &&
      (core_type != CORE_TYPE_MINIMIG) &&
+     (core_type != CORE_TYPE_MINIMIG2) &&
      (core_type != CORE_TYPE_PACE) &&
      (core_type != CORE_TYPE_MIST) &&
      (core_type != CORE_TYPE_8BIT))
@@ -150,7 +159,11 @@ void user_io_detect_core_type() {
     break;
     
   case CORE_TYPE_MINIMIG:
-    puts("Identified Minimig core");
+    puts("Identified Minimig V1 core");
+    break;
+
+  case CORE_TYPE_MINIMIG2:
+    puts("Identified Minimig V2 core");
     break;
     
   case CORE_TYPE_PACE:
@@ -216,6 +229,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
   // mist cores process joystick events for joystick 0 and 1 via the 
   // ikbd
   if((core_type == CORE_TYPE_MINIMIG) || 
+     (core_type == CORE_TYPE_MINIMIG2)  || 
      (core_type == CORE_TYPE_PACE)  || 
      ((core_type == CORE_TYPE_MIST) && (joystick >= 2))  || 
      (core_type == CORE_TYPE_8BIT)) {
@@ -553,6 +567,7 @@ unsigned char user_io_8bit_set_status(unsigned char new_status, unsigned char ma
 
 void user_io_poll() {
   if((core_type != CORE_TYPE_MINIMIG) &&
+     (core_type != CORE_TYPE_MINIMIG2) &&
      (core_type != CORE_TYPE_PACE) &&
      (core_type != CORE_TYPE_MIST) &&
      (core_type != CORE_TYPE_8BIT)) {
@@ -701,7 +716,8 @@ void user_io_poll() {
     }
   }
 
-  if(core_type == CORE_TYPE_MINIMIG) {
+  if((core_type == CORE_TYPE_MINIMIG) ||
+     (core_type == CORE_TYPE_MINIMIG2)) {
     kbd_fifo_poll();
   }
 
@@ -975,7 +991,8 @@ char user_io_user_button() {
 }
 
 static void send_keycode(unsigned short code) {
-  if(core_type == CORE_TYPE_MINIMIG) {
+  if((core_type == CORE_TYPE_MINIMIG) ||
+     (core_type == CORE_TYPE_MINIMIG2)) {
     // amiga has "break" marker in msb
     if(code & BREAK) code = (code & 0xff) | 0x80;
 
@@ -1037,7 +1054,8 @@ static void send_keycode(unsigned short code) {
 void user_io_mouse(unsigned char b, char x, char y) {
 
   // send mouse data as minimig expects it
-  if(core_type == CORE_TYPE_MINIMIG) {
+  if((core_type == CORE_TYPE_MINIMIG) || 
+     (core_type == CORE_TYPE_MINIMIG2)) {
     EnableIO();
     SPI(UIO_MOUSE);
     SPI(x);
@@ -1083,9 +1101,10 @@ static unsigned char is_emu_key(unsigned char c) {
 #define EMU_BTN4  3  // left gui (usually windows key)
 
 unsigned short keycode(unsigned char in) {
-  if(core_type == CORE_TYPE_MINIMIG) 
+  if((core_type == CORE_TYPE_MINIMIG) ||
+     (core_type == CORE_TYPE_MINIMIG2)) 
     return usb2ami[in];
-
+  
   // atari st and the 8 bit core (currently only used for atari 800)
   // use the same key codes
   if(core_type == CORE_TYPE_MIST)
@@ -1098,8 +1117,9 @@ unsigned short keycode(unsigned char in) {
 }
 
 void check_reset(unsigned char modifiers) {
-  if(core_type==CORE_TYPE_MINIMIG) {
-    if(modifiers==0x45) // ctrl - alt - alt
+  if((core_type == CORE_TYPE_MINIMIG) ||
+     (core_type == CORE_TYPE_MINIMIG2)) {
+    if(modifiers == 0x45) // ctrl - alt - alt
       OsdReset(RESET_NORMAL);
   }
 }
@@ -1110,7 +1130,8 @@ unsigned short modifier_keycode(unsigned char index) {
       LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
   */
 
-  if(core_type == CORE_TYPE_MINIMIG) {
+  if((core_type == CORE_TYPE_MINIMIG) ||
+     (core_type == CORE_TYPE_MINIMIG2)) {
     static const unsigned short amiga_modifier[] = 
       { 0x63, 0x60, 0x64, 0x66, 0x63, 0x61, 0x65, 0x67 };
     return amiga_modifier[index];
@@ -1154,6 +1175,7 @@ static char key_used_by_osd(unsigned short s) {
 
 void user_io_kbd(unsigned char m, unsigned char *k) {
   if((core_type == CORE_TYPE_MINIMIG) ||
+     (core_type == CORE_TYPE_MINIMIG2) ||
      (core_type == CORE_TYPE_MIST) ||
      (core_type == CORE_TYPE_8BIT)) {
 

@@ -35,10 +35,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "rafile.h"
 #include "user_io.h"
 #include "config.h"
+#include "boot.h"
+#include "osd.h"
 
 #include "fpga.h"
 
 #define CMD_HDRID 0xAACA
+
+// TODO!
+#define SPIN() asm volatile ( "mov r0, r0\n\t" \
+                              "mov r0, r0\n\t" \
+                              "mov r0, r0\n\t" \
+                              "mov r0, r0");
 
 extern fileTYPE file;
 extern char s[40];
@@ -110,6 +118,11 @@ unsigned char ConfigureFpga(void)
     unsigned long  t;
     unsigned long  n;
     unsigned char *ptr;
+
+    if(minimg_v1()) {
+      // reset bootscreen cursor position
+      bootscreen_adr = 0x80000 + 120*640/8;
+    }
 
     // set outputs
     *AT91C_PIOA_SODR = XILINX_CCLK | XILINX_DIN | XILINX_PROG_B;
@@ -554,6 +567,11 @@ char BootDraw(char *data, unsigned short len, unsigned short offset)
 // print message on the boot screen
 char BootPrint(const char *text)
 {
+    if(!minimig_v1()) {
+      iprintf(text);
+      return; // TODO
+    }
+
     unsigned char c1, c2, c3, c4;
     unsigned char cmd;
     const char *p;
@@ -798,19 +816,39 @@ void fpga_init(char *name) {
   
   user_io_detect_core_type();
 
-  if(user_io_core_type() == CORE_TYPE_MINIMIG) {
+  if((user_io_core_type() == CORE_TYPE_MINIMIG)||
+     (user_io_core_type() == CORE_TYPE_MINIMIG2)) {
     puts("Running minimig setup");
     
-    draw_boot_logo();
-    BootPrintEx("**** MINIMIG for MiST ****");
-    BootPrintEx("Minimig by Dennis van Weeren");
-    BootPrintEx("Updates by Jakub Bednarski, Tobias Gubener, Sascha Boing, A.M. Robinson");
-    BootPrintEx("DE1 port by Rok Krajnc (rok.krajnc@gmail.com)");
-    BootPrintEx("MiST port by Till Harbaum (till@harbaum.org)");
-    BootPrintEx(" ");
-    BootPrintEx("For support, see http://www.minimig.net");
-    BootPrint(" ");
-    
+    if(minimig_v2()) {
+      EnableOsd();
+      
+      SPI(OSD_CMD_RST);
+      rstval = (SPI_RST_USR | SPI_RST_CPU | SPI_CPU_HLT);
+      SPI(rstval);
+      DisableOsd();
+      SPIN(); SPIN(); SPIN(); SPIN();
+      EnableOsd();
+      SPI(OSD_CMD_RST);
+      rstval = (SPI_RST_CPU | SPI_CPU_HLT);
+      SPI(rstval);
+      DisableOsd();
+      SPIN(); SPIN(); SPIN(); SPIN();
+      WaitTimer(100);
+      BootInit();
+      WaitTimer(1000);
+      BootPrintEx("**** MINIMIG-AGA for MiST ****");
+      BootPrintEx(" ");
+      BootPrintEx("Original Minimig by Dennis van Weeren");
+      BootPrintEx("Updates by Jakub Bednarski, Tobias Gubener, Sascha Boing, A.M. Robinson & others");
+      BootPrintEx("MINIMIG-AGA by Rok Krajnc (rok.krajnc@gmail.com)");
+      BootPrintEx("MiST by Till Harbaum (till@harbaum.org)");
+      BootPrintEx("For updates & code see https://github.com/rkrajnc/minimig-de1");
+      BootPrintEx("For support, see http://www.minimig.net");
+      BootPrintEx(" ");
+      WaitTimer(1000);
+    }
+
     ChangeDirectory(DIRECTORY_ROOT);
     
     //eject all disk
@@ -818,11 +856,12 @@ void fpga_init(char *name) {
     df[1].status = 0;
     df[2].status = 0;
     df[3].status = 0;
-    
-    BootPrint(" ");
-    BootPrintEx("Booting ...");
-    iprintf("Booting ...\r");
-    
+
+    if(minimig_v2()) {
+      BootPrintEx("Booting ...");
+      iprintf("Booting ...\r");
+    }
+
     WaitTimer(6000);
     config.kickstart.name[0]=0;
     SetConfigurationFilename(0); // Use default config
