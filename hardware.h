@@ -174,6 +174,6 @@ void hexdump(void *data, uint16_t size, uint16_t offset);
 #define SPI_RST_USR         0x1
 #define SPI_RST_CPU         0x2
 #define SPI_CPU_HLT         0x4
-extern uint32_t rstval;
+extern uint8_t rstval;
 
 #endif // HARDWARE_H

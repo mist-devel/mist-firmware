@@ -160,6 +160,65 @@ static void rotatechar(unsigned char *in,unsigned char *out)
 	}		
 }
 
+// --------- convenience functions to send commands via OSD channel ---------
+void osd_spi8(unsigned char parm) {
+  SPI(parm);
+}
+
+void osd_spi16(unsigned short parm) {
+  SPI(parm >> 8);
+  SPI(parm >> 0);
+}
+
+void osd_spi24(unsigned long parm) {
+  SPI(parm >> 16);
+  SPI(parm >> 8);
+  SPI(parm >> 0);
+}
+
+void osd_spi32(unsigned long parm) {
+  SPI(parm >> 24);
+  SPI(parm >> 16);
+  SPI(parm >> 8);
+  SPI(parm >> 0);
+}
+
+void osd_spi_n(unsigned char value, unsigned short cnt) {
+  while(cnt--) 
+    SPI(value);
+}
+
+void osd_cmd_x(unsigned char cmd) {
+  EnableOsd();
+  SPI(cmd);
+}
+
+void osd_cmd(unsigned char cmd) {
+  osd_cmd_x(cmd);
+  DisableOsd();
+}
+
+void osd_cmd8_x(unsigned char cmd, unsigned char parm) {
+  EnableOsd();
+  SPI(cmd);
+  SPI(parm);
+}
+
+void osd_cmd8(unsigned char cmd, unsigned char parm) {
+  osd_cmd8_x(cmd, parm);
+  DisableOsd();
+}
+
+void osd_cmd32_x(unsigned char cmd, unsigned long parm) {
+  EnableOsd();
+  SPI(cmd);
+  osd_spi32(parm);
+}
+
+void osd_cmd32(unsigned char cmd, unsigned long parm) {
+  osd_cmd32(cmd, parm);
+  DisableOsd();
+}
 
 void OsdSetTitle(char *s,int a)
 {
@@ -228,343 +287,258 @@ void OsdWrite(unsigned char n, char *s, unsigned char invert, unsigned char stip
 // write a null-terminated string <s> to the OSD buffer starting at line <n>
 void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned char stipple,char offset)
 {
-    unsigned short i;
-    unsigned char b;
-    const unsigned char *p;
-	unsigned char stipplemask=0xff;
-	int linelimit=OSDLINELEN;
-	int arrowmask=arrow;
-	if(n==7 && (arrow & OSD_ARROW_RIGHT))
-		linelimit-=22;
+  unsigned short i;
+  unsigned char b;
+  const unsigned char *p;
+  unsigned char stipplemask=0xff;
+  int linelimit=OSDLINELEN;
+  int arrowmask=arrow;
+  if(n==7 && (arrow & OSD_ARROW_RIGHT))
+    linelimit-=22;
+  
+  if(stipple) {
+    stipplemask=0x55;
+    stipple=0xff;
+  } else
+    stipple=0;
 
-	if(stipple)
-	{
-		stipplemask=0x55;
-		stipple=0xff;
+  // select buffer and line to write to
+  if(minimig_v1())
+    osd_cmd_x(MM1_OSDCMDWRITE | n);
+  else
+    osd_cmd32_x(OSD_CMD_OSD_WR, n);
+  
+  if(invert)
+    invert=255;
+  
+  i = 0;
+  // send all characters in string to OSD
+  while (1) {
+    if(i==0) {	// Render sidestripe
+      unsigned char j;
+
+      p = &titlebuffer[(7-n)*8];
+
+      osd_spi16(0xffff);  // left white border
+
+      for(j=0;j<8;j++)
+	osd_spi_n(255^*p++, 2);
+
+      osd_spi16(0xffff);  // right white border
+      osd_spi16(0x0000);  // blue gap
+      i += 22;
+    } else if(n==7 && (arrowmask & OSD_ARROW_LEFT)) {	// Draw initial arrow
+      unsigned char b;
+
+      osd_spi24(0x00);
+      p = &charfont[0x10][0];
+      for(b=0;b<8;b++) osd_spi8(*p++<<offset);
+      p = &charfont[0x14][0];
+      for(b=0;b<8;b++) osd_spi8(*p++<<offset);
+      osd_spi24(0x00);
+      osd_spi_n(invert, 2);
+      i+=24;
+      arrowmask&=~OSD_ARROW_LEFT;
+      if(*s++ == 0) break;	// Skip 3 characters, to keep alignent the same.
+      if(*s++ == 0) break;
+      if(*s++ == 0) break;
+    } else {
+      b = *s++;
+      
+      if (b == 0) // end of string
+	break;
+      
+      else if (b == 0x0d || b == 0x0a) { // cariage return / linefeed, go to next line
+	// increment line counter
+	if (++n >= linelimit)
+	  n = 0;
+
+	// send new line number to OSD
+	DisableOsd();
+	
+	if(minimig_v1())
+	  osd_cmd_x(MM1_OSDCMDWRITE | n);
+	else 
+	  osd_cmd32_x(OSD_CMD_OSD_WR, n);
+      }
+      else if(i<(linelimit-8)) { // normal character
+	unsigned char c;
+	p = &charfont[b][0];
+	for(c=0;c<8;c++) {
+	  osd_spi8(((*p++<<offset)&stipplemask)^invert);
+	  stipplemask^=stipple;
 	}
-	else
-		stipple=0;
-
-    // select OSD SPI device
-    EnableOsd();
-
-    // select buffer and line to write to
-    if(minimig_v1())
-      SPI(MM1_OSDCMDWRITE | n);
-    else {
-      SPI(OSD_CMD_OSD_WR);
-      SPI(0x00); SPI(0x00); SPI(0x00); SPI(n);
+	i += 8;
+      }
     }
+  }
 
-    if(invert)
-      invert=255;
+  for (; i < linelimit; i++) // clear end of line
+    osd_spi8(invert);
 
-    i = 0;
-    // send all characters in string to OSD
-    while (1)
-    {
-		if(i==0)	// Render sidestripe
-		{
-	        p = &titlebuffer[(7-n)*8];
-			SPI(0xff);
-			SPI(0xff);
-	        SPI(255^*p); SPI(255^*p++);
-	        SPI(255^*p); SPI(255^*p++);
-	        SPI(255^*p); SPI(255^*p++);
-	        SPI(255^*p); SPI(255^*p++);
-	        SPI(255^*p); SPI(255^*p++);
-	        SPI(255^*p); SPI(255^*p++);
-	        SPI(255^*p); SPI(255^*p++);
-	        SPI(255^*p); SPI(255^*p++);
-			SPI(0xff);
-			SPI(0xff);
-			SPI(0x00);
-			SPI(0x00);
-	        i += 22;
-		}
-		else if(n==7 && (arrowmask & OSD_ARROW_LEFT))	// Draw initial arrow
-		{
-			SPI(0);
-			SPI(0);
-			SPI(0);
-		    p = &charfont[0x10][0];
-	        SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset);
-	        SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset);
-		    p = &charfont[0x14][0];
-	        SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset);
-	        SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset);
-			SPI(0);
-			SPI(0);
-			SPI(0);
-			SPI(invert);
-			SPI(invert);
-			i+=24;
-			arrowmask&=~OSD_ARROW_LEFT;
-			if(*s++ == 0) break;	// Skip 3 characters, to keep alignent the same.
-			if(*s++ == 0) break;
-			if(*s++ == 0) break;
-		}
-		else
-		{
-		    b = *s++;
-
-		    if (b == 0) // end of string
-		        break;
-
-		    else if (b == 0x0d || b == 0x0a) // cariage return / linefeed, go to next line
-		    {
-		        // increment line counter
-		        if (++n >= linelimit)
-		            n = 0;
-		        // send new line number to OSD
-		        DisableOsd();
-		        EnableOsd();
-
-			if(minimig_v1())
-			  SPI(MM1_OSDCMDWRITE | n);
-			else {
-			  SPI(OSD_CMD_OSD_WR);
-			  SPI(0x00); SPI(0x00); SPI(0x00); SPI(n);
-			}
-		    }
-			else if(i<(linelimit-8)) // normal character
-		    {
-		        p = &charfont[b][0];
-		        SPI(((*p++<<offset)&stipplemask)^invert);	stipplemask^=stipple;
-		        SPI(((*p++<<offset)&stipplemask)^invert);	stipplemask^=stipple;
-		        SPI(((*p++<<offset)&stipplemask)^invert);	stipplemask^=stipple;
-		        SPI(((*p++<<offset)&stipplemask)^invert);	stipplemask^=stipple;
-		        SPI(((*p++<<offset)&stipplemask)^invert);	stipplemask^=stipple;
-		        SPI(((*p++<<offset)&stipplemask)^invert);	stipplemask^=stipple;
-		        SPI(((*p++<<offset)&stipplemask)^invert);	stipplemask^=stipple;
-		        SPI(((*p++<<offset)&stipplemask)^invert);	stipplemask^=stipple;
-		        i += 8;
-		    }
-		}
-    }
-    for (; i < linelimit; i++) // clear end of line
-       SPI(invert);
-	if(n==7 && (arrowmask & OSD_ARROW_RIGHT))	// Draw final arrow if needed
-	{
-		SPI(0);
-		SPI(0);
-		SPI(0);
-        p = &charfont[0x15][0];
-        SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset);
-        SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset);
-        p = &charfont[0x11][0];
-        SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset);
-        SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset); SPI(*p++<<offset);
-		SPI(0);
-		SPI(0);
-		SPI(0);
-		i+=22;
-	}
-
-    // deselect OSD SPI device
-    DisableOsd();
+  if(n==7 && (arrowmask & OSD_ARROW_RIGHT)) {	// Draw final arrow if needed
+    unsigned char c;
+    osd_spi24(0x00);
+    p = &charfont[0x15][0];
+    for(c=0;c<8;c++) osd_spi8(*p++<<offset);
+    p = &charfont[0x11][0];
+    for(c=0;c<8;c++) osd_spi8(*p++<<offset);
+    osd_spi24(0x00);
+    i+=22;
+  }
+  
+  // deselect OSD SPI device
+  DisableOsd();
 }
 
 
-void OsdDrawLogo(unsigned char n, char row,char superimpose)
-{
-    unsigned short i;
-    const unsigned char *p;
-	int linelimit=OSDLINELEN;
-
-    // select OSD SPI device
-    EnableOsd();
-
-    // select buffer and line to write to
-    if(minimig_v1())
-      SPI(MM1_OSDCMDWRITE | n);
-    else {
-      SPI(OSD_CMD_OSD_WR);
-      SPI(0x00); SPI(0x00); SPI(0x00); SPI(n);
+void OsdDrawLogo(unsigned char n, char row,char superimpose) {
+  unsigned short i;
+  const unsigned char *p;
+  int linelimit=OSDLINELEN;
+  
+  // select buffer and line to write to
+  if(minimig_v1())
+    osd_cmd_x(MM1_OSDCMDWRITE | n);
+  else
+    osd_cmd32_x(OSD_CMD_OSD_WR, n);
+  
+  const unsigned char *lp=logodata[row];
+  int bytes=sizeof(logodata[0]);
+  if(row>=(sizeof(logodata)/bytes))
+    lp=0;
+  i = 0;
+  // send all characters in string to OSD
+  
+  if(superimpose) {
+    char *bg=framebuffer[n];
+    while (bytes) {
+      if(i==0) {	// Render sidestripe
+	unsigned char j;
+	p = &titlebuffer[(7-n)*8];
+	osd_spi16(0xffff);
+	for(j=0;j<8;j++) osd_spi_n(255^*p++, 2);
+	osd_spi16(0xffff);
+	osd_spi16(0x0000);
+	i += 22;
+      }
+      if(i>=linelimit)
+	break;
+      if(lp)
+	osd_spi8(*lp++ | *bg++);
+      else
+	osd_spi8(*bg++);
+      --bytes;
+      ++i;
     }
-
-	const unsigned char *lp=logodata[row];
-	int bytes=sizeof(logodata[0]);
-	if(row>=(sizeof(logodata)/bytes))
-		lp=0;
-    i = 0;
-    // send all characters in string to OSD
-
-	if(superimpose)
-	{
-	  char *bg=framebuffer[n];
-		while (bytes)
-		{
-			if(i==0)	// Render sidestripe
-			{
-			    p = &titlebuffer[(7-n)*8];
-				SPI(0xff);
-				SPI(0xff);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-				SPI(0xff);
-				SPI(0xff);
-				SPI(0x00);
-				SPI(0x00);
-			    i += 22;
-			}
-			if(i>=linelimit)
-				break;
-			if(lp)
-				SPI(*lp++ | *bg++);
-			else
-			  SPI(*bg++);
-			--bytes;
-			++i;
-		}
-	    for (; i < linelimit; i++) // clear end of line
-	      SPI(*bg++);
+    for (; i < linelimit; i++) // clear end of line
+      osd_spi8(*bg++);
+  } else {
+    while (bytes) {
+      if(i==0) { // Render sidestripe
+	unsigned char b;
+	p = &titlebuffer[(7-n)*8];
+	osd_spi16(0xffff);
+	for(b=0;b<8;b++) osd_spi_n(255^*p++, 2);
+	osd_spi16(0xffff);
+	osd_spi16(0x0000);
+	i += 22;
+      }
+      if(i>=linelimit)
+	break;
+      if(lp)
+	osd_spi8(*lp++);
+      else
+	osd_spi8(0);
+      --bytes;
+      ++i;
     }
-	else
-	{
-		while (bytes)
-		{
-			if(i==0)	// Render sidestripe
-			{
-			    p = &titlebuffer[(7-n)*8];
-				SPI(0xff);
-				SPI(0xff);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-			    SPI(255^*p); SPI(255^*p++);
-				SPI(0xff);
-				SPI(0xff);
-				SPI(0x00);
-				SPI(0x00);
-			    i += 22;
-			}
-			if(i>=linelimit)
-				break;
-			if(lp)
-				SPI(*lp++);
-			else
-				SPI(0);
-			--bytes;
-			++i;
-		}
-	    for (; i < linelimit; i++) // clear end of line
-	       SPI(0);
-	}
-    // deselect OSD SPI device
-    DisableOsd();
+    for (; i < linelimit; i++) // clear end of line
+      osd_spi8(0);
+  }
+  // deselect OSD SPI device
+  DisableOsd();
 }
 
 
 // write a null-terminated string <s> to the OSD buffer starting at line <n>
 void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned long width, unsigned long offset, unsigned char invert)
 {
-// line : OSD line number (0-7)
-// text : pointer to null-terminated string
-// start : start position (in pixels)
-// width : printed text length in pixels
-// offset : scroll offset in pixels counting from the start of the string (0-7)
-// invert : invertion flag
+  // line : OSD line number (0-7)
+  // text : pointer to null-terminated string
+  // start : start position (in pixels)
+  // width : printed text length in pixels
+  // offset : scroll offset in pixels counting from the start of the string (0-7)
+  // invert : invertion flag
+  
+  const unsigned char *p;
+  int i,j;
+  
+  // select buffer and line to write to
+  if(minimig_v1())
+    osd_cmd_x(MM1_OSDCMDWRITE | line);
+  else 
+    osd_cmd32_x(OSD_CMD_OSD_WR, line);
+  
+  if(invert)
+    invert=0xff;
+  
+  p = &titlebuffer[(7-line)*8];
+  if(start>2) {
+    osd_spi16(0xffff);
+    start-=2;
+  }
+  
+  i=start>16 ? 16 : start;
+  for(j=0;j<(i/2);++j)
+    osd_spi_n(255^*p++, 2);
 
-    const unsigned char *p;
-	int i,j;
+  if(i&1)
+    osd_spi8(255^*p);
+  start-=i;
+  
+  if(start>2) {
+    osd_spi16(0xffff);
+    start-=2;
+  }
 
-    // select OSD SPI device
-    EnableOsd();
+  while (start--)
+    osd_spi8(0x00);
+  
+  if (offset) {
+    width -= 8 - offset;
+    p = &charfont[*text++][offset];
+    for (; offset < 8; offset++)
+      osd_spi8(*p++^invert);
+  }
 
-    // select buffer and line to write to
-    if(minimig_v1())
-      SPI(MM1_OSDCMDWRITE | line);
-    else {
-      SPI(OSD_CMD_OSD_WR);
-      SPI(0x00); SPI(0x00); SPI(0x00); SPI(line);
-    }
+  while (width > 8) {
+    unsigned char b;
+    p = &charfont[*text++][0];
+    for(b=0;b<8;b++) osd_spi8(*p++^invert);
+    width -= 8;
+  }
+  
+  if (width) {
+    p = &charfont[*text++][0];
+    while (width--)
+      osd_spi8(*p++^invert);
+  }
 
-	if(invert)
-		invert=0xff;
-
-    p = &titlebuffer[(7-line)*8];
-	if(start>2)
-	{
-		SPI(0xff); SPI(0xff); start-=2;
-	}
-	
-	i=start>16 ? 16 : start;
-	for(j=0;j<(i/2);++j)
-	{
-		SPI(255^*p); SPI(255^*p++);
-	}
-	if(i&1)
-		SPI(255^*p);
-	start-=i;
-
-	if(start>2)
-		SPI(0xff), SPI(0xff), start-=2;
-
-    while (start--)
-          SPI(0x00);
-
-    if (offset)
-    {
-        width -= 8 - offset;
-        p = &charfont[*text++][offset];
-        for (; offset < 8; offset++)
-            SPI(*p++^invert);
-    }
-
-    while (width > 8)
-    {
-            p = &charfont[*text++][0];
-            SPI(*p++^invert);
-            SPI(*p++^invert);
-            SPI(*p++^invert);
-            SPI(*p++^invert);
-            SPI(*p++^invert);
-            SPI(*p++^invert);
-            SPI(*p++^invert);
-            SPI(*p++^invert);
-            width -= 8;
-    }
-
-    if (width)
-    {
-        p = &charfont[*text++][0];
-        while (width--)
-              SPI(*p++^invert);
-    }
-
-    DisableOsd();
+  DisableOsd();
 }
 
 // clear OSD frame buffer
 void OsdClear(void)
 {
-    unsigned short n;
-
-    // select OSD SPI device
-    EnableOsd();
-
     // select buffer to write to
     if(minimig_v1())
-      SPI(MM1_OSDCMDWRITE | 0x18);
-    else {
-      SPI(OSD_CMD_OSD_WR);
-      SPI(0x00); SPI(0x00); SPI(0x00); SPI(0x18);
-    }
+      osd_cmd_x(MM1_OSDCMDWRITE | 0x18);
+    else
+      osd_cmd32_x(OSD_CMD_OSD_WR, 0x18);
 
     // clear buffer
-    for (n = 0; n < (OSDLINELEN * OSDNLINE); n++)
-        SPI(0x00);
+    osd_spi_n(0x00, OSDLINELEN * OSDNLINE);
 
     // deselect OSD SPI device
     DisableOsd();
@@ -573,16 +547,12 @@ void OsdClear(void)
 // enable displaying of OSD
 void OsdEnable(unsigned char mode)
 {
-    user_io_osd_key_enable(mode & DISABLE_KEYBOARD);
+  user_io_osd_key_enable(mode & DISABLE_KEYBOARD);
 
-    EnableOsd();
-    if(minimig_v1())
-      SPI(MM1_OSDCMDENABLE | (mode & DISABLE_KEYBOARD));
-    else {
-      SPI(OSD_CMD_OSD);
-      SPI(0x01 | (mode & DISABLE_KEYBOARD));
-    }
-    DisableOsd();
+  if(minimig_v1())
+    osd_cmd(MM1_OSDCMDENABLE | (mode & DISABLE_KEYBOARD));
+  else
+    osd_cmd8(OSD_CMD_OSD, 0x01 | (mode & DISABLE_KEYBOARD));
 }
 
 // disable displaying of OSD
@@ -590,131 +560,83 @@ void OsdDisable(void)
 {
     user_io_osd_key_enable(0);
 
-    EnableOsd();
     if(minimig_v1()) 
-      SPI(MM1_OSDCMDDISABLE);
-    else {
-      SPI(OSD_CMD_OSD);
-      SPI(0x00);
-    }
-    DisableOsd();
+      osd_cmd(MM1_OSDCMDDISABLE);
+    else 
+      osd_cmd8(OSD_CMD_OSD, 0x00);
 }
 
 void OsdReset(unsigned char boot)
 {
-    EnableOsd();
-    if(minimig_v1()) 
-      SPI(MM1_OSDCMDRST | (boot & 0x01));
+    if(minimig_v1())
+      osd_cmd(MM1_OSDCMDRST | (boot & 0x01));
     else {
-      SPI(OSD_CMD_RST);
-      SPI(0x1);
-      DisableOsd();
-
-      EnableOsd();
-      SPI(OSD_CMD_RST);
-      SPI(0x0);
+      osd_cmd8(OSD_CMD_RST, 0x01);
+      osd_cmd8(OSD_CMD_RST, 0x00);
     }
-    DisableOsd();
 }
 
-void MM1_ConfigFilter(unsigned char lores, unsigned char hires)
-{
-    EnableOsd();
-    SPI(MM1_OSDCMDCFGFLT | ((hires & 0x03) << 2) | (lores & 0x03));
-    DisableOsd();
+void MM1_ConfigFilter(unsigned char lores, unsigned char hires) {
+  osd_cmd(MM1_OSDCMDCFGFLT | ((hires & 0x03) << 2) | (lores & 0x03));
 }
 
-void ConfigVideo(unsigned char hires, unsigned char lores, unsigned char scanlines)
-{
-    EnableOsd();
-    SPI(OSD_CMD_VID);
-    SPI( (((scanlines>>2)&0x03)<< 6) | ((hires & 0x03) << 4) | ((lores & 0x03)<<2) | (scanlines & 0x03) );
-    DisableOsd();
+void ConfigVideo(unsigned char hires, unsigned char lores, unsigned char scanlines) {
+  osd_cmd8(OSD_CMD_VID, (((scanlines>>2)&0x03)<< 6) | ((hires & 0x03) << 4) | ((lores & 0x03)<<2) | (scanlines & 0x03) );
 }
 
 void ConfigMemory(unsigned char memory)
 {
-    EnableOsd();
     if(minimig_v1()) {
-      SPI(MM1_OSDCMDCFGMEM | (memory & 0x03));				//chip
-      DisableOsd();
-      EnableOsd();
-      SPI(MM1_OSDCMDCFGMEM | 0x04 | ((memory>>2) & 0x03));	//slow
-      DisableOsd();
-      EnableOsd();
-      SPI(MM1_OSDCMDCFGMEM | 0x08 | ((memory>>4) & 0x03));	//fast
-    } else {
-      SPI(OSD_CMD_MEM);
-      SPI(memory);
-    }
-    DisableOsd();
+      osd_cmd(MM1_OSDCMDCFGMEM | (memory & 0x03));		//chip
+      osd_cmd(MM1_OSDCMDCFGMEM | 0x04 | ((memory>>2) & 0x03));	//slow
+      osd_cmd(MM1_OSDCMDCFGMEM | 0x08 | ((memory>>4) & 0x03));	//fast
+    } else
+      osd_cmd8(OSD_CMD_MEM, memory);
 }
 
 void ConfigCPU(unsigned char cpu)
 {
-    EnableOsd();
     if(minimig_v1())
-      SPI(MM1_OSDCMDCFGCPU | (cpu & 0x03));					//CPU
-    else {
-      SPI(OSD_CMD_CPU);
-      SPI(cpu & 0x0f);
-    }
-    DisableOsd();
+      osd_cmd(MM1_OSDCMDCFGCPU | (cpu & 0x03));		//CPU
+    else 
+      osd_cmd8(OSD_CMD_CPU, cpu & 0x0f);
 }
 
 void ConfigChipset(unsigned char chipset)
 {
-    EnableOsd();
     if(minimig_v1()) 
-      SPI(MM1_OSDCMDCFGCHP | (chipset & 0x0F));
-    else {
-      SPI(OSD_CMD_CHIP);
-      SPI(chipset & 0x1f);
-    }
-    DisableOsd();
+      osd_cmd(MM1_OSDCMDCFGCHP | (chipset & 0x0F));
+    else
+      osd_cmd8(OSD_CMD_CHIP, chipset & 0x1f);
 }
 
 void ConfigFloppy(unsigned char drives, unsigned char speed)
 {
-    EnableOsd();
     if(minimig_v1())
-      SPI(MM1_OSDCMDCFGFLP | ((drives & 0x03) << 2) | (speed & 0x03));
-    else {
-      SPI(OSD_CMD_FLP);
-      SPI(((drives & 0x03) << 2) | (speed & 0x03));
-    }
-    DisableOsd();
+      osd_cmd(MM1_OSDCMDCFGFLP | ((drives & 0x03) << 2) | (speed & 0x03));
+    else
+      osd_cmd8(OSD_CMD_FLP, ((drives & 0x03) << 2) | (speed & 0x03));
 }
 
 void MM1_ConfigScanlines(unsigned char scanlines)
 {
-    EnableOsd();
-    SPI(MM1_OSDCMDCFGSCL | (scanlines & 0x0F));
-    DisableOsd();
+    osd_cmd(MM1_OSDCMDCFGSCL | (scanlines & 0x0F));
 }
 
 void ConfigIDE(unsigned char gayle, unsigned char master, unsigned char slave)
 {
-    EnableOsd();
     if(minimig_v1())
-      SPI(MM1_OSDCMDCFGIDE | (slave ? 4 : 0) | (master ? 2 : 0) | (gayle ? 1 : 0));
-    else {
-      SPI(OSD_CMD_HDD);
-      SPI((slave ? 4 : 0) | (master ? 2 : 0) | (gayle ? 1 : 0));
-    }
-    DisableOsd();
+      osd_cmd(MM1_OSDCMDCFGIDE | (slave ? 4 : 0) | (master ? 2 : 0) | (gayle ? 1 : 0));
+    else 
+      osd_cmd8(OSD_CMD_HDD, (slave ? 4 : 0) | (master ? 2 : 0) | (gayle ? 1 : 0));
 }
 
 void ConfigAutofire(unsigned char autofire)
 {
-    EnableOsd();
     if(minimig_v1())
-      SPI(MM1_OSDCMDAUTOFIRE | (autofire & 0x03));
-    else {
-      SPI(OSD_CMD_JOY);
-      SPI(autofire & 0x03);
-    }
-    DisableOsd();
+      osd_cmd(MM1_OSDCMDAUTOFIRE | (autofire & 0x03));
+    else
+      osd_cmd8(OSD_CMD_JOY, autofire & 0x03);
 }
 
 // get key status

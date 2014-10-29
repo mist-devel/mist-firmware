@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "hardware.h"
 #include "user_io.h"
 
-uint32_t rstval = 0;
+uint8_t rstval = 0;
 
 void __init_hardware(void)
 {
