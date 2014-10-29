@@ -119,11 +119,6 @@ unsigned char ConfigureFpga(void)
     unsigned long  n;
     unsigned char *ptr;
 
-    if(minimg_v1()) {
-      // reset bootscreen cursor position
-      bootscreen_adr = 0x80000 + 120*640/8;
-    }
-
     // set outputs
     *AT91C_PIOA_SODR = XILINX_CCLK | XILINX_DIN | XILINX_PROG_B;
     // enable outputs

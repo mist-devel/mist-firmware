@@ -33,10 +33,8 @@ This is the Minimig OSD (on-screen-display) handler.
 2009-08-23 - adapted ConfigIDE() - support for 2 hardfiles
 */
 
-//#include "AT91SAM7S256.h"
 #include "osd.h"
-#include "hardware.h"
-#include "stdio.h"
+#include "spi.h"
 
 #include "charrom.h"
 #include "logo.h"
@@ -160,66 +158,6 @@ static void rotatechar(unsigned char *in,unsigned char *out)
 	}		
 }
 
-// --------- convenience functions to send commands via OSD channel ---------
-void osd_spi8(unsigned char parm) {
-  SPI(parm);
-}
-
-void osd_spi16(unsigned short parm) {
-  SPI(parm >> 8);
-  SPI(parm >> 0);
-}
-
-void osd_spi24(unsigned long parm) {
-  SPI(parm >> 16);
-  SPI(parm >> 8);
-  SPI(parm >> 0);
-}
-
-void osd_spi32(unsigned long parm) {
-  SPI(parm >> 24);
-  SPI(parm >> 16);
-  SPI(parm >> 8);
-  SPI(parm >> 0);
-}
-
-void osd_spi_n(unsigned char value, unsigned short cnt) {
-  while(cnt--) 
-    SPI(value);
-}
-
-void osd_cmd_x(unsigned char cmd) {
-  EnableOsd();
-  SPI(cmd);
-}
-
-void osd_cmd(unsigned char cmd) {
-  osd_cmd_x(cmd);
-  DisableOsd();
-}
-
-void osd_cmd8_x(unsigned char cmd, unsigned char parm) {
-  EnableOsd();
-  SPI(cmd);
-  SPI(parm);
-}
-
-void osd_cmd8(unsigned char cmd, unsigned char parm) {
-  osd_cmd8_x(cmd, parm);
-  DisableOsd();
-}
-
-void osd_cmd32_x(unsigned char cmd, unsigned long parm) {
-  EnableOsd();
-  SPI(cmd);
-  osd_spi32(parm);
-}
-
-void osd_cmd32(unsigned char cmd, unsigned long parm) {
-  osd_cmd32(cmd, parm);
-  DisableOsd();
-}
-
 void OsdSetTitle(char *s,int a)
 {
 	// Compose the title, condensing character gaps
@@ -304,9 +242,9 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
 
   // select buffer and line to write to
   if(minimig_v1())
-    osd_cmd_x(MM1_OSDCMDWRITE | n);
+    spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
   else
-    osd_cmd32_x(OSD_CMD_OSD_WR, n);
+    spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
   
   if(invert)
     invert=255;
@@ -319,24 +257,24 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
 
       p = &titlebuffer[(7-n)*8];
 
-      osd_spi16(0xffff);  // left white border
+      spi16(0xffff);  // left white border
 
       for(j=0;j<8;j++)
-	osd_spi_n(255^*p++, 2);
+	spi_n(255^*p++, 2);
 
-      osd_spi16(0xffff);  // right white border
-      osd_spi16(0x0000);  // blue gap
+      spi16(0xffff);  // right white border
+      spi16(0x0000);  // blue gap
       i += 22;
     } else if(n==7 && (arrowmask & OSD_ARROW_LEFT)) {	// Draw initial arrow
       unsigned char b;
 
-      osd_spi24(0x00);
+      spi24(0x00);
       p = &charfont[0x10][0];
-      for(b=0;b<8;b++) osd_spi8(*p++<<offset);
+      for(b=0;b<8;b++) spi8(*p++<<offset);
       p = &charfont[0x14][0];
-      for(b=0;b<8;b++) osd_spi8(*p++<<offset);
-      osd_spi24(0x00);
-      osd_spi_n(invert, 2);
+      for(b=0;b<8;b++) spi8(*p++<<offset);
+      spi24(0x00);
+      spi_n(invert, 2);
       i+=24;
       arrowmask&=~OSD_ARROW_LEFT;
       if(*s++ == 0) break;	// Skip 3 characters, to keep alignent the same.
@@ -357,15 +295,15 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
 	DisableOsd();
 	
 	if(minimig_v1())
-	  osd_cmd_x(MM1_OSDCMDWRITE | n);
+	  spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
 	else 
-	  osd_cmd32_x(OSD_CMD_OSD_WR, n);
+	  spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
       }
       else if(i<(linelimit-8)) { // normal character
 	unsigned char c;
 	p = &charfont[b][0];
 	for(c=0;c<8;c++) {
-	  osd_spi8(((*p++<<offset)&stipplemask)^invert);
+	  spi8(((*p++<<offset)&stipplemask)^invert);
 	  stipplemask^=stipple;
 	}
 	i += 8;
@@ -374,16 +312,16 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
   }
 
   for (; i < linelimit; i++) // clear end of line
-    osd_spi8(invert);
+    spi8(invert);
 
   if(n==7 && (arrowmask & OSD_ARROW_RIGHT)) {	// Draw final arrow if needed
     unsigned char c;
-    osd_spi24(0x00);
+    spi24(0x00);
     p = &charfont[0x15][0];
-    for(c=0;c<8;c++) osd_spi8(*p++<<offset);
+    for(c=0;c<8;c++) spi8(*p++<<offset);
     p = &charfont[0x11][0];
-    for(c=0;c<8;c++) osd_spi8(*p++<<offset);
-    osd_spi24(0x00);
+    for(c=0;c<8;c++) spi8(*p++<<offset);
+    spi24(0x00);
     i+=22;
   }
   
@@ -399,9 +337,9 @@ void OsdDrawLogo(unsigned char n, char row,char superimpose) {
   
   // select buffer and line to write to
   if(minimig_v1())
-    osd_cmd_x(MM1_OSDCMDWRITE | n);
+    spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
   else
-    osd_cmd32_x(OSD_CMD_OSD_WR, n);
+    spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
   
   const unsigned char *lp=logodata[row];
   int bytes=sizeof(logodata[0]);
@@ -416,45 +354,45 @@ void OsdDrawLogo(unsigned char n, char row,char superimpose) {
       if(i==0) {	// Render sidestripe
 	unsigned char j;
 	p = &titlebuffer[(7-n)*8];
-	osd_spi16(0xffff);
-	for(j=0;j<8;j++) osd_spi_n(255^*p++, 2);
-	osd_spi16(0xffff);
-	osd_spi16(0x0000);
+	spi16(0xffff);
+	for(j=0;j<8;j++) spi_n(255^*p++, 2);
+	spi16(0xffff);
+	spi16(0x0000);
 	i += 22;
       }
       if(i>=linelimit)
 	break;
       if(lp)
-	osd_spi8(*lp++ | *bg++);
+	spi8(*lp++ | *bg++);
       else
-	osd_spi8(*bg++);
+	spi8(*bg++);
       --bytes;
       ++i;
     }
     for (; i < linelimit; i++) // clear end of line
-      osd_spi8(*bg++);
+      spi8(*bg++);
   } else {
     while (bytes) {
       if(i==0) { // Render sidestripe
 	unsigned char b;
 	p = &titlebuffer[(7-n)*8];
-	osd_spi16(0xffff);
-	for(b=0;b<8;b++) osd_spi_n(255^*p++, 2);
-	osd_spi16(0xffff);
-	osd_spi16(0x0000);
+	spi16(0xffff);
+	for(b=0;b<8;b++) spi_n(255^*p++, 2);
+	spi16(0xffff);
+	spi16(0x0000);
 	i += 22;
       }
       if(i>=linelimit)
 	break;
       if(lp)
-	osd_spi8(*lp++);
+	spi8(*lp++);
       else
-	osd_spi8(0);
+	spi8(0);
       --bytes;
       ++i;
     }
     for (; i < linelimit; i++) // clear end of line
-      osd_spi8(0);
+      spi8(0);
   }
   // deselect OSD SPI device
   DisableOsd();
@@ -476,53 +414,53 @@ void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned
   
   // select buffer and line to write to
   if(minimig_v1())
-    osd_cmd_x(MM1_OSDCMDWRITE | line);
+    spi_osd_cmd_cont(MM1_OSDCMDWRITE | line);
   else 
-    osd_cmd32_x(OSD_CMD_OSD_WR, line);
+    spi_osd_cmd32_cont(OSD_CMD_OSD_WR, line);
   
   if(invert)
     invert=0xff;
   
   p = &titlebuffer[(7-line)*8];
   if(start>2) {
-    osd_spi16(0xffff);
+    spi16(0xffff);
     start-=2;
   }
   
   i=start>16 ? 16 : start;
   for(j=0;j<(i/2);++j)
-    osd_spi_n(255^*p++, 2);
+    spi_n(255^*p++, 2);
 
   if(i&1)
-    osd_spi8(255^*p);
+    spi8(255^*p);
   start-=i;
   
   if(start>2) {
-    osd_spi16(0xffff);
+    spi16(0xffff);
     start-=2;
   }
 
   while (start--)
-    osd_spi8(0x00);
+    spi8(0x00);
   
   if (offset) {
     width -= 8 - offset;
     p = &charfont[*text++][offset];
     for (; offset < 8; offset++)
-      osd_spi8(*p++^invert);
+      spi8(*p++^invert);
   }
 
   while (width > 8) {
     unsigned char b;
     p = &charfont[*text++][0];
-    for(b=0;b<8;b++) osd_spi8(*p++^invert);
+    for(b=0;b<8;b++) spi8(*p++^invert);
     width -= 8;
   }
   
   if (width) {
     p = &charfont[*text++][0];
     while (width--)
-      osd_spi8(*p++^invert);
+      spi8(*p++^invert);
   }
 
   DisableOsd();
@@ -533,12 +471,12 @@ void OsdClear(void)
 {
     // select buffer to write to
     if(minimig_v1())
-      osd_cmd_x(MM1_OSDCMDWRITE | 0x18);
+      spi_osd_cmd_cont(MM1_OSDCMDWRITE | 0x18);
     else
-      osd_cmd32_x(OSD_CMD_OSD_WR, 0x18);
+      spi_osd_cmd32_cont(OSD_CMD_OSD_WR, 0x18);
 
     // clear buffer
-    osd_spi_n(0x00, OSDLINELEN * OSDNLINE);
+    spi_n(0x00, OSDLINELEN * OSDNLINE);
 
     // deselect OSD SPI device
     DisableOsd();
@@ -550,9 +488,9 @@ void OsdEnable(unsigned char mode)
   user_io_osd_key_enable(mode & DISABLE_KEYBOARD);
 
   if(minimig_v1())
-    osd_cmd(MM1_OSDCMDENABLE | (mode & DISABLE_KEYBOARD));
+    spi_osd_cmd(MM1_OSDCMDENABLE | (mode & DISABLE_KEYBOARD));
   else
-    osd_cmd8(OSD_CMD_OSD, 0x01 | (mode & DISABLE_KEYBOARD));
+    spi_osd_cmd8(OSD_CMD_OSD, 0x01 | (mode & DISABLE_KEYBOARD));
 }
 
 // disable displaying of OSD
@@ -561,82 +499,82 @@ void OsdDisable(void)
     user_io_osd_key_enable(0);
 
     if(minimig_v1()) 
-      osd_cmd(MM1_OSDCMDDISABLE);
+      spi_osd_cmd(MM1_OSDCMDDISABLE);
     else 
-      osd_cmd8(OSD_CMD_OSD, 0x00);
+      spi_osd_cmd8(OSD_CMD_OSD, 0x00);
 }
 
 void OsdReset(unsigned char boot)
 {
     if(minimig_v1())
-      osd_cmd(MM1_OSDCMDRST | (boot & 0x01));
+      spi_osd_cmd(MM1_OSDCMDRST | (boot & 0x01));
     else {
-      osd_cmd8(OSD_CMD_RST, 0x01);
-      osd_cmd8(OSD_CMD_RST, 0x00);
+      spi_osd_cmd8(OSD_CMD_RST, 0x01);
+      spi_osd_cmd8(OSD_CMD_RST, 0x00);
     }
 }
 
 void MM1_ConfigFilter(unsigned char lores, unsigned char hires) {
-  osd_cmd(MM1_OSDCMDCFGFLT | ((hires & 0x03) << 2) | (lores & 0x03));
+  spi_osd_cmd(MM1_OSDCMDCFGFLT | ((hires & 0x03) << 2) | (lores & 0x03));
 }
 
 void ConfigVideo(unsigned char hires, unsigned char lores, unsigned char scanlines) {
-  osd_cmd8(OSD_CMD_VID, (((scanlines>>2)&0x03)<< 6) | ((hires & 0x03) << 4) | ((lores & 0x03)<<2) | (scanlines & 0x03) );
+  spi_osd_cmd8(OSD_CMD_VID, (((scanlines>>2)&0x03)<< 6) | ((hires & 0x03) << 4) | ((lores & 0x03)<<2) | (scanlines & 0x03) );
 }
 
 void ConfigMemory(unsigned char memory)
 {
     if(minimig_v1()) {
-      osd_cmd(MM1_OSDCMDCFGMEM | (memory & 0x03));		//chip
-      osd_cmd(MM1_OSDCMDCFGMEM | 0x04 | ((memory>>2) & 0x03));	//slow
-      osd_cmd(MM1_OSDCMDCFGMEM | 0x08 | ((memory>>4) & 0x03));	//fast
+      spi_osd_cmd(MM1_OSDCMDCFGMEM | (memory & 0x03));		//chip
+      spi_osd_cmd(MM1_OSDCMDCFGMEM | 0x04 | ((memory>>2) & 0x03));	//slow
+      spi_osd_cmd(MM1_OSDCMDCFGMEM | 0x08 | ((memory>>4) & 0x03));	//fast
     } else
-      osd_cmd8(OSD_CMD_MEM, memory);
+      spi_osd_cmd8(OSD_CMD_MEM, memory);
 }
 
 void ConfigCPU(unsigned char cpu)
 {
     if(minimig_v1())
-      osd_cmd(MM1_OSDCMDCFGCPU | (cpu & 0x03));		//CPU
+      spi_osd_cmd(MM1_OSDCMDCFGCPU | (cpu & 0x03));		//CPU
     else 
-      osd_cmd8(OSD_CMD_CPU, cpu & 0x0f);
+      spi_osd_cmd8(OSD_CMD_CPU, cpu & 0x0f);
 }
 
 void ConfigChipset(unsigned char chipset)
 {
     if(minimig_v1()) 
-      osd_cmd(MM1_OSDCMDCFGCHP | (chipset & 0x0F));
+      spi_osd_cmd(MM1_OSDCMDCFGCHP | (chipset & 0x0F));
     else
-      osd_cmd8(OSD_CMD_CHIP, chipset & 0x1f);
+      spi_osd_cmd8(OSD_CMD_CHIP, chipset & 0x1f);
 }
 
 void ConfigFloppy(unsigned char drives, unsigned char speed)
 {
     if(minimig_v1())
-      osd_cmd(MM1_OSDCMDCFGFLP | ((drives & 0x03) << 2) | (speed & 0x03));
+      spi_osd_cmd(MM1_OSDCMDCFGFLP | ((drives & 0x03) << 2) | (speed & 0x03));
     else
-      osd_cmd8(OSD_CMD_FLP, ((drives & 0x03) << 2) | (speed & 0x03));
+      spi_osd_cmd8(OSD_CMD_FLP, ((drives & 0x03) << 2) | (speed & 0x03));
 }
 
 void MM1_ConfigScanlines(unsigned char scanlines)
 {
-    osd_cmd(MM1_OSDCMDCFGSCL | (scanlines & 0x0F));
+    spi_osd_cmd(MM1_OSDCMDCFGSCL | (scanlines & 0x0F));
 }
 
 void ConfigIDE(unsigned char gayle, unsigned char master, unsigned char slave)
 {
     if(minimig_v1())
-      osd_cmd(MM1_OSDCMDCFGIDE | (slave ? 4 : 0) | (master ? 2 : 0) | (gayle ? 1 : 0));
+      spi_osd_cmd(MM1_OSDCMDCFGIDE | (slave ? 4 : 0) | (master ? 2 : 0) | (gayle ? 1 : 0));
     else 
-      osd_cmd8(OSD_CMD_HDD, (slave ? 4 : 0) | (master ? 2 : 0) | (gayle ? 1 : 0));
+      spi_osd_cmd8(OSD_CMD_HDD, (slave ? 4 : 0) | (master ? 2 : 0) | (gayle ? 1 : 0));
 }
 
 void ConfigAutofire(unsigned char autofire)
 {
     if(minimig_v1())
-      osd_cmd(MM1_OSDCMDAUTOFIRE | (autofire & 0x03));
+      spi_osd_cmd(MM1_OSDCMDAUTOFIRE | (autofire & 0x03));
     else
-      osd_cmd8(OSD_CMD_JOY, autofire & 0x03);
+      spi_osd_cmd8(OSD_CMD_JOY, autofire & 0x03);
 }
 
 // get key status

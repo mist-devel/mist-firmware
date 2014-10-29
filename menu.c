@@ -2364,7 +2364,7 @@ void HandleUI(void)
 		else
 		{
 		    // reset bootscreen cursor position
-		    bootscreen_adr = 0x80000 + 120*640/8;
+		    BootHome();
 		    OsdDisable();
 		    EnableOsd();
 		    SPI(OSD_CMD_RST);
