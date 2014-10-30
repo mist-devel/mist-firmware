@@ -122,10 +122,10 @@ int main(void)
     iprintf("\rARM Controller by Jakub Bednarski\r\r");
     iprintf("Version %s\r\r", version+5);
 
-    SPI_Init();
+    spi_init();
 
     if(MMC_Init()) mmc_ok = 1;
-    else           SPI_fast();
+    else           spi_fast();
 
     // TODO: If MMC fails try to wait for USB storage
 

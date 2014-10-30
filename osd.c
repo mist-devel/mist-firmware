@@ -241,7 +241,7 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
     stipple=0;
 
   // select buffer and line to write to
-  if(minimig_v1())
+  if(!minimig_v2())
     spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
   else
     spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
@@ -294,7 +294,7 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
 	// send new line number to OSD
 	DisableOsd();
 	
-	if(minimig_v1())
+	if(!minimig_v2())
 	  spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
 	else 
 	  spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
@@ -336,7 +336,7 @@ void OsdDrawLogo(unsigned char n, char row,char superimpose) {
   int linelimit=OSDLINELEN;
   
   // select buffer and line to write to
-  if(minimig_v1())
+  if(!minimig_v2())
     spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
   else
     spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
@@ -413,7 +413,7 @@ void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned
   int i,j;
   
   // select buffer and line to write to
-  if(minimig_v1())
+  if(!minimig_v2())
     spi_osd_cmd_cont(MM1_OSDCMDWRITE | line);
   else 
     spi_osd_cmd32_cont(OSD_CMD_OSD_WR, line);
@@ -470,7 +470,7 @@ void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned
 void OsdClear(void)
 {
     // select buffer to write to
-    if(minimig_v1())
+    if(!minimig_v2())
       spi_osd_cmd_cont(MM1_OSDCMDWRITE | 0x18);
     else
       spi_osd_cmd32_cont(OSD_CMD_OSD_WR, 0x18);
@@ -487,7 +487,7 @@ void OsdEnable(unsigned char mode)
 {
   user_io_osd_key_enable(mode & DISABLE_KEYBOARD);
 
-  if(minimig_v1())
+  if(!minimig_v2())
     spi_osd_cmd(MM1_OSDCMDENABLE | (mode & DISABLE_KEYBOARD));
   else
     spi_osd_cmd8(OSD_CMD_OSD, 0x01 | (mode & DISABLE_KEYBOARD));
@@ -498,7 +498,7 @@ void OsdDisable(void)
 {
     user_io_osd_key_enable(0);
 
-    if(minimig_v1()) 
+    if(!minimig_v2()) 
       spi_osd_cmd(MM1_OSDCMDDISABLE);
     else 
       spi_osd_cmd8(OSD_CMD_OSD, 0x00);

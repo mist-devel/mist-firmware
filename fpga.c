@@ -563,7 +563,7 @@ char BootDraw(char *data, unsigned short len, unsigned short offset)
 char BootPrint(const char *text)
 {
     if(!minimig_v1()) {
-      iprintf(text);
+      iprintf("%s\n", text);
       return; // TODO
     }
 
