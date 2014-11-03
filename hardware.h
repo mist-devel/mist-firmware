@@ -17,12 +17,21 @@
 #define SD_WP         AT91C_PIO_PA1
 #define SD_CD         AT91C_PIO_PA0
 
+#ifdef EMIST
+// xilinx programming interface
+#define XILINX_DONE   AT91C_PIO_PA4
+#define XILINX_DIN    AT91C_PIO_PA9
+#define XILINX_INIT_B AT91C_PIO_PA8
+#define XILINX_PROG_B AT91C_PIO_PA7
+#define XILINX_CCLK   AT91C_PIO_PA15
+#else
 // altera programming interface
 #define ALTERA_DONE    AT91C_PIO_PA4
 #define ALTERA_DATA0   AT91C_PIO_PA9
 #define ALTERA_NCONFIG AT91C_PIO_PA8
 #define ALTERA_NSTATUS AT91C_PIO_PA7
 #define ALTERA_DCLK    AT91C_PIO_PA15
+#endif
 
 // db9 joystick ports
 #define JOY1_UP        AT91C_PIO_PA28

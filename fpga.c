@@ -113,7 +113,8 @@ void ShiftFpga(unsigned char data)
 }
 
 // Xilinx FPGA configuration
-unsigned char ConfigureFpga(void)
+// was before unsigned char ConfigureFpga(void)
+RAMFUNC unsigned char ConfigureFpga(char *name)
 {
     unsigned long  t;
     unsigned long  n;
@@ -152,14 +153,18 @@ unsigned char ConfigureFpga(void)
         FatalError(3);
     }
 
+    if(!name)
+    //  name = "CORE    BIN";
+		name = "XESM38  BIN";
+
     // open bitstream file
-    if (FileOpen(&file, "MINIMIG1BIN") == 0)
+    if (FileOpen(&file, name) == 0)
     {
         iprintf("No FPGA configuration file found!\r");
         FatalError(4);
     }
 
-    iprintf("FPGA bitstream file opened\r");
+    iprintf("FPGA bitstream file opened, file size = %d\r", file.size);
     iprintf("[");
 
     // send all bytes to FPGA in loop
