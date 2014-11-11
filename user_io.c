@@ -37,13 +37,17 @@ AT91PS_PMC a_pPMC = AT91C_BASE_PMC;
 // keep state of caps lock
 static char caps_lock_toggle = 0;
 
-// mouse position storage for ps2 rate limitation
+// mouse position storage for ps2 and minimig rate limitation
 #define X 0
 #define Y 1
-#define PS2_MOUSE_FREQ 20   // 20 ms -> 50hz
-static int16_t ps2_mouse_pos[2] = { 0, 0};
-static uint8_t ps2_mouse_flags = 0;
-static unsigned long ps2_mouse_timer;
+#define MOUSE_FREQ 20   // 20 ms -> 50hz
+static int16_t mouse_pos[2] = { 0, 0};
+static uint8_t mouse_flags = 0;
+static unsigned long mouse_timer;
+
+// set by OSD code to suppress forwarding of those keys to the core which
+// may be in use by an active OSD
+static char osd_eats_keys = false;
 
 static void PollOneAdc() {
   static unsigned char adc_cnt = 0xff;
@@ -152,7 +156,7 @@ void user_io_detect_core_type() {
 
   switch(core_type) {
   case CORE_TYPE_UNKNOWN:
-    puts("Unable to identify core!");
+    iprintf("Unable to identify core (%x)!\n", core_type);
     break;
     
   case CORE_TYPE_DUMB:
@@ -219,6 +223,20 @@ void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
 }
 
 void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
+  // if osd is open control it via joystick
+  if(osd_eats_keys) {
+    static const uint8_t joy2kbd[] = { 
+      OSDCTRLMENU, OSDCTRLMENU, OSDCTRLMENU, OSDCTRLSELECT,
+      OSDCTRLUP, OSDCTRLDOWN, OSDCTRLLEFT, OSDCTRLRIGHT };
+    static uint8_t last_map = 0;
+
+    iprintf("joy to osd\n");
+    
+    //    OsdKeySet(0x80 | usb2ami[pressed[i]]);
+
+    return;
+  }
+
   //  iprintf("j%d: %x\n", joystick, map);
 
   // "only" 6 joysticks are supported
@@ -247,8 +265,8 @@ static char dig2ana(char min, char max) {
   return 0;
 }
 
-// digital joysticks also send analog signals
 void user_io_joystick(unsigned char joystick, unsigned char map) {
+  // digital joysticks also send analog signals
   user_io_digital_joystick(joystick, map);
   user_io_analog_joystick(joystick, 
 		       dig2ana(map&JOY_LEFT, map&JOY_RIGHT),
@@ -542,6 +560,38 @@ unsigned char user_io_8bit_set_status(unsigned char new_status, unsigned char ma
 }
 
 void user_io_poll() {
+
+  if(user_io_dip_switch1()) {
+    // check of core has changed from a good one to a not supported on
+    // as this likely means that the user is reloading the core via jtag
+    unsigned char ct;
+    static unsigned char ct_cnt = 0;
+    
+    EnableIO();
+    ct = SPI(0xff);
+    DisableIO();
+    SPI(0xff);      // needed for old minimig core
+    
+    if(ct == core_type) 
+      ct_cnt = 0;        // same core type, everything is fine
+    else {
+      // core type has changed
+      if(++ct_cnt == 255) {
+	// wait for a new valid core id to appear
+	while((ct &  0xf0) != 0xa0) {
+	  EnableIO();
+	  ct = SPI(0xff);
+	  DisableIO();
+	  SPI(0xff);      // needed for old minimig core
+	}
+
+	// reset io controller to cope with new core
+	*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
+	for(;;);
+      }
+    }
+  }
+
   if((core_type != CORE_TYPE_MINIMIG) &&
      (core_type != CORE_TYPE_MINIMIG2) &&
      (core_type != CORE_TYPE_PACE) &&
@@ -559,7 +609,6 @@ void user_io_poll() {
     USART_Poll();
       
     unsigned char c = 0;
-    unsigned char cntff = 0;
 
     // check for incoming serial data. this is directly forwarded to the
     // arm rs232 and mixes with debug output. Useful for debugging only of
@@ -569,30 +618,6 @@ void user_io_poll() {
       c = spi_in();
       if(c != 0xff) 
 	putchar(c);
-
-      // character 0xff is returned if FPGA isn't configured
-      if(c == 0xff) {
-	if(user_io_dip_switch1()) {
-	  cntff++;
-	  if(cntff = 255) {
-	    // 255 subsequent 0xff bytes likely mean that the core has been restarted
-	    // so we reset the io controller
-	    tos_debugf("Core seems to have reloaded. Waiting for valid core id ...");
-	    DisableIO();
-
-	    /* core type */
-	    do {
-	      EnableIO();
-	      c = SPI(0xff);
-	      DisableIO();
-	    } while((c & 0xf0) != 0xa0);
-	    
-	    *AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
-	    for(;;);
-	  }
-	}
-      } else
-	cntff = 0;
       
       // forward to USB if redirection via USB/CDC enabled
       if(redirect == CDC_REDIRECT_RS232)
@@ -690,6 +715,48 @@ void user_io_poll() {
   if((core_type == CORE_TYPE_MINIMIG) ||
      (core_type == CORE_TYPE_MINIMIG2)) {
     kbd_fifo_poll();
+
+    // frequently check mouse for events
+    if(CheckTimer(mouse_timer)) {
+      mouse_timer = GetTimer(MOUSE_FREQ);
+
+      // has ps2 mouse data been updated in the meantime
+      if(mouse_flags & 0x80) {
+	spi_uio_cmd_cont(UIO_MOUSE);
+
+	// ----- X axis -------
+	if(mouse_pos[X] < -128) {
+	  spi8(-128);
+	  mouse_pos[X] += 128;
+	} else if(mouse_pos[X] > 127) {
+	  spi8(127);
+	  mouse_pos[X] -= 127;
+	} else {
+	  spi8(mouse_pos[X]);
+	  mouse_pos[X] = 0;
+	}
+
+	// ----- Y axis -------
+	if(mouse_pos[Y] < -128) {
+	  spi8(-128);
+	  mouse_pos[Y] += 128;
+	} else if(mouse_pos[Y] > 127) {
+	  spi8(127);
+	  mouse_pos[Y] -= 127;
+	} else {
+	  spi8(mouse_pos[Y]);
+	  mouse_pos[Y] = 0;
+	}
+
+	spi8(mouse_flags & 0x03);
+	DisableIO();
+
+	// reset flags
+	mouse_flags = 0;
+      }
+    }
+
+
   }
 
   if(core_type == CORE_TYPE_MIST) {
@@ -752,7 +819,7 @@ void user_io_poll() {
 	  static char using_sdhc = 1;
 
 	  // SD request and 
-	  if(!(c & 0x04)) {
+	  if((c & 0x03) && !(c & 0x04)) {
 	    if(using_sdhc) {
 	      // we have not been using sdhc so far? 
 	      // -> complain!
@@ -773,13 +840,21 @@ void user_io_poll() {
 	  if((!MMC_IsSDHC()) || (c & 0x04)) {  
 	    uint8_t wr_buf[512];
 
-	    iprintf("SD WR %d\n", lba);
+	    if(user_io_dip_switch1())
+	      iprintf("SD WR %d\n", lba);
+
+	    // if we write the sector stored in the read buffer, then
+	    // update the read buffer with the new contents
+	    if(buffer_lba == lba) 
+	      memcpy(buffer, wr_buf, 512);
+
+	      buffer_lba = 0xffffffff;
 
 	    // Fetch sector data from FPGA ...
 	    spi_uio_cmd_cont(UIO_SECTOR_WR);
 	    spi_block_read(wr_buf);
 	    DisableIO();
-	    
+
 	    // ... and write it to disk
 	    DISKLED_ON;
 	    MMC_Write(lba, wr_buf);
@@ -799,7 +874,8 @@ void user_io_poll() {
 	    DISKLED_OFF;
 	  }
 
-	  iprintf("SD RD %d\n", lba);
+	  if(user_io_dip_switch1())
+	    iprintf("SD RD %d\n", lba);
 	  
 	  if(buffer_lba == lba) {
 	    // data is now stored in buffer. send it to fpga
@@ -823,46 +899,46 @@ void user_io_poll() {
     }
 
     // frequently check ps2 mouse for events
-    if(CheckTimer(ps2_mouse_timer)) {
-      ps2_mouse_timer = GetTimer(PS2_MOUSE_FREQ);
+    if(CheckTimer(mouse_timer)) {
+      mouse_timer = GetTimer(MOUSE_FREQ);
 
       // has ps2 mouse data been updated in the meantime
-      if(ps2_mouse_flags & 0x08) {
+      if(mouse_flags & 0x08) {
 	unsigned char ps2_mouse[3];
 
 	// PS2 format: 
 	// YOvfl, XOvfl, dy8, dx8, 1, mbtn, rbtn, lbtn
 	// dx[7:0]
 	// dy[7:0]
-	ps2_mouse[0] = ps2_mouse_flags;
+	ps2_mouse[0] = mouse_flags;
 
 	// ------ X axis -----------
 	// store sign bit in first byte
-	ps2_mouse[0] |= (ps2_mouse_pos[X] < 0)?0x10:0x00;
-	if(ps2_mouse_pos[X] < -255) {
+	ps2_mouse[0] |= (mouse_pos[X] < 0)?0x10:0x00;
+	if(mouse_pos[X] < -255) {
 	  // min possible value + overflow flag
 	  ps2_mouse[0] |= 0x40;
 	  ps2_mouse[1] = -128;
-	} else if(ps2_mouse_pos[X] > 255) {
+	} else if(mouse_pos[X] > 255) {
 	  // max possible value + overflow flag
 	  ps2_mouse[0] |= 0x40;
 	  ps2_mouse[1] = 255;
 	} else 
-	  ps2_mouse[1] = ps2_mouse_pos[X];
+	  ps2_mouse[1] = mouse_pos[X];
 
 	// ------ Y axis -----------
 	// store sign bit in first byte
-	ps2_mouse[0] |= (ps2_mouse_pos[Y] < 0)?0x20:0x00;
-	if(ps2_mouse_pos[Y] < -255) {
+	ps2_mouse[0] |= (mouse_pos[Y] < 0)?0x20:0x00;
+	if(mouse_pos[Y] < -255) {
 	  // min possible value + overflow flag
 	  ps2_mouse[0] |= 0x80;
 	  ps2_mouse[2] = -128;
-	} else if(ps2_mouse_pos[Y] > 255) {
+	} else if(mouse_pos[Y] > 255) {
 	  // max possible value + overflow flag
 	  ps2_mouse[0] |= 0x80;
 	  ps2_mouse[2] = 255;
 	} else 
-	  ps2_mouse[2] = ps2_mouse_pos[Y];
+	  ps2_mouse[2] = mouse_pos[Y];
 	
 	// collect movement info and send at predefined rate
 	iprintf("PS2 MOUSE: %x %d %d\n", 
@@ -875,8 +951,8 @@ void user_io_poll() {
 	DisableIO();
 
 	// reset counters
-	ps2_mouse_flags = 0;
-	ps2_mouse_pos[X] = ps2_mouse_pos[Y] = 0;
+	mouse_flags = 0;
+	mouse_pos[X] = mouse_pos[Y] = 0;
       }
     }
 
@@ -1024,18 +1100,16 @@ void user_io_mouse(unsigned char b, char x, char y) {
   // send mouse data as minimig expects it
   if((core_type == CORE_TYPE_MINIMIG) || 
      (core_type == CORE_TYPE_MINIMIG2)) {
-    spi_uio_cmd_cont(UIO_MOUSE);
-    spi8(x);
-    spi8(y);
-    spi8(b);
-    DisableIO();
+    mouse_pos[X] += x;
+    mouse_pos[Y] += y;
+    mouse_flags |= 0x80 | (b&3); 
   }
 
   // 8 bit core expects ps2 like data
   if(core_type == CORE_TYPE_8BIT) {
-    ps2_mouse_pos[X] += x;
-    ps2_mouse_pos[Y] -= y;  // ps2 y axis is reversed over usb
-    ps2_mouse_flags = 0x08 | (b&3); 
+    mouse_pos[X] += x;
+    mouse_pos[Y] -= y;  // ps2 y axis is reversed over usb
+    mouse_flags |= 0x08 | (b&3); 
   }
 
   // send mouse data as mist expects it
@@ -1117,10 +1191,6 @@ unsigned short modifier_keycode(unsigned char index) {
 
   return MISS;
 }
-
-// set by OSD code to suppress forwarding of those keys to the core which
-// may be in use by an active OSD
-static char osd_eats_keys = false;
 
 void user_io_osd_key_enable(char on) {
   osd_eats_keys = on;

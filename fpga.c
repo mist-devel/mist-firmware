@@ -803,6 +803,8 @@ void fpga_init(char *name) {
   unsigned long time = GetTimer(0);
 
   if(!user_io_dip_switch1() || name) {
+    unsigned char ct;
+
     if (ConfigureFpga(name)) {
       time = GetTimer(0) - time;
       iprintf("FPGA configured in %lu ms\r", time >> 20);
@@ -810,10 +812,19 @@ void fpga_init(char *name) {
       iprintf("FPGA configuration failed\r");
       FatalError(8); // 3
     }
-    
-    WaitTimer(100); // let's wait some time till reset is inactive so we can get a valid keycode
+
+    // wait max 100 msec for a valid core type
+    time = GetTimer(100);
+    do {
+      EnableIO();
+      ct = SPI(0xff);
+      DisableIO();
+      SPI(0xff);         // for old minimig core
+    } while( ((ct == 0) || (ct == 0xff)) && !CheckTimer(time));
+
+    iprintf("ident = %x\n", ct);
   }
-  
+
   user_io_detect_core_type();
 
   if((user_io_core_type() == CORE_TYPE_MINIMIG)||
@@ -857,10 +868,8 @@ void fpga_init(char *name) {
     df[2].status = 0;
     df[3].status = 0;
 
-    if(minimig_v2()) {
+    if(minimig_v2())
       BootPrintEx("Booting ...");
-      iprintf("Booting ...\r");
-    }
 
     WaitTimer(6000);
     config.kickstart.name[0]=0;
