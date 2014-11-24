@@ -87,7 +87,7 @@ const char *config_memory_chip_msg[] = {"0.5 MB", "1.0 MB", "1.5 MB", "2.0 MB"};
 const char *config_memory_slow_msg[] = {"none  ", "0.5 MB", "1.0 MB", "1.5 MB"};
 const char *config_scanlines_msg[] = {"off", "dim", "black"};
 const char *config_dither_msg[] = {"off", "SPT", "RND", "S+R"};
-const char *config_memory_fast_msg[] = {"none  ", "2.0 MB", "4.0 MB","8.0 MB","24.0 MB"};
+const char *config_memory_fast_msg[] = {"none  ", "2.0 MB", "4.0 MB","24.0 MB","24.0 MB"};
 const char *config_cpu_msg[] = {"68000 ", "68010", "-----","68020"};
 const char *config_hdf_msg[] = {"Disabled", "Hardfile (disk img)", "MMC/SD card", "MMC/SD partition 1", "MMC/SD partition 2", "MMC/SD partition 3", "MMC/SD partition 4"};
 

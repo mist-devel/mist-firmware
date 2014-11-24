@@ -848,14 +848,14 @@ void fpga_init(char *name) {
       WaitTimer(100);
       BootInit();
       WaitTimer(1000);
-      BootPrintEx("**** MINIMIG-AGA for MiST ****");
+      BootPrintEx("**** MINIMIG-AGA for MiST (BETA) ****");
       BootPrintEx(" ");
-      BootPrintEx("Original Minimig by Dennis van Weeren");
-      BootPrintEx("Updates by Jakub Bednarski, Tobias Gubener, Sascha Boing, A.M. Robinson & others");
+      //BootPrintEx("Original Minimig by Dennis van Weeren");
+      //BootPrintEx("Updates by Jakub Bednarski, Tobias Gubener, Sascha Boing, A.M. Robinson & others");
       BootPrintEx("MINIMIG-AGA by Rok Krajnc (rok.krajnc@gmail.com)");
       BootPrintEx("MiST by Till Harbaum (till@harbaum.org)");
-      BootPrintEx("For updates & code see https://github.com/rkrajnc/minimig-de1");
-      BootPrintEx("For support, see http://www.minimig.net");
+      //BootPrintEx("For updates & code see https://github.com/rkrajnc/minimig-de1");
+      //BootPrintEx("For support, see http://www.minimig.net");
       BootPrintEx(" ");
       WaitTimer(1000);
     }
