@@ -379,37 +379,44 @@ void HandleHDD(unsigned char c1, unsigned char c2)
 		    sector++;
 		}
 		
-		if((lba+hdf[unit].offset)<0) {
-		  FakeRDB(unit,lba);
+		WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, 
+			      (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
+		WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
+		
+		// sector outside limit (fake rdb header) or to be modified sector of first partition
+		if(((lba+hdf[unit].offset)<0) || 
+		   ((unit == 0) && (hdf[unit].type == HDF_FILE | HDF_SYNTHRDB) && (lba == 0))) {
 
-		  WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, 
-				(unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-		  WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
+		  if((lba+hdf[unit].offset)<0)
+		    FakeRDB(unit,lba);
+		  else {
+		    // read secrot into buffer
+		    FileRead(&hdf[unit].file, sector_buffer);
+		    FileSeek(&hdf[unit].file, 1, SEEK_CUR);  // next sector
+
+		    // adjust checksum by the difference between old and new flag value
+		    struct RigidDiskBlock *rdb = (struct RigidDiskBlock *)sector_buffer;
+		    rdb->rdb_ChkSum = SWAP(SWAP(rdb->rdb_ChkSum) + SWAP(rdb->rdb_Flags) - 0x12);
+
+		    // adjust flags
+		    rdb->rdb_Flags=SWAP(0x12);
+		  }
 
 		  EnableFpga();
-		  SPI(CMD_IDE_DATA_WR); // write data command
-		  SPI(0x00);
-		  SPI(0x00);
-		  SPI(0x00);
-		  SPI(0x00);
-		  SPI(0x00);
+		  spi8(CMD_IDE_DATA_WR); // write data command
+		  spi_n(0x00, 5);
 		  spi_block_write(sector_buffer);
 		  DisableFpga();
 
 		  WriteStatus(sector_count==1 ? IDE_STATUS_IRQ|IDE_STATUS_END : IDE_STATUS_IRQ);
 		} else {
-		  WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
-		  WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, 
-				(unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-		  
 		  while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
 		  
 		  WriteStatus(IDE_STATUS_IRQ);
 		  
 		  if (hdf[unit].file.size) {
-		    //                    FileRead(&hdf[unit].file, NULL);
 		    FileRead(&hdf[unit].file, 0);
-		    FileSeek(&hdf[unit].file, 1, SEEK_CUR);
+		    FileSeek(&hdf[unit].file, 1, SEEK_CUR);  // next sector
 		  }
 		}
 		lba++;
