@@ -13,6 +13,8 @@
 #include "ikbd.h"
 #include "fat.h"
 #include "spi.h"
+#include "mist_cfg.h"
+
 
 #define BREAK  0x8000
 
@@ -668,7 +670,10 @@ void user_io_poll() {
 
   if(adc_state & 4) map |= BUTTON1;
   if(adc_state & 8) map |= BUTTON2;
-  
+
+  // TODO adding conf here
+  if (mist_cfg.scandoubler) map |= CONF_SCANDOUBLER;
+
   if(map != key_map) {
     key_map = map;
 
