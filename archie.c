@@ -154,7 +154,7 @@ void archie_set_rom(fileTYPE *file) {
 
 static void archie_kbd_enqueue(unsigned char state, unsigned char byte) {
   if(QUEUE_NEXT(tx_queue_wptr) == tx_queue_rptr) {
-    archie_debugf("tx queue overflow");
+    archie_debugf("KBD tx queue overflow");
     return;
   }
 
@@ -183,7 +183,7 @@ static void archie_kbd_send(unsigned char state, unsigned char byte) {
 }
 
 static void archie_kbd_reset(void) {
-  archie_debugf("reset kbd");
+  archie_debugf("KBD reset");
   tx_queue_rptr = tx_queue_wptr = 0;
   kbd_state = STATE_HRST;
   mouse_x = mouse_y = 0;
@@ -215,14 +215,21 @@ void archie_init(void) {
     archie_debugf("ROM %.11s no found", config.rom_img);
 
   archie_kbd_send(STATE_RAK1, HRST);
+  ack_timeout = GetTimer(20);  // give archie 20ms to reply
 }
 
 void archie_kbd(unsigned short code) {
-  archie_debugf("key code %x", code);
+  archie_debugf("KBD key code %x", code);
+
+  // don't send anything yet if we are still in reset state
+  if(kbd_state <= STATE_RAK2) {
+    archie_debugf("KBD still in reset");
+    return;
+  }
 
   // ignore any key event if key scanning is disabled
   if(!(flags & FLAG_SCAN_ENABLED)) {
-    archie_debugf("keyboard scan is disabled!");
+    archie_debugf("KBD keyboard scan is disabled!");
     return;
   }
 
@@ -234,7 +241,7 @@ void archie_kbd(unsigned short code) {
 }
 
 void archie_mouse(unsigned char b, char x, char y) {
-  archie_debugf("MOUSE X:%d Y:%d B:%d", x, y, b);
+  archie_debugf("KBD MOUSE X:%d Y:%d B:%d", x, y, b);
 
   // max values -64 .. 63
   mouse_x += x;
@@ -244,6 +251,12 @@ void archie_mouse(unsigned char b, char x, char y) {
   mouse_y -= y;
   if(mouse_y >  63) mouse_y =  63;
   if(mouse_y < -64) mouse_y = -64;
+
+  // don't send anything yet if we are still in reset state
+  if(kbd_state <= STATE_RAK2) {
+    archie_debugf("KBD still in reset");
+    return;
+  }
 
   // ignore any mouse movement if mouse is disabled or if nothing to report
   if((flags & FLAG_MOUSE_ENABLED) && (mouse_x || mouse_y)) {
@@ -289,7 +302,7 @@ void archie_poll(void) {
 
 #ifdef HOLD_OFF_TIME
   if((kbd_state == STATE_HOLD_OFF) && CheckTimer(hold_off_timer)) {
-    archie_debugf("resume after hold off");
+    archie_debugf("KBD resume after hold off");
     kbd_state = STATE_IDLE;
     archie_check_queue();
   }
@@ -307,6 +320,16 @@ void archie_poll(void) {
     }
   }
 
+  // timeout in reset sequence?
+  if(kbd_state <= STATE_RAK2) {
+    if(CheckTimer(ack_timeout)) {
+      archie_debugf("KBD timeout in reset state");
+      
+      archie_kbd_send(STATE_RAK1, HRST);
+      ack_timeout = GetTimer(20);  // 20ms timeout
+    }
+  }
+
   spi_uio_cmd_cont(0x04);
   if(spi_in() == 0xa1) {
     unsigned char data = spi_in();
@@ -319,21 +342,24 @@ void archie_poll(void) {
     case HRST:
       archie_kbd_reset();
       archie_kbd_send(STATE_RAK1, HRST);
+      ack_timeout = GetTimer(20);  // 20ms timeout
       break;
 
       // arm sends reset ack 1
     case RAK1:
-      if(kbd_state == STATE_RAK1)
+      if(kbd_state == STATE_RAK1) {
 	archie_kbd_send(STATE_RAK2, RAK1);
-      else 
+	ack_timeout = GetTimer(20);  // 20ms timeout
+      } else 
 	kbd_state = STATE_HRST;
       break;
 
       // arm sends reset ack 2
     case RAK2:
-      if(kbd_state == STATE_RAK2) 
+      if(kbd_state == STATE_RAK2) { 
 	archie_kbd_send(STATE_IDLE, RAK2);
-      else 
+	ack_timeout = GetTimer(20);  // 20ms timeout
+      } else 
 	kbd_state = STATE_HRST;
       break;
 
@@ -345,11 +371,11 @@ void archie_poll(void) {
       // arm acks first byte
     case BACK:
       if(kbd_state != STATE_WAIT4ACK1) 
-	archie_debugf("unexpected BACK");
+	archie_debugf("KBD unexpected BACK");
 
 #ifdef HOLD_OFF_TIME
       // wait some time before sending next byte
-      archie_debugf("starting hold off");
+      archie_debugf("KBD starting hold off");
       kbd_state = STATE_HOLD_OFF;
       hold_off_timer = GetTimer(10);
 #else
@@ -365,28 +391,28 @@ void archie_poll(void) {
     case SMAK:
 
       if(((data == SACK) || (data == SMAK)) && !(flags & FLAG_SCAN_ENABLED)) {
-	archie_debugf("Enabling key scanning");
+	archie_debugf("KBD Enabling key scanning");
 	flags |= FLAG_SCAN_ENABLED;
       }
 
       if(((data == NACK) || (data == MACK)) && (flags & FLAG_SCAN_ENABLED)) {
-	archie_debugf("Disabling key scanning");
+	archie_debugf("KBD Disabling key scanning");
 	flags &= ~FLAG_SCAN_ENABLED;
       }
 
       if(((data == MACK) || (data == SMAK)) && !(flags & FLAG_MOUSE_ENABLED)) {
-	archie_debugf("Enabling mouse");
+	archie_debugf("KBD Enabling mouse");
 	flags |= FLAG_MOUSE_ENABLED;
       }
 
       if(((data == NACK) || (data == SACK)) && (flags & FLAG_MOUSE_ENABLED)) {
-	archie_debugf("Disabling mouse");
+	archie_debugf("KBD Disabling mouse");
 	flags &= ~FLAG_MOUSE_ENABLED;
       }
       
       // wait another 10ms before sending next byte
 #ifdef HOLD_OFF_TIME
-      archie_debugf("starting hold off");
+      archie_debugf("KBD starting hold off");
       kbd_state = STATE_HOLD_OFF;
       hold_off_timer = GetTimer(10);
 #else

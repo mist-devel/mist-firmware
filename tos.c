@@ -52,9 +52,16 @@ static const char *acsi_cmd_name(int cmd) {
     "Cmd $10", "Cmd $11", "Inquiry", "Verify", 
     "Cmd $14", "Mode Select", "Cmd $16", "Cmd $17", 
     "Cmd $18", "Cmd $19", "Mode Sense", "Start/Stop Unit", 
-    "Cmd $1C", "Cmd $1D", "Cmd $1E", "Cmd $1F"
+    "Cmd $1C", "Cmd $1D", "Cmd $1E", "Cmd $1F",
+    // extended commands supported by ICD feature:
+    "Cmd $20", "Cmd $21", "Cmd $22", 
+    "Read Format Capacities", "Cmd $24", "Read Capacity (10)",
+    "Cmd $26", "Cmd $27", "Read (10)", "Read Generation", 
+    "Write (10)", "Seek (10)"
   };
-  
+
+  if(cmd > 0x2b) return NULL;
+
   return cmdname[cmd];
 }
 
@@ -245,9 +252,11 @@ static void dma_nak(void) {
 
 static void handle_acsi(unsigned char *buffer) {
   static unsigned char asc[2] = { 0,0 };
-  unsigned char target = buffer[9] >> 5;
+  //  unsigned char target = buffer[9] >> 5;
+  unsigned char target = buffer[19] >> 5;
   unsigned char device = buffer[10] >> 5;
-  unsigned char cmd = buffer[9] & 0x1f;
+  //  unsigned char cmd = buffer[9] & 0x1f;
+  unsigned char cmd = buffer[9];
   unsigned int dma_address = 256 * 256 * buffer[0] + 
     256 * buffer[1] + (buffer[2]&0xfe);
   unsigned char scnt = buffer[3];
@@ -259,16 +268,16 @@ static void handle_acsi(unsigned char *buffer) {
   mist_request_bus(1);
 
   if(user_io_dip_switch1()) {
-    tos_debugf("ACSI: target %d.%d, \"%s\"", target, device, acsi_cmd_name(cmd));
+    tos_debugf("ACSI: target %d.%d, \"%s\" (%02x)", target, device, acsi_cmd_name(cmd), cmd);
     tos_debugf("ACSI: lba %lu (%lx), length %u", lba, lba, length);
     tos_debugf("DMA: scnt %u, addr %p", scnt, dma_address);
     
-    if(buffer[16] == 0xa5) {
+    if(buffer[20] == 0xa5) {
       tos_debugf("DMA: fifo %d/%d %x %s", 
-		 (buffer[17]>>4)&0x0f, buffer[17]&0x0f, 
-		 buffer[18], (buffer[2]&1)?"OUT":"IN");
+		 (buffer[21]>>4)&0x0f, buffer[21]&0x0f, 
+		 buffer[22], (buffer[2]&1)?"OUT":"IN");
       tos_debugf("DMA stat=%x, mode=%x, fdc_irq=%d, acsi_irq=%d",
-		 buffer[19], buffer[20], buffer[21], buffer[22]);
+		 buffer[23], buffer[24], buffer[25], buffer[26]);
     }
   }
 
@@ -286,6 +295,28 @@ static void handle_acsi(unsigned char *buffer) {
 
     // only lun0 is fully supported
     switch(cmd) {
+    case 0x25:
+      //    case 0x9e:
+      if(device == 0) {
+	iprintf("Read capacity (%d)\n", (cmd==0x25)?10:16);
+
+	bzero(dma_buffer, 512);
+	dma_buffer[0] = (blocks-1) >> 24;
+	dma_buffer[1] = (blocks-1) >> 16;
+	dma_buffer[2] = (blocks-1) >> 8;
+	dma_buffer[3] = (blocks-1) >> 0;
+	dma_buffer[6] = 2;  // 512 bytes per block
+
+	mist_memory_write(dma_buffer, (cmd == 0x25)?4:6);
+
+	dma_ack(0x00);
+	asc[target] = 0x00;	
+      } else {
+	dma_ack(0x02);
+	asc[target] = 0x25;
+      }
+      break;
+
     case 0x00: // test drive ready
     case 0x04: // format
       if(device == 0) {
@@ -313,7 +344,20 @@ static void handle_acsi(unsigned char *buffer) {
       break;
       
     case 0x08: // read sector
+    case 0x28: // read (10)
       if(device == 0) {
+	if(cmd == 0x28) {
+	  lba = 
+	    256 * 256 * 256 * buffer[11] +
+	    256 * 256 * buffer[12] +
+	    256 * buffer[13] + 
+	    buffer[14];
+
+	  length = 256 * buffer[16] + buffer[17];
+	  
+	  iprintf("READ(10) %d, %d\n", lba, length);
+	}
+
 	if(lba+length <= blocks) {
 	  DISKLED_ON;
 	  while(length) {
@@ -345,7 +389,20 @@ static void handle_acsi(unsigned char *buffer) {
       break;
       
     case 0x0a: // write sector
+    case 0x2a: // write (10)
       if(device == 0) {
+	if(cmd == 0x2a) {
+	  lba = 
+	    256 * 256 * 256 * buffer[11] +
+	    256 * 256 * buffer[12] +
+	    256 * buffer[13] + 
+	    buffer[14];
+
+	  length = 256 * buffer[16] + buffer[17];
+	  
+	  iprintf("WRITE(10) %d, %d\n", lba, length);
+	}
+
 	if(lba+length <= blocks) {
 	  DISKLED_ON;
 	  while(length) {
@@ -410,17 +467,19 @@ static void handle_acsi(unsigned char *buffer) {
 	dma_ack(0x02);
       }
       break;
-      
+
+#if 0      
     case 0x1f: // ICD command?
       tos_debugf("ACSI: ICD command %s ($%02x)",
 		 acsi_cmd_name(buffer[10] & 0x1f), buffer[10] & 0x1f);
       asc[target] = 0x05;	
       dma_ack(0x02);
       break;
+#endif
       
     default:
       tos_debugf("ACSI: >>>>>>>>>>>> Unsupported command <<<<<<<<<<<<<<<<");
-      asc[target] = 0x05;	
+      asc[target] = 0x20;
       dma_ack(0x02);
       break;
     }
@@ -551,7 +610,7 @@ static void mist_get_dmastate() {
   //  hexdump(buffer, 16, 0);
 
   //  check if acsi is busy
-  if(buffer[15] & 0x01) 
+  if(buffer[19] & 0x01) 
     handle_acsi(buffer);
 
   // check if fdc is busy
