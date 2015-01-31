@@ -708,8 +708,7 @@ void ScrollReset()
 static unsigned char osd_key;
 
 void OsdKeySet(unsigned char c) {
-  iprintf("OSD enqueue: %x\n", c);
-
+  //  iprintf("OSD enqueue: %x\n", c);
   osd_key = c;
 }
 

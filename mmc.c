@@ -469,7 +469,8 @@ static RAMFUNC unsigned char MMC_Command(unsigned char cmd, unsigned long arg)
     crc = 0;
 
     // flush spi, give card a moment to wake up (needed for old 2GB Panasonic card)
-    spi_n(0xff, 8);
+    //    spi_n(0xff, 8);  // this is not flash save if not in ram
+    for(b=0;b<8;b++) SPI(0xff);
 
     SPI(cmd);
     MMC_CRC(cmd);
