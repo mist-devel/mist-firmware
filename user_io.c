@@ -20,6 +20,8 @@
 
 extern fileTYPE file;
 extern char s[40];
+extern DIRENTRY DirEntry[MAXDIRENTRIES];
+extern unsigned char nDirEntries;
 
 // mouse and keyboard emulation state
 typedef enum { EMU_NONE, EMU_MOUSE, EMU_JOY0, EMU_JOY1 } emu_mode_t;
@@ -213,11 +215,16 @@ void user_io_detect_core_type() {
 	  user_io_8bit_set_status(sector_buffer[0], 0xff);
 	}
       }
-    }
 
+      // check if there's a <core>.rom present
+      strcpy(s+8, "ROM");
+      if (FileOpen(&file, s))
+	user_io_file_tx(&file, 0);
+    }
+    
     // release reset
     user_io_8bit_set_status(0, UIO_STATUS_RESET);
-
+    
   } break;
   }
 }
@@ -435,12 +442,18 @@ static void kbd_fifo_poll() {
   kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
 }
 
-void user_io_file_tx(fileTYPE *file) {
+void user_io_file_tx(fileTYPE *file, unsigned char index) {
   unsigned long bytes2send = file->size;
 
   /* transmit the entire file using one transfer */
 
-  iprintf("Selected file %.11s with %lu bytes to send\n", file->name, bytes2send);
+  iprintf("Selected file %.11s with %lu bytes to send for index %d\n", file->name, bytes2send, index);
+
+  // set index byte (0=bios rom, 1-n=OSD entry index)
+  EnableFpga();
+  SPI(UIO_FILE_INDEX);
+  SPI(index);
+  DisableFpga();
 
   // prepare transmission of new file
   EnableFpga();
@@ -1317,7 +1330,7 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 	  }
 
 	  if(!key_used_by_osd(code)) {
-	    iprintf("Key is not used by OSD\n");
+	    //	    iprintf("Key is not used by OSD\n");
 
 	    if(is_emu_key(pressed[i])) {
 	      emu_state &= ~is_emu_key(pressed[i]);
@@ -1360,7 +1373,7 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
 	  // no further processing of any key that is currently 
 	  // redirected to the OSD
 	  if(!key_used_by_osd(code)) {
-	    iprintf("Key is not used by OSD\n");
+	    //	    iprintf("Key is not used by OSD\n");
 
 	    if (is_emu_key(k[i])) {
 	      emu_state |= is_emu_key(k[i]);

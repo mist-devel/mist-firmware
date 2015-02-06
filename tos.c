@@ -396,7 +396,7 @@ static void handle_acsi(unsigned char *buffer) {
       if(hdd_direct && target == 0) tos_debugf("ACSI: Inquiry DIRECT");
       else                          tos_debugf("ACSI: Inquiry %.11s", hdd_image[target].name);
       bzero(dma_buffer, 512);
-      dma_buffer[2] = 1;                                   // ANSI version
+      dma_buffer[2] = 2;                                   // SCSI-2
       dma_buffer[4] = length-5;                            // len
       memcpy(dma_buffer+8,  "MIST    ", 8);                // Vendor
       memcpy(dma_buffer+16, "                ", 16);       // Clear device entry
