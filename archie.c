@@ -15,10 +15,16 @@ typedef struct {
 
 static archie_config_t config;
 
-#define ARCHIE_FILE_TX     0x53
-#define ARCHIE_FILE_TX_DAT 0x54
+fileTYPE floppy;
+
+#define ARCHIE_FILE_TX         0x53
+#define ARCHIE_FILE_TX_DAT     0x54
+#define ARCHIE_FDC_GET_STATUS  0x55
+#define ARCHIE_FDC_TX_DATA     0x56
 
 #define archie_debugf(a, ...) iprintf("\033[1;31mARCHIE: " a "\033[0m\n", ##__VA_ARGS__)
+// #define archie_debugf(a, ...)
+#define archie_x_debugf(a, ...) iprintf("\033[1;32mARCHIE: " a "\033[0m\n", ##__VA_ARGS__)
 
 enum state { STATE_HRST, STATE_RAK1, STATE_RAK2, STATE_IDLE, 
 	     STATE_WAIT4ACK1, STATE_WAIT4ACK2, STATE_HOLD_OFF } kbd_state;
@@ -105,19 +111,13 @@ void archie_save_config(void) {
   FileWrite(&file, sector_buffer);
 }
 
-void archie_set_rom(fileTYPE *file) {
-  if(!file) return;
-
-  archie_debugf("Selected file %.11s with %lu bytes to send", 
-		file->name, file->size);
-
-  // save file name
-  memcpy(config.rom_img, file->name, 11);
+void archie_send_file(unsigned char id, fileTYPE *file) {
+  archie_debugf("Sending file with id %d", id);
 
   // prepare transmission of new file
   EnableFpga();
   SPI(ARCHIE_FILE_TX);
-  SPI(0xff);
+  SPI(id);
   DisableFpga();
 
   unsigned long time = GetTimer(0);
@@ -150,6 +150,18 @@ void archie_set_rom(fileTYPE *file) {
   SPI(ARCHIE_FILE_TX);
   SPI(0x00);
   DisableFpga();
+}
+
+void archie_set_rom(fileTYPE *file) {
+  if(!file) return;
+
+  archie_debugf("Selected file %.11s with %lu bytes to send", 
+		file->name, file->size);
+
+  // save file name
+  memcpy(config.rom_img, file->name, 11);
+
+  archie_send_file(0x01, file);
 }
 
 static void archie_kbd_enqueue(unsigned char state, unsigned char byte) {
@@ -204,7 +216,8 @@ void archie_init(void) {
       FileRead(&file, sector_buffer);
       memcpy(&config, sector_buffer, sizeof(archie_config_t));
     } else
-      archie_debugf("Unexpected config size %d != %d", file.size, sizeof(archie_config_t));
+      archie_debugf("Unexpected config size %d != %d", 
+		    file.size, sizeof(archie_config_t));
   } else
     archie_debugf("No %.11s config found", CONFIG_FILENAME);
 
@@ -213,6 +226,17 @@ void archie_init(void) {
     archie_set_rom(&file);
   else 
     archie_debugf("ROM %.11s no found", config.rom_img);
+
+  // upload ext file
+  if(FileOpen(&file, "RISCOS  EXT")) {
+    archie_debugf("Found RISCOS.EXT, uploading it");
+    archie_send_file(0x02, &file);
+  } else 
+    archie_debugf("RISCOS.EXT no found");
+
+  if (FileOpen(&floppy, "FLOPPY0 ADF"))  {
+    archie_debugf("Inserted floppy0 with %d bytes", floppy.size);
+  }
 
   archie_kbd_send(STATE_RAK1, HRST);
   ack_timeout = GetTimer(20);  // give archie 20ms to reply
@@ -298,7 +322,7 @@ static void archie_check_queue(void) {
   tx_queue_rptr = QUEUE_NEXT(tx_queue_rptr);
 }
 
-void archie_poll(void) {
+void archie_handle_kbd(void) {
 
 #ifdef HOLD_OFF_TIME
   if((kbd_state == STATE_HOLD_OFF) && CheckTimer(hold_off_timer)) {
@@ -423,4 +447,68 @@ void archie_poll(void) {
     }
   } else
     DisableIO();
+}
+
+static unsigned char fdc_buffer[1024];
+
+void archie_handle_fdc(void) {
+  static unsigned char old_status[4] = {0,0,0,0};
+  unsigned char status[4];
+
+  // read status
+  EnableFpga();
+  SPI(ARCHIE_FDC_GET_STATUS);
+  status[0] = SPI(0);
+  status[1] = SPI(0);
+  status[2] = SPI(0);
+  status[3] = SPI(0);
+  DisableFpga();
+
+  if(memcmp(status, old_status, 4) != 0) {
+    archie_x_debugf("status changed to %x %x %x %x", 
+		  status[0], status[1], status[2], status[3]);
+    memcpy(old_status, status, 4);
+
+    // top four bits must be magic marker 1010
+    if(((status[0] & 0xf0) == 0xa0) && (status[0] & 1)) {
+      archie_x_debugf("DIO: BUSY with commmand %lx", status[1]);
+	  
+      // check for read sector command
+      if((status[1] & 0xe0) == 0x80) {	
+	if(status[0] & 2) {
+	  int floppy_map = status[3] >> 4;
+	  int side = (status[2]&0x80)?0:1;
+	  int track = status[2] & 0x7f;
+	  int sector = status[3] & 0x0f;
+	  unsigned long lba = 2 * (10*track + 5*side + sector);
+
+	  // floppy 0 is expected to be used
+	  if(floppy_map != 0x0e) 
+	    archie_x_debugf("DIO: unexpected floppy %x", floppy_map); 
+	  else {
+	    archie_x_debugf("DIO: sector read SD%d T%d S%d -> %ld", 
+			    side, track, sector, lba);
+
+	    // read two consecutive sectors 
+	    FileSeek(&floppy, lba, SEEK_SET);
+	    FileRead(&floppy, fdc_buffer);
+	    FileNextSector(&floppy);
+	    FileRead(&floppy, fdc_buffer+512);
+	    
+	    EnableFpga();
+	    SPI(ARCHIE_FDC_TX_DATA);
+	    spi_write(fdc_buffer, 1024);
+	    DisableFpga();
+
+	    hexdump(fdc_buffer, 1024, 0);
+	  }
+	}
+      }
+    }
+  }
+}
+
+void archie_poll(void) {
+  archie_handle_kbd();
+  archie_handle_fdc();
 }
