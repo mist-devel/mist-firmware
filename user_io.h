@@ -55,6 +55,7 @@
 #define UIO_FILE_TX     0x53
 #define UIO_FILE_TX_DAT 0x54
 #define UIO_FILE_INDEX  0x55
+#define UIO_FILE_INFO   0x56
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02

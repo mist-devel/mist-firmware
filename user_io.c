@@ -22,6 +22,8 @@ extern fileTYPE file;
 extern char s[40];
 extern DIRENTRY DirEntry[MAXDIRENTRIES];
 extern unsigned char nDirEntries;
+extern unsigned char iSelectedEntry;
+
 
 // mouse and keyboard emulation state
 typedef enum { EMU_NONE, EMU_MOUSE, EMU_JOY0, EMU_JOY1 } emu_mode_t;
@@ -453,6 +455,12 @@ void user_io_file_tx(fileTYPE *file, unsigned char index) {
   EnableFpga();
   SPI(UIO_FILE_INDEX);
   SPI(index);
+  DisableFpga();
+
+  // send directory entry (for alpha amstrad core)
+  EnableFpga();
+  SPI(UIO_FILE_INFO);
+  spi_write((void*)(DirEntry+iSelectedEntry), sizeof(DIRENTRY));
   DisableFpga();
 
   // prepare transmission of new file
