@@ -500,7 +500,7 @@ void archie_handle_fdc(void) {
 	    spi_write(fdc_buffer, 1024);
 	    DisableFpga();
 
-	    hexdump(fdc_buffer, 1024, 0);
+	    //	    hexdump(fdc_buffer, 1024, 0);
 	  }
 	}
       }
