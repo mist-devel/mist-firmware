@@ -1108,16 +1108,18 @@ void tos_insert_disk(char i, fileTYPE *file) {
   // check image size and parameters
     
   // check if image size suggests it's a two sided disk
-  if(fdd_image[i].file.size > 80*9*512)
+  if(fdd_image[i].file.size > 85*11*512)
     fdd_image[i].sides = 2;
     
   // try common sector/track values
   int m, s, t;
   for(m=0;m<=2;m++)  // multiplier for hd/ed disks
     for(s=9;s<=12;s++)
-      for(t=80;t<=85;t++)
+      for(t=78;t<=85;t++)
 	if(512*(1<<m)*s*t*fdd_image[i].sides == fdd_image[i].file.size)
 	  fdd_image[i].spt = s*(1<<m);
+
+  
   
   if(!fdd_image[i].spt) {
     // read first sector from disk
