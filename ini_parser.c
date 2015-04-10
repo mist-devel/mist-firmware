@@ -259,6 +259,9 @@ void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
       case STRING:
         strncpy((char*)(cfg->vars[var_id].var), &(buf[i]), cfg->vars[var_id].max);
         break;
+      case CUSTOM_HANDLER:
+        ((custom_handler_t*)(cfg->vars[var_id].var))(&(buf[i]));
+	break;
     }
     return (void*)(&(cfg->vars[var_id].var));
   }

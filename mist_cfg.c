@@ -5,7 +5,7 @@
 //// includes ////
 #include "ini_parser.h"
 #include "mist_cfg.h"
-
+#include "user_io.h"
 
 //// mist_ini_parse() ////
 void mist_ini_parse()
@@ -25,7 +25,8 @@ const ini_section_t mist_ini_sections[] = {
 
 // mist ini vars
 const ini_var_t mist_ini_vars[] = {
-  {"SCANDOUBLER_DISABLE", (void*)(&(mist_cfg.scandoubler_disable)), UINT8, 0, 1, 1}
+  {"SCANDOUBLER_DISABLE", (void*)(&(mist_cfg.scandoubler_disable)), UINT8, 0, 1, 1},
+  {"KEY_REMAP", (void*)user_io_key_remap, CUSTOM_HANDLER, 0, 0, 1}
 }; 
 
 // mist ini config
