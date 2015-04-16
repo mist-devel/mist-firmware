@@ -576,7 +576,7 @@ unsigned char user_io_8bit_set_status(unsigned char new_status, unsigned char ma
 
 void user_io_poll() {
 
-  if(user_io_dip_switch1() && (core_type != CORE_TYPE_ARCHIE)) {
+  if(user_io_dip_switch1()) {
     // check of core has changed from a good one to a not supported on
     // as this likely means that the user is reloading the core via jtag
     unsigned char ct;

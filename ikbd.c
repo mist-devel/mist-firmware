@@ -504,24 +504,30 @@ void ikbd_poll(void) {
     ikbd_timer = 0;
   }
 
-  if(tx_queue[rptr] & 0x8000) {
+  // rate limit tx to 1khz
+  static unsigned long rtimer = 0;
+  if(CheckTimer(rtimer)) {
+    rtimer = GetTimer(1);
+    
+    if(tx_queue[rptr] & 0x8000) {
+      
+      // request to start timer?
+      if(tx_queue[rptr] & 0x8000) 
+	ikbd_timer = GetTimer(tx_queue[rptr] & 0x3fff);
+      
+      rptr = (rptr+1)&(QUEUE_LEN-1);
+      return;
+    }
+    
+    // transmit data from queue
+    spi_uio_cmd_cont(UIO_IKBD_OUT);
+    spi8(tx_queue[rptr]);
+    DisableIO();
+    
+    ikbd.tx_cnt++;
 
-    // request to start timer?
-    if(tx_queue[rptr] & 0x8000) 
-      ikbd_timer = GetTimer(tx_queue[rptr] & 0x3fff);
-
-    rptr = (rptr+1)&(QUEUE_LEN-1);
-    return;
+    rptr = (rptr+1)&(QUEUE_LEN-1);  
   }
-
-  // transmit data from queue
-  spi_uio_cmd_cont(UIO_IKBD_OUT);
-  spi8(tx_queue[rptr]);
-  DisableIO();
-  
-  ikbd.tx_cnt++;
-
-  rptr = (rptr+1)&(QUEUE_LEN-1);  
 }
 
 // called from external parts to report joystick states

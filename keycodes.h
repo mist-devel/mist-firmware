@@ -437,8 +437,8 @@ const unsigned short usb2archie[] = {
   0x1c, // 2e: =
   0x31, // 2f: [
   0x32, // 30: ]
-  0x33, // 31: backslash
-  MISS, // 32: Europe 1
+  0x33, // 31: backslash (only on us keyboards)
+  0x33, // 32: Europe 1 (only on international kbds)
   0x45, // 33: ;
   0x46, // 34: '
   0x10, // 35: `
