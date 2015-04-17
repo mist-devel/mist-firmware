@@ -141,7 +141,9 @@ void archie_send_file(unsigned char id, fileTYPE *file) {
   for(i=0;i<blocks;i++) {
     if(!(i & 127)) iprintf("*");
 
+    DISKLED_ON;
     FileRead(file, sector_buffer);
+    DISKLED_OFF;
 
     EnableFpga();
     SPI(ARCHIE_FILE_TX_DAT);
@@ -554,17 +556,18 @@ void archie_handle_fdc(void) {
 	    if(!f->size)
 	      archie_x_debugf("DIO: floppy not inserted. Core should not do this!!"); 
 	    else {
+	      DISKLED_ON;
 	      // read two consecutive sectors 
 	      FileSeek(f, lba, SEEK_SET);
 	      FileRead(f, fdc_buffer);
 	      FileNextSector(f);
 	      FileRead(f, fdc_buffer+512);
+	      DISKLED_OFF;
 	      
 	      EnableFpga();
 	      SPI(ARCHIE_FDC_TX_DATA);
 	      spi_write(fdc_buffer, 1024);
 	      DisableFpga();
-	      //	    hexdump(fdc_buffer, 1024, 0);
 	    }
 	  }
 	}
