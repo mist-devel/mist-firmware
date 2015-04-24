@@ -61,6 +61,7 @@
 #define JOY_LEFT        0x02
 #define JOY_DOWN        0x04
 #define JOY_UP          0x08
+#define JOY_BTN_SHIFT   4
 #define JOY_BTN1        0x10
 #define JOY_BTN2        0x20
 #define JOY_BTN3        0x40

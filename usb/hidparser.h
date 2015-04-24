@@ -15,8 +15,8 @@ typedef struct {
   union {
     struct {
       struct {
-	uint8_t byte_offset;
-	uint8_t size;          // 8 or 16 bits supported
+	uint16_t offset;
+	uint8_t size;
 	struct {
 	  uint16_t min;
 	  uint16_t max;
@@ -27,7 +27,7 @@ typedef struct {
 	uint8_t byte_offset;
 	uint8_t bitmask;
       } button[4];             // 4 buttons
-    } joystick;
+    } joystick_mouse;
   };
 } hid_config_t;
 

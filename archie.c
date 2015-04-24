@@ -350,22 +350,19 @@ void archie_mouse(unsigned char b, char x, char y) {
 
   // ignore mouse buttons if key scanning is disabled
   if(flags & FLAG_SCAN_ENABLED) {
+    static const uint8_t remap[] = { 0, 2, 1 };
     static unsigned char buts = 0;
-    
-    // state of button 1 has changed
-    if((b&1) != (buts&1)) {
-      unsigned char prefix = (b&1)?KDDA:KUDA;
-      archie_kbd_send(STATE_WAIT4ACK1, prefix | 0x07); 
-      archie_kbd_send(STATE_WAIT4ACK2, prefix | 0x00);
-    }
+    uint8_t s;
 
-    // state of button 2 has changed
-    if((b&2) != (buts&2)) {
-      unsigned char prefix = (b&2)?KDDA:KUDA;
-      archie_kbd_send(STATE_WAIT4ACK1, prefix | 0x07); 
-      archie_kbd_send(STATE_WAIT4ACK2, prefix | 0x01);
+    // map all three buttons
+    for(s=0;s<3;s++) {
+      uint8_t mask = (1<<s);
+      if((b&mask) != (buts&mask)) {
+	unsigned char prefix = (b&mask)?KDDA:KUDA;
+	archie_kbd_send(STATE_WAIT4ACK1, prefix | 0x07); 
+	archie_kbd_send(STATE_WAIT4ACK2, prefix | remap[s]);
+      }
     }
-
     buts = b;
   }
 }
