@@ -54,7 +54,25 @@ typedef struct {
 #define USAGE_Z       50
 #define USAGE_WHEEL   56
 
-bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_config_t *conf) {
+// check if the current report 
+bool report_is_usable(uint16_t bit_count, uint8_t report_complete, hid_report_t *conf) {
+  hidp_debugf("  - total bit count: %d (%d bytes, %d bits)", 
+	      bit_count, bit_count/8, bit_count%8);
+  
+  conf->report_size = bit_count/8;
+
+  // check if something useful was detected
+  if( ((conf->type == REPORT_TYPE_JOYSTICK) && ((report_complete & JOYSTICK_COMPLETE) == JOYSTICK_COMPLETE)) ||
+      ((conf->type == REPORT_TYPE_MOUSE)    && ((report_complete & MOUSE_COMPLETE) == MOUSE_COMPLETE))) {
+    hidp_debugf("  - report %d is usable", conf->report_id);
+    return true;
+  }
+
+  hidp_debugf("  - unusable report %d", conf->report_id);
+  return false;
+}
+
+bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf) {
   int8_t app_collection = 0;
   int8_t phys_log_collection = 0;
   uint8_t skip_collection = 0;
@@ -70,13 +88,13 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_config_t *conf
 
   // mask used to check of all required components have been found, so
   // that e.g. both axes and the button of a joystick are ready to be used
-  uint8_t setup_complete = 0;
+  uint8_t report_complete = 0;
 
   // joystick/mouse components
   int8_t axis[2] = { -1, -1};
   uint8_t btns = 0;
 
-  conf->type = CONFIG_TYPE_NONE;
+  conf->type = REPORT_TYPE_NONE;
 
   while(rep_size) {
     // extract short item
@@ -139,8 +157,8 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_config_t *conf
 	case 8:
 	  // 
 	  if(btns) {
-	    if((conf->type == CONFIG_TYPE_JOYSTICK) ||
-	       (conf->type == CONFIG_TYPE_MOUSE)) {
+	    if((conf->type == REPORT_TYPE_JOYSTICK) ||
+	       (conf->type == REPORT_TYPE_MOUSE)) {
 	      // scan for up to four buttons
 	      char b;
 	      for(b=0;b<4;b++) {
@@ -157,8 +175,8 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_config_t *conf
 
 	      // we found at least one button which is all we want to accept this as a valid 
 	      // joystick
-	      setup_complete |= JOY_MOUSE_REQ_BTN_0;
-	      if(report_count > 1) setup_complete |= JOY_MOUSE_REQ_BTN_1;
+	      report_complete |= JOY_MOUSE_REQ_BTN_0;
+	      if(report_count > 1) report_complete |= JOY_MOUSE_REQ_BTN_1;
 	    }
 	  }
 
@@ -170,15 +188,15 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_config_t *conf
 	      hidp_debugf("  (%c-AXIS @ %d (byte %d, bit %d))", 'X'+c,
 			  cnt, cnt/8, cnt&7);
 
-	      if((conf->type == CONFIG_TYPE_JOYSTICK) || (conf->type == CONFIG_TYPE_MOUSE)) {
-		// save in joystick config
+	      if((conf->type == REPORT_TYPE_JOYSTICK) || (conf->type == REPORT_TYPE_MOUSE)) {
+		// save in joystick report
 		conf->joystick_mouse.axis[c].offset = cnt;
 		conf->joystick_mouse.axis[c].size = report_size;
 		conf->joystick_mouse.axis[c].logical.min = logical_minimum;
 		conf->joystick_mouse.axis[c].logical.max = logical_maximum;
 		conf->joystick_mouse.axis[c].size = report_size;
-		if(c==0) setup_complete |= JOY_MOUSE_REQ_AXIS_X;
-		if(c==1) setup_complete |= JOY_MOUSE_REQ_AXIS_Y;
+		if(c==0) report_complete |= JOY_MOUSE_REQ_AXIS_X;
+		if(c==1) report_complete |= JOY_MOUSE_REQ_AXIS_Y;
 	      }
 	    }
 	  }
@@ -234,6 +252,16 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_config_t *conf
 	  } else if(app_collection) {
 	    hidp_extreme_debugf("  -> app end");
 	    app_collection--;
+
+	    // check if report is usable and stop parsing if it is
+	    if(report_is_usable(bit_count, report_complete, conf))
+	      return true;
+	    else {
+	      // retry with next report
+	      bit_count = 0;
+	      report_complete = 0;
+	    }
+
 	  } else {
 	    hidp_debugf(" -> unexpected");
 	    return false;
@@ -332,16 +360,16 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_config_t *conf
 	  if( !collection_depth && (value == USAGE_KEYBOARD)) {
 	    // usage(keyboard) is always allowed
 	    hidp_debugf(" -> Keyboard");
-	    conf->type = CONFIG_TYPE_KEYBOARD;
+	    conf->type = REPORT_TYPE_KEYBOARD;
 	  } else if(!collection_depth && (value == USAGE_MOUSE)) {
 	    // usage(mouse) is always allowed
 	    hidp_debugf(" -> Mouse");
-	    conf->type = CONFIG_TYPE_MOUSE;
+	    conf->type = REPORT_TYPE_MOUSE;
 	  } else if(!collection_depth && 
 		    ((value == USAGE_GAMEPAD) || (value == USAGE_JOYSTICK))) {
 	    hidp_extreme_debugf(" -> Gamepad/Joystick");
 	    hidp_debugf("Gamepad/Joystick usage found");
-	    conf->type = CONFIG_TYPE_JOYSTICK;
+	    conf->type = REPORT_TYPE_JOYSTICK;
 	  } else if(value == USAGE_POINTER && app_collection) {
 	    // usage(pointer) is allowed within the application collection
 
@@ -352,7 +380,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_config_t *conf
 	    hidp_extreme_debugf(" -> axis usage");
 
 	    // we support x and y axis on mice and joysticks
-	    if((conf->type == CONFIG_TYPE_JOYSTICK) || (conf->type == CONFIG_TYPE_MOUSE)) {
+	    if((conf->type == REPORT_TYPE_JOYSTICK) || (conf->type == REPORT_TYPE_MOUSE)) {
 	      if(value == USAGE_X) {
 		hidp_extreme_debugf("JOYSTICK/MOUSE: found x axis @ %d", usage_count);
 		axis[0] = usage_count;
@@ -389,25 +417,13 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_config_t *conf
 	
       default:
 	// reserved
-	hidp_extreme_debugf("unexpected resreved item %d", tag);
+	hidp_extreme_debugf("unexpected reserved item %d", tag);
 	//	return false;
 	break;
       }
     }
   }
 
-  hidp_debugf("total bit count: %d (%d bytes, %d bits)", 
-	 bit_count, bit_count/8, bit_count%8);
-
-  conf->report_size = bit_count/8;
-
-  // check if something useful was detected
-  if( ((conf->type == CONFIG_TYPE_JOYSTICK) && (setup_complete == JOYSTICK_COMPLETE)) ||
-      ((conf->type == CONFIG_TYPE_MOUSE)    && (setup_complete == MOUSE_COMPLETE))) {
-    hidp_debugf("Config ok");
-    return true;
-  }
-
-  hidp_debugf("Invalid config");
+  // if we get here then no usable setup was found
   return false;
 }

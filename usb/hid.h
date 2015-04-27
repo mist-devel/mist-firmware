@@ -59,7 +59,7 @@ typedef struct {
   // (currently only used for joysticks) 
   uint8_t jmap;           // last reported joystick state
   uint8_t jindex;         // joystick index
-  hid_config_t conf;
+  hid_report_t conf;
 
   uint8_t interval;
   uint32_t qNextPollTime;     // next poll time
