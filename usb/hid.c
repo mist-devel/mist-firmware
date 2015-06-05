@@ -610,13 +610,15 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 		  uint8_t size = conf->joystick_mouse.hat.size;
 		  while(size-- > 4) 
 		    hat >>= 1;
+
+		  //		  iprintf("HAT = %d\n", hat);
 		  
 		  // TODO: Deal with 3 bit (4 direction/no diagonal) hats 
-		  static const uint8_t hat2x[] = { 128,255,255,255,128,  0,  0,  0 };
-		  static const uint8_t hat2y[] = {   0,  0,128,255,255,255,128,  0 };
+		  static const uint8_t hat2x[] = { 127,255,255,255,127,  0,  0,  0 };
+		  static const uint8_t hat2y[] = {   0,  0,127,255,255,255,127,  0 };
 
 		  if(hat&8) 
-		    a[0] = a[1] = 128;
+		    a[0] = a[1] = 127;
 		  else {
 		    a[0] = hat2x[hat];
 		    a[1] = hat2y[hat];
@@ -687,6 +689,22 @@ void hid_set_kbd_led(unsigned char led, bool on) {
 
 void hid_joystick_axis_remap(char *s) {
   hid_debugf("%s(%s)", __FUNCTION__, s);
+}
+
+int8_t hid_keyboard_present(void) {
+  // check all USB devices for keyboards
+  usb_device_t *dev = usb_get_devices();
+  int i;
+  for(i=0;i<USB_NUMDEVICES;i++) {
+    if(dev[i].bAddress && (dev[i].class == &usb_hid_class)) {
+      // search for keyboard interfaces
+      int j;
+      for(j=0;j<MAX_IFACES;j++)
+	if(dev[i].hid_info.iface[j].device_type == HID_DEVICE_KEYBOARD)
+	  return 1;
+    }
+  }
+  return 0;
 }
 
 const usb_device_class_config_t usb_hid_class = {

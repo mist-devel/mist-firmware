@@ -481,16 +481,20 @@ unsigned char LoadConfiguration(char *filename)
     siprintf(cfg_str, "Memory:  CHIP: %s  FAST: %s  SLOW: %s", config_memory_fast_msg[(config.memory >> 0) & 0x03], config_memory_chip_msg[(config.memory >> 4) & 0x03], config_memory_slow_msg[(config.memory >> 2) & 0x03]); BootPrintEx(cfg_str);
   }
 
-  //  BootPrintEx("Press F1 for NTSC, F2 for PAL");
-
-  // wait a little bit and process USB during that time so the keyboard
-  // is recognized
+  // wait up to 3 seconds for keyboard to appear. If it appears wait another
+  // two seconds for the user tp press a key
+  int8_t keyboard_present = 0;
   for(i=0;i<3;i++) {
     unsigned long to = GetTimer(1000);
     while(!CheckTimer(to))
       usb_poll();
 
-    // BootPrintEx(".");
+    // check if keyboard just appeared
+    if(!keyboard_present && hid_keyboard_present()) {
+      // BootPrintEx("Press F1 for NTSC, F2 for PAL");
+      keyboard_present = 1;
+      i = 0;
+    }
   }
   
   key = OsdGetCtrl();
