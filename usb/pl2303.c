@@ -118,10 +118,14 @@ static void pl2303_settings_dev(usb_device_t *dev, uint32_t rate, uint8_t bits, 
   if(memcmp(&lc, &dev->pl2303_info.line_coding, sizeof(line_coding_t)) != 0) {
     memcpy(&dev->pl2303_info.line_coding, &lc, sizeof(line_coding_t));
 
-    pl2303_debugf("New line coding %ld %d/%d/%d", rate, bits, parity, stop);
+    if(rate & 0x80000000) 
+      pl2303_debugf("Unsupported line coding");
+    else {
+      pl2303_debugf("New line coding %ld %d/%d/%d", rate, bits, parity, stop);
 
-    uint8_t rcode = pl2303_SetLineCoding(dev, &lc);
-    if(rcode) pl2303_debugf("%s() failed #%x", __FUNCTION__, rcode);
+      uint8_t rcode = pl2303_SetLineCoding(dev, &lc);
+      if(rcode) pl2303_debugf("%s() failed #%x", __FUNCTION__, rcode);
+    }
   }
 }
 
@@ -429,12 +433,20 @@ static uint8_t pl2303_poll(usb_device_t *dev) {
 #define BUFFER_SIZE 8  // max 15
 	// check if fifo is empty (the empty fifo can hold up to 15 entries)
 	if(stat.fifo_stat & 4) {
+	  //	  iprintf("space: %d\n", stat.fifo_stat>>4);
+	  uint8_t buffer_space = stat.fifo_stat>>4; // BUFFER_SIZE
+
 	  // send as many bytes as possible from buffer into core ...
-	  uint8_t bytes2send = (rx_buf_fill < BUFFER_SIZE)?rx_buf_fill:BUFFER_SIZE;
+	  uint8_t bytes2send = (rx_buf_fill < buffer_space)?rx_buf_fill:buffer_space;
+	  pl2303_debugf("forward %d bytes into core", bytes2send);
 	  user_io_serial_tx(rx_buf, bytes2send);
 	  // ... and remove sent data from buffer
 	  memmove(rx_buf, rx_buf+bytes2send, RX_BUF_SIZE-bytes2send);
 	  rx_buf_fill -= bytes2send;
+
+	  //	  if(user_io_serial_status(&stat, 0x90)) {
+	  //	    iprintf("After %d: %d\n", bytes2send, stat.fifo_stat>>4);
+	  //	  }
 	}
       }
 
