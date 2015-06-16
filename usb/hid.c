@@ -13,6 +13,50 @@
 static unsigned char kbd_led_state = 0;  // default: all leds off
 static unsigned char joysticks = 0;      // number of detected usb joysticks
 
+// up to 8 buttons can be remapped
+#define MAX_JOYSTICK_BUTTON_REMAP 8
+
+static struct {
+  uint16_t vid;   // vendor id
+  uint16_t pid;   // product id
+  uint8_t offset; // bit index within report
+  uint8_t button; // joystick button to be reported
+} joystick_button_remap[MAX_JOYSTICK_BUTTON_REMAP];
+  
+void hid_joystick_button_remap_init(void) {
+  memset(joystick_button_remap, 0, sizeof(joystick_button_remap));
+}
+
+void hid_joystick_button_remap(char *s) {
+  uint8_t i;
+
+  hid_debugf("%s(%s)", __FUNCTION__, s);
+
+  if(strlen(s) < 13) {
+    hid_debugf("malformed entry");
+    return;
+  }
+
+  // parse remap request
+  for(i=0;i<MAX_JOYSTICK_BUTTON_REMAP;i++) {
+    if(!joystick_button_remap[i].vid) {
+      // first two entries are comma seperated 
+      joystick_button_remap[i].vid = strtol(s, NULL, 16);
+      joystick_button_remap[i].pid = strtol(s+5, NULL, 16);
+      joystick_button_remap[i].offset = strtol(s+10, NULL, 10);
+      // search for next comma
+      s+=10; while(*s && (*s != ',')) s++; s++;
+      joystick_button_remap[i].button = strtol(s, NULL, 10);
+      
+      hid_debugf("parsed: %x/%x %d -> %d", 
+		 joystick_button_remap[i].vid, joystick_button_remap[i].pid,
+		 joystick_button_remap[i].offset, joystick_button_remap[i].button);
+      
+      return;
+    }
+  }
+}
+
 uint8_t hid_get_joysticks(void) {
   return joysticks;
 }
@@ -400,7 +444,18 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
         info->iface[0].conf.joystick_mouse.button[3].bitmask = 0x02;    // "Start"
       }
       
-      
+      // apply remap information from mist.ini if present
+      uint8_t j;
+      for(j=0;j<MAX_JOYSTICK_BUTTON_REMAP;j++) {
+	if((joystick_button_remap[j].vid == vid) && (joystick_button_remap[j].pid == pid)) {
+	  uint8_t but = joystick_button_remap[j].button;
+	  info->iface[0].conf.joystick_mouse.button[but].byte_offset = joystick_button_remap[j].offset >> 3;
+	  info->iface[0].conf.joystick_mouse.button[but].bitmask = 0x80 >> (joystick_button_remap[j].offset & 7);
+	  iprintf("hacking from ini file %d %d -> %d\n", 
+		  info->iface[0].conf.joystick_mouse.button[but].byte_offset, 
+		  info->iface[0].conf.joystick_mouse.button[but].bitmask, but);
+	}
+      }
     }
 
     rcode = hid_set_idle(dev, info->iface[i].iface_idx, 0, 0);
@@ -737,7 +792,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                 if(a[1] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_DOWN;
                 jmap |= btn << JOY_BTN_SHIFT;      // add buttons
 
-                //	      iprintf("JOY D:%d\n", jmap);
+		//		iprintf("JOY D:%d\n", jmap);
 
                 // swap joystick 0 and 1 since 1 is the one 
                 // used primarily on most systems
@@ -828,10 +883,6 @@ void hid_set_kbd_led(unsigned char led, bool on) {
       }
     }
   }
-}
-
-void hid_joystick_axis_remap(char *s) {
-  hid_debugf("%s(%s)", __FUNCTION__, s);
 }
 
 int8_t hid_keyboard_present(void) {
