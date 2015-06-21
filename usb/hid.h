@@ -103,4 +103,7 @@ int8_t hid_keyboard_present(void);
 void hid_joystick_button_remap_init(void);
 void hid_joystick_button_remap(char *);
 
+void virtual_joystick_remap_init(void);
+void virtual_joystick_remap(char *);
+
 #endif // HID_H

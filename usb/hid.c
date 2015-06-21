@@ -15,6 +15,7 @@ static unsigned char joysticks = 0;      // number of detected usb joysticks
 
 // up to 8 buttons can be remapped
 #define MAX_JOYSTICK_BUTTON_REMAP 8
+#define MAX_VIRTUAL_JOYSTICK_REMAP 4
 
 static struct {
   uint16_t vid;   // vendor id
@@ -53,6 +54,69 @@ void hid_joystick_button_remap(char *s) {
 		 joystick_button_remap[i].offset, joystick_button_remap[i].button);
       
       return;
+    }
+  }
+}
+
+/*  Virtual joystick remap custom parsing 
+    The mapping translates directions plus generic HID buttons (1-12) into a standard MiST "virtual joystick"
+*/
+
+static struct {
+    uint16_t vid;
+    uint16_t pid;
+    uint16_t mapping[16];
+} joystick_mappers[MAX_VIRTUAL_JOYSTICK_REMAP];
+
+void virtual_joystick_remap_init(void) {
+  memset(joystick_mappers, 0, sizeof(joystick_mappers));
+}
+
+void virtual_joystick_remap(char *s) {
+  uint8_t i;
+  uint8_t count;
+  uint8_t off = 0; //set to 3 to start mapping at buttons
+  uint8_t len = strlen(s);
+  char *token;
+  
+  hid_debugf("%s(%s)", __FUNCTION__, s);
+  
+  if(len < 13) {
+    hid_debugf("malformed entry");
+    return;
+  }
+  
+  // parse remap request
+  for(i=0;i<MAX_VIRTUAL_JOYSTICK_REMAP;i++) {
+    // fill sequentially the available mapping slots, stopping at first empty one
+    if(!joystick_mappers[i].vid) {
+      for (count=0; count<16; count++)
+        joystick_mappers[i].mapping[count]=0;
+      // parse this first to stop if error - it will occupy a slot and proceed
+      joystick_mappers[i].vid = strtol(s, NULL, 16); 
+      // default assignment
+      joystick_mappers[i].mapping[0] = JOY_RIGHT;
+      joystick_mappers[i].mapping[1] = JOY_LEFT;
+      joystick_mappers[i].mapping[2] = JOY_DOWN;
+      joystick_mappers[i].mapping[3] = JOY_UP;
+      count  = 0;
+      token  = strtok (s, ",");
+      while(s) {
+        //if (count==0) joystick_mappers[i].vid = strtol(s, NULL, 16); -- already done
+        if (count==1) {
+          joystick_mappers[i].pid = strtol(s, NULL, 16);
+        } 
+        else {
+            //parse sub-tokens sequentially and assign 16-bit value to them
+            joystick_mappers[i].mapping[off+count-2] = strtol(s, NULL, 16);
+            hid_debugf("parsed: %x/%x %d -> %d", 
+                      joystick_mappers[i].vid, joystick_mappers[i].pid,
+                      count-1, joystick_mappers[i].mapping[off+count-2]);
+        }
+        s = strtok (NULL, ",");
+        count+=1;
+      }
+      return; // finished processing input string so exit
     }
   }
 }
@@ -376,39 +440,6 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
         info->iface[0].is_5200daptor = true;
       }
       
-      if((vid == 0x0583) && (pid == 0x2060) && (i==0)) {
-        iprintf("hacking iBuffalo SNES pad - BSGP801\n");
-        info->iface[0].conf.joystick_mouse.button[0].byte_offset = 2;
-        info->iface[0].conf.joystick_mouse.button[0].bitmask = 0x01;    // "A"
-        info->iface[0].conf.joystick_mouse.button[1].byte_offset = 2;
-        info->iface[0].conf.joystick_mouse.button[1].bitmask = 0x02 | 0x04;    // "B"
-        info->iface[0].conf.joystick_mouse.button[2].byte_offset = 2;
-        info->iface[0].conf.joystick_mouse.button[2].bitmask = 0x40;    // "Select"
-        info->iface[0].conf.joystick_mouse.button[3].byte_offset = 2;
-        info->iface[0].conf.joystick_mouse.button[3].bitmask = 0x80;    // "Start"
-      }
-      
-      if((vid == 0x0411) && (pid == 0x00C6) && (i==0)) {
-        iprintf("hacking Buffalo NES pad - BGCFC801\n");
-        info->iface[0].conf.joystick_mouse.button[2].byte_offset = 3;
-        info->iface[0].conf.joystick_mouse.button[2].bitmask = 0x40;    // "Select"
-        info->iface[0].conf.joystick_mouse.button[3].byte_offset = 3;
-        info->iface[0].conf.joystick_mouse.button[3].bitmask = 0x80;    // "Start"
-      }
-      
-      if((vid == 0x0079) && (pid == 0x0006) && (i==0)) {
-        iprintf("hacking RetroLink N64 pad\n");
-        info->iface[0].conf.joystick_mouse.button[0].byte_offset = 6;
-        info->iface[0].conf.joystick_mouse.button[0].bitmask = 0x04;    // "A"
-        info->iface[0].conf.joystick_mouse.button[1].byte_offset = 6;
-        info->iface[0].conf.joystick_mouse.button[1].bitmask = 0x10; // "B"
-        info->iface[0].conf.joystick_mouse.button[2].byte_offset = 6;
-        info->iface[0].conf.joystick_mouse.button[2].bitmask = 0x02 | 0x01 | 0x08;    // "Select" - the shoulder buttons or Z
-        info->iface[0].conf.joystick_mouse.button[3].byte_offset = 6;
-        info->iface[0].conf.joystick_mouse.button[3].bitmask = 0x20;    // "Start"
-      }
-            
-      
       // apply remap information from mist.ini if present
       uint8_t j;
       for(j=0;j<MAX_JOYSTICK_BUTTON_REMAP;j++) {
@@ -679,8 +710,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                   if(p[conf->joystick_mouse.button[i].byte_offset] & 
                      conf->joystick_mouse.button[i].bitmask) btn_extra |= (1<<(i-4));
 
-              if (btn_extra != 0)
-                iprintf("EXTRA BTNS:%d\n", btn_extra);
+              //if (btn_extra != 0)
+              //  iprintf("EXTRA BTNS:%d\n", btn_extra);
                
                      
               // ---------- process mouse -------------
@@ -771,8 +802,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                 uint16_t vjoy_input = jmap;
                 vjoy_input |= btn_extra << 8;
                 
-                if (vjoy_input != 0)
-                  iprintf("VJOY bit:%d\n", vjoy_input);
+                //if (vjoy_input != 0)
+                //  iprintf("VJOY bit:%d\n", vjoy_input);
                 
                 uint16_t default_mapping [16] = {
                       JOY_RIGHT,
@@ -807,34 +838,86 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                 uint8_t use_default=1;
                 uint8_t btn_off = 3; // start at three since array is 0 based, so 4 = button 1
                 
-                if( vid == 0x0F30 && pid == 0x1012) {
-                    // mapping for Qanba Q4RAF
-                    mapping[btn_off+1]  = JOY_A;
-                    mapping[btn_off+2]  = JOY_B;
-                    mapping[btn_off+4]  = JOY_A;
-                    mapping[btn_off+3]  = JOY_B;                    
-                    mapping[btn_off+6]  = JOY_SELECT;
-                    mapping[btn_off+8]  = JOY_SELECT;
-                    mapping[btn_off+10] = JOY_START;       
-                    use_default=0;
+                // mapping for Qanba Q4RAF
+                if( vid==0x0F30 && pid==0x1012) {
+                  mapping[btn_off+1]  = JOY_A;
+                  mapping[btn_off+2]  = JOY_B;
+                  mapping[btn_off+4]  = JOY_A;
+                  mapping[btn_off+3]  = JOY_B;     
+                  mapping[btn_off+5]  = JOY_X; //for jump
+                  mapping[btn_off+6]  = JOY_SELECT;
+                  mapping[btn_off+8]  = JOY_SELECT;
+                  mapping[btn_off+10] = JOY_START;       
+                  use_default=0;
                 }
                 
-                if(vid == 0x081F && pid == 0xE401) {
-                    // mapping for no-name cheap super-nintendo clone pad
-                    mapping[btn_off+2]  = JOY_A;
-                    mapping[btn_off+3]  = JOY_B;
-                    mapping[btn_off+4]  = JOY_A;
-                    mapping[btn_off+1]  = JOY_B;                    
-                    mapping[btn_off+9]  = JOY_SELECT;
-                    mapping[btn_off+10] = JOY_START;       
-                    mapping[btn_off+5] =  JOY_START | JOY_SELECT; //L button to open OSD
-                    use_default=0;
+                // mapping for no-brand cheap snes clone pad
+                if(vid==0x081F && pid==0xE401) {
+                  mapping[btn_off+2]  = JOY_A;
+                  mapping[btn_off+3]  = JOY_B;
+                  mapping[btn_off+1]  = JOY_B; // allow two ways to hold the controller  
+                  mapping[btn_off+4]  = JOY_UP;
+                  mapping[btn_off+5]  = JOY_L; 
+                  mapping[btn_off+6]  = JOY_R;
+                  mapping[btn_off+9]  = JOY_SELECT;
+                  mapping[btn_off+10] = JOY_START;       
+                  use_default=0;
                 }
                 
-                // apply default mapping if needed
+                // mapping for iBuffalo SNES pad - BSGP801
+                if(vid==0x0583 && pid==0x2060) {
+                  mapping[btn_off+1] = JOY_A;
+                  mapping[btn_off+2] = JOY_B;
+                  mapping[btn_off+3] = JOY_B;  // allow two ways to hold the controller
+                  mapping[btn_off+4] = JOY_UP; 
+                  mapping[btn_off+5] = JOY_L;
+                  mapping[btn_off+6] = JOY_R;                     
+                  mapping[btn_off+7] = JOY_SELECT;
+                  mapping[btn_off+8] = JOY_START;
+                  use_default=0;
+                }
+                
+                //mapping for Buffalo NES pad - BGCFC801
+                if(vid==0x0411 && pid==0x00C6) {
+                  mapping[btn_off+1] = JOY_A;
+                  mapping[btn_off+2] = JOY_B;
+                  mapping[btn_off+3] = JOY_B;  // allow two ways to hold the controller
+                  mapping[btn_off+4] = JOY_UP; 
+                  mapping[btn_off+5] = JOY_L;
+                  mapping[btn_off+6] = JOY_R;                     
+                  mapping[btn_off+7] = JOY_SELECT;
+                  mapping[btn_off+8] = JOY_START;
+                  use_default=0;
+                } 
+      
+                //mapping for RetroLink N64 and Gamecube pad (same vid/pid)
+                if(vid==0x0079 && pid==0x0006) {
+                  mapping[btn_off+7] = JOY_A;  // A on N64 pad
+                  mapping[btn_off+9] = JOY_B;  // B on N64 pad
+                  mapping[btn_off+3] = JOY_A;  // A on GC pad
+                  mapping[btn_off+4] = JOY_B;  // B on GC pad
+                  mapping[btn_off+5] = JOY_L & JOY_SELECT;
+                  mapping[btn_off+8] = JOY_L & JOY_SELECT; // Z button on N64 pad
+                  mapping[btn_off+6] = JOY_R & JOY_SELECT;
+                  mapping[btn_off+10] = JOY_START;
+                  use_default=0;
+                }
+                
+                
+                // apply remap information from mist.ini if present
+                uint8_t j;
+                for(j=0;j<MAX_VIRTUAL_JOYSTICK_REMAP;j++) {
+                  if(joystick_mappers[j].vid==vid && joystick_mappers[j].pid==pid) {
+                    for(i=0; i<16; i++) 
+                      mapping[i]=joystick_mappers[j].mapping[i];
+                    use_default=0;
+                  }
+                }
+                
+                // apply default mapping to rest of buttons if requested
                 if (use_default) {
                   for(i=4; i<16; i++) 
-                    mapping[i]=default_mapping[i];
+                    if (mapping[i]==0) mapping[i]=default_mapping[i];
                 }
                 
                 uint16_t vjoy = 0;
@@ -875,28 +958,28 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                   uint8_t buf[6] = { 0,0,0,0,0,0 };
                   // if OSD is open control it via USB joystick
                   if(user_io_osd_is_visible()) {
-                    if(vjoy & JOY_A)     buf[0] = 0x28; // map ENTER to btn 1
-                    if(vjoy & JOY_B)     buf[0] = 0x29; // map ESC   to btn 2                
-                    if(vjoy & JOY_START) buf[0] = 0x45; // map F12   to btn 4
-                    if(vjoy & JOY_LEFT)  buf[1] = 0x50; // left arrow
-                    if(vjoy & JOY_RIGHT) buf[1] = 0x49; // right arrow     
-                    // up and down uses btn 3 for faster scrolling
+                    if(vjoy & JOY_A)     buf[0] = 0x28; // ENTER
+                    if(vjoy & JOY_B)     buf[0] = 0x29; // ESC                
+                    if(vjoy & JOY_START) buf[0] = 0x45; // F12
+                    if(vjoy & JOY_LEFT)  buf[0] = 0x50; // left arrow
+                    if(vjoy & JOY_RIGHT) buf[0] = 0x49; // right arrow     
+                    // up and down uses SELECT or L for faster scrolling
                     if(vjoy & JOY_UP) {
-                      if (vjoy & JOY_SELECT) buf[1] = 0x4B; // page up
+                      if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[1] = 0x4B; // page up
                       else buf[1] = 0x52; // up arrow
                     }
                     if(vjoy & JOY_DOWN) {
-                      if (vjoy & JOY_SELECT) buf[1] = 0x4E; // page down
+                      if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[1] = 0x4E; // page down
                       else buf[1] = 0x51; // down arrow
                     }       
                     user_io_kbd(0x00, buf); // generate key events
                   } else {
                     if (vjoy & JOY_START) {
-                      // all shortcuts when OSD is closed use btn 4
-                      if(vjoy & JOY_A)       buf[0] = 0x28; // map ENTER to btn 4 + btn 1
-                      if(vjoy & JOY_B)       buf[1] = 0x2C; // map SPACE to btn 4 + btn 2
-                      if(vjoy & JOY_SELECT) buf[2] = 0x45; // map F12   to btn 4 + btn 3  // i.e. open OSD in most cores
-                      user_io_kbd(0x00, buf); // generate key events'
+                      // all shortcuts when OSD is closed use START
+                      if(vjoy & JOY_A)       buf[0] = 0x28; // ENTER 
+                      if(vjoy & JOY_B)       buf[1] = 0x2C; // SPACE
+                      if(vjoy & JOY_SELECT) buf[2] = 0x45;  //F12 // i.e. open OSD in most cores
+                      user_io_kbd(0x00, buf); // generate key events
                     }   
                   }
                   
