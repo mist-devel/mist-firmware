@@ -956,8 +956,10 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                 // use button combinations as shortcut for certain keys
                 if(!mist_cfg.joystick_disable_shortcuts) {  
                   uint8_t buf[6] = { 0,0,0,0,0,0 };
+                  
                   // if OSD is open control it via USB joystick
                   if(user_io_osd_is_visible()) {
+                  
                     if(vjoy & JOY_A)     buf[0] = 0x28; // ENTER
                     if(vjoy & JOY_B)     buf[0] = 0x29; // ESC                
                     if(vjoy & JOY_START) buf[0] = 0x45; // F12
@@ -973,14 +975,37 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                       else buf[1] = 0x51; // down arrow
                     }       
                     user_io_kbd(0x00, buf); // generate key events
+                    
                   } else {
+                    
+                    // shortcuts mapped if start is pressed (take priority)
                     if (vjoy & JOY_START) {
-                      // all shortcuts when OSD is closed use START
                       if(vjoy & JOY_A)       buf[0] = 0x28; // ENTER 
                       if(vjoy & JOY_B)       buf[1] = 0x2C; // SPACE
-                      if(vjoy & JOY_SELECT) buf[2] = 0x45;  //F12 // i.e. open OSD in most cores
-                      user_io_kbd(0x00, buf); // generate key events
-                    }   
+                      if(vjoy & JOY_L)       buf[1] = 0x29; // ESC
+                      if(vjoy & JOY_R)       buf[1] = 0x3A; // F1
+                      if(vjoy & JOY_SELECT)  buf[2] = 0x45;  //F12 // i.e. open OSD in most cores
+                      user_io_kbd(0x00, buf); // generate key events                      
+                    } else {
+                      
+                      // shortcuts with SELECT - mouse emulation
+                      if (vjoy & JOY_SELECT) {
+                        unsigned char but = 0;
+                        char a0 = 0;
+                        char a1 = 0;
+                        if (vjoy & JOY_L)   but |= 1;
+                        if (vjoy & JOY_R)   but |= 2;
+                        if (vjoy & JOY_LEFT) a0 = -4;
+                        if (vjoy & JOY_RIGHT) a0 = 4;
+                        if (vjoy & JOY_UP) a1 = -2;
+                        if (vjoy & JOY_DOWN) a1 = 2;
+                        user_io_mouse(but, a0, a1);
+                      }
+                      
+                    
+                    }
+                    
+                    
                   }
                   
                 } // end joy->keyboard shortcuts
