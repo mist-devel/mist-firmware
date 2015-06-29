@@ -134,6 +134,7 @@ void virtual_joystick_remap(char *s) {
 
 static struct {
     uint16_t mask;
+    uint8_t modifier;
     uint8_t keys[6];  // support up to 6 key codes
 } joy_key_map[MAX_JOYSTICK_KEYBOARD_MAP];
 
@@ -145,7 +146,9 @@ void joy_key_map_init(void) {
 void joystick_key_map(char *s) {
   uint8_t i,j;
   uint8_t count;
+  uint8_t assign=0;
   uint8_t len = strlen(s);
+  uint8_t scancode=0;
   char *token;
   
   hid_debugf("%s(%s)", __FUNCTION__, s);
@@ -159,6 +162,7 @@ void joystick_key_map(char *s) {
   for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
     // fill sequentially the available mapping slots, stopping at first empty one
     if(!joy_key_map[i].mask) {
+      joy_key_map[i].modifier = 0;
       for(j=0;j<7;j++)
         joy_key_map[i].keys[j] = 0;
       count  = 0;
@@ -167,9 +171,19 @@ void joystick_key_map(char *s) {
         if (count==0) {
           joy_key_map[i].mask = strtol(s, NULL, 16);
         } else {
-          // max 6 keys and count 0 is the bitmask
-          if (count < 8)
-            joy_key_map[i].keys[count-1] = strtol(s, NULL, 16);
+          scancode = strtol(s, NULL, 16);
+          // set as modifier if scancode is on the relevant range (224 to 231)
+          if(scancode>223) {
+            //  bit  0     1      2    3    4     5      6    7
+            //  key  LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
+            //
+            scancode -= 223;
+            joy_key_map[i].modifier |= (0x01 << (scancode-1));
+          } else {
+            // max 6 keys
+            if (assign < 7)
+              joy_key_map[i].keys[assign++] = scancode;
+          }
         }
         s = strtok (NULL, ",");
         count+=1;
@@ -712,6 +726,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
             hid_debugf("%s() error: %d", __FUNCTION__, rcode);
         } else {
         
+          uint8_t keyb_hit = 0;
+        
           // successfully received some bytes
           if(iface->has_boot_mode && !iface->ignore_boot_mode) {
             if(iface->device_type == HID_DEVICE_MOUSE) {
@@ -723,8 +739,10 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
             
             if(iface->device_type == HID_DEVICE_KEYBOARD) {
               // boot kbd needs at least eight bytes
-              if(read >= 8) 
+              if(read >= 8) {
                 user_io_kbd(buf[0], buf+2);
+                if (buf[0]||buf[1]) keyb_hit=1; //declare keyboard as pressed for later overrides
+              }
             }
           }
 	  
@@ -1026,7 +1044,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                     if(vjoy & JOY_B)     buf[0] = 0x29; // ESC                
                     if(vjoy & JOY_START) buf[0] = 0x45; // F12
                     if(vjoy & JOY_LEFT)  buf[0] = 0x50; // left arrow
-                    if(vjoy & JOY_RIGHT) buf[0] = 0x49; // right arrow     
+                    if(vjoy & JOY_RIGHT) buf[0] = 0x4F; // right arrow     
                     // up and down uses SELECT or L for faster scrolling
                     if(vjoy & JOY_UP) {
                       if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[1] = 0x4B; // page up
@@ -1071,16 +1089,20 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                    
                     // process mapped keyboard commands from mist.ini
                     uint8_t i, j, count=0;
+                    uint8_t mapped_hit = 0;
+                    uint8_t modifier = 0;
                     uint8_t joy_buf[6] = { 0,0,0,0,0,0 };
                     for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
                       if(vjoy & joy_key_map[i].mask) {
-                      
                         //iprintf("joy2key:%d\n", joy_key_map[i].mask);
-                      
-                       for (j=0; j<6; j++) {
+                        if (joy_key_map[i].modifier) {
+                          modifier |= joy_key_map[i].modifier;
+                          mapped_hit=1;
+                        }
+                        for (j=0; j<6; j++) {
                           if (joy_key_map[i].keys[j]) {
                             joy_buf[j] = joy_key_map[i].keys[j];
-                            
+                            mapped_hit=1;
                             //iprintf("j2k code:%d\n", joy_buf[j]);
                             
                           }
@@ -1088,7 +1110,12 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                       }
                     }
                     // generate key events but only if no other keys were pressed
-                    if (!key_hit) user_io_kbd(0x00, joy_buf); 
+                    if (!keyb_hit && !key_hit) {
+                      if(mapped_hit) 
+                        user_io_kbd(modifier, joy_buf); 
+                      else
+                        user_io_kbd(0x00, joy_buf); 
+                    }                     
                   }
                   
                 } // end joy->keyboard shortcuts
