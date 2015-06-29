@@ -1076,14 +1076,14 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                     for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
                       if(vjoy & joy_key_map[i].mask) {
                       
-                        iprintf("joy2key:%d\n", joy_key_map[i].mask);
+                        //iprintf("joy2key:%d\n", joy_key_map[i].mask);
                       
                        for (j=0; j<6; j++) {
                           if (joy_key_map[i].keys[j]) {
                             joy_buf[j] = joy_key_map[i].keys[j];
                             hit = 1;
                             
-                            iprintf("j2k code:%d\n", joy_buf[j]);
+                            //iprintf("j2k code:%d\n", joy_buf[j]);
                           
                           }
                         }
