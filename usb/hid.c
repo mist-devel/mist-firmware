@@ -16,6 +16,9 @@ static unsigned char joysticks = 0;      // number of detected usb joysticks
 // up to 8 buttons can be remapped
 #define MAX_JOYSTICK_BUTTON_REMAP 8
 #define MAX_VIRTUAL_JOYSTICK_REMAP 4
+#define MAX_JOYSTICK_KEYBOARD_MAP 16
+
+/*****************************************************************************/
 
 static struct {
   uint16_t vid;   // vendor id
@@ -58,7 +61,9 @@ void hid_joystick_button_remap(char *s) {
   }
 }
 
-/*  Virtual joystick remap custom parsing 
+/*****************************************************************************/
+
+/*  Virtual joystick remap - custom parsing 
     The mapping translates directions plus generic HID buttons (1-12) into a standard MiST "virtual joystick"
 */
 
@@ -120,6 +125,62 @@ void virtual_joystick_remap(char *s) {
     }
   }
 }
+
+/*****************************************************************************/
+
+/*  Custom parsing for joystick->keyboard map
+    We bind a bitmask of the virtual joypad with a keyboard USB code 
+*/
+
+static struct {
+    uint16_t mask;
+    uint8_t keys[6];  // support up to 6 key codes
+} joy_key_map[MAX_JOYSTICK_KEYBOARD_MAP];
+
+void joy_key_map_init(void) {
+  memset(joy_key_map, 0, sizeof(joy_key_map));
+}
+
+
+void joystick_key_map(char *s) {
+  uint8_t i,j;
+  uint8_t count;
+  uint8_t len = strlen(s);
+  char *token;
+  
+  hid_debugf("%s(%s)", __FUNCTION__, s);
+  
+  if(len < 3) {
+    hid_debugf("malformed entry");
+    return;
+  }
+  
+  // parse remap request
+  for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
+    // fill sequentially the available mapping slots, stopping at first empty one
+    if(!joy_key_map[i].mask) {
+      for(j=0;j<7;j++)
+        joy_key_map[i].keys[j] = 0;
+      count  = 0;
+      token  = strtok (s, ",");
+      while(s) {
+        if (count==0) {
+          joy_key_map[i].mask = strtol(s, NULL, 16);
+        } else {
+          // max 6 keys and count 0 is the bitmask
+          if (count < 8)
+            joy_key_map[i].keys[count-1] = strtol(s, NULL, 16);
+        }
+        s = strtok (NULL, ",");
+        count+=1;
+      }
+      return; // finished processing input string so exit
+    }
+  }
+}
+
+/*****************************************************************************/
+
 
 uint8_t hid_get_joysticks(void) {
   return joysticks;
@@ -857,8 +918,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                   mapping[btn_off+3]  = JOY_B;
                   mapping[btn_off+1]  = JOY_B; // allow two ways to hold the controller  
                   mapping[btn_off+4]  = JOY_UP;
-                  mapping[btn_off+5]  = JOY_L; 
-                  mapping[btn_off+6]  = JOY_R;
+                  mapping[btn_off+5]  = JOY_L & JOY_L2; // also bind to buttons for flippers
+                  mapping[btn_off+6]  = JOY_R & JOY_R2; 
                   mapping[btn_off+9]  = JOY_SELECT;
                   mapping[btn_off+10] = JOY_START;       
                   use_default=0;
@@ -870,8 +931,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                   mapping[btn_off+2] = JOY_B;
                   mapping[btn_off+3] = JOY_B;  // allow two ways to hold the controller
                   mapping[btn_off+4] = JOY_UP; 
-                  mapping[btn_off+5] = JOY_L;
-                  mapping[btn_off+6] = JOY_R;                     
+                  mapping[btn_off+5] = JOY_L & JOY_L2; // also bind to buttons for flippers
+                  mapping[btn_off+6] = JOY_R & JOY_R2;                 
                   mapping[btn_off+7] = JOY_SELECT;
                   mapping[btn_off+8] = JOY_START;
                   use_default=0;
@@ -883,8 +944,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                   mapping[btn_off+2] = JOY_B;
                   mapping[btn_off+3] = JOY_B;  // allow two ways to hold the controller
                   mapping[btn_off+4] = JOY_UP; 
-                  mapping[btn_off+5] = JOY_L;
-                  mapping[btn_off+6] = JOY_R;                     
+                  mapping[btn_off+5] = JOY_L & JOY_L2; // also bind to buttons for flippers
+                  mapping[btn_off+6] = JOY_R & JOY_R2;                     
                   mapping[btn_off+7] = JOY_SELECT;
                   mapping[btn_off+8] = JOY_START;
                   use_default=0;
@@ -956,9 +1017,10 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                 // use button combinations as shortcut for certain keys
                 if(!mist_cfg.joystick_disable_shortcuts) {  
                   uint8_t buf[6] = { 0,0,0,0,0,0 };
+                  uint8_t key_hit = 0;
                   
                   // if OSD is open control it via USB joystick
-                  if(user_io_osd_is_visible()) {
+                  if(user_io_osd_is_visible() && !mist_cfg.joystick_ignore_osd) {
                   
                     if(vjoy & JOY_A)     buf[0] = 0x28; // ENTER
                     if(vjoy & JOY_B)     buf[0] = 0x29; // ESC                
@@ -975,7 +1037,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                       else buf[1] = 0x51; // down arrow
                     }       
                     user_io_kbd(0x00, buf); // generate key events
-                    
+                    key_hit=1;
+                                        
                   } else {
                     
                     // shortcuts mapped if start is pressed (take priority)
@@ -986,6 +1049,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                       if(vjoy & JOY_R)       buf[1] = 0x3A; // F1
                       if(vjoy & JOY_SELECT)  buf[2] = 0x45;  //F12 // i.e. open OSD in most cores
                       user_io_kbd(0x00, buf); // generate key events                      
+                      key_hit=1;
+                    
                     } else {
                       
                       // shortcuts with SELECT - mouse emulation
@@ -1001,11 +1066,31 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                         if (vjoy & JOY_DOWN) a1 = 2;
                         user_io_mouse(but, a0, a1);
                       }
-                      
                     
                     }
-                    
-                    
+                   
+                    // process mapped keyboard commands from mist.ini
+                    uint8_t i, j, count=0;
+                    uint8_t hit = 0;
+                    uint8_t joy_buf[6] = { 0,0,0,0,0,0 };
+                    for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
+                      if(vjoy & joy_key_map[i].mask) {
+                      
+                        iprintf("joy2key:%d\n", joy_key_map[i].mask);
+                      
+                       for (j=0; j<6; j++) {
+                          if (joy_key_map[i].keys[j]) {
+                            joy_buf[j] = joy_key_map[i].keys[j];
+                            hit = 1;
+                            
+                            iprintf("j2k code:%d\n", joy_buf[j]);
+                          
+                          }
+                        }
+                      }
+                    }
+                    // generate key events but only if pressed
+                    if (!key_hit && hit) user_io_kbd(0x00, joy_buf); 
                   }
                   
                 } // end joy->keyboard shortcuts
