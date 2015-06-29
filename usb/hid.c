@@ -1071,7 +1071,6 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                    
                     // process mapped keyboard commands from mist.ini
                     uint8_t i, j, count=0;
-                    uint8_t hit = 0;
                     uint8_t joy_buf[6] = { 0,0,0,0,0,0 };
                     for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
                       if(vjoy & joy_key_map[i].mask) {
@@ -1081,16 +1080,15 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                        for (j=0; j<6; j++) {
                           if (joy_key_map[i].keys[j]) {
                             joy_buf[j] = joy_key_map[i].keys[j];
-                            hit = 1;
                             
                             //iprintf("j2k code:%d\n", joy_buf[j]);
-                          
+                            
                           }
                         }
                       }
                     }
-                    // generate key events but only if pressed
-                    if (!key_hit && hit) user_io_kbd(0x00, joy_buf); 
+                    // generate key events but only if no other keys were pressed
+                    if (!key_hit) user_io_kbd(0x00, joy_buf); 
                   }
                   
                 } // end joy->keyboard shortcuts
