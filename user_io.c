@@ -259,7 +259,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
       OSDCTRLUP, OSDCTRLDOWN, OSDCTRLLEFT, OSDCTRLRIGHT };
     static uint8_t last_map = 0;
 
-    iprintf("joy to osd\n");
+    // iprintf("joy to osd\n");
     
     //    OsdKeySet(0x80 | usb2ami[pressed[i]]);
 
