@@ -1091,9 +1091,11 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                     uint8_t i, j, count=0;
                     uint8_t mapped_hit = 0;
                     uint8_t modifier = 0;
+                    uint8_t has_mapping = 0;
                     uint8_t joy_buf[6] = { 0,0,0,0,0,0 };
                     for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
                       if(vjoy & joy_key_map[i].mask) {
+                        has_mapping = 1;
                         //iprintf("joy2key:%d\n", joy_key_map[i].mask);
                         if (joy_key_map[i].modifier) {
                           modifier |= joy_key_map[i].modifier;
@@ -1110,7 +1112,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                       }
                     }
                     // generate key events but only if no other keys were pressed
-                    if (!keyb_hit && !key_hit) {
+                    if (has_mapping && !keyb_hit && !key_hit) {
                       if(mapped_hit) 
                         user_io_kbd(modifier, joy_buf); 
                       else
