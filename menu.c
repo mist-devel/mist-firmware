@@ -459,10 +459,11 @@ void HandleUI(void)
 	  p = user_io_8bit_get_string(i);
 	  //	  iprintf("Option %d: %s\n", i-1, p);
 
-	  // check for 'F'ile strings
-	  if(p && (p[0] == 'F')) {
-	    strcpy(s, " Load *.");
-	    substrcpy(s+8, p, 1);
+	  // check for 'F'ile or 'S'D image strings
+	  if(p && ((p[0] == 'F') || (p[0] == 'S'))) {
+	    if(p[0] == 'F') strcpy(s, " Load *.");
+	    else            strcpy(s, " Mount *.");
+	    substrcpy(s+strlen(s), p, 1);
 	    OsdWrite(entry, s, menusub==entry, 0);
 
 	    // add bit in menu mask
@@ -539,11 +540,13 @@ void HandleUI(void)
 	  } else {
 	    p = user_io_8bit_get_string(menusub + (fs_present?1:2));
 
-	    if(p[0] == 'F') {
+	    if((p[0] == 'F')||(p[0] == 'S')) {
 	      static char ext[4];
 	      substrcpy(ext, p, 1);
 	      while(strlen(ext) < 3) strcat(ext, " ");
-	      SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1, 1);
+	      SelectFile(ext, SCAN_DIR | SCAN_LFN, 
+			 (p[0] == 'F')?MENU_8BIT_MAIN_FILE_SELECTED:MENU_8BIT_MAIN_IMAGE_SELECTED, 
+			 MENU_8BIT_MAIN1, 1);
 	    } else {
 	      // determine which status bit is affected
 	      unsigned char mask = 1<<(p[1]-'0');
@@ -573,6 +576,13 @@ void HandleUI(void)
         // this assumes that further file entries only exist if the first one also exists
         user_io_file_tx(&file, menusub+1);
 	// close menu afterwards
+	menustate = MENU_NONE1;
+	break;
+
+    case MENU_8BIT_MAIN_IMAGE_SELECTED :
+        iprintf("Image selected: %s\n", file.name);
+        user_io_file_mount(&file);
+        // select image for SD card
 	menustate = MENU_NONE1;
 	break;
 

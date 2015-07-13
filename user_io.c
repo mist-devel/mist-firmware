@@ -21,6 +21,8 @@ unsigned char key_remap_table[MAX_REMAP][2];
 
 #define BREAK  0x8000
 
+fileTYPE sd_image;
+
 extern fileTYPE file;
 extern char s[40];
 
@@ -122,6 +124,12 @@ static void PollAdc() {
 }
 
 void user_io_init() {
+
+  // try to open default image
+  if(FileOpen(&sd_image, "C64     D64"))  {
+    iprintf("Using default image %.12s\n", sd_image.name);
+  } else
+    sd_image.size = 0;
 
   // mark remap table as unused
   memset(key_remap_table, 0, sizeof(key_remap_table));
@@ -473,6 +481,11 @@ static void kbd_fifo_poll() {
 
   kbd_fifo_minimig_send(kbd_fifo[kbd_fifo_r]);
   kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
+}
+
+void user_io_file_mount(fileTYPE *file) {
+  iprintf("selected %.12s with %d bytes\n", file->name, file->size);
+  memcpy(&sd_image, file, sizeof(fileTYPE));
 }
 
 void user_io_file_tx(fileTYPE *file, unsigned char index) {
@@ -916,20 +929,32 @@ void user_io_poll() {
 	}
 
 	if((c & 0x03) == 0x01) {
-	  // sector read
-	  // read sector from sd card if it is not already present in
-	  // the buffer
-	  if(buffer_lba != lba) {
-	    DISKLED_ON;
-	    if(MMC_Read(lba, buffer))
-	      buffer_lba = lba;
-
-	    DISKLED_OFF;
-	  }
 
 	  if(user_io_dip_switch1())
 	    iprintf("SD RD %d\n", lba);
 	  
+	  // are we using a file as the sd card image?
+	  // (C64 floppy does that ...)
+	  if(sd_image.size) {
+	    FileSeek(&sd_image, lba, SEEK_SET);
+	    FileRead(&sd_image, buffer);
+	    buffer_lba = lba;
+
+	    // dump sector start
+	    hexdump(buffer, 32, 0);
+	  } else {
+	    // sector read
+	    // read sector from sd card if it is not already present in
+	    // the buffer
+	    if(buffer_lba != lba) {
+	      DISKLED_ON;
+	      if(MMC_Read(lba, buffer))
+		buffer_lba = lba;
+	      
+	      DISKLED_OFF;
+	    }
+	  }
+
 	  if(buffer_lba == lba) {
 	    // data is now stored in buffer. send it to fpga
 	    spi_uio_cmd_cont(UIO_SECTOR_RD);
@@ -942,11 +967,10 @@ void user_io_poll() {
 
 	  // just load the next sector now, so it may be prefetched
 	  // for the next request already
-	  DISKLED_ON;
-	  if(MMC_Read(lba+1, buffer))
-	    buffer_lba = lba+1;
-
-	  DISKLED_OFF;
+	  //	  DISKLED_ON;
+	  //	  if(MMC_Read(lba+1, buffer))
+	  //	    buffer_lba = lba+1;
+	  //	  DISKLED_OFF;
 	}
       }
     }
