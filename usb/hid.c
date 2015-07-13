@@ -936,8 +936,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                   mapping[btn_off+3]  = JOY_B;
                   mapping[btn_off+1]  = JOY_B; // allow two ways to hold the controller  
                   mapping[btn_off+4]  = JOY_UP;
-                  mapping[btn_off+5]  = JOY_L & JOY_L2; // also bind to buttons for flippers
-                  mapping[btn_off+6]  = JOY_R & JOY_R2; 
+                  mapping[btn_off+5]  = JOY_L | JOY_L2; // also bind to buttons for flippers
+                  mapping[btn_off+6]  = JOY_R | JOY_R2; 
                   mapping[btn_off+9]  = JOY_SELECT;
                   mapping[btn_off+10] = JOY_START;       
                   use_default=0;
@@ -949,8 +949,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                   mapping[btn_off+2] = JOY_B;
                   mapping[btn_off+3] = JOY_B;  // allow two ways to hold the controller
                   mapping[btn_off+4] = JOY_UP; 
-                  mapping[btn_off+5] = JOY_L & JOY_L2; // also bind to buttons for flippers
-                  mapping[btn_off+6] = JOY_R & JOY_R2;                 
+                  mapping[btn_off+5] = JOY_L | JOY_L2; // also bind to buttons for flippers
+                  mapping[btn_off+6] = JOY_R | JOY_R2;                 
                   mapping[btn_off+7] = JOY_SELECT;
                   mapping[btn_off+8] = JOY_START;
                   use_default=0;
@@ -962,8 +962,8 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                   mapping[btn_off+2] = JOY_B;
                   mapping[btn_off+3] = JOY_B;  // allow two ways to hold the controller
                   mapping[btn_off+4] = JOY_UP; 
-                  mapping[btn_off+5] = JOY_L & JOY_L2; // also bind to buttons for flippers
-                  mapping[btn_off+6] = JOY_R & JOY_R2;                     
+                  mapping[btn_off+5] = JOY_L | JOY_L2; // also bind to buttons for flippers
+                  mapping[btn_off+6] = JOY_R | JOY_R2;                     
                   mapping[btn_off+7] = JOY_SELECT;
                   mapping[btn_off+8] = JOY_START;
                   use_default=0;
@@ -975,13 +975,27 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
                   mapping[btn_off+9] = JOY_B;  // B on N64 pad
                   mapping[btn_off+3] = JOY_A;  // A on GC pad
                   mapping[btn_off+4] = JOY_B;  // B on GC pad
-                  mapping[btn_off+5] = JOY_L & JOY_SELECT;
-                  mapping[btn_off+8] = JOY_L & JOY_SELECT; // Z button on N64 pad
-                  mapping[btn_off+6] = JOY_R & JOY_SELECT;
+                  mapping[btn_off+5] = JOY_L | JOY_SELECT;
+                  mapping[btn_off+8] = JOY_L | JOY_SELECT; // Z button on N64 pad
+                  mapping[btn_off+6] = JOY_R | JOY_SELECT;
                   mapping[btn_off+10] = JOY_START;
                   use_default=0;
                 }
                 
+                //mapping for ROYDS Stick.EX
+                if(vid==0x1F4F && pid==0x0003) {
+                  mapping[btn_off+3] = JOY_A;  // Circle (usually select in PSx)
+                  mapping[btn_off+1] = JOY_B;  // Cross  (usually cancel in PSx)
+                  mapping[btn_off+2] = JOY_X;  // Triangle
+                  mapping[btn_off+4] = JOY_Y;  // Square
+                  mapping[btn_off+5] = JOY_L;
+                  mapping[btn_off+6] = JOY_R; 
+                  mapping[btn_off+7] = JOY_L2; 
+                  mapping[btn_off+8] = JOY_R2;
+                  mapping[btn_off+9] = JOY_SELECT;
+                  mapping[btn_off+10] = JOY_START;
+                  use_default=0;
+                }
                 
                 // apply remap information from mist.ini if present
                 uint8_t j;
