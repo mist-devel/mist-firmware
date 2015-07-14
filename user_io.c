@@ -125,11 +125,9 @@ static void PollAdc() {
 
 void user_io_init() {
 
-  // try to open default image
-  if(FileOpen(&sd_image, "C64     D64"))  {
-    iprintf("Using default image %.12s\n", sd_image.name);
-  } else
-    sd_image.size = 0;
+  // no sd card image selected, SD card accesses will go directly
+  // to the card
+  sd_image.size = 0;
 
   // mark remap table as unused
   memset(key_remap_table, 0, sizeof(key_remap_table));
@@ -935,24 +933,19 @@ void user_io_poll() {
 	  
 	  // are we using a file as the sd card image?
 	  // (C64 floppy does that ...)
-	  if(sd_image.size) {
-	    FileSeek(&sd_image, lba, SEEK_SET);
-	    FileRead(&sd_image, buffer);
-	    buffer_lba = lba;
-
-	    // dump sector start
-	    hexdump(buffer, 32, 0);
-	  } else {
-	    // sector read
-	    // read sector from sd card if it is not already present in
-	    // the buffer
-	    if(buffer_lba != lba) {
-	      DISKLED_ON;
-	      if(MMC_Read(lba, buffer))
-		buffer_lba = lba;
-	      
-	      DISKLED_OFF;
+	  if(buffer_lba != lba) {
+	    DISKLED_ON;
+	    if(sd_image.size) {
+	      FileSeek(&sd_image, lba, SEEK_SET);
+	      FileRead(&sd_image, buffer);
+	    } else {
+	      // sector read
+	      // read sector from sd card if it is not already present in
+	      // the buffer
+	      MMC_Read(lba, buffer);
 	    }
+	    buffer_lba = lba;
+	    DISKLED_OFF;
 	  }
 
 	  if(buffer_lba == lba) {
@@ -967,10 +960,18 @@ void user_io_poll() {
 
 	  // just load the next sector now, so it may be prefetched
 	  // for the next request already
-	  //	  DISKLED_ON;
-	  //	  if(MMC_Read(lba+1, buffer))
-	  //	    buffer_lba = lba+1;
-	  //	  DISKLED_OFF;
+	  DISKLED_ON;
+	  if(sd_image.size) {
+	    FileSeek(&sd_image, lba+1, SEEK_SET);
+	    FileRead(&sd_image, buffer);
+	  } else {
+	    // sector read
+	    // read sector from sd card if it is not already present in
+	    // the buffer
+	    MMC_Read(lba+1, buffer);
+	  }
+	  buffer_lba = lba+1;
+	  DISKLED_OFF;
 	}
       }
     }
