@@ -48,6 +48,7 @@
 #define UIO_SET_SDCONF  0x19  // send SD card configuration (CSD, CID)
 #define UIO_ASTICK      0x1a
 #define UIO_SIO_IN      0x1b  // serial in
+#define UIO_SET_SDSTAT  0x1c  // set sd card status 
 
 // codes as used by 8bit (atari 800, zx81) via SS2
 #define UIO_GET_STATUS  0x50

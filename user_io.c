@@ -365,7 +365,7 @@ void user_io_sd_set_config(void) {
   spi_write(data, sizeof(data));
   DisableIO();
 
-  hexdump(data, sizeof(data), 0);
+  //  hexdump(data, sizeof(data), 0);
 }
 
 // read 8+32 bit sd card status word from FPGA
@@ -481,9 +481,19 @@ static void kbd_fifo_poll() {
   kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
 }
 
+static void user_io_set_index(unsigned char index) {
+  EnableFpga();
+  SPI(UIO_FILE_INDEX);
+  SPI(index);
+  DisableFpga();
+}
+
 void user_io_file_mount(fileTYPE *file) {
   iprintf("selected %.12s with %d bytes\n", file->name, file->size);
   memcpy(&sd_image, file, sizeof(fileTYPE));
+
+  // notify core of possible sd image change
+  spi_uio_cmd8(UIO_SET_SDSTAT, 0);
 }
 
 void user_io_file_tx(fileTYPE *file, unsigned char index) {
@@ -494,10 +504,7 @@ void user_io_file_tx(fileTYPE *file, unsigned char index) {
   iprintf("Selected file %.11s with %lu bytes to send for index %d\n", file->name, bytes2send, index);
 
   // set index byte (0=bios rom, 1-n=OSD entry index)
-  EnableFpga();
-  SPI(UIO_FILE_INDEX);
-  SPI(index);
-  DisableFpga();
+  user_io_set_index(index);
 
   // send directory entry (for alpha amstrad core)
   EnableFpga();
