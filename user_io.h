@@ -157,6 +157,7 @@ char user_io_create_config_name(char *s);
 void user_io_digital_joystick(unsigned char, unsigned char);
 void user_io_analog_joystick(unsigned char, char, char);
 char user_io_osd_is_visible();
+void user_io_send_buttons(char);
 
 void user_io_key_remap(char *);
 

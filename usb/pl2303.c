@@ -3,6 +3,7 @@
 //
 // driver for the pl2303 usb to serial converter
 //
+// https://github.com/felis/USB_Host_Shield_2.0/blob/master/cdcprolific.cpp
 
 // https://github.com/felis/USB_Host_Shield_2.0
 // http://lxr.free-electrons.com/source/drivers/usb/serial/pl2303.c

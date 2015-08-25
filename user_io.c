@@ -124,7 +124,6 @@ static void PollAdc() {
 }
 
 void user_io_init() {
-
   // no sd card image selected, SD card accesses will go directly
   // to the card
   sd_image.size = 0;
@@ -453,7 +452,7 @@ static long kbd_timer = 0;
 
 static void kbd_fifo_minimig_send(unsigned short code) {
   spi_uio_cmd8((code&OSD)?UIO_KBD_OSD:UIO_KEYBOARD, code & 0xff);
-  kbd_timer = GetTimer(10);  // next key after 10ms earliest
+  kbd_timer = GetTimer(50);  // next key after 50ms earliest
 }
 
 static void kbd_fifo_enqueue(unsigned short code) {
@@ -616,6 +615,31 @@ unsigned char user_io_8bit_set_status(unsigned char new_status, unsigned char ma
   return status;
 }
 
+void user_io_send_buttons(char force) {
+  static unsigned char key_map = 0;
+
+  // frequently poll the adc the switches 
+  // and buttons are connected to
+  PollAdc();
+  
+  unsigned char map = 0;
+  if(adc_state & 1) map |= SWITCH2;
+  if(adc_state & 2) map |= SWITCH1;
+
+  if(adc_state & 4) map |= BUTTON1;
+  if(adc_state & 8) map |= BUTTON2;
+
+  // TODO adding conf here
+  if (mist_cfg.scandoubler_disable) 
+    map |= CONF_SCANDOUBLER_DISABLE;
+
+  if((map != key_map) || force) {
+    key_map = map;
+    spi_uio_cmd8(UIO_BUT_SW, map);
+    iprintf("sending keymap\n");
+  }
+}
+
 void user_io_poll() {
 
   if(user_io_dip_switch1()) {
@@ -740,26 +764,7 @@ void user_io_poll() {
     user_io_joystick(joystick_renumber(1), joy_map);
   }
 
-  // frequently poll the adc the switches 
-  // and buttons are connected to
-  PollAdc();
-  
-  static unsigned char key_map = 0;
-  unsigned char map = 0;
-  if(adc_state & 1) map |= SWITCH2;
-  if(adc_state & 2) map |= SWITCH1;
-
-  if(adc_state & 4) map |= BUTTON1;
-  if(adc_state & 8) map |= BUTTON2;
-
-  // TODO adding conf here
-  if (mist_cfg.scandoubler_disable) map |= CONF_SCANDOUBLER_DISABLE;
-
-  if(map != key_map) {
-    key_map = map;
-
-    spi_uio_cmd8(UIO_BUT_SW, map);
-  }
+  user_io_send_buttons(0);
 
   // mouse movement emulation is continous 
   if(emu_mode == EMU_MOUSE) {
@@ -928,7 +933,13 @@ void user_io_poll() {
 
 	    // ... and write it to disk
 	    DISKLED_ON;
-	    MMC_Write(lba, wr_buf);
+
+	    if(sd_image.size) {
+	      FileSeek(&sd_image, lba, SEEK_SET);
+	      FileWrite(&sd_image, wr_buf);
+	    } else
+	      MMC_Write(lba, wr_buf);
+
 	    DISKLED_OFF;
 	  }
 	}
