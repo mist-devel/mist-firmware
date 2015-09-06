@@ -482,6 +482,47 @@ void SendFileEncrypted(RAFile *file,unsigned char *key,int keysize)
     iprintf("]\r");
 }
 
+// SendFileV2 (for minimig_v2)
+void SendFileV2(RAFile* file, unsigned char* key, int keysize, int address, int size)
+{
+  int i,j;
+  unsigned int keyidx=0;
+  iprintf("File size: %dkB\r", size>>1);
+  iprintf("[");
+  for (i=0; i<size; i++) {
+    if (!(i&31)) iprintf("*");
+    RARead(file, sector_buffer, 512);
+    if (keysize) {
+      // decrypt ROM
+      for (j=0; j<512; j++) {
+        sector_buffer[j] ^= key[keyidx++];
+        if(keyidx >= keysize) keyidx -= keysize;
+      }
+    }
+    EnableOsd();
+    unsigned int adr = address + i*512;
+    SPI(OSD_CMD_WR);
+    SPIN(); SPIN(); SPIN(); SPIN();
+    SPI(adr&0xff); adr = adr>>8;
+    SPI(adr&0xff); adr = adr>>8;
+    SPIN(); SPIN(); SPIN(); SPIN();
+    SPI(adr&0xff); adr = adr>>8;
+    SPI(adr&0xff); adr = adr>>8;
+    SPIN(); SPIN(); SPIN(); SPIN();
+    for (j=0; j<512; j=j+4) {
+      SPI(sector_buffer[j+0]);
+      SPI(sector_buffer[j+1]);
+      SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN();
+      SPI(sector_buffer[j+2]);
+      SPI(sector_buffer[j+3]);
+      SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN();
+    }
+    DisableOsd();
+  }
+  iprintf("]\r");
+}
+
+
 
 // draw on screen
 char BootDraw(char *data, unsigned short len, unsigned short offset)

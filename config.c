@@ -60,153 +60,65 @@ char UploadKickstart(char *name)
   BootPrint("Loading file: ");
   BootPrint(filename);
 
-  if(minimig_v1()) {
-    if (RAOpen(&romfile, filename)) {
-      if (romfile.size == 0x80000) {
-        // 512KB Kickstart ROM
-        BootPrint("Uploading 512 KB Kickstart...");
+  if (RAOpen(&romfile, filename)) {
+    if (romfile.size == 0x100000) {
+      // 1MB Kickstart ROM
+      BootPrint("Uploading 1MB Kickstart ...");
+      SendFileV2(&romfile, NULL, 0, 0xe00000, romfile.size>>10);
+      SendFileV2(&romfile, NULL, 0, 0xf80000, romfile.size>>10);
+      return(1);
+    } else if(romfile.size == 0x80000) {
+      // 512KB Kickstart ROM
+      BootPrint("Uploading 512KB Kickstart ...");
+      if (minimig_v1()) {
         PrepareBootUpload(0xF8, 0x08);
         SendFile(&romfile);
-        return(1);
-      } else if ((romfile.size == 0x8000b) && keysize) {
-        // 512KB Kickstart ROM
-        BootPrint("Uploading 512 KB Kickstart (Probably Amiga Forever encrypted...)");
-        PrepareBootUpload(0xF8, 0x08);
-        SendFileEncrypted(&romfile,romkey,keysize);
-        return(1);
-      } else if (romfile.size == 0x40000) {
-        // 256KB Kickstart ROM
-        BootPrint("Uploading 256 KB Kickstart...");
-        PrepareBootUpload(0xF8, 0x04);
-        SendFile(&romfile);
-        return(1);
-      } else if ((romfile.size == 0x4000b) && keysize) {
-        // 256KB Kickstart ROM
-        BootPrint("Uploading 256 KB Kickstart (Probably Amiga Forever encrypted...");
-        PrepareBootUpload(0xF8, 0x04);
-        SendFileEncrypted(&romfile,romkey,keysize);
-        return(1);
       } else {
-        BootPrint("Unsupported ROM file size!");
+        SendFileV2(&romfile, NULL, 0, 0xf80000, romfile.size>>9);
       }
+      return(1);
+    } else if ((romfile.size == 0x8000b) && keysize) {
+      // 512KB Kickstart ROM
+      BootPrint("Uploading 512 KB Kickstart (Probably Amiga Forever encrypted...)");
+      if (minimig_v1()) {
+        PrepareBootUpload(0xF8, 0x08);
+        SendFileEncrypted(&romfile,romkey,keysize);
+      } else {
+        SendFileV2(&romfile, romkey, keysize, 0xf80000, romfile.size>>9);
+      }
+      return(1);
+    } else if (romfile.size == 0x40000) {
+      // 256KB Kickstart ROM
+      BootPrint("Uploading 256 KB Kickstart...");
+      if (minimig_v1()) {
+        PrepareBootUpload(0xF8, 0x04);
+        SendFile(&romfile);
+      } else {
+        SendFileV2(&romfile, NULL, 0, 0xf80000, romfile.size>>9);
+        RAOpen(&romfile, filename); // TODO will this work
+        SendFileV2(&romfile, NULL, 0, 0xfc0000, romfile.size>>9);
+      }
+      return(1);
+    } else if ((romfile.size == 0x4000b) && keysize) {
+      // 256KB Kickstart ROM
+      BootPrint("Uploading 256 KB Kickstart (Probably Amiga Forever encrypted...");
+      if (minimig_v1()) {
+        PrepareBootUpload(0xF8, 0x04);
+        SendFileEncrypted(&romfile,romkey,keysize);
+      } else {
+        SendFileV2(&romfile, romkey, keysize, 0xf80000, romfile.size>>9);
+        RAOpen(&romfile, filename); // TODO will this work
+        SendFileV2(&romfile, romkey, keysize, 0xfc0000, romfile.size>>9);
+      }
+      return(1);
     } else {
-      siprintf(s, "No \"%s\" file!", filename);
-      BootPrint(s);
+      BootPrint("Unsupported ROM file size!");
     }
   } else {
-    if (RAOpen(&romfile, filename)) {
-      int i,j;
-      unsigned int adr, size, base=0x180000, offset=0xc00000, data;
-      puts("Uploading 512KB Kickstart ...");
-      size = ((romfile.file.size)+511)>>9;
-      iprintf("File size: %d.%01dkB\r", romfile.file.size>>10, romfile.file.size&0x3ff);
-      iprintf("[");
-      for (i=0; i<size; i++) {
-        if (!(i&31)) iprintf("*");
-        RARead(&romfile,sector_buffer,512);
-        EnableOsd();
-        adr = 0xf80000 + i*512;
-        SPI(OSD_CMD_WR);
-        SPIN(); SPIN(); SPIN(); SPIN();
-        SPI(adr&0xff); adr = adr>>8;
-        SPI(adr&0xff); adr = adr>>8;
-        SPIN(); SPIN(); SPIN(); SPIN();
-        SPI(adr&0xff); adr = adr>>8;
-        SPI(adr&0xff); adr = adr>>8;
-        SPIN(); SPIN(); SPIN(); SPIN();
-        for (j=0; j<512; j=j+4) {
-          SPI(sector_buffer[j+0]);
-          SPI(sector_buffer[j+1]);
-          SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN();
-          SPI(sector_buffer[j+2]);
-          SPI(sector_buffer[j+3]);
-          SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN();
-        }
-        DisableOsd();
-      }
-      iprintf("]\r");
-      return(1);
-    }
+    siprintf(s, "No \"%s\" file!", filename);
+    BootPrint(s);
   }
   return(0);
-}
-
-
-//// hrtmon_cfg ////
-typedef struct {
-  uint8_t dummy[4+4];
-  uint8_t jmps[3*4];
-  uint32_t mon_size;
-  uint8_t col0h, col0l, col1h, col1l;
-  uint8_t right;
-  uint8_t keyboard;
-  uint8_t key;
-  uint8_t ide;
-  uint8_t a1200;
-  uint8_t aga;
-  uint8_t insert;
-  uint8_t delay;
-  uint8_t lview;
-  uint8_t cd32;
-  uint8_t screenmode;
-  uint8_t novbr;
-  uint8_t entered;
-  uint8_t hexmode;
-  uint16_t error_sr;
-  uint32_t error_pc;
-  uint16_t error_status;
-  uint8_t newid[6];
-  uint16_t mon_version;
-  uint16_t mon_revision;
-  uint32_t whd_base;
-  uint16_t whd_version;
-  uint16_t whd_revision;
-  uint32_t max_chip;
-  uint32_t whd_expstrt;
-  uint32_t whd_expstop;
-} __attribute__((__packed__)) hrtmon_cfg_t;
-
-
-//// hrtcfg_print() ////
-void hrtcfg_print()
-{
-  int i;
-  volatile hrtmon_cfg_t* hrtcfg = (hrtmon_cfg_t*)(0xd00000);
-
-  iprintf("HRTCFG:\r");
-  for (i=0; i<(4+4); i++) iprintf("dummy[%d]: %x\r", i, hrtcfg->dummy[i]);
-  for (i=0; i<(3*4); i++) iprintf("jmps[%d]: %x\r", i, hrtcfg->jmps[i]);
-  iprintf("mon_size: %x\r",  hrtcfg->mon_size);
-  iprintf("col0h: %x\r", hrtcfg->col0h);
-  iprintf("col0l: %x\r", hrtcfg->col0l);
-  iprintf("col1h: %x\r", hrtcfg->col1h);
-  iprintf("col1l: %x\r", hrtcfg->col1l);
-  iprintf("right: %x\r", hrtcfg->right);
-  iprintf("keyboard: %x\r", hrtcfg->keyboard);
-  iprintf("key: %x\r", hrtcfg->key);
-  iprintf("ide: %x\r", hrtcfg->ide);
-  iprintf("a1200: %x\r", hrtcfg->a1200);
-  iprintf("aga: %x\r", hrtcfg->aga);
-  iprintf("insert: %x\r", hrtcfg->insert);
-  iprintf("delay: %x\r", hrtcfg->delay);
-  iprintf("lview: %x\r", hrtcfg->lview);
-  iprintf("cd32: %x\r", hrtcfg->cd32);
-  iprintf("screenmode: %x\r", hrtcfg->screenmode);
-  iprintf("novbr: %x\r", hrtcfg->novbr);
-  iprintf("entered: %x\r", hrtcfg->entered);
-  iprintf("hexmode: %x\r", hrtcfg->hexmode);
-  iprintf("error_sr: %x\r", hrtcfg->error_sr);
-  iprintf("error_pc: %x\r", hrtcfg->error_pc);
-  iprintf("error_status: %x\r", hrtcfg->error_status);
-  iprintf("newid[0]: %x\r", hrtcfg->newid[0]);
-  iprintf("mon_version: %x\r", hrtcfg->mon_version);
-  iprintf("mon_revision: %x\r", hrtcfg->mon_revision);
-  iprintf("whd_base: %x\r", hrtcfg->whd_base);
-  iprintf("whd_version: %x\r", hrtcfg->whd_version);
-  iprintf("whd_revision: %x\r", hrtcfg->whd_revision);
-  iprintf("max_chip: %x\r", hrtcfg->max_chip);
-  iprintf("whd_expstrt: %x\r", hrtcfg->whd_expstrt);
-  iprintf("whd_expstop: %x\r", hrtcfg->whd_expstop);
 }
 
 
@@ -229,88 +141,11 @@ char UploadActionReplay()
       }
     }
   } else {
-    int i,j;
-    unsigned int adr, size, base=0x100000, offset=0xc00000, data;
-
-    //hrtcfg_print();
-
     if (RAOpen(&romfile, "HRTMON  ROM")) {
-      puts("Uploading HRTmon ROM...");
-      size = ((romfile.file.size)+511)>>9;
-      iprintf("File size: %d.%01dkB\r", romfile.file.size>>10, romfile.file.size&0x3ff);
-      iprintf("[");
-      for (i=0; i<size; i++) {
-        if (!(i&31)) iprintf("*");
-        RARead(&romfile,sector_buffer,512);
-        EnableOsd();
-        adr = 0xa10000 + i*512;
-        SPI(OSD_CMD_WR);
-        SPIN(); SPIN(); SPIN(); SPIN();
-        SPI(adr&0xff); adr = adr>>8;
-        SPI(adr&0xff); adr = adr>>8;
-        SPIN(); SPIN(); SPIN(); SPIN();
-        SPI(adr&0xff); adr = adr>>8;
-        SPI(adr&0xff); adr = adr>>8;
-        SPIN(); SPIN(); SPIN(); SPIN();
-        for (j=0; j<512; j=j+4) {
-          SPI(sector_buffer[j+0]);
-          SPI(sector_buffer[j+1]);
-          SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN();
-          SPI(sector_buffer[j+2]);
-          SPI(sector_buffer[j+3]);
-          SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN(); SPIN();
-        }
-        DisableOsd();
-      }
-      iprintf("]\r");
-/*
-  uint8_t dummy[4+4];
-  uint8_t jmps[3*4];
-  uint32_t mon_size;
-  uint8_t col0h, col0l, col1h, col1l;
-  uint8_t right;
-  uint8_t keyboard;
-  uint8_t key;
-  uint8_t ide;
-  uint8_t a1200;
-  uint8_t aga;
-  uint8_t insert;
-  uint8_t delay;
-  uint8_t lview;
-  uint8_t cd32;
-  uint8_t screenmode;
-  uint8_t novbr;
-  uint8_t entered;
-  uint8_t hexmode;
-  uint16_t error_sr;
-  uint32_t error_pc;
-  uint16_t error_status;
-  uint8_t newid[6];
-  uint16_t mon_version;
-  uint16_t mon_revision;
-  uint32_t whd_base;
-  uint16_t whd_version;
-  uint16_t whd_revision;
-  uint32_t max_chip;
-  uint32_t whd_expstrt;
-  uint32_t whd_expstop;
-*/
-      // configure HRTmon
-      //hrtcfg->col0h       = 0x00;
-      //hrtcfg->col0l       = 0x5a;
-      //hrtcfg->col1h       = 0x0f;
-      //hrtcfg->col1l       = 0xff;
-      //hrtcfg->aga         = 0; // AGA?
-      //hrtcfg->cd32        = 0; // CD32?
-      //hrtcfg->screenmode  = 0; // NTSC?
-      //hrtcfg->novbr       = 1; // VBR?
-      //hrtcfg->hexmode     = 1; // HEXMODE?
-      //hrtcfg->entered     = 0;
-      //hrtcfg->keyboard    = 0; // LANG?
-      //hrtcfg->max_chip    = 1; // CHIPMEM_SIZE? (in 512kB blocks)
-      //hrtcfg->mon_size    = 0x800000; // MON_SIZE? (this could be wrong, but this is in WinUAE)
-      //hrtcfg->ide         = 0; // IDE_ENABLED?
-      //hrtcfg->a1200       = 1; // IDE_TYPE? (1 = A600/A1200, 0 = A4000)
+      int adr, data;
+      puts("Uploading HRTmon ROM... ");
+      SendFileV2(&romfile, NULL, 0, 0xa10000, (romfile.file.size+511)>>9);
+      // HRTmon config
       adr = 0xa10000 + 20;
       spi_osd_cmd32le_cont(OSD_CMD_WR, adr);
       data = 0x00800000; // mon_size, 4 bytes
@@ -376,8 +211,10 @@ char UploadActionReplay()
       SPIN(); SPIN(); SPIN(); SPIN();
       DisableOsd();
       SPIN(); SPIN(); SPIN(); SPIN();
-
       return(1);
+    } else {
+      puts("\rhrtmon.rom not found!\r");
+      return(0);
     }
   }
   return(0);
@@ -482,7 +319,7 @@ unsigned char LoadConfiguration(char *filename)
   }
 
   // wait up to 3 seconds for keyboard to appear. If it appears wait another
-  // two seconds for the user tp press a key
+  // two seconds for the user to press a key
   int8_t keyboard_present = 0;
   for(i=0;i<3;i++) {
     unsigned long to = GetTimer(1000);
@@ -605,7 +442,6 @@ void ApplyConfiguration(char reloadkickstart)
   siprintf(s, "Fast RAM size : %s", config_memory_fast_msg[config.memory >> 4 & 0x03]);
   BootPrint(s);
 
-
   siprintf(s, "Floppy drives : %u", config.floppy.drives + 1);
   BootPrint(s);
   siprintf(s, "Floppy speed  : %s", config.floppy.speed ? "fast": "normal");
@@ -659,7 +495,6 @@ void ApplyConfiguration(char reloadkickstart)
 
       iprintf("Reloading kickstart ...\r");
       TIMER_wait(1000);
-      //BootExit();
       EnableOsd();
       SPI(OSD_CMD_RST);
       rstval |= (SPI_RST_CPU | SPI_CPU_HLT);
@@ -684,10 +519,8 @@ void ApplyConfiguration(char reloadkickstart)
       SPI(rstval);
       DisableOsd();
       SPIN(); SPIN(); SPIN(); SPIN();
-      //while ((read32(REG_SYS_STAT_ADR) & 0x2));
     } else {
       iprintf("Resetting ...\r");
-      //OsdReset(RESET_NORMAL);
       EnableOsd();
       SPI(OSD_CMD_RST);
       rstval |= (SPI_RST_USR | SPI_RST_CPU);
@@ -700,7 +533,6 @@ void ApplyConfiguration(char reloadkickstart)
       SPI(rstval);
       DisableOsd();
       SPIN(); SPIN(); SPIN(); SPIN();
-      //while ((read32(REG_SYS_STAT_ADR) & 0x2));
     }
   }
 }
