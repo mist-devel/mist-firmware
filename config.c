@@ -367,7 +367,10 @@ void ApplyConfiguration(char reloadkickstart)
       if (!UploadKickstart(config.kickstart.name)) {
         strcpy(config.kickstart.name, "KICK    ");
         if (!UploadKickstart(config.kickstart.name)) {
-          FatalError(6);
+          strcpy(config.kickstart.name, "AROS    ");
+          if (!UploadKickstart(config.kickstart.name)) {
+            FatalError(6);
+          }  
         }
       }
 
