@@ -489,6 +489,10 @@ void SendFileV2(RAFile* file, unsigned char* key, int keysize, int address, int 
   unsigned int keyidx=0;
   iprintf("File size: %dkB\r", size>>1);
   iprintf("[");
+  if (keysize) {
+    // read header
+    RARead(file, sector_buffer, 0xb);
+  }
   for (i=0; i<size; i++) {
     if (!(i&31)) iprintf("*");
     RARead(file, sector_buffer, 512);
