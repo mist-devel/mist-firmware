@@ -56,7 +56,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "usb.h"
 #include "debug.h"
 #include "mist_cfg.h"
-
+#include "cdc_enumerate.h"
 
 const char version[] = {"$VER:ATH" VDATE};
 

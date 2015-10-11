@@ -8,6 +8,9 @@
 #include "fpga.h"
 #include "cdc_control.h"
 #include "debug.h"
+#include "user_io.h"
+#include "mmc.h"
+#include "ikbd.h"
 
 #define CONFIG_FILENAME  "MIST    CFG"
 

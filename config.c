@@ -1,9 +1,12 @@
 // config.c
 
+#include <stdio.h>
+#include <string.h>
 
 #include "errors.h"
 #include "hardware.h"
 #include "mmc.h"
+#include "boot.h"
 #include "fat.h"
 #include "osd.h"
 #include "fpga.h"
@@ -12,10 +15,8 @@
 #include "firmware.h"
 #include "menu.h"
 #include "config.h"
-
-#include <stdio.h>
-#include <string.h>
-
+#include "user_io.h"
+#include "usb/usb.h"
 
 configTYPE config;
 fileTYPE file;

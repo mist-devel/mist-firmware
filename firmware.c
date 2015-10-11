@@ -25,10 +25,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "fat.h"
 #include "firmware.h"
 
-#ifdef __GNUC__
-#define __noinline
-#endif
-
 /* polynomial 0xEDB88320 */
 const unsigned long crc32_table[256] =
 { 
@@ -163,7 +159,7 @@ char *GetFirmwareVersion(fileTYPE *file, char *name) {
 #define GCC_OPTIMZES_TOO_MUCH
 
 #pragma section_code_init
-RAMFUNC __noinline void WriteFirmware(fileTYPE *file, char *name)
+RAMFUNC void WriteFirmware(fileTYPE *file, char *name)
 {
     unsigned long read_size;
     unsigned long i;

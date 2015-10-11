@@ -83,6 +83,7 @@ typedef struct {
 #define USB_ERROR_INVALID_MAX_PKT_SIZE			    0xDA
 #define USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED           0xDB
 #define USB_ERROR_CONFIGURAION_SIZE_MISMATCH                0xDC
+#define USB_ERROR_NO_SUCH_DEVICE                            0xDE
 #define USB_ERROR_TRANSFER_TIMEOUT			    0xFF
 
 struct usb_device_entry;
@@ -257,5 +258,6 @@ uint8_t usb_in_transfer( usb_device_t *, ep_t *ep, uint16_t *nbytesptr, uint8_t*
 uint8_t usb_out_transfer( usb_device_t *, ep_t *ep, uint16_t nbytes, uint8_t* data );
 uint8_t usb_release_device(uint8_t parent, uint8_t port);
 usb_device_t *usb_get_devices();
-
+uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed);
+  
 #endif // USB_H

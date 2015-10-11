@@ -109,6 +109,6 @@ void virtual_joystick_remap(char *);
 void joystick_key_map_init(void);
 void joystick_key_map(char *);
 
-
+void joy_key_map_init(void);
 
 #endif // HID_H

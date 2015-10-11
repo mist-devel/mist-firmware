@@ -1,9 +1,10 @@
 #include "AT91SAM7S256.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
 #include "hardware.h"
 #include "osd.h"
-
 #include "user_io.h"
 #include "archie.h"
 #include "cdc_control.h"
@@ -14,6 +15,9 @@
 #include "fat.h"
 #include "spi.h"
 #include "mist_cfg.h"
+#include "mmc.h"
+#include "tos.h"
+#include "errors.h"
 
 // up to 16 key can be remapped
 #define MAX_REMAP  16

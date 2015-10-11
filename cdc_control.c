@@ -3,6 +3,8 @@
 
 */
 
+#include <stdio.h>
+
 #include "cdc_enumerate.h"
 #include "cdc_control.h"
 #include "hardware.h"
