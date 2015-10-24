@@ -15,6 +15,7 @@
 #include "max3421e.h"
 #include "hardware.h"
 #include "tos.h"
+#include "user_io.h"
 
 #define MAX_FRAMELEN 1536
 

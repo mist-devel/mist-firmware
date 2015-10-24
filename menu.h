@@ -114,7 +114,6 @@ void InsertFloppy(adfTYPE *drive);
 void HandleUI(void);
 void PrintDirectory(void);
 void ScrollLongName(void);
-void ErrorMessage(const char *message, unsigned char code);
 void InfoMessage(char *message);
 void ShowSplash();
 void HideSplash();

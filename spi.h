@@ -39,6 +39,7 @@ RAMFUNC void spi_block_read(char *addr);
 RAMFUNC void spi_read(char *addr, uint16_t len);
 void spi_block_write(char *addr);
 void spi_write(char *addr, uint16_t len);
+void spi_block(unsigned short num);
 
 /* OSD related SPI functions */
 void spi_osd_cmd_cont(unsigned char cmd);
@@ -54,7 +55,8 @@ void spi_osd_cmd32le(unsigned char cmd, unsigned long parm);
 void spi_uio_cmd_cont(unsigned char cmd);
 void spi_uio_cmd(unsigned char cmd);
 void spi_uio_cmd8(unsigned char cmd, unsigned char parm);
-
+void spi_uio_cmd8_cont(unsigned char cmd, unsigned char parm);
+  
 /* spi functions for max3421 */
 #define spi_max_start()  { *AT91C_PIOA_CODR = USB_SEL; }
 #define spi_max_end()    {  spi_wait4xfer_end(); *AT91C_PIOA_SODR = USB_SEL; }

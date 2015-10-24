@@ -37,8 +37,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "config.h"
 #include "boot.h"
 #include "osd.h"
-
 #include "fpga.h"
+#include "tos.h"
 
 #define CMD_HDRID 0xAACA
 
@@ -614,7 +614,7 @@ char BootPrint(const char *text)
 {
     if(!minimig_v1()) {
       iprintf("%s\n", text);
-      return; // TODO
+      return 0;
     }
 
     unsigned char c1, c2, c3, c4;

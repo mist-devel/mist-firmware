@@ -1,6 +1,7 @@
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
-#include "string.h"
 #include "usb.h"
 #include "max3421e.h"
 #include "timer.h"
@@ -163,7 +164,7 @@ void joystick_key_map(char *s) {
     // fill sequentially the available mapping slots, stopping at first empty one
     if(!joy_key_map[i].mask) {
       joy_key_map[i].modifier = 0;
-      for(j=0;j<7;j++)
+      for(j=0;j<6;j++)
         joy_key_map[i].keys[j] = 0;
       count  = 0;
       token  = strtok (s, ",");

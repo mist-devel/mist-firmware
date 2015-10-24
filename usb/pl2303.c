@@ -16,9 +16,10 @@
 #include "pl2303.h"
 #include "max3421e.h"
 #include "user_io.h"
+#include "timer.h"
 
 // list of supported vid/pid pairs
-static const supported_devices[][2] = {
+static const unsigned short supported_devices[][2] = {
   { 0x067b, 0x2303 }, // Prolific
   { 0x0557, 0x2008 }, // ATEN International Co., Ltd UC-232A Serial
   { 0x0547, 0x2008 }, // ATEN 
@@ -149,7 +150,7 @@ void pl2303_settings(uint32_t rate, uint8_t bits, uint8_t parity, uint8_t stop) 
 }
 
 static int8_t pl2303_tx_dev(usb_device_t *dev, uint8_t *data, uint8_t len) {
-  if(!dev) return;
+  if(!dev) return USB_ERROR_NO_SUCH_DEVICE;
 
   usb_pl2303_info_t *info = &(dev->pl2303_info);
 

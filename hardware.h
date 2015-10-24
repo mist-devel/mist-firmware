@@ -59,6 +59,7 @@
 
 #define VBL           AT91C_PIO_PA7
 
+char mmc_inserted(void);
 void USART_Init(unsigned long baudrate);
 void USART_Write(unsigned char c);
 unsigned char USART_Read(void);
@@ -81,7 +82,12 @@ void DisableIO(void);
 
 void hexdump(void *data, uint16_t size, uint16_t offset);
 #define DEBUG_FUNC_IN() 
- 
+#define DEBUG_FUNC_OUT() 
+
+#ifdef __GNUC__
+void __init_hardware(void);
+#endif
+
 // minimig reset stuff
 #define SPI_RST_USR         0x1
 #define SPI_RST_CPU         0x2

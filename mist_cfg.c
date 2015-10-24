@@ -7,6 +7,7 @@
 #include "mist_cfg.h"
 #include "user_io.h"
 #include "usb/usb.h"
+#include "usb/hid.h"
 
 //// mist_ini_parse() ////
 void mist_ini_parse()

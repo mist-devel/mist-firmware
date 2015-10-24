@@ -1,9 +1,10 @@
 #include "AT91SAM7S256.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
 #include "hardware.h"
 #include "osd.h"
-
 #include "user_io.h"
 #include "archie.h"
 #include "cdc_control.h"
@@ -14,6 +15,9 @@
 #include "fat.h"
 #include "spi.h"
 #include "mist_cfg.h"
+#include "mmc.h"
+#include "tos.h"
+#include "errors.h"
 
 // up to 16 key can be remapped
 #define MAX_REMAP  16
@@ -1344,13 +1348,32 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
     // remap keycodes if requested
     for(i=0;(i<6) && k[i];i++) {
       for(j=0;j<MAX_REMAP;j++) {
-	if(key_remap_table[j][0] == k[i]) {
-	  k[i] = key_remap_table[j][1];
-	  break;
-	}
+		if(key_remap_table[j][0] == k[i]) {
+			k[i] = key_remap_table[j][1];
+			break;
+		}
       }
     }
-    
+	// remap modifiers to each other if requested
+	//  bit  0     1      2    3    4     5      6    7
+    //  key  LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
+    if (false) { // (disabled until we configure it via INI)
+		uint8_t default_mod_mapping [8] = {
+			  0x1,
+			  0x2,
+			  0x4,
+			  0x8,
+			  0x10,
+			  0x20,
+			  0x40,
+			  0x80
+		};
+		uint8_t modifiers = 0;
+		for(i=0; i<8; i++) 
+			if (m & (0x01<<i))  modifiers |= default_mod_mapping[i];
+		m = modifiers;
+	}
+	
     // modifier keys are used as buttons in emu mode
     if(emu_mode != EMU_NONE) {
       char last_btn = emu_state & (JOY_BTN1 | JOY_BTN2 | JOY_BTN3 | JOY_BTN4);

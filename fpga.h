@@ -3,6 +3,7 @@
 
 #include "rafile.h"
 
+void fpga_init(char *name);
 unsigned char ConfigureFpga(char *) RAMFUNC;
 void SendFile(RAFile *file);
 void SendFileEncrypted(RAFile *file,unsigned char *key,int keysize);

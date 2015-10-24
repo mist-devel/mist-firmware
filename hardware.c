@@ -17,11 +17,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <ctype.h>
 #include "AT91SAM7S256.h"
 #include "stdio.h"
 #include "hardware.h"
 #include "user_io.h"
 #include "xmodem.h"
+#include "ikbd.h"
 
 uint8_t rstval = 0;
 
