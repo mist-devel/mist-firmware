@@ -12,7 +12,7 @@
 #include "debug.h"
 #include "keycodes.h"
 #include "ikbd.h"
-#include "fat.h"
+#include "idxfile.h"
 #include "spi.h"
 #include "mist_cfg.h"
 #include "mmc.h"
@@ -25,7 +25,7 @@ unsigned char key_remap_table[MAX_REMAP][2];
 
 #define BREAK  0x8000
 
-fileTYPE sd_image;
+IDXFile sd_image;
 
 extern fileTYPE file;
 extern char s[40];
@@ -130,7 +130,7 @@ static void PollAdc() {
 void user_io_init() {
   // no sd card image selected, SD card accesses will go directly
   // to the card
-  sd_image.size = 0;
+  sd_image.file.size = 0;
 
   // mark remap table as unused
   memset(key_remap_table, 0, sizeof(key_remap_table));
@@ -493,8 +493,12 @@ static void user_io_set_index(unsigned char index) {
 
 void user_io_file_mount(fileTYPE *file) {
   iprintf("selected %.12s with %d bytes\n", file->name, file->size);
-  memcpy(&sd_image, file, sizeof(fileTYPE));
 
+  memcpy(&sd_image.file, file, sizeof(fileTYPE));
+
+  // build index for fast random access
+  IDXIndex(&sd_image);
+  
   // notify core of possible sd image change
   spi_uio_cmd8(UIO_SET_SDSTAT, 0);
 }
@@ -938,11 +942,15 @@ void user_io_poll() {
 	    // ... and write it to disk
 	    DISKLED_ON;
 
-	    if(sd_image.size) {
-	      FileSeek(&sd_image, lba, SEEK_SET);
-	      FileWrite(&sd_image, wr_buf);
+#if 1
+	    if(sd_image.file.size) {
+	      IDXSeek(&sd_image, lba);
+	      IDXWrite(&sd_image, wr_buf);
 	    } else
 	      MMC_Write(lba, wr_buf);
+#else
+	    hexdump(wr_buf, 512, 0);
+#endif
 
 	    DISKLED_OFF;
 	  }
@@ -957,9 +965,9 @@ void user_io_poll() {
 	  // (C64 floppy does that ...)
 	  if(buffer_lba != lba) {
 	    DISKLED_ON;
-	    if(sd_image.size) {
-	      FileSeek(&sd_image, lba, SEEK_SET);
-	      FileRead(&sd_image, buffer);
+	    if(sd_image.file.size) {
+	      IDXSeek(&sd_image, lba);
+	      IDXRead(&sd_image, buffer);
 	    } else {
 	      // sector read
 	      // read sector from sd card if it is not already present in
@@ -971,6 +979,8 @@ void user_io_poll() {
 	  }
 
 	  if(buffer_lba == lba) {
+	    //	    hexdump(buffer, 32, 0);
+
 	    // data is now stored in buffer. send it to fpga
 	    spi_uio_cmd_cont(UIO_SECTOR_RD);
 	    spi_block_write(buffer);
@@ -983,9 +993,9 @@ void user_io_poll() {
 	  // just load the next sector now, so it may be prefetched
 	  // for the next request already
 	  DISKLED_ON;
-	  if(sd_image.size) {
-	    FileSeek(&sd_image, lba+1, SEEK_SET);
-	    FileRead(&sd_image, buffer);
+	  if(sd_image.file.size) {
+	    IDXSeek(&sd_image, lba+1);
+	    IDXRead(&sd_image, buffer);
 	  } else {
 	    // sector read
 	    // read sector from sd card if it is not already present in

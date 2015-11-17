@@ -114,7 +114,7 @@ const char* atari_chipset[]={"ST","STE","MegaSTE","STEroids"};
 unsigned char config_autofire = 0;
 
 // file selection menu variables
-char *fs_pFileExt = NULL;
+char fs_pFileExt[4] = "xxx";
 unsigned char fs_Options;
 unsigned char fs_MenuSelect;
 unsigned char fs_MenuCancel;
@@ -123,6 +123,8 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 {
   // this function displays file selection menu
 
+  iprintf("%s - %s\n", pFileExt, fs_pFileExt);
+  
   if (strncmp(pFileExt, fs_pFileExt, 3) != 0) // check desired file extension
   { // if different from the current one go to the root directory and init entry buffer
     ChangeDirectory(DIRECTORY_ROOT);
@@ -151,7 +153,8 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
   }
 
   iprintf("pFileExt = %3s\n", pFileExt);
-  fs_pFileExt = pFileExt;
+  strcpy(fs_pFileExt, pFileExt);
+  //  fs_pFileExt = pFileExt;
   fs_Options = Options;
   fs_MenuSelect = MenuSelect;
   fs_MenuCancel = MenuCancel;
