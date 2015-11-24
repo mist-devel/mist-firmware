@@ -27,11 +27,11 @@ typedef struct
         unsigned long  index_size;
 } IDXFile;
 
-inline unsigned char IDXRead(IDXFile *file, unsigned char *pBuffer) {
+static inline unsigned char IDXRead(IDXFile *file, unsigned char *pBuffer) {
   return FileRead(&(file->file), pBuffer);
 }
 
-inline unsigned char IDXWrite(IDXFile *file, unsigned char *pBuffer) {
+static inline unsigned char IDXWrite(IDXFile *file, unsigned char *pBuffer) {
   return FileWrite(&(file->file), pBuffer);
 }
   
