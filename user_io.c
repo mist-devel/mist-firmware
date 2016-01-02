@@ -242,6 +242,12 @@ void user_io_detect_core_type() {
       strcpy(s+8, "ROM");
       if (FileOpen(&file, s))
 	user_io_file_tx(&file, 0);
+	
+      // check if there's a <core>.vhd present
+      strcpy(s+8, "VHD");
+      if (FileOpen(&file, s))
+	user_io_file_mount(&file);
+
     }
     
     // release reset
