@@ -136,6 +136,9 @@ void user_io_init() {
   memset(key_remap_table, 0, sizeof(key_remap_table));
 
   InitADC();
+  
+  if(user_io_menu_button()) DEBUG_MODE_VAR = DEBUG_MODE ? 0 : DEBUG_MODE_VALUE;
+  iprintf("debug_mode = %d\n", DEBUG_MODE);
 
   ikbd_init();
 }
@@ -1142,7 +1145,7 @@ void user_io_poll() {
 }
 
 char user_io_dip_switch1() {
-  return((adc_state & 2)?1:0);
+  return(((adc_state & 2)?1:0) || DEBUG_MODE);
 }
 
 char user_io_menu_button() {

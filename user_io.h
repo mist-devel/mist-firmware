@@ -164,4 +164,8 @@ void user_io_key_remap(char *);
 #define USB_LOAD_VAR   *(int*)(0x0020FF04)
 #define USB_LOAD_VALUE 12345678
 
+#define DEBUG_MODE_VAR    *(int*)(0x0020FF08)
+#define DEBUG_MODE_VALUE  87654321
+#define DEBUG_MODE        (DEBUG_MODE_VAR == DEBUG_MODE_VALUE)
+
 #endif // USER_IO_H
