@@ -846,8 +846,12 @@ unsigned char GetFPGAStatus(void)
 
 void fpga_init(char *name) {
   unsigned long time = GetTimer(0);
+  int loaded_from_usb = USB_LOAD_VAR;
 
-  if(!user_io_dip_switch1() || name) {
+  iprintf("loaded_from_usb = %d\n", USB_LOAD_VAR == USB_LOAD_VALUE);
+  USB_LOAD_VAR = 0;
+
+  if(loaded_from_usb != USB_LOAD_VALUE) {
     unsigned char ct;
 
     if (ConfigureFpga(name)) {

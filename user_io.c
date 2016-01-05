@@ -656,7 +656,6 @@ void user_io_send_buttons(char force) {
 
 void user_io_poll() {
 
-  if(user_io_dip_switch1()) {
     // check of core has changed from a good one to a not supported on
     // as this likely means that the user is reloading the core via jtag
     unsigned char ct;
@@ -672,6 +671,7 @@ void user_io_poll() {
     else {
       // core type has changed
       if(++ct_cnt == 255) {
+	  USB_LOAD_VAR = USB_LOAD_VALUE;
 	// wait for a new valid core id to appear
 	while((ct &  0xf0) != 0xa0) {
 	  EnableIO();
@@ -685,7 +685,6 @@ void user_io_poll() {
 	for(;;);
       }
     }
-  }
 
   if((core_type != CORE_TYPE_MINIMIG) &&
      (core_type != CORE_TYPE_MINIMIG2) &&
