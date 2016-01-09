@@ -76,6 +76,8 @@ char UploadKickstart(char *name)
         SendFile(&romfile);
       } else {
         SendFileV2(&romfile, NULL, 0, 0xf80000, romfile.size>>9);
+        RAOpen(&romfile, filename);
+        SendFileV2(&romfile, NULL, 0, 0xe00000, romfile.size>>9);
       }
       return(1);
     } else if ((romfile.size == 0x8000b) && keysize) {
@@ -86,6 +88,8 @@ char UploadKickstart(char *name)
         SendFileEncrypted(&romfile,romkey,keysize);
       } else {
         SendFileV2(&romfile, romkey, keysize, 0xf80000, romfile.size>>9);
+        RAOpen(&romfile, filename);
+        SendFileV2(&romfile, romkey, keysize, 0xe00000, romfile.size>>9);
       }
       return(1);
     } else if (romfile.size == 0x40000) {
