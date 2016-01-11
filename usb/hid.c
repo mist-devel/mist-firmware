@@ -549,6 +549,13 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
     if(dev->hid_info.iface[i].device_type == HID_DEVICE_KEYBOARD)
       hid_set_report(dev, dev->hid_info.iface[i].iface_idx, 2, 0, 1, &kbd_led_state);
 
+  //Logitech K400r : set F1-F12 as primary functions
+  if((vid == 0x046d) && (pid == 0xc52b)) {
+	  hid_set_report(dev, 2, 2, 16, 7, "\x10\x01\x03\x15\x00\x00\x00"); timer_delay_msec(100);
+	  hid_set_report(dev, 2, 2, 16, 7, "\x10\x01\x0F\x15\x01\x00\x00"); timer_delay_msec(100);
+	  hid_set_report(dev, 2, 2, 16, 7, "\x10\x01\x10\x15\x00\x00\x00"); timer_delay_msec(100);
+  }
+
   info->bPollEnable = true;
   return 0;
 }
