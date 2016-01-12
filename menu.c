@@ -209,6 +209,16 @@ void HandleUI(void)
 	plus=false;
 	minus=false;
 
+	if((user_io_core_type() == CORE_TYPE_8BIT) && user_io_is_8bit_with_config_string()) {
+		char *p = user_io_8bit_get_string(0);  // get core name
+		if(p && p[0] && !strcmp(p, "MENU") && (menustate == MENU_NONE2)) {
+			menusub = 0;
+            OsdClear();
+            OsdEnable(DISABLE_KEYBOARD);
+			SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);		
+		}
+	}
+
     switch (c)
     {
     case KEY_CTRL :
