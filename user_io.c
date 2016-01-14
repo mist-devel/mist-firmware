@@ -189,6 +189,8 @@ static void user_io_read_core_name() {
 }
 
 void user_io_detect_core_type() {
+  core_name[0] = 0;
+
   EnableIO();
   core_type = SPI(0xff);
   DisableIO();
@@ -242,6 +244,9 @@ void user_io_detect_core_type() {
     // check if core has a config string
     core_type_8bit_with_config_string = (user_io_8bit_get_string(0) != NULL);
 
+    // set core name. This currently only sets a name for the 8 bit cores
+    user_io_read_core_name();
+
     // send a reset
     user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);
 
@@ -275,9 +280,6 @@ void user_io_detect_core_type() {
     
   } break;
   }
-
-  // set core name. This currently only sets a name for the 8 bit cores
-  user_io_read_core_name();
 }
 
 void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
