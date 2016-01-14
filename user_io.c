@@ -156,8 +156,8 @@ char minimig_v2() {
 }
 
 char user_io_create_config_name(char *s) {
-  char *p = user_io_8bit_get_string(0);  // get core name
-  if(p && p[0]) {
+  char *p = user_io_get_core_name();
+  if(p[0]) {
     strcpy(s, p);
     while(strlen(s) < 8) strcat(s, " ");
     strcat(s, "CFG");
@@ -170,6 +170,23 @@ char user_io_create_config_name(char *s) {
 char user_io_is_8bit_with_config_string() {
   return core_type_8bit_with_config_string;
 }  
+
+static char core_name[16+1];  // max 16 bytes for core name
+
+char *user_io_get_core_name() {
+  return core_name;
+}
+
+static void user_io_read_core_name() {
+  core_name[0] = 0;
+
+  if(user_io_is_8bit_with_config_string()) {
+    char *p = user_io_8bit_get_string(0);  // get core name
+    if(p && p[0]) strcpy(core_name, p);
+  }
+
+  iprintf("Core name is \"%s\"\n", core_name);
+}
 
 void user_io_detect_core_type() {
   EnableIO();
@@ -258,6 +275,9 @@ void user_io_detect_core_type() {
     
   } break;
   }
+
+  // set core name. This currently only sets a name for the 8 bit cores
+  user_io_read_core_name();
 }
 
 void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
@@ -465,7 +485,7 @@ static long kbd_timer = 0;
 
 static void kbd_fifo_minimig_send(unsigned short code) {
   spi_uio_cmd8((code&OSD)?UIO_KBD_OSD:UIO_KEYBOARD, code & 0xff);
-  kbd_timer = GetTimer(10);  // next key after 10ms earliest
+  kbd_timer = GetTimer(50);  // next key after 50ms earliest
 }
 
 static void kbd_fifo_enqueue(unsigned short code) {
@@ -892,11 +912,13 @@ void user_io_poll() {
       // cores that don't implement this command
       if((c & 0xf0) == 0x50) {
 
+#if 0
 	// debug: If the io controller reports and non-sdhc card, then
 	// the core should never set the sdhc flag
 	if((c & 3) && !MMC_IsSDHC() && (c & 0x04))
 	  iprintf("WARNING: SDHC access to non-sdhc card\n");
- 	
+#endif
+	
 	// check if core requests configuration
 	if(c & 0x08) {
 	  iprintf("core requests SD config\n");
@@ -1073,7 +1095,24 @@ void user_io_poll() {
 	mouse_pos[X] = mouse_pos[Y] = 0;
       }
     }
-
+    
+    // check for long press > 1 sec on menu button
+    // and toggle scandoubler on/off then
+    static unsigned long timer = 1;
+    if(user_io_menu_button()) {
+      if(timer == 1) 
+	timer = GetTimer(1000);
+      else if(timer != 2) {
+	if(CheckTimer(timer)) {
+	  // toggle video mode bit
+	  mist_cfg.scandoubler_disable = !mist_cfg.scandoubler_disable;
+	  user_io_send_buttons(1);
+	  timer = 2;
+	}
+      }
+    } else
+      timer = 1;
+  
     // --------------- THE FOLLOWING IS DEPRECATED AND WILL BE REMOVED ------------
     // ------------------------ USE SD CARD EMULATION INSTEAD ---------------------
 

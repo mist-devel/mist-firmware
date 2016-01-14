@@ -209,16 +209,6 @@ void HandleUI(void)
 	plus=false;
 	minus=false;
 
-	if((user_io_core_type() == CORE_TYPE_8BIT) && user_io_is_8bit_with_config_string()) {
-		char *p = user_io_8bit_get_string(0);  // get core name
-		if(p && p[0] && !strcmp(p, "MENU") && (menustate == MENU_NONE2)) {
-			menusub = 0;
-            OsdClear();
-            OsdEnable(DISABLE_KEYBOARD);
-			SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);		
-		}
-	}
-
     switch (c)
     {
     case KEY_CTRL :
@@ -357,12 +347,17 @@ void HandleUI(void)
 	    menustate = MENU_MIST_MAIN1;
 	  else if(user_io_core_type() == CORE_TYPE_ARCHIE)
 	    menustate = MENU_ARCHIE_MAIN1;
-	  else
-	    menustate = MENU_8BIT_MAIN1;
+	  else {
+	    // the "menu" core is special in jumps directly to the core selection menu
+	    if(!strcmp(user_io_get_core_name(), "MENU"))
+	      SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_NONE1, 0);
+	    else
+	      menustate = MENU_8BIT_MAIN1;
+	  }
 	  
-	    menusub = 0;
-            OsdClear();
-            OsdEnable(DISABLE_KEYBOARD);
+	  menusub = 0;
+	  OsdClear();
+	  OsdEnable(DISABLE_KEYBOARD);
         }
         break;
 
@@ -449,10 +444,9 @@ void HandleUI(void)
         char entry=0;
 
 	menumask=0;
-	// string at first index is the core name
-	p = user_io_8bit_get_string(0);
-	if(!p || !strlen(p)) OsdSetTitle("8BIT", OSD_ARROW_RIGHT);
-	else                 OsdSetTitle(p, OSD_ARROW_RIGHT);
+	p = user_io_get_core_name();
+	if(!p[0]) OsdSetTitle("8BIT", OSD_ARROW_RIGHT);
+	else      OsdSetTitle(p, OSD_ARROW_RIGHT);
 
 	// check if there's a file type supported
 	p = user_io_8bit_get_string(1);

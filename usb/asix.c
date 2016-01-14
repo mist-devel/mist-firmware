@@ -564,8 +564,8 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
 
     if(status != old_status) {
       asix_debugf("status changed to cmd %x, eq=%d, prx=%d, ptx=%d, len=%d",
-		  status >> 24, (status & 0x4000)?1:0, (status & 0x2000)?1:0,
-		  (status & 0x1000)?1:0, status & 0xffff);
+		  status >> 24, (status & 0x40000)?1:0, (status & 0x20000)?1:0,
+		  (status & 0x10000)?1:0, status & 0xffff);
       old_status = status;
     }
     
@@ -609,7 +609,7 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
     }
 
     // poll for rx if receive irq has been cleared (PRX==0)
-    if(!(status & 0x2000)) {
+    if(!(status & 0x20000)) {
       // Try to read from bulk in endpoint (ep 2). Raw packets are received this way.
       // The last USB packet being part of an ethernet frame is marked by being shorter
       // than the USB FIFO size. If the last packet is exaclty if FIFO size, then an

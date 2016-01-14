@@ -608,6 +608,8 @@ unsigned char OsdGetCtrl(void)
        (user_io_core_type() == CORE_TYPE_8BIT))
       c1 = OsdKeyGet();
 
+    // OsdKeyGet permanently returns the last key event. 
+
     // generate normal "key-pressed" event
     c = 0;
     if (c1 != c2)
@@ -615,13 +617,15 @@ unsigned char OsdGetCtrl(void)
 
     c2 = c1;
 
+    // inject a fake "MENU_KEY" if no menu is visible and the menu key is loaded
+    if(!user_io_osd_is_visible() &&
+       !strcmp(user_io_get_core_name(), "MENU"))
+       c = KEY_MENU;
+
     // generate repeat "key-pressed" events
-    if (c1 & KEY_UPSTROKE)
-    {
+    if ((c1 & KEY_UPSTROKE) || (!c1))
         repeat = GetTimer(REPEATDELAY);
-    }
-    else if (CheckTimer(repeat))
-    {
+    else if (CheckTimer(repeat)) {
         repeat = GetTimer(REPEATRATE);
         if (c1 == KEY_UP || c1 == KEY_DOWN)
            c = c1;
