@@ -487,7 +487,7 @@ static long kbd_timer = 0;
 
 static void kbd_fifo_minimig_send(unsigned short code) {
   spi_uio_cmd8((code&OSD)?UIO_KBD_OSD:UIO_KEYBOARD, code & 0xff);
-  kbd_timer = GetTimer(50);  // next key after 50ms earliest
+  kbd_timer = GetTimer(10);  // next key after 10ms earliest
 }
 
 static void kbd_fifo_enqueue(unsigned short code) {
