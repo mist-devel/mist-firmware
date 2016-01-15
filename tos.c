@@ -1005,8 +1005,13 @@ void tos_poll() {
 void tos_update_sysctrl(unsigned long n) {
   //  iprintf(">>>>>>>>>>>> set sys %x, eth is %s\n", n, (n&TOS_CONTROL_ETHERNET)?"on":"off");
 
-  config.system_ctrl = n;
-  mist_set_control(config.system_ctrl);
+  // some of the usb drivers also call this without knowing which
+  // core is running. So make sure this only happens if the Atari ST (MIST)
+  // core is running
+  if(user_io_core_type() == CORE_TYPE_MIST) {
+    config.system_ctrl = n;
+    mist_set_control(config.system_ctrl);
+  }
 }
 
 static void nice_name(char *dest, char *src) {
