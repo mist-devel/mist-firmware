@@ -851,7 +851,7 @@ void fpga_init(char *name) {
   iprintf("loaded_from_usb = %d\n", USB_LOAD_VAR == USB_LOAD_VALUE);
   USB_LOAD_VAR = 0;
 
-  if(loaded_from_usb != USB_LOAD_VALUE) {
+  if((loaded_from_usb != USB_LOAD_VALUE) && !user_io_dip_switch1()) {
     unsigned char ct;
 
     if (ConfigureFpga(name)) {
