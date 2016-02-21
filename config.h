@@ -41,7 +41,7 @@ typedef struct
 	unsigned char pad1;
     hardfileTYPE  hardfile[2];
     unsigned char cpu;
-	unsigned char pad2;
+	unsigned char   autofire;
 } configTYPE;
 
 extern fileTYPE file;	// Temporary file available for use by other modules, to avoid repeated memory usage.

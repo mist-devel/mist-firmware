@@ -574,7 +574,7 @@ void ConfigAutofire(unsigned char autofire)
     if(minimig_v1())
       spi_osd_cmd(MM1_OSDCMDAUTOFIRE | (autofire & 0x03));
     else
-      spi_osd_cmd8(OSD_CMD_JOY, autofire & 0x03);
+      spi_osd_cmd8(OSD_CMD_JOY, autofire & 0x07);
 }
 
 // get key status

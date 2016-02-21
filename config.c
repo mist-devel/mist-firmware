@@ -379,10 +379,10 @@ void ApplyConfiguration(char reloadkickstart)
         }
       }
 
-      if (!CheckButton() && !config.disable_ar3) {
+      //if (!CheckButton() && !config.disable_ar3) {
         // load Action Replay
         UploadActionReplay();
-      }
+      //}
     }
   } else {
     ConfigChipset(config.chipset);

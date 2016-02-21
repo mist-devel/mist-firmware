@@ -94,6 +94,7 @@ const char *config_hdf_msg[] = {"Disabled", "Hardfile (disk img)", "MMC/SD card"
 const char *config_chipset_msg[] = {"OCS-A500", "OCS-A1000", "ECS", "---", "---", "---", "AGA", "---"};
 const char *config_turbo_msg[] = {"none", "CHIPRAM", "KICK", "BOTH"};
 char *config_autofire_msg[] = {"        AUTOFIRE OFF", "        AUTOFIRE FAST", "        AUTOFIRE MEDIUM", "        AUTOFIRE SLOW"};
+const char *config_cd32pad_msg[] =  {"OFF", "ON"};
 
 enum HelpText_Message {HELPTEXT_NONE,HELPTEXT_MAIN,HELPTEXT_HARDFILE,HELPTEXT_CHIPSET,HELPTEXT_MEMORY,HELPTEXT_VIDEO};
 const char *helptexts[]={
@@ -1798,16 +1799,18 @@ void HandleUI(void)
         strcpy(s, "     Chipset : ");
         strcat(s, config_chipset_msg[(config.chipset >> 2) & (minimig_v1()?3:7)]);
         OsdWrite(4, s, menusub == 3,0);
-        OsdWrite(5, "", 0,0);
+        strcpy(s, "     CD32Pad : ");
+        strcat(s, config_cd32pad_msg[(config.autofire >> 2) & 1]);
+        OsdWrite(5, s, menusub == 4,0);
         OsdWrite(6, "", 0,0);
-        OsdWrite(7, STD_EXIT, menusub == 4,0);
+        OsdWrite(7, STD_EXIT, menusub == 5,0);
 
         menustate = MENU_SETTINGS_CHIPSET2;
         break;
 
     case MENU_SETTINGS_CHIPSET2 :
 
-        if (down && menusub < 4)
+        if (down && menusub < 5)
         {
             menusub++;
             menustate = MENU_SETTINGS_CHIPSET1;
@@ -1838,7 +1841,6 @@ void HandleUI(void)
                 config.cpu = (config.cpu & 0x3) | ((_config_turbo & 0x3) << 2);
                 ConfigCPU(config.cpu);
             }
-
             else if (menusub == 2)
             {
                 config.chipset ^= CONFIG_NTSC;
@@ -1875,6 +1877,13 @@ void HandleUI(void)
                 ConfigChipset(config.chipset);
             }
             else if (menusub == 4)
+            {
+              //config.autofire = ((((config.autofire >> 2) + 1) & 1) << 2) || (config.autofire & 3);
+              config.autofire  = (config.autofire + 4) & 0x7;
+              menustate = MENU_SETTINGS_CHIPSET1;
+              ConfigAutofire(config.autofire);
+            }
+            else if (menusub == 5)
             {
                 menustate = MENU_MAIN2_1;
                 menusub = 2;
@@ -1929,7 +1938,7 @@ void HandleUI(void)
         OsdWrite(5, s, menusub == 3,0);
 
         strcpy(s, "      HRTmon: ");
-        strcat(s, config.disable_ar3 ? "disabled" : "enabled ");
+        strcat(s, (config.memory&0x40) ? "enabled " : "disabled");
         OsdWrite(6, s, menusub == 4,0);
 
         OsdWrite(7, STD_EXIT, menusub == 5,0);
@@ -1964,15 +1973,17 @@ void HandleUI(void)
             }
             else if (menusub == 3)
             {
-	      SelectFile("ROM", SCAN_LFN, MENU_ROMFILE_SELECTED, MENU_SETTINGS_MEMORY1, 0);
+              SelectFile("ROM", SCAN_LFN, MENU_ROMFILE_SELECTED, MENU_SETTINGS_MEMORY1, 0);
             }
             else if (menusub == 4)
             {
-		    if (!(config.disable_ar3 & 0x01)||(config.memory & 0x20))
-                    config.disable_ar3 |= 0x01;
-		    else
-                    config.disable_ar3 &= 0xFE;
-                menustate = MENU_SETTINGS_MEMORY1;
+              config.memory ^= 0x40;
+              ConfigMemory(config.memory);
+              //if (!(config.disable_ar3 & 0x01)||(config.memory & 0x20))
+              //  config.disable_ar3 |= 0x01;
+              //else
+              //  config.disable_ar3 &= 0xFE;
+              menustate = MENU_SETTINGS_MEMORY1;
             }
             else if (menusub == 5)
             {
