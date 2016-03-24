@@ -76,8 +76,8 @@ const unsigned short usb2ami[] = {
   0x0c,  // 2e: =
   0x1a,  // 2f: [
   0x1b,  // 30: ]
-  0x0d,  // 31: backslash
-  0x2b,  // 32: Europe 1
+  0x0d,  // 31: backslash (only on us keyboards)
+  0x2b,  // 32: Europe 1 (only on international keyboards)
   0x29,  // 33: ; 
   0x2a,  // 34: '
   0x00,  // 35: `
@@ -100,7 +100,7 @@ const unsigned short usb2ami[] = {
   0x6e | OSD,  // 46: Print Screen (OSD)
   NUM_LOCK_TOGGLE,  // 47: Scroll Lock (OSD)
   0x6f | OSD,  // 48: Pause
-  MISS,  // 49: Insert
+  0x0d,  // 49: Insert
   MISS,  // 4a: Home
   0x6c | OSD,  // 4b: Page Up (OSD)
   0x46,  // 4c: Delete
