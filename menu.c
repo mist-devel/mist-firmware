@@ -132,21 +132,30 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 
     // for 8 bit cores try to 
     if((user_io_core_type() == CORE_TYPE_8BIT) && chdir) {
-
+      int n;
       user_io_create_config_name(s);
       // try to change into subdir named after the core
       strcpy(s+8, "   ");
       iprintf("Trying to open work dir \"%s\"\n", s);
       
       ScanDirectory(SCAN_INIT, "",  SCAN_DIR | FIND_DIR);
-      
-      { int i;
-	for(i=0;i<nDirEntries;i++) {
-	  //	  iprintf("cmp %11s %11s\n", DirEntry[i].Name, s);
+	  // no return flag :(, so scan 10 times blindly...
+      for(n=0; n<10; n++) {
+	    int i;
+		char res = 0;
 
-	  if(strncasecmp(DirEntry[i].Name, s, 11) == 0)
-	    ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
-	}
+	    for(i=0;i<nDirEntries;i++) {
+	  	  //iprintf("cmp %11s %11s\n", DirEntry[i].Name, s);
+
+          if(strncasecmp(DirEntry[i].Name, s, 11) == 0) {
+	        ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
+			res = 1;
+            break;
+          }
+        }
+        if(res) break;
+		iSelectedEntry = MAXDIRENTRIES -1;
+		ScanDirectory(SCAN_NEXT_PAGE, "",  SCAN_DIR | FIND_DIR);
       }
     }
 
