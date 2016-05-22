@@ -19,10 +19,10 @@ This file defines how to handle mapping in the MiST controllers in various ways:
 #define MAX_VIRTUAL_JOYSTICK_REMAP 8
 #define MAX_JOYSTICK_KEYBOARD_MAP 16
 
-/*****************************************************************************/
-/*  Virtual joystick remap - custom parsing 
-    The mapping translates directions plus generic HID buttons (1-12) into a standard MiST "virtual joystick"
-*/
+/*****************************************************************************\
+   Virtual joystick remap - custom parsing 
+   The mapping translates directions plus generic HID buttons (1-12) into a sandard MiST "virtual joystick"
+\****************************************************************************/
 
 static struct {
     uint16_t vid;
@@ -118,7 +118,7 @@ void virtual_joystick_remap(char *s) {
 /* Translates USB input into internal virtual joystick,
    with some default handling for common/known gampads */
 
-   uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_input) {
+uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_input) {
 	
 	uint8_t i;
 	
@@ -247,3 +247,173 @@ void virtual_joystick_remap(char *s) {
   return vjoy;
 }
 
+/*****************************************************************************\
+   Virtual joystick to Keyboard mapping
+   binds different button states of internal joypad to verious key combinations
+\****************************************************************************/
+
+/*****************************************************************************/
+
+/*  Custom parsing for joystick->keyboard map
+    We bind a bitmask of the virtual joypad with a keyboard USB code 
+*/
+
+static struct {
+    uint16_t mask;
+    uint8_t modifier;
+    uint8_t keys[6];  // support up to 6 key codes
+} joy_key_map[MAX_JOYSTICK_KEYBOARD_MAP];
+
+void joy_key_map_init(void) {
+  memset(joy_key_map, 0, sizeof(joy_key_map));
+}
+
+
+void joystick_key_map(char *s) {
+  uint8_t i,j;
+  uint8_t count;
+  uint8_t assign=0;
+  uint8_t len = strlen(s);
+  uint8_t scancode=0;
+  char *token;
+  
+  hid_debugf("%s(%s)", __FUNCTION__, s);
+  
+  if(len < 3) {
+    hid_debugf("malformed entry");
+    return;
+  }
+  
+  // parse remap request
+  for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
+    // fill sequentially the available mapping slots, stopping at first empty one
+    if(!joy_key_map[i].mask) {
+      joy_key_map[i].modifier = 0;
+      for(j=0;j<6;j++)
+        joy_key_map[i].keys[j] = 0;
+      count  = 0;
+      token  = strtok (s, ",");
+      while(s) {
+        if (count==0) {
+          joy_key_map[i].mask = strtol(s, NULL, 16);
+        } else {
+          scancode = strtol(s, NULL, 16);
+          // set as modifier if scancode is on the relevant range (224 to 231)
+          if(scancode>223) {
+            //  bit  0     1      2    3    4     5      6    7
+            //  key  LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
+            //
+            scancode -= 223;
+            joy_key_map[i].modifier |= (0x01 << (scancode-1));
+          } else {
+            // max 6 keys
+            if (assign < 7)
+              joy_key_map[i].keys[assign++] = scancode;
+          }
+        }
+        s = strtok (NULL, ",");
+        count+=1;
+      }
+      return; // finished processing input string so exit
+    }
+  }
+}
+
+/*****************************************************************************/
+
+void virtual_joystick_keyboard ( uint16_t vjoy, uint8_t keyb_hit ) {
+	
+  // ignore if globally switched off
+  if(mist_cfg.joystick_disable_shortcuts)
+	  return;
+	
+	// use button combinations as shortcut for certain keys
+  uint8_t buf[6] = { 0,0,0,0,0,0 };
+  uint8_t key_hit = 0;
+  
+  // if OSD is open control it via USB joystick
+  if(user_io_osd_is_visible() && !mist_cfg.joystick_ignore_osd) {
+  
+		if(vjoy & JOY_A)     buf[0] = 0x28; // ENTER
+		if(vjoy & JOY_B)     buf[0] = 0x29; // ESC                
+		if(vjoy & JOY_START) buf[0] = 0x45; // F12
+		if(vjoy & JOY_LEFT)  buf[0] = 0x50; // left arrow
+		if(vjoy & JOY_RIGHT) buf[0] = 0x4F; // right arrow     
+		
+		// up and down uses SELECT or L for faster scrolling
+		if(vjoy & JOY_UP) {
+			if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[1] = 0x4B; // page up
+			else buf[1] = 0x52; // up arrow
+		}
+			if(vjoy & JOY_DOWN) {
+			if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[1] = 0x4E; // page down
+			else buf[1] = 0x51; // down arrow
+		}       
+		user_io_kbd(0x00, buf, UIO_PRIORITY_GAMEPAD); // generate key events
+		if (buf[0]!=0 || buf[1]!=0) {
+			key_hit=1;
+		}
+		
+  } else {
+		
+		// shortcuts mapped if start is pressed (take priority)
+		if (vjoy & JOY_START) {
+			if(vjoy & JOY_A)       buf[0] = 0x28; // ENTER 
+			if(vjoy & JOY_B)       buf[1] = 0x2C; // SPACE
+			if(vjoy & JOY_L)       buf[1] = 0x29; // ESC
+			if(vjoy & JOY_R)       buf[1] = 0x3A; // F1
+			if(vjoy & JOY_SELECT)  buf[2] = 0x45;  //F12 // i.e. open OSD in most cores
+			user_io_kbd(0x00, buf, UIO_PRIORITY_GAMEPAD); // generate key events   
+			if(buf[0]!=0 || buf[1]!=0 || buf[2]!= 0) {
+				key_hit=1;
+			}
+		} else {
+	
+			// shortcuts with SELECT - mouse emulation
+			if (vjoy & JOY_SELECT) {
+				unsigned char but = 0;
+				char a0 = 0;
+				char a1 = 0;
+				if (vjoy & JOY_L)   but |= 1;
+				if (vjoy & JOY_R)   but |= 2;
+				if (vjoy & JOY_LEFT) a0 = -4;
+				if (vjoy & JOY_RIGHT) a0 = 4;
+				if (vjoy & JOY_UP) a1 = -2;
+				if (vjoy & JOY_DOWN) a1 = 2;
+				user_io_mouse(but, a0, a1);
+			}
+	
+		}
+	}
+   
+	// process mapped keyboard commands from mist.ini
+	uint8_t i, j, count=0;
+	uint8_t mapped_hit = 0;
+	uint8_t modifier = 0;
+	uint8_t has_mapping = 0;
+	uint8_t joy_buf[6] = { 0,0,0,0,0,0 };
+	for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
+	  if(vjoy & joy_key_map[i].mask) {
+			has_mapping = 1;
+			//iprintf("joy2key:%d\n", joy_key_map[i].mask);
+			if (joy_key_map[i].modifier) {
+				modifier |= joy_key_map[i].modifier;
+				mapped_hit=1;
+			}
+			for (j=0; j<6; j++) {
+				if (joy_key_map[i].keys[j]) {
+					joy_buf[j] = joy_key_map[i].keys[j];
+					mapped_hit=1;
+					//iprintf("j2k code:%d\n", joy_buf[j]);
+				}
+			}
+	  }
+	}
+	// generate key events but only if no other keys were pressed
+	if (has_mapping && !key_hit) {
+	  if(mapped_hit) 
+			user_io_kbd(modifier, joy_buf, UIO_PRIORITY_GAMEPAD); 
+	  else
+			user_io_kbd(0x00, joy_buf, UIO_PRIORITY_GAMEPAD);   // reset keyboard state, needed to "release" a key previously pressed
+	}                     
+}

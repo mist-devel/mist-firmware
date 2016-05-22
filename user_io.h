@@ -114,6 +114,10 @@
 #define UIO_PARITY_MARK  3
 #define UIO_PARITY_SPACE 4
 
+#define UIO_PRIORITY_KEYBOARD 0 
+#define UIO_PRIORITY_GAMEPAD  1
+
+
 // serial status data type returned from the core 
 typedef struct {
   uint32_t bitrate;        // 300, 600 ... 115200
@@ -153,7 +157,7 @@ void user_io_eth_receive_tx_frame(uint8_t *, uint16_t);
 
 // hooks from the usb layer
 void user_io_mouse(unsigned char b, char x, char y);
-void user_io_kbd(unsigned char m, unsigned char *k); 
+void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority); 
 char user_io_create_config_name(char *s);
 void user_io_digital_joystick(unsigned char, unsigned char);
 void user_io_analog_joystick(unsigned char, char, char);

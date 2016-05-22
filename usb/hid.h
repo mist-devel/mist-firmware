@@ -100,15 +100,9 @@ void hid_set_kbd_led(unsigned char led, bool on);
 uint8_t hid_get_joysticks(void);
 int8_t hid_keyboard_present(void);
 
+// HID low-level remapping - do not confuse with virtual joystick in joymapping.h
 void hid_joystick_button_remap_init(void);
 void hid_joystick_button_remap(char *);
-
-void virtual_joystick_remap_init(void);
-void virtual_joystick_remap(char *);
-
-void joystick_key_map_init(void);
-void joystick_key_map(char *);
-
-void joy_key_map_init(void);
+void joy_key_map_init(void); // older function, prefer to use joymapping.h function
 
 #endif // HID_H

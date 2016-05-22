@@ -8,6 +8,7 @@
 #include "user_io.h"
 #include "usb/usb.h"
 #include "usb/hid.h"
+#include "usb/joymapping.h"
 
 //// mist_ini_parse() ////
 void mist_ini_parse()

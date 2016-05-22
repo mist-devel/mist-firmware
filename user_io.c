@@ -53,6 +53,10 @@ AT91PS_PMC a_pPMC = AT91C_BASE_PMC;
 // keep state of caps lock
 static char caps_lock_toggle = 0;
 
+// avoid multiple keyboard/controllers to interfere
+static uint8_t latest_keyb_priority = 0;  // keyboard=0, joypad with key mappings=1
+
+
 // mouse position storage for ps2 and minimig rate limitation
 #define X 0
 #define Y 1
@@ -1391,7 +1395,15 @@ static char key_used_by_osd(unsigned short s) {
 	 (core_type == CORE_TYPE_8BIT));
 }
 
-void user_io_kbd(unsigned char m, unsigned char *k) {
+void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
+	
+	// ignore lower priority clears if higher priority key was pressed
+	if (m==0 && k[0]==0 && k[1]==0 && k[2]==0) {
+			if (priority < 	latest_keyb_priority) 
+				return;
+	}
+	latest_keyb_priority = priority; // set for next calloc
+	
   if((core_type == CORE_TYPE_MINIMIG) ||
      (core_type == CORE_TYPE_MINIMIG2) ||
      (core_type == CORE_TYPE_MIST) ||
@@ -1448,13 +1460,13 @@ void user_io_kbd(unsigned char m, unsigned char *k) {
       // check if state of mouse buttons has changed
       // (on a mouse only two buttons are supported)
       if((last_btn  & (JOY_BTN1 | JOY_BTN2)) != 
-	 (emu_state & (JOY_BTN1 | JOY_BTN2))) {
-	if(emu_mode == EMU_MOUSE) {
-	  unsigned char b;
-	  if(emu_state & JOY_BTN1) b |= 1;
-	  if(emu_state & JOY_BTN2) b |= 2;
-	  user_io_mouse(b, 0, 0);
-	}
+				(emu_state & (JOY_BTN1 | JOY_BTN2))) {
+				if(emu_mode == EMU_MOUSE) {
+					unsigned char b;
+					if(emu_state & JOY_BTN1) b |= 1;
+					if(emu_state & JOY_BTN2) b |= 2;
+					user_io_mouse(b, 0, 0);
+				}
       }
 	
       // check if state of joystick buttons has changed

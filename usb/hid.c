@@ -17,7 +17,6 @@ static unsigned char joysticks = 0;      // number of detected usb joysticks
 
 // up to 8 buttons can be remapped
 #define MAX_JOYSTICK_BUTTON_REMAP 8
-#define MAX_JOYSTICK_KEYBOARD_MAP 16
 
 /*****************************************************************************/
 //NOTE: the below mapping is hardware buttons to USB,
@@ -64,73 +63,6 @@ void hid_joystick_button_remap(char *s) {
 		 joystick_button_remap[i].offset, joystick_button_remap[i].button);
       
       return;
-    }
-  }
-}
-
-/*****************************************************************************/
-
-/*  Custom parsing for joystick->keyboard map
-    We bind a bitmask of the virtual joypad with a keyboard USB code 
-*/
-
-static struct {
-    uint16_t mask;
-    uint8_t modifier;
-    uint8_t keys[6];  // support up to 6 key codes
-} joy_key_map[MAX_JOYSTICK_KEYBOARD_MAP];
-
-void joy_key_map_init(void) {
-  memset(joy_key_map, 0, sizeof(joy_key_map));
-}
-
-
-void joystick_key_map(char *s) {
-  uint8_t i,j;
-  uint8_t count;
-  uint8_t assign=0;
-  uint8_t len = strlen(s);
-  uint8_t scancode=0;
-  char *token;
-  
-  hid_debugf("%s(%s)", __FUNCTION__, s);
-  
-  if(len < 3) {
-    hid_debugf("malformed entry");
-    return;
-  }
-  
-  // parse remap request
-  for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
-    // fill sequentially the available mapping slots, stopping at first empty one
-    if(!joy_key_map[i].mask) {
-      joy_key_map[i].modifier = 0;
-      for(j=0;j<6;j++)
-        joy_key_map[i].keys[j] = 0;
-      count  = 0;
-      token  = strtok (s, ",");
-      while(s) {
-        if (count==0) {
-          joy_key_map[i].mask = strtol(s, NULL, 16);
-        } else {
-          scancode = strtol(s, NULL, 16);
-          // set as modifier if scancode is on the relevant range (224 to 231)
-          if(scancode>223) {
-            //  bit  0     1      2    3    4     5      6    7
-            //  key  LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
-            //
-            scancode -= 223;
-            joy_key_map[i].modifier |= (0x01 << (scancode-1));
-          } else {
-            // max 6 keys
-            if (assign < 7)
-              joy_key_map[i].keys[assign++] = scancode;
-          }
-        }
-        s = strtok (NULL, ",");
-        count+=1;
-      }
-      return; // finished processing input string so exit
     }
   }
 }
@@ -592,7 +524,7 @@ static void handle_5200daptor(usb_hid_iface_info_t *iface, uint8_t *buf) {
     //    iprintf("5200: %d %d %d %d %d %d\n", buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
 
     // generate key events
-    user_io_kbd(0x00, buf);
+    user_io_kbd(0x00, buf, UIO_PRIORITY_GAMEPAD); 
 
     // save current state of keys
     iface->key_state = keys;
@@ -651,287 +583,195 @@ static uint16_t collect_bits(uint8_t *p, uint16_t offset, uint8_t size, bool is_
 static void usb_process_iface (usb_hid_iface_info_t *iface, 
 							   uint16_t read, 
 							   uint8_t *buf) {
-  
-  uint8_t keyb_hit = 0;
 
   // successfully received some bytes
   if(iface->has_boot_mode && !iface->ignore_boot_mode) {
-	if(iface->device_type == HID_DEVICE_MOUSE) {
-	  // boot mouse needs at least three bytes
-	  if(read >= 3)
-		// forward all three bytes to the user_io layer
-		user_io_mouse(buf[0], buf[1], buf[2]);
-	}
-	
-	if(iface->device_type == HID_DEVICE_KEYBOARD) {
-	  // boot kbd needs at least eight bytes
-	  if(read >= 8) {
-		user_io_kbd(buf[0], buf+2);
-		if (buf[0]||buf[1]) keyb_hit=1; //declare keyboard as pressed for later overrides
-	  }
-	}
+		if(iface->device_type == HID_DEVICE_MOUSE) {
+			// boot mouse needs at least three bytes
+			if(read >= 3)
+				// forward all three bytes to the user_io layer
+				user_io_mouse(buf[0], buf[1], buf[2]);
+		}
+		
+		if(iface->device_type == HID_DEVICE_KEYBOARD) {
+			// boot kbd needs at least eight bytes
+			if(read >= 8) {
+				user_io_kbd(buf[0], buf+2, UIO_PRIORITY_KEYBOARD);
+			}
+		}
   }
 
   // use more complex parser for all joysticks. Use it for mice only if 
   // it's explicitely stated not to use boot mode
-  if((iface->device_type == HID_DEVICE_JOYSTICK) ||
-	((iface->device_type == HID_DEVICE_MOUSE) && 
-	  iface->ignore_boot_mode)) {
+  if((iface->device_type == HID_DEVICE_JOYSTICK)
+	   || ((iface->device_type == HID_DEVICE_MOUSE) 
+	   && iface->ignore_boot_mode)) {
 	  
-	hid_report_t *conf = &iface->conf;
+		hid_report_t *conf = &iface->conf;
 
 	// check size of report. If a report id was given then one
 	// additional byte is present with a matching report id
 	if((read == conf->report_size+(conf->report_id?1:0)) && 
-	   (!conf->report_id || (buf[0] == conf->report_id))) {
+	  (!conf->report_id || (buf[0] == conf->report_id))) {
 	 
-	  uint8_t btn = 0, jmap = 0;
-	  uint8_t btn_extra = 0;
-	  int16_t a[2];
-	  uint8_t idx, i;
+			uint8_t btn = 0, jmap = 0;
+			uint8_t btn_extra = 0;
+			int16_t a[2];
+			uint8_t idx, i;
 
-	  // skip report id if present
-	  uint8_t *p = buf+(conf->report_id?1:0);
+			// skip report id if present
+			uint8_t *p = buf+(conf->report_id?1:0);
 
-	  // hid_debugf("data:"); hexdump(buf, read, 0);
-	
-	  // two axes ...
-	  for(i=0;i<2;i++) {
-		  // if logical minimum is > logical maximum then logical minimum 
-		  // is signed. This means that the value itself is also signed
-		  bool is_signed = conf->joystick_mouse.axis[i].logical.min > 
-			conf->joystick_mouse.axis[i].logical.max;
-		  a[i] = collect_bits(p, conf->joystick_mouse.axis[i].offset, 
-					  conf->joystick_mouse.axis[i].size, is_signed);
-	  }
-	  
-	  // ... and four  first buttons
-	  for(i=0;i<4;i++)
-		  if(p[conf->joystick_mouse.button[i].byte_offset] & 
-			 conf->joystick_mouse.button[i].bitmask) btn |= (1<<i);
-	  
-	  // ... and the eight extra buttons
-	  for(i=4;i<12;i++)
-		  if(p[conf->joystick_mouse.button[i].byte_offset] & 
-			 conf->joystick_mouse.button[i].bitmask) btn_extra |= (1<<(i-4));
+			// hid_debugf("data:"); hexdump(buf, read, 0);
+		
+			// two axes ...
+			for(i=0;i<2;i++) {
+				// if logical minimum is > logical maximum then logical minimum 
+				// is signed. This means that the value itself is also signed
+				bool is_signed = conf->joystick_mouse.axis[i].logical.min > 
+				conf->joystick_mouse.axis[i].logical.max;
+				a[i] = collect_bits(p, conf->joystick_mouse.axis[i].offset, 
+							conf->joystick_mouse.axis[i].size, is_signed);
+			}
+			
+			// ... and four  first buttons
+			for(i=0;i<4;i++)
+				if(p[conf->joystick_mouse.button[i].byte_offset] & 
+				 conf->joystick_mouse.button[i].bitmask) btn |= (1<<i);
+			
+			// ... and the eight extra buttons
+			for(i=4;i<12;i++)
+				if(p[conf->joystick_mouse.button[i].byte_offset] & 
+				 conf->joystick_mouse.button[i].bitmask) btn_extra |= (1<<(i-4));
 
-	  //if (btn_extra != 0)
-	  //  iprintf("EXTRA BTNS:%d\n", btn_extra);
-	   
+			//if (btn_extra != 0)
+			//  iprintf("EXTRA BTNS:%d\n", btn_extra);
 			 
-	  // ---------- process mouse -------------
-	  if(iface->device_type == HID_DEVICE_MOUSE) {
-		  // iprintf("mouse %d %d %x\n", (int16_t)a[0], (int16_t)a[1], btn);
-		  // limit mouse movement to +/- 128
-		  for(i=0;i<2;i++) {
-			if((int16_t)a[i] >  127) a[i] =  127;
-			if((int16_t)a[i] < -128) a[i] = -128;
-		  }
-		  user_io_mouse(btn, a[0], a[1]);
-	  }
-
-	  // ---------- process joystick -------------
-	  if(iface->device_type == HID_DEVICE_JOYSTICK) {
-
-		for(i=0;i<2;i++) {
-		  // scale to 0 -> 255 range. 99% of the joysticks already deliver that
-		  if((conf->joystick_mouse.axis[i].logical.min != 0) ||
-			 (conf->joystick_mouse.axis[i].logical.max != 255)) {
-			   a[i] = ((a[i] - conf->joystick_mouse.axis[i].logical.min) * 255)/
-			   (conf->joystick_mouse.axis[i].logical.max - 
-			   conf->joystick_mouse.axis[i].logical.min);
-			}
-		}
-
-		// handle hat if present and overwrite any axis value
-		if(conf->joystick_mouse.hat.size && !mist_cfg.joystick_ignore_hat) {
-		  uint8_t hat = collect_bits(p, conf->joystick_mouse.hat.offset, 
-					   conf->joystick_mouse.hat.size, 0);
-
-		 // we don't want more than 4 bits
-		 uint8_t size = conf->joystick_mouse.hat.size;
-		 while(size-- > 4) 
-		   hat >>= 1;
-
-		 //		  iprintf("HAT = %d\n", hat);
-
-		 // TODO: Deal with 3 bit (4 direction/no diagonal) hats 
-		 static const uint8_t hat2x[] = { 127,255,255,255,127,  0,  0,  0 };
-		 static const uint8_t hat2y[] = {   0,  0,127,255,255,255,127,  0 };
-
-		 if(hat&8) {
-		   // hat is idle - don't override analog 
-		   /*
-		   if (a[0] > JOYSTICK_AXIS_TRIGGER_MIN) || a[0] < JOYSTICK_AXIS_TRIGGER_MAX) a[0] = JOYSTICK_AXIS_MID; 
-		   if (a[1] > JOYSTICK_AXIS_TRIGGER_MIN) || a[1] < JOYSTICK_AXIS_TRIGGER_MAX) a[1] = JOYSTICK_AXIS_MID; 
-		   */
-		 } else {
-		   uint8_t x_val = hat2x[hat];
-		   uint8_t y_val = hat2y[hat];
-		   // cancel out with X analog axis if it pushes on the opposite direction
-		   if(x_val < JOYSTICK_AXIS_TRIGGER_MIN) {
-			  // hat pointing left, compensate if analog is pointing right
-			  if (a[0] > JOYSTICK_AXIS_TRIGGER_MAX) { a[0] = JOYSTICK_AXIS_MID; } 
-			  else a[0] = x_val;
-		   } else {
-			  if(x_val > JOYSTICK_AXIS_TRIGGER_MAX) {
-				  // hat pointing right, compensate if analog pointing left
-				  if (a[0] < JOYSTICK_AXIS_TRIGGER_MIN) { a[0] = JOYSTICK_AXIS_MID; } 
-				  else a[0] = x_val; 
-			  }
-		   }
-		   // same logic for Y axis
-		   if(y_val < JOYSTICK_AXIS_TRIGGER_MIN) {
-			  // hat pointing down
-			  if (a[1] > JOYSTICK_AXIS_TRIGGER_MAX) { a[1] = JOYSTICK_AXIS_MID; } 
-			  else a[1] = y_val;
-		   } else {
-			  if(y_val > JOYSTICK_AXIS_TRIGGER_MAX) {
-				  // hat pointing up
-				  if (a[1] < JOYSTICK_AXIS_TRIGGER_MIN) { a[1] = JOYSTICK_AXIS_MID; } 
-				  else a[1] = y_val; //otherwise override
-			  }
-			}
-		  }
-		}
-
-		//		iprintf("JOY X:%d Y:%d\n", a[0], a[1]);
-
-		if(a[0] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
-		if(a[0] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
-		if(a[1] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_UP;
-		if(a[1] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_DOWN;
-		jmap |= btn << JOY_BTN_SHIFT;      // add buttons
-		
-		// map virtual joypad
-		uint16_t vjoy = jmap;
-		vjoy |= btn_extra << 8;
-		vjoy = virtual_joystick_mapping( conf->joystick_mouse.vid, conf->joystick_mouse.pid, vjoy );
-		
-		//iprintf("VIRTUAL JOY:%d\n", vjoy);
-		//if (jmap != 0) iprintf("JMAP pre map:%d\n", jmap);
-		
-		//now go back to original variables for downstream processing
-		btn_extra = ((vjoy & 0xFF00) >> 8);
-		jmap = (vjoy & 0x00FF);
-		
-		//if (jmap != 0) iprintf("JMAP post map:%d\n", jmap);
-		
-		// swap joystick 0 and 1 since 1 is the one 
-		// used primarily on most systems
-		idx = iface->jindex;
-		if(idx == 0)      idx = 1;
-		else if(idx == 1) idx = 0;
-
-		// check if joystick state has changed
-		if(jmap != iface->jmap) {
-		  // and feed into joystick input system
-		  user_io_digital_joystick(idx, jmap);
-		  iface->jmap = jmap;
-		}
-	  
-		// also send analog values
-		user_io_analog_joystick(idx, a[0]-128, a[1]-128);
-
-		// do special 5200daptor treatment
-		if(iface->is_5200daptor)
-		  handle_5200daptor(iface, buf);
-						
-		// use button combinations as shortcut for certain keys
-		if(!mist_cfg.joystick_disable_shortcuts) {  
-		  uint8_t buf[6] = { 0,0,0,0,0,0 };
-		  uint8_t key_hit = 0;
-		  
-		  // if OSD is open control it via USB joystick
-		  if(user_io_osd_is_visible() && !mist_cfg.joystick_ignore_osd) {
-		  
-			if(vjoy & JOY_A)     buf[0] = 0x28; // ENTER
-			if(vjoy & JOY_B)     buf[0] = 0x29; // ESC                
-			if(vjoy & JOY_START) buf[0] = 0x45; // F12
-			if(vjoy & JOY_LEFT)  buf[0] = 0x50; // left arrow
-			if(vjoy & JOY_RIGHT) buf[0] = 0x4F; // right arrow     
-			// up and down uses SELECT or L for faster scrolling
-			if(vjoy & JOY_UP) {
-			  if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[1] = 0x4B; // page up
-			  else buf[1] = 0x52; // up arrow
-			}
-			if(vjoy & JOY_DOWN) {
-			  if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[1] = 0x4E; // page down
-			  else buf[1] = 0x51; // down arrow
-			}       
-			user_io_kbd(0x00, buf); // generate key events
-			key_hit=1;
-								
-		  } else {
-			
-			// shortcuts mapped if start is pressed (take priority)
-			if (vjoy & JOY_START) {
-			  if(vjoy & JOY_A)       buf[0] = 0x28; // ENTER 
-			  if(vjoy & JOY_B)       buf[1] = 0x2C; // SPACE
-			  if(vjoy & JOY_L)       buf[1] = 0x29; // ESC
-			  if(vjoy & JOY_R)       buf[1] = 0x3A; // F1
-			  if(vjoy & JOY_SELECT)  buf[2] = 0x45;  //F12 // i.e. open OSD in most cores
-			  user_io_kbd(0x00, buf); // generate key events                      
-			  key_hit=1;
-			
-			} else {
-			  
-			  // shortcuts with SELECT - mouse emulation
-			  if (vjoy & JOY_SELECT) {
-				unsigned char but = 0;
-				char a0 = 0;
-				char a1 = 0;
-				if (vjoy & JOY_L)   but |= 1;
-				if (vjoy & JOY_R)   but |= 2;
-				if (vjoy & JOY_LEFT) a0 = -4;
-				if (vjoy & JOY_RIGHT) a0 = 4;
-				if (vjoy & JOY_UP) a1 = -2;
-				if (vjoy & JOY_DOWN) a1 = 2;
-				user_io_mouse(but, a0, a1);
-			  }
-			
-			}
-		   
-			// process mapped keyboard commands from mist.ini
-			uint8_t i, j, count=0;
-			uint8_t mapped_hit = 0;
-			uint8_t modifier = 0;
-			uint8_t has_mapping = 0;
-			uint8_t joy_buf[6] = { 0,0,0,0,0,0 };
-			for(i=0;i<MAX_JOYSTICK_KEYBOARD_MAP;i++) {
-			  if(vjoy & joy_key_map[i].mask) {
-				has_mapping = 1;
-				//iprintf("joy2key:%d\n", joy_key_map[i].mask);
-				if (joy_key_map[i].modifier) {
-				  modifier |= joy_key_map[i].modifier;
-				  mapped_hit=1;
+				 
+			// ---------- process mouse -------------
+			if(iface->device_type == HID_DEVICE_MOUSE) {
+				// iprintf("mouse %d %d %x\n", (int16_t)a[0], (int16_t)a[1], btn);
+				// limit mouse movement to +/- 128
+				for(i=0;i<2;i++) {
+				if((int16_t)a[i] >  127) a[i] =  127;
+				if((int16_t)a[i] < -128) a[i] = -128;
 				}
-				for (j=0; j<6; j++) {
-				  if (joy_key_map[i].keys[j]) {
-					joy_buf[j] = joy_key_map[i].keys[j];
-					mapped_hit=1;
-					//iprintf("j2k code:%d\n", joy_buf[j]);
-					
-				  }
-				}
-			  }
+				user_io_mouse(btn, a[0], a[1]);
 			}
-			// generate key events but only if no other keys were pressed
-			if (has_mapping && !keyb_hit && !key_hit) {
-			  if(mapped_hit) 
-				user_io_kbd(modifier, joy_buf); 
-			  else
-				user_io_kbd(0x00, joy_buf); 
-			}                     
-		  }
-		  
-		} // end joy->keyboard shortcuts
-	  
-	  
-	  } // end joystick handling
-	 
-	} // end hid custom report parsing
-  
+
+			// ---------- process joystick -------------
+			if(iface->device_type == HID_DEVICE_JOYSTICK) {
+
+				for(i=0;i<2;i++) {
+					// scale to 0 -> 255 range. 99% of the joysticks already deliver that
+					if((conf->joystick_mouse.axis[i].logical.min != 0) ||
+					 (conf->joystick_mouse.axis[i].logical.max != 255)) {
+						 a[i] = ((a[i] - conf->joystick_mouse.axis[i].logical.min) * 255)/
+						 (conf->joystick_mouse.axis[i].logical.max - 
+						 conf->joystick_mouse.axis[i].logical.min);
+					}
+				}
+
+				// handle hat if present and overwrite any axis value
+				if(conf->joystick_mouse.hat.size && !mist_cfg.joystick_ignore_hat) {
+					uint8_t hat = collect_bits(p, conf->joystick_mouse.hat.offset, 
+								 conf->joystick_mouse.hat.size, 0);
+
+					 // we don't want more than 4 bits
+					 uint8_t size = conf->joystick_mouse.hat.size;
+					 while(size-- > 4) 
+						 hat >>= 1;
+
+					 //		  iprintf("HAT = %d\n", hat);
+
+					 // TODO: Deal with 3 bit (4 direction/no diagonal) hats 
+					 static const uint8_t hat2x[] = { 127,255,255,255,127,  0,  0,  0 };
+					 static const uint8_t hat2y[] = {   0,  0,127,255,255,255,127,  0 };
+
+					 if(hat&8) {
+						 // hat is idle - don't override analog 
+						 /*
+						 if (a[0] > JOYSTICK_AXIS_TRIGGER_MIN) || a[0] < JOYSTICK_AXIS_TRIGGER_MAX) a[0] = JOYSTICK_AXIS_MID; 
+						 if (a[1] > JOYSTICK_AXIS_TRIGGER_MIN) || a[1] < JOYSTICK_AXIS_TRIGGER_MAX) a[1] = JOYSTICK_AXIS_MID; 
+						 */
+					 } else {
+						 uint8_t x_val = hat2x[hat];
+						 uint8_t y_val = hat2y[hat];
+						 // cancel out with X analog axis if it pushes on the opposite direction
+						 if(x_val < JOYSTICK_AXIS_TRIGGER_MIN) {
+							// hat pointing left, compensate if analog is pointing right
+							if (a[0] > JOYSTICK_AXIS_TRIGGER_MAX) { a[0] = JOYSTICK_AXIS_MID; } 
+							else a[0] = x_val;
+						 } else {
+							if(x_val > JOYSTICK_AXIS_TRIGGER_MAX) {
+								// hat pointing right, compensate if analog pointing left
+								if (a[0] < JOYSTICK_AXIS_TRIGGER_MIN) { a[0] = JOYSTICK_AXIS_MID; } 
+								else a[0] = x_val; 
+							}
+						 }
+						 // same logic for Y axis
+						 if(y_val < JOYSTICK_AXIS_TRIGGER_MIN) {
+							// hat pointing down
+							if (a[1] > JOYSTICK_AXIS_TRIGGER_MAX) { a[1] = JOYSTICK_AXIS_MID; } 
+							else a[1] = y_val;
+						 } else {
+							if(y_val > JOYSTICK_AXIS_TRIGGER_MAX) {
+								// hat pointing up
+								if (a[1] < JOYSTICK_AXIS_TRIGGER_MIN) { a[1] = JOYSTICK_AXIS_MID; } 
+								else a[1] = y_val; //otherwise override
+							}
+						}
+					}
+				} // end joystick hat handler
+			
+				//		iprintf("JOY X:%d Y:%d\n", a[0], a[1]);
+
+				if(a[0] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
+				if(a[0] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
+				if(a[1] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_UP;
+				if(a[1] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_DOWN;
+				jmap |= btn << JOY_BTN_SHIFT;      // add buttons
+			
+				// map virtual joypad
+				uint16_t vjoy = jmap;
+				vjoy |= btn_extra << 8;
+				vjoy = virtual_joystick_mapping( conf->joystick_mouse.vid, conf->joystick_mouse.pid, vjoy );
+				
+				//iprintf("VIRTUAL JOY:%d\n", vjoy);
+				//if (jmap != 0) iprintf("JMAP pre map:%d\n", jmap);
+				
+				//now go back to original variables for downstream processing
+				btn_extra = ((vjoy & 0xFF00) >> 8);
+				jmap = (vjoy & 0x00FF);
+				
+				//if (jmap != 0) iprintf("JMAP post map:%d\n", jmap);
+				
+				// swap joystick 0 and 1 since 1 is the one 
+				// used primarily on most systems
+				idx = iface->jindex;
+				if(idx == 0)      idx = 1;
+				else if(idx == 1) idx = 0;
+
+				// check if joystick state has changed
+				if(jmap != iface->jmap) {
+					// and feed into joystick input system
+					user_io_digital_joystick(idx, jmap);
+					iface->jmap = jmap;
+				}
+				
+				// also send analog values
+				user_io_analog_joystick(idx, a[0]-128, a[1]-128);
+
+				// do special 5200daptor treatment
+				if(iface->is_5200daptor)
+					handle_5200daptor(iface, buf);
+				
+				// apply keyboard mappings
+				virtual_joystick_keyboard ( vjoy );
+			
+			} // end joystick handling
+		 
+		} // end hid custom report parsing
   } // end of HID complex parsing
 }
 	
