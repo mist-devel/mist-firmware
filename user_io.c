@@ -56,7 +56,6 @@ static char caps_lock_toggle = 0;
 // avoid multiple keyboard/controllers to interfere
 static uint8_t latest_keyb_priority = 0;  // keyboard=0, joypad with key mappings=1
 
-
 // mouse position storage for ps2 and minimig rate limitation
 #define X 0
 #define Y 1
@@ -1399,10 +1398,10 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 	
 	// ignore lower priority clears if higher priority key was pressed
 	if (m==0 && k[0]==0 && k[1]==0 && k[2]==0) {
-			if (priority < 	latest_keyb_priority) 
+			if (priority > latest_keyb_priority)  // lower number = higher priority
 				return;
 	}
-	latest_keyb_priority = priority; // set for next calloc
+	latest_keyb_priority = priority; // set for next call
 	
   if((core_type == CORE_TYPE_MINIMIG) ||
      (core_type == CORE_TYPE_MINIMIG2) ||
