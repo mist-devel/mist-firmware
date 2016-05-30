@@ -719,3 +719,31 @@ void OsdKeySet(unsigned char c) {
 unsigned char OsdKeyGet() {
   return osd_key;
 }
+
+/* latest joystick state */
+static unsigned char osd_joy;
+
+void OsdJoySet(unsigned char c) {
+  //iprintf("OSD joy: %x\n", c);
+  osd_joy = c;
+}
+
+unsigned char OsdJoyGet() {
+  return osd_joy;
+}
+
+/* connected HID information */
+static unsigned int usb_vid;
+static unsigned int usb_pid;
+
+void OsdUsbIdSet(unsigned int vid, unsigned int pid) {
+	usb_vid=vid;
+	usb_pid=pid;
+}
+unsigned int OsdUsbVidGet() {
+	return usb_vid;
+}
+unsigned int OsdUsbPidGet() {
+	return usb_pid;
+}
+

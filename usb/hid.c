@@ -11,6 +11,7 @@
 #include "../user_io.h"
 #include "../hardware.h"
 #include "../mist_cfg.h"
+#include "../osd.h"
 
 static unsigned char kbd_led_state = 0;  // default: all leds off
 static unsigned char joysticks = 0;      // number of detected usb joysticks
@@ -731,7 +732,12 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				if(a[1] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_UP;
 				if(a[1] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_DOWN;
 				jmap |= btn << JOY_BTN_SHIFT;      // add buttons
-			
+				
+				// report joystick 1 to OSD
+				if ( iface->jindex==0)
+					OsdUsbIdSet( conf->joystick_mouse.vid, conf->joystick_mouse.pid );
+				
+				
 				// map virtual joypad
 				uint16_t vjoy = jmap;
 				vjoy |= btn_extra << 8;

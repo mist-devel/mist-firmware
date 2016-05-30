@@ -56,6 +56,13 @@ static char caps_lock_toggle = 0;
 // avoid multiple keyboard/controllers to interfere
 static uint8_t latest_keyb_priority = 0;  // keyboard=0, joypad with key mappings=1
 
+// track for debug/display
+static unsigned char latest_joy0 = 0;
+static unsigned char latest_joy1 = 0;
+
+unsigned char user_io_state_joy0() { return latest_joy0; }
+unsigned char user_io_state_joy1() { return latest_joy1; }
+
 // mouse position storage for ps2 and minimig rate limitation
 #define X 0
 #define Y 1
@@ -302,7 +309,12 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
       OSDCTRLUP, OSDCTRLDOWN, OSDCTRLLEFT, OSDCTRLRIGHT };
     static uint8_t last_map = 0;
 
-    // iprintf("joy to osd\n");
+		if (joystick==0) latest_joy0 = map;
+		else latest_joy1 = map;
+	
+		OsdJoySet(map);
+		
+    	// iprintf("joy to osd\n");
     
     //    OsdKeySet(0x80 | usb2ami[pressed[i]]);
 
@@ -1397,7 +1409,7 @@ static char key_used_by_osd(unsigned short s) {
 void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 	
 	// ignore lower priority clears if higher priority key was pressed
-	if (m==0 && k[0]==0 && k[1]==0 && k[2]==0) {
+	if (m==0 && (k[0] + k[1] + k[2] + k[3] + k[4] + k[5])==0) {
 			if (priority > latest_keyb_priority)  // lower number = higher priority
 				return;
 	}

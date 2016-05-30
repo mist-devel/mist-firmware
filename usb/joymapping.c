@@ -332,36 +332,43 @@ void virtual_joystick_keyboard ( uint16_t vjoy, uint8_t keyb_hit ) {
 	
   // if OSD is open control it via USB joystick
   if(user_io_osd_is_visible() && !mist_cfg.joystick_ignore_osd) {
-  
-		if(vjoy & JOY_A)     buf[0] = 0x28; // ENTER
-		if(vjoy & JOY_B)     buf[0] = 0x29; // ESC                
-		if(vjoy & JOY_START) buf[0] = 0x45; // F12
-		if(vjoy & JOY_LEFT)  buf[0] = 0x50; // left arrow
-		if(vjoy & JOY_RIGHT) buf[0] = 0x4F; // right arrow     
+		int idx = 0;
+		if(vjoy & JOY_A)     buf[idx++] = 0x28; // ENTER
+		if(vjoy & JOY_B)     buf[idx++] = 0x29; // ESC                
+		if(vjoy & JOY_START) buf[idx++] = 0x45; // F12
+		if(vjoy & JOY_LEFT)  buf[idx++] = 0x50; // left arrow
+		if(vjoy & JOY_RIGHT) buf[idx++] = 0x4F; // right arrow     
 		
 		// up and down uses SELECT or L for faster scrolling
+		/*
 		if(vjoy & JOY_UP) {
-			if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[1] = 0x4B; // page up
-			else buf[1] = 0x52; // up arrow
-		}
-			if(vjoy & JOY_DOWN) {
-			if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[1] = 0x4E; // page down
-			else buf[1] = 0x51; // down arrow
+			if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[idx] = 0x4B; // page up
+			else buf[idx] = 0x52; // up arrow
+			if (idx < 6) idx++; //avoid overflow if we assigned 6 already
+		} 
+		if(vjoy & JOY_DOWN) {
+			if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[idx] = 0x4E; // page down
+			else buf[idx] = 0x51; // down arrow
+			if (idx < 6) idx++; //avoid overflow if we assigned 6 already
 		}       
+		*/
 		
   } else {
 		
 		// shortcuts mapped if start is pressed (take priority)
 		if (vjoy & JOY_START) {
-			if(vjoy & JOY_A)       buf[0] = 0x28; // ENTER 
-			if(vjoy & JOY_B)       buf[1] = 0x2C; // SPACE
-			if(vjoy & JOY_L)       buf[1] = 0x29; // ESC
-			if(vjoy & JOY_R)       buf[1] = 0x3A; // F1
-			if(vjoy & JOY_SELECT)  buf[2] = 0x45;  //F12 // i.e. open OSD in most cores
+			iprintf("joy2key START is pressed\n");
+			int idx = 0;
+			if(vjoy & JOY_A)       buf[idx++] = 0x28; // ENTER 
+			if(vjoy & JOY_B)       buf[idx++] = 0x2C; // SPACE
+			if(vjoy & JOY_L)       buf[idx++] = 0x29; // ESC
+			if(vjoy & JOY_R)       buf[idx++] = 0x3A; // F1
+			if(vjoy & JOY_SELECT)  buf[idx++] = 0x45;  //F12 // i.e. open OSD in most cores
 		} else {
 	
 			// shortcuts with SELECT - mouse emulation
 			if (vjoy & JOY_SELECT) {
+	  		//iprintf("joy2key SELECT is pressed\n");
 				unsigned char but = 0;
 				char a0 = 0;
 				char a1 = 0;
@@ -390,6 +397,7 @@ void virtual_joystick_keyboard ( uint16_t vjoy, uint8_t keyb_hit ) {
 			if (joy_key_map[i].modifier) {
 				modifier |= joy_key_map[i].modifier;
 				mapped_hit=1;
+				iprintf("joy2key hit (modifier):%d\n", joy_key_map[i].modifier);
 			}
 			// only override up to 6 keys, 
 			// and preserve overrides from further up this function
@@ -402,7 +410,7 @@ void virtual_joystick_keyboard ( uint16_t vjoy, uint8_t keyb_hit ) {
 				if (joy_key_map[i].keys[j]) {
 					buf[k++] = joy_key_map[i].keys[j];
 					mapped_hit=1;
-					//iprintf("j2k code:%d\n", joy_buf[j]);
+					iprintf("joy2key hit:%d\n", joy_key_map[i].keys[j]);
 				}
 			}
 	  }

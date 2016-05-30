@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 //#include "AT91SAM7S256.h"
 //#include "stdbool.h"
+#include <stdlib.h>
 #include "stdio.h"
 #include "string.h"
 #include "errors.h"
@@ -43,6 +44,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "debug.h"
 #include "boot.h"
 #include "archie.h"
+#include "usb/joymapping.h"
+
+// test features
+#define ALLOW_TEST_MENU 1 //remove to disable in prod version
+
 
 // other constants
 #define DIRSIZE 8 // number of items in directory display window
@@ -99,7 +105,7 @@ const char *config_cd32pad_msg[] =  {"OFF", "ON"};
 enum HelpText_Message {HELPTEXT_NONE,HELPTEXT_MAIN,HELPTEXT_HARDFILE,HELPTEXT_CHIPSET,HELPTEXT_MEMORY,HELPTEXT_VIDEO};
 const char *helptexts[]={
 	0,
-	"                                Welcome to Minimig!  Use the cursor keys to navigate the menus.  Use space bar or enter to select an item.  Press Esc or F12 to exit the menus.  Joystick emulation on the numeric keypad can be toggled with the numlock key, while pressing Ctrl-Alt-0 (numeric keypad) toggles autofire mode.",
+	"                                Welcome to MiST!  Use the cursor keys to navigate the menus.  Use space bar or enter to select an item.  Press Esc or F12 to exit the menus.  Joystick emulation on the numeric keypad can be toggled with the numlock key, while pressing Ctrl-Alt-0 (numeric keypad) toggles autofire mode.",
 	"                                Minimig can emulate an A600 IDE harddisk interface.  The emulation can make use of Minimig-style hardfiles (complete disk images) or UAE-style hardfiles (filesystem images with no partition table).  It is also possible to use either the entire SD card or an individual partition as an emulated harddisk.",
 	"                                Minimig's processor core can emulate a 68000 or 68020 processor (though the 68020 mode is still experimental.)  If you're running software built for 68000, there's no advantage to using the 68020 mode, since the 68000 emulation runs just as fast.",
 	"                                Minimig can make use of up to 2 megabytes of Chip RAM, up to 1.5 megabytes of Slow RAM (A500 Trapdoor RAM), and up to 24 megabytes of true Fast RAM.  To use the HRTmon feature you will need a file on the SD card named hrtmon.rom.",
@@ -203,7 +209,12 @@ static void substrcpy(char *d, char *s, char idx) {
   *d = 0;
 }
 
-#define STD_EXIT "            exit"
+#define STD_EXIT      "            exit"
+
+#define JOY_NO_INPUT "        \x14" // center of joystick arrows
+#define JOY_VID 		 "VID:"
+#define JOY_PID 	   "PID:"
+
 #define HELPTEXT_DELAY 10000
 #define FRAME_DELAY 150
 
@@ -219,10 +230,48 @@ void HandleUI(void)
     static long helptext_timer;
     static const char *helptext;
     static char helpstate=0;
-    
+		
+		/* check joystick status */
+		char joy_0 = 0;
+		char joy_string[16];
+		char joy_string2[32];
+		char joy_string3[16];
+		
+				
+		/* build USB id key */
+		unsigned int usb_vid = OsdUsbVidGet();
+		unsigned int usb_pid = OsdUsbPidGet();
+		char vid[5] = "    ";
+		char pid[5] = "    ";
+  	char usb_id[64];
+		memset(usb_id, '\0', sizeof(usb_id));
+		strcpy(usb_id, "      ");		
+	  if (usb_vid>0) {
+			itoa(usb_vid, vid, 16);
+			itoa(usb_pid, pid, 16);
+			if(strlen(vid)<4) {
+				for(i=5;i>0;i--) {
+					vid[i]=vid[i-1];
+				}
+				vid[0]='0';
+			}
+			if(strlen(pid)<4) {
+				for(i=5;i>0;i--) {
+					pid[i]=pid[i-1];
+				}
+				pid[0]='0';
+			}
+			strcat( usb_id, JOY_VID);
+			strcat( usb_id, vid);
+			strcat( usb_id, " ");
+			strcat( usb_id, JOY_PID);
+			strcat( usb_id, pid);
+		} else {
+			strcat(usb_id, "Atari DB9 Joystick");
+		}
     // get user control codes
     c = OsdGetCtrl();
-
+		
     // decode and set events
     menu = false;
     select = false;
@@ -232,7 +281,7 @@ void HandleUI(void)
     right = false;
 	plus=false;
 	minus=false;
-
+	  
     switch (c)
     {
     case KEY_CTRL :
@@ -277,10 +326,10 @@ void HandleUI(void)
     case KEY_SPACE :
         select = true;
         break;
-    case KEY_UP :
+    case KEY_UP:
         up = true;
         break;
-    case KEY_DOWN :
+    case KEY_DOWN:
         down = true;
         break;
     case KEY_LEFT :
@@ -465,202 +514,339 @@ void HandleUI(void)
       /******************************************************************/
       
     case MENU_8BIT_MAIN1: {
-        char entry=0;
+      char entry=0;
+			helptext=helptexts[HELPTEXT_MAIN];
+			menumask=0;
+			p = user_io_get_core_name();
+			if(!p[0]) OsdSetTitle("8BIT", OSD_ARROW_RIGHT);
+			else      OsdSetTitle(p, OSD_ARROW_RIGHT);
 
-	menumask=0;
-	p = user_io_get_core_name();
-	if(!p[0]) OsdSetTitle("8BIT", OSD_ARROW_RIGHT);
-	else      OsdSetTitle(p, OSD_ARROW_RIGHT);
+			// check if there's a file type supported
+			p = user_io_8bit_get_string(1);
+			if(p && strlen(p)) {
+				entry = 1;
+				menumask = 1;
+				strcpy(s, " Load *.");
+				strcat(s, p);
+				OsdWrite(0, s, menusub==0, 0);
+			}
 
-	// check if there's a file type supported
-	p = user_io_8bit_get_string(1);
-	if(p && strlen(p)) {
-	  entry = 1;
-	  menumask = 1;
-	  strcpy(s, " Load *.");
-	  strcat(s, p);
-	  OsdWrite(0, s, menusub==0, 0);
-	}
+			// add options as requested by core
+			i = 2;
+			do {
+				unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+							
+				p = user_io_8bit_get_string(i);
+				//	  iprintf("Option %d: %s\n", i-1, p);
 
-	// add options as requested by core
-	i = 2;
-	do {
-	  unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+				// check for 'F'ile or 'S'D image strings
+				if(p && ((p[0] == 'F') || (p[0] == 'S'))) {
+					if(p[0] == 'F') strcpy(s, " Load *.");
+					else            strcpy(s, " Mount *.");
+					substrcpy(s+strlen(s), p, 1);
+					OsdWrite(entry, s, menusub==entry, 0);
 
-	  p = user_io_8bit_get_string(i);
-	  //	  iprintf("Option %d: %s\n", i-1, p);
+					// add bit in menu mask
+					menumask = (menumask << 1) | 1;
+					entry++;
+				}
 
-	  // check for 'F'ile or 'S'D image strings
-	  if(p && ((p[0] == 'F') || (p[0] == 'S'))) {
-	    if(p[0] == 'F') strcpy(s, " Load *.");
-	    else            strcpy(s, " Mount *.");
-	    substrcpy(s+strlen(s), p, 1);
-	    OsdWrite(entry, s, menusub==entry, 0);
+				// check for 'T'oggle strings
+				if(p && (p[0] == 'T')) {
+					// p[1] is the digit after the O, so O1 is status bit 1
+					char x = (status & (1<<(p[1]-'0')))?1:0;
 
-	    // add bit in menu mask
-	    menumask = (menumask << 1) | 1;
-	    entry++;
-	  }
+					s[0] = ' ';
+					substrcpy(s+1, p, 1);
+					OsdWrite(entry, s, menusub == entry,0);
 
-	  // check for 'T'oggle strings
-	  if(p && (p[0] == 'T')) {
-	    // p[1] is the digit after the O, so O1 is status bit 1
-	    char x = (status & (1<<(p[1]-'0')))?1:0;
+					// add bit in menu mask
+					menumask = (menumask << 1) | 1;
+					entry++;
+				}
 
-	    s[0] = ' ';
-	    substrcpy(s+1, p, 1);
-	    OsdWrite(entry, s, menusub == entry,0);
+				// check for 'O'ption strings
+				if(p && (p[0] == 'O')) {
+					// p[1] is the digit after the O, so O1 is status bit 1
+					char x = (status & (1<<(p[1]-'0')))?1:0;
 
-	    // add bit in menu mask
-	    menumask = (menumask << 1) | 1;
-	    entry++;
-	  }
+					// get currently active option
+					substrcpy(s, p, 2+x);
+					char l = strlen(s);
+					
+					s[0] = ' ';
+					substrcpy(s+1, p, 1);
+					strcat(s, ":");
+					l = 26-l-strlen(s); 
+					while(l--) strcat(s, " ");
 
-	  // check for 'O'ption strings
-	  if(p && (p[0] == 'O')) {
-	    // p[1] is the digit after the O, so O1 is status bit 1
-	    char x = (status & (1<<(p[1]-'0')))?1:0;
+					substrcpy(s+strlen(s), p, 2+x);
 
-	    // get currently active option
-	    substrcpy(s, p, 2+x);
-	    char l = strlen(s);
-	    
-	    s[0] = ' ';
-	    substrcpy(s+1, p, 1);
-	    strcat(s, ":");
-	    l = 26-l-strlen(s); 
-	    while(l--) strcat(s, " ");
+					OsdWrite(entry, s, menusub == entry,0);
 
-	    substrcpy(s+strlen(s), p, 2+x);
+					// add bit in menu mask
+					menumask = (menumask << 1) | 1;
+					entry++;
+				}
+				i++;
+			} while(p);
 
-	    OsdWrite(entry, s, menusub == entry,0);
-
-	    // add bit in menu mask
-	    menumask = (menumask << 1) | 1;
-	    entry++;
-	  }
-	  i++;
-	} while(p);
-
-	// clear rest of OSD
-	for(;entry<8;entry++) 
-	  OsdWrite(entry, "", 0,0);
-
-        menustate = MENU_8BIT_MAIN2;
-	parentstate=MENU_8BIT_MAIN1;
-    } break;
+			// clear rest of OSD
+			for(;entry<7;entry++) 
+				OsdWrite(entry, "", 0,0);
+			
+			// exit row
+			OsdWrite(7, STD_EXIT, menusub == entry, 0);
+			
+      menustate = MENU_8BIT_MAIN2;
+			parentstate=MENU_8BIT_MAIN1;
+			
+    } break; // end MENU_8BIT_MAIN1
 
     case MENU_8BIT_MAIN2 :
-        // menu key closes menu
-        if (menu)
-	  menustate = MENU_NONE1;
-	if(select) {
-	  char fs_present;
-	  p = user_io_8bit_get_string(1);
-	  fs_present = p && strlen(p);
+			// menu key closes menu
+			if (menu)
+				menustate = MENU_NONE1;
+			if(select) {
+				char fs_present;
+				p = user_io_8bit_get_string(1);
+				fs_present = p && strlen(p);
 
-	  // entry 0 = file selector
-	  if(!menusub && fs_present) {
-	    p = user_io_8bit_get_string(1);
+				// entry 0 = file selector
+				if(!menusub && fs_present) {
+					p = user_io_8bit_get_string(1);
 
-	    // use a local copy of "p" since SelectFile will destroy the buffer behind it
-	    static char ext[4];
-	    strncpy(ext, p, 4);
-	    while(strlen(ext) < 3) strcat(ext, " ");
-	    SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1, 1);
-	  } else {
-	    p = user_io_8bit_get_string(menusub + (fs_present?1:2));
+					// use a local copy of "p" since SelectFile will destroy the buffer behind it
+					static char ext[4];
+					strncpy(ext, p, 4);
+					while(strlen(ext) < 3) strcat(ext, " ");
+					SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1, 1);
+				} else {
+					p = user_io_8bit_get_string(menusub + (fs_present?1:2));
 
-	    if((p[0] == 'F')||(p[0] == 'S')) {
-	      static char ext[4];
-	      substrcpy(ext, p, 1);
-	      while(strlen(ext) < 3) strcat(ext, " ");
-	      SelectFile(ext, SCAN_DIR | SCAN_LFN, 
-			 (p[0] == 'F')?MENU_8BIT_MAIN_FILE_SELECTED:MENU_8BIT_MAIN_IMAGE_SELECTED, 
-			 MENU_8BIT_MAIN1, 1);
-	    } else {
-	      // determine which status bit is affected
-	      unsigned char mask = 1<<(p[1]-'0');
-	      unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+					if((p[0] == 'F')||(p[0] == 'S')) {
+						static char ext[4];
+						substrcpy(ext, p, 1);
+						while(strlen(ext) < 3) strcat(ext, " ");
+						SelectFile(ext, SCAN_DIR | SCAN_LFN, 
+					 (p[0] == 'F')?MENU_8BIT_MAIN_FILE_SELECTED:MENU_8BIT_MAIN_IMAGE_SELECTED, 
+					 MENU_8BIT_MAIN1, 1);
+					} else {
+						// determine which status bit is affected
+						unsigned char mask = 1<<(p[1]-'0');
+						unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 
-	      //	    iprintf("Option %s %x\n", p, status ^ mask);
+						//	    iprintf("Option %s %x\n", p, status ^ mask);
 
-	      // change bit
-	      user_io_8bit_set_status(status ^ mask, mask);
+						// change bit
+						user_io_8bit_set_status(status ^ mask, mask);
 
-	      // ... and change it again in case of a toggle bit
-	      if(p[0] == 'T')
-		user_io_8bit_set_status(status, mask);
+						// ... and change it again in case of a toggle bit
+						if(p[0] == 'T')
+							user_io_8bit_set_status(status, mask);
 
-	      menustate = MENU_8BIT_MAIN1;
-	    }
-	  }
-	}
-        else if (right)
-        {
-            menustate = MENU_8BIT_SYSTEM1;
-            menusub = 0;
-        }
-        break;
+						menustate = MENU_8BIT_MAIN1;
+					}
+				}
+			}
+			else if (right) {
+				menustate = MENU_8BIT_SYSTEM1;
+				menusub = 0;
+			}
+			break;
 	
     case MENU_8BIT_MAIN_FILE_SELECTED : // file successfully selected
-        // this assumes that further file entries only exist if the first one also exists
-        user_io_file_tx(&file, menusub+1);
-	// close menu afterwards
-	menustate = MENU_NONE1;
-	break;
+			// this assumes that further file entries only exist if the first one also exists
+			user_io_file_tx(&file, menusub+1);
+			// close menu afterwards
+			menustate = MENU_NONE1;
+			break;
 
     case MENU_8BIT_MAIN_IMAGE_SELECTED :
-        iprintf("Image selected: %s\n", file.name);
-        user_io_file_mount(&file);
-        // select image for SD card
-	menustate = MENU_NONE1;
-	break;
+			iprintf("Image selected: %s\n", file.name);
+			user_io_file_mount(&file);
+			// select image for SD card
+			menustate = MENU_NONE1;
+			break;
 
     case MENU_8BIT_SYSTEM1:
-	menumask=3;
-	OsdSetTitle("System", OSD_ARROW_LEFT);
-        menustate = MENU_8BIT_SYSTEM2;
-	parentstate=MENU_8BIT_SYSTEM1;
-
-	OsdWrite(0, "", 0,0);
-        OsdWrite(1, " Firmware & Core           \x16", menusub == 0,0);
-	OsdWrite(2, "", 0,0);
-	OsdWrite(3, " Save settings", menusub == 1,0);
-	OsdWrite(4, "", 0,0);
-	OsdWrite(5, "", 0,0);
-	OsdWrite(6, "", 0,0);
-	OsdWrite(7, "", 0,0);
+			helptext=helptexts[HELPTEXT_MAIN];
+			menumask=0x1f; // 4 selections + Exit
+			OsdSetTitle("System", OSD_ARROW_LEFT); 
+			menustate = MENU_8BIT_SYSTEM2;
+			parentstate = MENU_8BIT_SYSTEM1;
+			OsdWrite(0, "", 0,0);
+  		OsdWrite(1, " Firmware & Core           \x16", menusub == 0,0);
+			OsdWrite(2, " Joystick Test             \x16", menusub == 1,0);
+			OsdWrite(3, " Save settings", menusub == 2,0);
+			OsdWrite(4, "", 0,0);
+			OsdWrite(5, " About", menusub  == 3,0);
+			OsdWrite(6, "", 0,0);
+			OsdWrite(7, STD_EXIT, menusub == 4, 0);
       break;
 
     case MENU_8BIT_SYSTEM2 :
         // menu key closes menu
         if (menu)
-	  menustate = MENU_NONE1;
-	if(select) {
-	  if(menusub == 0) {  // Firmware submenu
-	    menustate = MENU_FIRMWARE1;
-	    menusub = 1;
-	  }
+					menustate = MENU_NONE1;
+				if(select) {
+					if(menusub == 0) {  // Firmware submenu
+						menustate = MENU_FIRMWARE1;
+						menusub = 1;
+					} else if(menusub == 1)  {
+						menustate = MENU_8BIT_TEST1;
+						menusub = 0;
+					}
+					if(menusub == 2) {  // Save settings
+						 user_io_create_config_name(s);
+						 iprintf("Saving config to %s\n", s);
 
-	  else if(menusub == 1) {  // Save settings
-	    user_io_create_config_name(s);
-	    iprintf("Saving config to %s\n", s);
-
-	    if(FileNew(&file, s, 1)) {
-	      // finally write data
-	      sector_buffer[0] = user_io_8bit_set_status(0,0);
-	      FileWrite(&file, sector_buffer); 
-	      
-	      iprintf("Settings for %s written\n", s);
-	    }
-	  }
-	}
-        else if (left)
-        {
-            menustate = MENU_8BIT_MAIN1;
-            menusub = 0;
-        }
+						 if(FileNew(&file, s, 1)) {
+							 // finally write data
+							 sector_buffer[0] = user_io_8bit_set_status(0,0);
+							 FileWrite(&file, sector_buffer); 
+							 iprintf("Settings for %s written\n", s);
+						}
+					}
+					if (menusub == 3) {
+						menustate = MENU_8BIT_ABOUT1; // About logo
+						menusub = 0;
+					} 
+					if (menusub == 4)	// Exit
+					{
+						menustate=MENU_NONE1;
+						menusub = 0;
+					}
+				}
+        else { 
+					if (left)
+					{
+							menustate = MENU_8BIT_MAIN1;
+							menusub = 0;
+					}
+				}
+        break;
+		
+		case MENU_8BIT_ABOUT1:
+			menumask=0;
+			helptext = helptexts[HELPTEXT_NONE];
+			OsdSetTitle("About", 0); 
+			menustate = MENU_8BIT_ABOUT2;
+			parentstate=MENU_8BIT_ABOUT1;
+			OsdDrawLogo(0,0,1);
+			OsdDrawLogo(1,1,1);
+			OsdDrawLogo(2,2,1);
+			OsdDrawLogo(3,3,1);
+			OsdDrawLogo(4,4,1);
+			OsdDrawLogo(6,6,1);
+			OsdWrite(5, "", 0, 0);
+			OsdWrite(6, "", 0, 0);
+			OsdWrite(7, STD_EXIT, menusub==0, 0);
+			StarsInit();
+			ScrollReset();
+      break;
+			
+		case MENU_8BIT_ABOUT2:
+			StarsUpdate();
+			OsdDrawLogo(0,0,1);
+			OsdDrawLogo(1,1,1);
+			OsdDrawLogo(2,2,1);
+			OsdDrawLogo(3,3,1);
+			OsdDrawLogo(4,4,1);
+			OsdDrawLogo(6,6,1);
+			ScrollText(5,"                                 MiST by Till Harbaum, based on Minimig and other projects. MiST hardware and software is distributed under the terms of the GNU General Public License version 3. MiST FPGA cores are the work of their respective authors under individual licensing.",0,0,0);			
+			// menu key closes menu
+        if (menu)
+					menustate = MENU_NONE1;
+				if(select) {
+					//iprintf("Selected", 0);
+					
+					if (menusub==0) {
+						menustate = MENU_8BIT_SYSTEM1;
+						menusub = 0;
+					}
+				}
+				else { 
+				
+					if (left)
+					{
+							menustate = MENU_8BIT_SYSTEM1;
+							menusub = 0;
+					} 
+				}
+        break;
+			
+		
+		case MENU_8BIT_TEST1:
+			helptext = helptexts[HELPTEXT_NONE];
+			menumask=1;
+			OsdSetTitle("Joy1", 0);
+			menustate = MENU_8BIT_TEST2;
+			parentstate=MENU_8BIT_TEST1;
+			OsdWrite(0, "       Test Joystick 1", 0, 0);
+			OsdWrite(1, usb_id, 0, 0);
+			OsdWrite(2, "", 0, 0);
+			OsdWrite(3, "", 0, 0);
+			OsdWrite(4, "", 0, 0);
+			OsdWrite(5, "", 0, 0);
+			OsdWrite(6, " ", 0, 0);
+			OsdWrite(7, "        SPACE to exit", menusub==0, 0);
+			break;
+			
+		case MENU_8BIT_TEST2:
+			memset(joy_string, '\0', sizeof(joy_string));
+			memset(joy_string2, '\0', sizeof(joy_string2));
+			memset(joy_string3, '\0', sizeof(joy_string3));
+			joy_0 = OsdJoyGet();
+			strcat(joy_string,  "        ");
+			strcat(joy_string2, "      " );
+			strcat(joy_string3, "        " );
+			if(joy_0 & JOY_UP) strcat(joy_string, "\x12");
+			if(joy_0 & JOY_DOWN) strcat(joy_string3, "\x13");
+			if(joy_0 & JOY_LEFT) 
+				strcat(joy_string2, "< \x14 ");
+			else
+				strcat(joy_string2, "  \x14 ");
+			if(joy_0 & JOY_RIGHT) 
+					strcat(joy_string2, "> "); //"\x16 ");
+			else
+					strcat(joy_string2, "  ");
+			if(joy_0 & JOY_A) strcat(joy_string2, "A ");
+			else strcat(joy_string2, "  ");
+			if(joy_0 & JOY_B) strcat(joy_string2, "B ");
+			else strcat(joy_string2, "  ");
+			if(joy_0 & JOY_SELECT) strcat(joy_string2, "Sel ");
+			else strcat(joy_string2, "    ");
+			if(joy_0 & JOY_START) strcat(joy_string2, "Sta");
+			OsdWrite(1, usb_id, 0, 0);
+			if (joy_0!=0) {
+				OsdWrite(3, joy_string, 0, 0);
+				OsdWrite(4, joy_string2, 0, 0);
+				OsdWrite(5, joy_string3, 0, 0);
+			} else {
+				OsdWrite(3, "", 0, 0);
+				OsdWrite(4, JOY_NO_INPUT, 0, 0);
+				OsdWrite(5, "", 0, 0);
+			}
+				// Disallow to allow testing output
+        //if (menu)
+				//	menustate = MENU_NONE1;
+				
+				/*
+				if(select) {
+					//iprintf("Selected", 0);
+					if (menusub==1) {
+						menustate = MENU_8BIT_SYSTEM1;
+						menusub = 0;
+					}
+					
+				}*/
+				if(c==KEY_SPACE) {
+					menustate = MENU_8BIT_SYSTEM1;
+					menusub = 0;
+				}
+				
+				//}
         break;
 	
         /******************************************************************/
@@ -2755,27 +2941,27 @@ void HandleUI(void)
     case MENU_FIRMWARE_UPDATE_ERROR1 :
         parentstate=menustate;
         OsdSetTitle("Error",0);
-	OsdWrite(0, "", 0, 0);
-	OsdWrite(1, "", 0, 0);
+				OsdWrite(0, "", 0, 0);
+				OsdWrite(1, "", 0, 0);
 
         switch (Error)
         {
         case ERROR_FILE_NOT_FOUND :
-	    OsdWrite(2, "       Update file", 0, 0);
+					OsdWrite(2, "       Update file", 0, 0);
             OsdWrite(3, "        not found!", 0, 0);
             break;
         case ERROR_INVALID_DATA :
-	    OsdWrite(2, "       Invalid ", 0, 0);
-	    OsdWrite(3, "     update file!", 0, 0);
+					OsdWrite(2, "       Invalid ", 0, 0);
+					OsdWrite(3, "     update file!", 0, 0);
             break;
         case ERROR_UPDATE_FAILED :
-	    OsdWrite(2, "", 0, 0);
-	    OsdWrite(3, "    Update failed!", 0, 0);
+					OsdWrite(2, "", 0, 0);
+					OsdWrite(3, "    Update failed!", 0, 0);
             break;
         }
-	OsdWrite(4, "", 0, 0);
-	OsdWrite(5, "", 0, 0);
-	OsdWrite(6, "", 0, 0);
+				OsdWrite(4, "", 0, 0);
+				OsdWrite(5, "", 0, 0);
+				OsdWrite(6, "", 0, 0);
         OsdWrite(7, STD_EXIT, 1,0);
         menustate = MENU_FIRMWARE_UPDATE_ERROR2;
         break;

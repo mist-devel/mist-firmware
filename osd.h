@@ -130,5 +130,12 @@ void StarsUpdate();
 void OsdKeySet(unsigned char);
 unsigned char OsdKeyGet();
 
+void OsdJoySet(unsigned char);
+unsigned char OsdJoyGet();
+
+void OsdUsbIdSet(unsigned int vid, unsigned int pid);
+unsigned int OsdUsbVidGet();
+unsigned int OsdUsbPidGet();
+
 #endif
 
