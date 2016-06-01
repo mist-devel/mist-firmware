@@ -340,7 +340,7 @@ void virtual_joystick_keyboard ( uint16_t vjoy, uint8_t keyb_hit ) {
 		if(vjoy & JOY_RIGHT) buf[idx++] = 0x4F; // right arrow     
 		
 		// up and down uses SELECT or L for faster scrolling
-		/*
+		
 		if(vjoy & JOY_UP) {
 			if (vjoy & JOY_SELECT || vjoy & JOY_L) buf[idx] = 0x4B; // page up
 			else buf[idx] = 0x52; // up arrow
@@ -351,7 +351,6 @@ void virtual_joystick_keyboard ( uint16_t vjoy, uint8_t keyb_hit ) {
 			else buf[idx] = 0x51; // down arrow
 			if (idx < 6) idx++; //avoid overflow if we assigned 6 already
 		}       
-		*/
 		
   } else {
 		

@@ -62,6 +62,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 unsigned char menustate = MENU_NONE1;
 unsigned char parentstate;
 unsigned char menusub = 0;
+unsigned char menusub_last = 0; //for when we allocate it dynamically and need to know last row
 unsigned int menumask = 0; // Used to determine which rows are selectable...
 unsigned long menu_timer = 0;
 
@@ -439,31 +440,31 @@ void HandleUI(void)
         /******************************************************************/
 
     case MENU_ARCHIE_MAIN1: {
-	menumask=0x3f;
-	OsdSetTitle("ARCHIE", 0);
+			menumask=0x3f;
+			OsdSetTitle("ARCHIE", 0);
 
-	strcpy(s, " Floppy 0: ");
-	strcat(s, archie_get_floppy_name(0));
-	OsdWrite(0, s, menusub == 0, 0);
+			strcpy(s, " Floppy 0: ");
+			strcat(s, archie_get_floppy_name(0));
+			OsdWrite(0, s, menusub == 0, 0);
 
-	strcpy(s, " Floppy 1: ");
-	strcat(s, archie_get_floppy_name(1));
-	OsdWrite(1, s, menusub == 1, 0);
+			strcpy(s, " Floppy 1: ");
+			strcat(s, archie_get_floppy_name(1));
+			OsdWrite(1, s, menusub == 1, 0);
 
-	strcpy(s, " OS ROM: ");
-	strcat(s, archie_get_rom_name());
-	OsdWrite(2, s, menusub == 2, 0);
-	
-	OsdWrite(3, "", 0,0);
+			strcpy(s, " OS ROM: ");
+			strcat(s, archie_get_rom_name());
+			OsdWrite(2, s, menusub == 2, 0);
+			
+			OsdWrite(3, "", 0,0);
 
-	// the following is exactly like the atatri st core
-        OsdWrite(4, " Firmware & Core           \x16", menusub == 3,0);
-        OsdWrite(5, " Save config                ", menusub == 4,0);
-	OsdWrite(6, "", 0,0);
-        OsdWrite(7, STD_EXIT, menusub == 5,0);
+			// the following is exactly like the atatri st core
+						OsdWrite(4, " Firmware & Core           \x16", menusub == 3,0);
+						OsdWrite(5, " Save config                ", menusub == 4,0);
+			OsdWrite(6, "", 0,0);
+						OsdWrite(7, STD_EXIT, menusub == 5,0);
 
-        menustate = MENU_ARCHIE_MAIN2;
-	parentstate=MENU_ARCHIE_MAIN1;
+						menustate = MENU_ARCHIE_MAIN2;
+			parentstate=MENU_ARCHIE_MAIN1;
     } break;
 
     case MENU_ARCHIE_MAIN2 :
@@ -525,12 +526,12 @@ void HandleUI(void)
 			p = user_io_8bit_get_string(1);
 			if(p && strlen(p)) {
 				entry = 1;
-				menumask = 1;
+				menumask = 3; //allow to choose "exit" at tht end
 				strcpy(s, " Load *.");
 				strcat(s, p);
 				OsdWrite(0, s, menusub==0, 0);
 			}
-
+ 
 			// add options as requested by core
 			i = 2;
 			do {
@@ -591,12 +592,13 @@ void HandleUI(void)
 				i++;
 			} while(p);
 
+			// exit row
+			OsdWrite(7, STD_EXIT, menusub == entry, 0);
+			menusub_last=entry; //remember final row
+			
 			// clear rest of OSD
 			for(;entry<7;entry++) 
 				OsdWrite(entry, "", 0,0);
-			
-			// exit row
-			OsdWrite(7, STD_EXIT, menusub == entry, 0);
 			
       menustate = MENU_8BIT_MAIN2;
 			parentstate=MENU_8BIT_MAIN1;
@@ -608,44 +610,50 @@ void HandleUI(void)
 			if (menu)
 				menustate = MENU_NONE1;
 			if(select) {
-				char fs_present;
-				p = user_io_8bit_get_string(1);
-				fs_present = p && strlen(p);
-
-				// entry 0 = file selector
-				if(!menusub && fs_present) {
+				
+				if (menusub==menusub_last) {
+					menustate = MENU_NONE1;
+				} else {
+				
+					char fs_present;
 					p = user_io_8bit_get_string(1);
+					fs_present = p && strlen(p);
+
+					// entry 0 = file selector
+					if(!menusub && fs_present) {
+						p = user_io_8bit_get_string(1);
 
 					// use a local copy of "p" since SelectFile will destroy the buffer behind it
 					static char ext[4];
 					strncpy(ext, p, 4);
 					while(strlen(ext) < 3) strcat(ext, " ");
-					SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1, 1);
-				} else {
-					p = user_io_8bit_get_string(menusub + (fs_present?1:2));
-
-					if((p[0] == 'F')||(p[0] == 'S')) {
-						static char ext[4];
-						substrcpy(ext, p, 1);
-						while(strlen(ext) < 3) strcat(ext, " ");
-						SelectFile(ext, SCAN_DIR | SCAN_LFN, 
-					 (p[0] == 'F')?MENU_8BIT_MAIN_FILE_SELECTED:MENU_8BIT_MAIN_IMAGE_SELECTED, 
-					 MENU_8BIT_MAIN1, 1);
+						SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1, 1);
 					} else {
-						// determine which status bit is affected
-						unsigned char mask = 1<<(p[1]-'0');
-						unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+						p = user_io_8bit_get_string(menusub + (fs_present?1:2));
 
-						//	    iprintf("Option %s %x\n", p, status ^ mask);
+						if((p[0] == 'F')||(p[0] == 'S')) {
+							static char ext[4];
+							substrcpy(ext, p, 1);
+							while(strlen(ext) < 3) strcat(ext, " ");
+							SelectFile(ext, SCAN_DIR | SCAN_LFN, 
+							(p[0] == 'F')?MENU_8BIT_MAIN_FILE_SELECTED:MENU_8BIT_MAIN_IMAGE_SELECTED, 
+							MENU_8BIT_MAIN1, 1);
+						} else {
+							// determine which status bit is affected
+							unsigned char mask = 1<<(p[1]-'0');
+							unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 
-						// change bit
-						user_io_8bit_set_status(status ^ mask, mask);
+							//	    iprintf("Option %s %x\n", p, status ^ mask);
 
-						// ... and change it again in case of a toggle bit
-						if(p[0] == 'T')
-							user_io_8bit_set_status(status, mask);
+							// change bit
+							user_io_8bit_set_status(status ^ mask, mask);
 
-						menustate = MENU_8BIT_MAIN1;
+							// ... and change it again in case of a toggle bit
+							if(p[0] == 'T')
+								user_io_8bit_set_status(status, mask);
+
+							menustate = MENU_8BIT_MAIN1;
+						}
 					}
 				}
 			}
