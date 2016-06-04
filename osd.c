@@ -33,6 +33,9 @@ This is the Minimig OSD (on-screen-display) handler.
 2009-08-23 - adapted ConfigIDE() - support for 2 hardfiles
 */
 
+#include <string.h>
+#include "stdio.h"
+
 #include "osd.h"
 #include "spi.h"
 
@@ -40,7 +43,7 @@ This is the Minimig OSD (on-screen-display) handler.
 #include "logo.h"
 #include "user_io.h"
 
-#include <string.h>
+
 
 // conversion table of Amiga keyboard scan codes to ASCII codes
 const char keycode_table[128] =
@@ -748,3 +751,11 @@ unsigned int OsdUsbPidGet() {
 	return usb_pid;
 }
 
+/* core currently loaded */
+static char lastcorename[261+10] = "CORE";
+void OsdCoreNameSet(const char* str) {
+	siprintf(lastcorename, "%s", str);
+}
+char* OsdCoreName() {
+	return lastcorename;
+}

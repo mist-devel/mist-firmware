@@ -137,5 +137,9 @@ void OsdUsbIdSet(unsigned int vid, unsigned int pid);
 unsigned int OsdUsbVidGet();
 unsigned int OsdUsbPidGet();
 
+// get/set core currently loaded
+void OsdCoreNameSet(const char* str);
+char* OsdCoreName();
+
 #endif
 

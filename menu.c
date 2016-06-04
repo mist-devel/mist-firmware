@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // 2009-11-14   - OSD labels changed
 // 2009-12-15   - added display of directory name extensions
 // 2010-01-09   - support for variable number of tracks
+// 2016-06-01   - improvements to 8-bit menu
 
 //#include "AT91SAM7S256.h"
 //#include "stdbool.h"
@@ -434,7 +435,7 @@ void HandleUI(void)
 	  OsdEnable(DISABLE_KEYBOARD);
         }
         break;
-
+	
         /******************************************************************/
         /* archimedes main menu                                           */
         /******************************************************************/
@@ -2769,31 +2770,40 @@ void HandleUI(void)
         helptext=helptexts[HELPTEXT_NONE];
         parentstate=menustate;
 
-	menumask = fat_uses_mmc()?0x07:0x03;
+				menumask = fat_uses_mmc()?0x07:0x03;
 
         OsdSetTitle("FW & Core",0);
-        OsdWrite(0, "", 0, 0);
-	siprintf(s, "   ARM  s/w ver. %s", version + 5);
-	OsdWrite(1, s, 0, 0);
-	char *v = GetFirmwareVersion(&file, "FIRMWAREUPG");
-	if(v) {
-	  siprintf(s, "   FILE s/w ver. %s", v);
-	  OsdWrite(2, s, 0, 0);
-	} else
-	  OsdWrite(2, "", 0, 0);
+        //OsdWrite(0, "", 0, 0);
+				siprintf(s, "   ARM  s/w ver. %s", version + 5);
+				OsdWrite(0, s, 0, 0);
+				char *v = GetFirmwareVersion(&file, "FIRMWAREUPG");
+				if(v) {
+					siprintf(s, "   FILE s/w ver. %s", v);
+					OsdWrite(1, s, 0, 0);
+				} else
+					OsdWrite(1, "", 0, 0);
 
-	// don't allow update when running from USB
-	if(fat_uses_mmc()) {
-	  i=1;
-	  OsdWrite(3, "           Update", menusub == 0, 0);
-	} else {
-	  i=0;
-	  OsdWrite(3, "           Update", 0, 1);
-	}
-
-	OsdWrite(4, "", 0, 0);
-	OsdWrite(5, "      Change FPGA core", menusub == i, 0);
-	OsdWrite(6, "", 0, 0);
+				// don't allow update when running from USB
+				if(fat_uses_mmc()) {
+					i=1;
+					OsdWrite(2, "           Update", menusub == 0, 0);
+				} else {
+					i=0;
+					OsdWrite(2, "           Update", 0, 1);
+				}
+				OsdWrite(3, "", 0, 0);
+				
+				if(strlen(OsdCoreName())<32) {
+					//strcpy(s, " core: ");
+					//strcat(s, OsdCoreName());
+					siprintf(s, "%*score: %s", (40-(strlen(OsdCoreName())+6))/4-1, " ", OsdCoreName()); 
+				}
+				else
+					strcpy(s, " core: ");
+					
+				OsdWrite(4, s, 0, 0);
+				OsdWrite(5, "      Change FPGA core", menusub == i, 0);
+				OsdWrite(6, "", 0, 0);
         OsdWrite(7, STD_EXIT, menusub == i+1,0);
 	
         menustate = MENU_FIRMWARE2;
@@ -2863,12 +2873,19 @@ void HandleUI(void)
 
       // reset minimig boot text position
       BootHome();
-
+			
+			//remember core name loaded
+			if (strlen(file.long_name)>0)
+				OsdCoreNameSet(file.long_name);
+			else
+				OsdCoreNameSet(file.name);
+			
+			// reset fpga with core
       fpga_init(file.name);
 
       // make sure new config gets current button/dip status
       user_io_send_buttons(1);
-
+			
       menustate = MENU_NONE1;
       break;
 

@@ -1638,7 +1638,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 }
 
 void user_io_key_remap(char *s) {
-  // s is a string containing two comma serperated hex numbers
+  // s is a string containing two comma separated hex numbers
   if((strlen(s) != 5) && (s[2]!=',')) {
     ini_parser_debugf("malformed entry %s", s);
     return;
