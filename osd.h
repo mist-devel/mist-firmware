@@ -132,9 +132,18 @@ void StarsUpdate();
 void OsdKeySet(unsigned char);
 unsigned char OsdKeyGet();
 
+/*****
+ * Various functions to retrieve hardware state from the OSD
+ */
+
+// State of first (virtual) internal joystisk i.e. after mapping
 void OsdJoySet(unsigned char);
 unsigned char OsdJoyGet();
-void OsdJoySet2(unsigned char); //second joystick
+void OsdJoySetExtra(unsigned char);
+unsigned char OsdJoyGetExtra();
+
+// State of second (virtual) joystisk
+void OsdJoySet2(unsigned char); 
 unsigned char OsdJoyGet2();
 
 // Keep track of connected sticks

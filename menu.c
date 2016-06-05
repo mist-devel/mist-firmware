@@ -116,6 +116,9 @@ const char *helptexts[]={
 	0
 };
 
+// one screen width
+const char* HELPTEXT_SPACER= "                                ";
+char helptext_custom[320];
 
 const char* scanlines[]={"Off","25%","50%","75%"};
 const char* stereo[]={"Mono","Stereo"};
@@ -621,7 +624,7 @@ void HandleUI(void)
 			
 		case MENU_8BIT_MAIN1: {
 			char entry=0;
-			helptext=helptexts[HELPTEXT_MAIN];
+						
 			menumask=0;
 			p = user_io_get_core_name();
 			if(!p[0]) OsdSetTitle("8BIT", OSD_ARROW_RIGHT);
@@ -722,6 +725,14 @@ void HandleUI(void)
 			
 			menustate = MENU_8BIT_MAIN2;
 			parentstate=MENU_8BIT_MAIN1;
+			
+			// set helptext with core display on top of basic info
+			siprintf(helptext_custom, HELPTEXT_SPACER);
+			strcat(helptext_custom, "Now running [");
+			strcat(helptext_custom, OsdCoreName());
+			strcat(helptext_custom, "]");
+			strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
+			helptext=helptext_custom;
 			
 		} break; // end MENU_8BIT_MAIN1
 
