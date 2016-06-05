@@ -665,6 +665,9 @@ void HandleUI(void)
 			if(!p[0]) OsdSetTitle("8BIT", OSD_ARROW_RIGHT);
 			else      OsdSetTitle(p, OSD_ARROW_RIGHT);
 
+			if(!p[0]) OsdCoreNameSet("8BIT");
+			else      OsdCoreNameSet(p);
+
 			// check if there's a file type supported
 			p = user_io_8bit_get_string(1);
 			if(p && strlen(p)) {
@@ -740,11 +743,9 @@ void HandleUI(void)
 					char x = p[1];
 					
 					// get version string
-					substrcpy(s, p, 2);
-					char l = strlen(s);
-					
-					s[0] = ' ';
-					substrcpy(s+1, p, 1);
+					strcpy(s, OsdCoreName());
+					strcat(s," ");
+					substrcpy(s+strlen(s), p, 1);
 					OsdCoreNameSet(s);
 				}
 				i++;
@@ -763,9 +764,7 @@ void HandleUI(void)
 			
 			// set helptext with core display on top of basic info
 			siprintf(helptext_custom, HELPTEXT_SPACER);
-			strcat(helptext_custom, "Now running [");
 			strcat(helptext_custom, OsdCoreName());
-			strcat(helptext_custom, "]");
 			strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
 			helptext=helptext_custom;
 			
@@ -2936,14 +2935,14 @@ void HandleUI(void)
 			}
 			OsdWrite(3, "", 0, 0);
 			
-			if(strlen(OsdCoreName())<32) {
+			if(strlen(OsdCoreName())<26) {
 				//strcpy(s, " core: ");
 				//strcat(s, OsdCoreName());
-				siprintf(s, "%*score: %s", (40-(strlen(OsdCoreName())+6))/4-1, " ", OsdCoreName()); 
+				siprintf(s, "%*s%s", (28-strlen(OsdCoreName()))/2, " ", OsdCoreName()); 
 			}
-			else
-				strcpy(s, " core: ");
-			
+			else strcpy(s, OsdCoreName());
+			s[28] = 0;
+
 			OsdWrite(4, s, 0, 0);
 			OsdWrite(5, "      Change FPGA core", menusub == i, 0);
 			OsdWrite(6, "", 0, 0);
