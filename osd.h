@@ -134,14 +134,28 @@ unsigned char OsdKeyGet();
 
 void OsdJoySet(unsigned char);
 unsigned char OsdJoyGet();
+void OsdJoySet2(unsigned char); //second joystick
+unsigned char OsdJoyGet2();
 
+// Keep track of connected sticks
+unsigned char OsdNumJoysticks();
+unsigned char OsdNumJoysticksSet(unsigned char num);
+
+// USB raw data for joystick 1
 void OsdUsbJoySet(uint8_t usbjoy, uint8_t usbextra);
 uint8_t OsdUsbJoyGet();
 uint8_t OsdUsbJoyGetExtra();
-
 void OsdUsbIdSet(unsigned int vid, unsigned int pid);
 unsigned int OsdUsbVidGet();
 unsigned int OsdUsbPidGet();
+
+// USB raw data for joystick 2
+void OsdUsbJoySetB(uint8_t usbjoy, uint8_t usbextra);
+uint8_t OsdUsbJoyGetB();
+uint8_t OsdUsbJoyGetExtraB();
+void OsdUsbIdSetB(unsigned int vid, unsigned int pid);
+unsigned int OsdUsbVidGetB();
+unsigned int OsdUsbPidGetB();
 
 // get/set core currently loaded
 void OsdCoreNameSet(const char* str);

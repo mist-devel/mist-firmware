@@ -724,6 +724,15 @@ unsigned char OsdKeyGet() {
   return osd_key;
 }
 
+// Keep track of connected sticks
+static unsigned char joysticks;
+unsigned char OsdNumJoysticks() {
+	return joysticks;
+}
+unsigned char OsdNumJoysticksSet(unsigned char num) {
+	joysticks = num;
+}
+
 /* latest joystick state */
 static unsigned char osd_joy;
 void OsdJoySet(unsigned char c) {
@@ -733,6 +742,16 @@ void OsdJoySet(unsigned char c) {
 unsigned char OsdJoyGet() {
   return osd_joy;
 }
+/* latest joystick state */
+static unsigned char osd_joy2;
+void OsdJoySet2(unsigned char c) {
+  //iprintf("OSD joy 2: %x\n", c);
+  osd_joy2 = c;
+}
+unsigned char OsdJoyGet2() {
+  return osd_joy2;
+}
+
 
 static uint8_t raw_usb_joy;	      // four directions and 4 buttons
 static uint8_t raw_usb_joy_extra; // eight extra buttons
@@ -747,10 +766,22 @@ uint8_t OsdUsbJoyGetExtra() {
 	return raw_usb_joy_extra;
 }
 
+static uint8_t raw_usb_joy_b;	      // four directions and 4 buttons
+static uint8_t raw_usb_joy_extra_b; // eight extra buttons
+void OsdUsbJoySetB(uint8_t usbjoy, uint8_t usbextra) {
+	raw_usb_joy_b = usbjoy;
+	raw_usb_joy_extra_b = usbextra;
+}
+uint8_t OsdUsbJoyGetB() {
+	return raw_usb_joy_b;
+}
+uint8_t OsdUsbJoyGetExtraB() {
+	return raw_usb_joy_extra_b;
+}
+
 /* connected HID information */
 static unsigned int usb_vid;
 static unsigned int usb_pid;
-
 void OsdUsbIdSet(unsigned int vid, unsigned int pid) {
 	usb_vid=vid;
 	usb_pid=pid;
@@ -761,6 +792,21 @@ unsigned int OsdUsbVidGet() {
 unsigned int OsdUsbPidGet() {
 	return usb_pid;
 }
+
+/* connected HID information - joy 2*/
+static unsigned int usb_vid_b;
+static unsigned int usb_pid_b;
+void OsdUsbIdSetB(unsigned int vid, unsigned int pid) {
+	usb_vid_b=vid;
+	usb_pid_b=pid;
+}
+unsigned int OsdUsbVidGetB() {
+	return usb_vid_b;
+}
+unsigned int OsdUsbPidGetB() {
+	return usb_pid_b;
+}
+
 
 /* core currently loaded */
 static char lastcorename[261+10] = "CORE";

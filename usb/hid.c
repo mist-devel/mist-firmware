@@ -91,16 +91,16 @@ static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t i, uint16_t size)
     // we got a report descriptor. Try to parse it
     if(parse_report_descriptor(buf, size, &(info->iface[i].conf))) {
       if(info->iface[i].conf.type == REPORT_TYPE_JOYSTICK) {
-	hid_debugf("Detected USB joystick #%d", joysticks);
-
-	info->iface[i].device_type = HID_DEVICE_JOYSTICK;
-	info->iface[i].jindex = joysticks++;
+				hid_debugf("Detected USB joystick #%d", joysticks);
+				info->iface[i].device_type = HID_DEVICE_JOYSTICK;
+				info->iface[i].jindex = joysticks++;
+				OsdNumJoysticksSet(joysticks);			
       }
     } else {
       // parsing failed. Fall back to boot mode for mice
       if(info->iface[i].conf.type == REPORT_TYPE_MOUSE) {
-	hid_debugf("Failed to parse mouse, try using boot mode");
-	info->iface[i].ignore_boot_mode = false;
+				hid_debugf("Failed to parse mouse, try using boot mode");
+				info->iface[i].ignore_boot_mode = false;
       }
     }
   }
@@ -324,6 +324,7 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 
   // process all supported interfaces
   for(i=0; i<info->bNumIfaces; i++) {
+	
     // no boot mode, try to parse HID report descriptor
     // when running archie core force the usage of the HID descriptor as 
     // boot mode only supports two buttons and the archie wants three
@@ -452,22 +453,23 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
       usb_device_t *dev = usb_get_devices();
       uint8_t j;
       for(j=0;j<USB_NUMDEVICES;j++) {
-	if(dev[j].bAddress && (dev[j].class == &usb_hid_class)) {
-	  // search for joystick interfaces
-	  uint8_t k;
-	  for(k=0;k<MAX_IFACES;k++) {
-	    if(dev[j].hid_info.iface[k].device_type == HID_DEVICE_JOYSTICK) {
-	      if(dev[j].hid_info.iface[k].jindex > c_jindex) {
-		hid_debugf("decreasing jindex of dev #%d from %d to %d", j, 
-			dev[j].hid_info.iface[k].jindex, dev[j].hid_info.iface[k].jindex-1);
-		dev[j].hid_info.iface[k].jindex--;
-	      }
-	    }
-	  }
-	}
+				if(dev[j].bAddress && (dev[j].class == &usb_hid_class)) {
+					// search for joystick interfaces
+					uint8_t k;
+					for(k=0;k<MAX_IFACES;k++) {
+						if(dev[j].hid_info.iface[k].device_type == HID_DEVICE_JOYSTICK) {
+							if(dev[j].hid_info.iface[k].jindex > c_jindex) {
+								hid_debugf("decreasing jindex of dev #%d from %d to %d", j, 
+									dev[j].hid_info.iface[k].jindex, dev[j].hid_info.iface[k].jindex-1);
+								dev[j].hid_info.iface[k].jindex--;
+							}
+						}
+					}
+				}
       }
       // one less joystick in the system ...
       joysticks--;
+			OsdNumJoysticksSet(joysticks);
     }
   }
 
@@ -737,6 +739,9 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				if ( iface->jindex==0) {
 					OsdUsbIdSet( conf->joystick_mouse.vid, conf->joystick_mouse.pid );
 					OsdUsbJoySet( jmap, btn_extra );
+				} else if (iface->jindex==1) {
+					OsdUsbIdSetB( conf->joystick_mouse.vid, conf->joystick_mouse.pid );
+					OsdUsbJoySetB( jmap, btn_extra );
 				}
 				// map virtual joypad
 				uint16_t vjoy = jmap;

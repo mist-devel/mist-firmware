@@ -100,7 +100,9 @@ enum MENU
     MENU_8BIT_ABOUT1,
     MENU_8BIT_ABOUT2,
     MENU_8BIT_TEST1,
-    MENU_8BIT_TEST2
+    MENU_8BIT_TEST2,
+		MENU_8BIT_JOYTEST_B1,
+		MENU_8BIT_JOYTEST_B2
 };
 
 // UI strings, used by boot messages

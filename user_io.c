@@ -56,13 +56,6 @@ static char caps_lock_toggle = 0;
 // avoid multiple keyboard/controllers to interfere
 static uint8_t latest_keyb_priority = 0;  // keyboard=0, joypad with key mappings=1
 
-// track for debug/display
-static unsigned char latest_joy0 = 0;
-static unsigned char latest_joy1 = 0;
-
-unsigned char user_io_state_joy0() { return latest_joy0; }
-unsigned char user_io_state_joy1() { return latest_joy1; }
-
 // mouse position storage for ps2 and minimig rate limitation
 #define X 0
 #define Y 1
@@ -307,12 +300,19 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
     static const uint8_t joy2kbd[] = { 
       OSDCTRLMENU, OSDCTRLMENU, OSDCTRLMENU, OSDCTRLSELECT,
       OSDCTRLUP, OSDCTRLDOWN, OSDCTRLLEFT, OSDCTRLRIGHT };
-    static uint8_t last_map = 0;
-
-		if (joystick==0) latest_joy0 = map;
-		else latest_joy1 = map;
-	
-		OsdJoySet(map);
+		
+		// the physical joysticks (db9 ports at the right device side)
+		// as well as the joystick emulation are renumbered if usb joysticks
+		// are present in the system. The USB joystick(s) replace joystick 1
+		// and 0 and the physical joysticks are "shifted up". 
+		// Since the primary joystick is in port 1 the first usb joystick 
+		// becomes joystick 1 and only the second one becomes joystick 0
+		// (mouse port)
+		
+		if (joystick==1) 
+			OsdJoySet(map);
+		else if (joystick==0) // WARNING: 0 is the second joystick, either USB or DB9
+			OsdJoySet2(map);
 		
     	// iprintf("joy to osd\n");
     
