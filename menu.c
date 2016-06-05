@@ -248,19 +248,28 @@ void siprintbinary(char* buffer, size_t const size, void const * const ptr)
 void get_joystick_state( char *joy_string, char *joy_string2, unsigned int joy_num ) {	
 	// helper to get joystick status (both USB or DB9)
 	unsigned char joy;
+	uint16_t vjoy;
 	memset(joy_string, '\0', sizeof(joy_string));
 	memset(joy_string2, '\0', sizeof(joy_string2));
-	if (joy_num==0)
+	if (joy_num==0) {
 		joy = OsdJoyGet();
-	else
+		vjoy = joy;
+		vjoy |= OsdJoyGetExtra() << 8;
+	} else {
 		joy = OsdJoyGet2();
-	if (joy==0) {
+		vjoy = joy;
+		vjoy |= OsdJoyGetExtra2() << 8;
+	}
+	if (vjoy==0) {
 		strcpy(joy_string2, JOY_NO_INPUT);
 		return;
 	}
 	strcat(joy_string,  "        ");
 	strcat(joy_string2, "      " );
-	if(joy & JOY_UP) strcat(joy_string, "\x12");
+	
+	if(joy & JOY_UP) strcat(joy_string, "\x12   ");
+	else strcat(joy_string, "    ");
+	
 	if(joy & JOY_LEFT) {
 		if(joy & JOY_DOWN) 
 			strcat(joy_string2, "< \x13 ");
@@ -284,6 +293,29 @@ void get_joystick_state( char *joy_string, char *joy_string2, unsigned int joy_n
 	if(joy & JOY_SELECT) strcat(joy_string2, "Sel ");
 	else strcat(joy_string2, "    ");
 	if(joy & JOY_START) strcat(joy_string2, "Sta");
+	
+	if(vjoy & JOY_X) strcat(joy_string, "X ");
+	else strcat(joy_string, "  ");
+	
+	if(vjoy & JOY_Y) strcat(joy_string, "Y ");
+	else strcat(joy_string, "  ");
+	
+	if(vjoy & JOY_L) strcat(joy_string, "L ");
+	else strcat(joy_string, "  ");
+	
+	if(vjoy & JOY_R) strcat(joy_string, "R ");
+	else strcat(joy_string, "  ");
+		
+	if(vjoy & JOY_L2) strcat(joy_string, "L2 ");
+	else strcat(joy_string, "   ");
+
+	if(vjoy & JOY_R2) strcat(joy_string, "R2 ");
+	else strcat(joy_string, "   ");
+	
+	if(vjoy & JOY_L3) strcat(joy_string, "L3");
+	// switch to string2 because we run out of space
+	if(vjoy & JOY_L3) strcat(joy_string2, "R3 ");
+	
 	return;
 }
 
@@ -378,7 +410,7 @@ void HandleUI(void)
 	static char helpstate=0;
 	
 	/* check joystick status */
-	char joy_string[16];
+	char joy_string[32];
 	char joy_string2[32];
 	char usb_id[64];
 		
