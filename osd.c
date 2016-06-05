@@ -726,14 +726,25 @@ unsigned char OsdKeyGet() {
 
 /* latest joystick state */
 static unsigned char osd_joy;
-
 void OsdJoySet(unsigned char c) {
   //iprintf("OSD joy: %x\n", c);
   osd_joy = c;
 }
-
 unsigned char OsdJoyGet() {
   return osd_joy;
+}
+
+static uint8_t raw_usb_joy;	      // four directions and 4 buttons
+static uint8_t raw_usb_joy_extra; // eight extra buttons
+void OsdUsbJoySet(uint8_t usbjoy, uint8_t usbextra) {
+	raw_usb_joy = usbjoy;
+	raw_usb_joy_extra = usbextra;
+}
+uint8_t OsdUsbJoyGet() {
+	return raw_usb_joy;
+}
+uint8_t OsdUsbJoyGetExtra() {
+	return raw_usb_joy_extra;
 }
 
 /* connected HID information */

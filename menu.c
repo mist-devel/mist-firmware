@@ -26,6 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //#include "AT91SAM7S256.h"
 //#include "stdbool.h"
 #include <stdlib.h>
+#include <inttypes.h>
 #include "stdio.h"
 #include "string.h"
 #include "errors.h"
@@ -47,8 +48,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "archie.h"
 #include "usb/joymapping.h"
 
-// test features
-#define ALLOW_TEST_MENU 1 //remove to disable in prod version
+// test features (not used right now)
+// #define ALLOW_TEST_MENU 0 //remove to disable in prod version
 
 
 // other constants
@@ -220,6 +221,28 @@ static void substrcpy(char *d, char *s, char idx) {
 #define HELPTEXT_DELAY 10000
 #define FRAME_DELAY 150
 
+//assumes big endian
+void siprintbinary(char* buffer, size_t const size, void const * const ptr)
+{
+    unsigned char *b = (unsigned char*) ptr;
+    unsigned char byte;
+    int i, j;
+		siprintf(buffer, "%*s", size-1, "");
+    for (i=size-1;i>=0;i--)
+    {
+        for (j=0;j<8;j++)
+        {
+            byte = (b[i] >> j) & 1;
+            if(byte)
+							strcat(buffer, "1");
+						else
+							strcat(buffer, "0");
+        }
+    }
+		return;
+}
+
+
 void HandleUI(void)
 {
     char *p;
@@ -235,11 +258,11 @@ void HandleUI(void)
 		
 		/* check joystick status */
 		char joy_0 = 0;
+		uint16_t joy_usb=0;
 		char joy_string[16];
 		char joy_string2[32];
-		char joy_string3[16];
+		char binary_string[9]="00000000";
 		
-				
 		/* build USB id key */
 		unsigned int usb_vid = OsdUsbVidGet();
 		unsigned int usb_pid = OsdUsbPidGet();
@@ -590,6 +613,22 @@ void HandleUI(void)
 					menumask = (menumask << 1) | 1;
 					entry++;
 				}
+				
+				// check for 'V'ersion strings
+				if(p && (p[0] == 'V')) {
+					
+					// p[1] is not used but kept for future use
+					char x = p[1];
+					
+					// get version string
+					substrcpy(s, p, 2);
+					char l = strlen(s);
+					
+					s[0] = ' ';
+					substrcpy(s+1, p, 1);
+					OsdCoreNameSet(s);
+				}
+				
 				i++;
 			} while(p);
 
@@ -766,7 +805,7 @@ void HandleUI(void)
 			ScrollText(5,"                                 MiST by Till Harbaum, based on Minimig and other projects. MiST hardware and software is distributed under the terms of the GNU General Public License version 3. MiST FPGA cores are the work of their respective authors under individual licensing.",0,0,0);			
 			// menu key closes menu
         if (menu)
-					menustate = MENU_NONE1;
+				menustate = MENU_NONE1;
 				if(select) {
 					//iprintf("Selected", 0);
 					
@@ -805,17 +844,20 @@ void HandleUI(void)
 		case MENU_8BIT_TEST2:
 			memset(joy_string, '\0', sizeof(joy_string));
 			memset(joy_string2, '\0', sizeof(joy_string2));
-			memset(joy_string3, '\0', sizeof(joy_string3));
 			joy_0 = OsdJoyGet();
 			strcat(joy_string,  "        ");
 			strcat(joy_string2, "      " );
-			strcat(joy_string3, "        " );
 			if(joy_0 & JOY_UP) strcat(joy_string, "\x12");
-			if(joy_0 & JOY_DOWN) strcat(joy_string3, "\x13");
 			if(joy_0 & JOY_LEFT) 
-				strcat(joy_string2, "< \x14 ");
+				if(joy_0 & JOY_DOWN) 
+					strcat(joy_string2, "< \x13 ");
+				else 
+					strcat(joy_string2, "< \x14 ");
 			else
-				strcat(joy_string2, "  \x14 ");
+				if (joy_0 & JOY_DOWN)
+					strcat(joy_string2, "  \x13 ");
+				else
+					strcat(joy_string2, "  \x14 ");	
 			if(joy_0 & JOY_RIGHT) 
 					strcat(joy_string2, "> "); //"\x16 ");
 			else
@@ -831,51 +873,51 @@ void HandleUI(void)
 			if (joy_0!=0) {
 				OsdWrite(3, joy_string, 0, 0);
 				OsdWrite(4, joy_string2, 0, 0);
-				OsdWrite(5, joy_string3, 0, 0);
+				OsdWrite(5, " ", 0, 0);
 			} else {
 				OsdWrite(3, "", 0, 0);
 				OsdWrite(4, JOY_NO_INPUT, 0, 0);
 				OsdWrite(5, "", 0, 0);
 			}
-				// Disallow to allow testing output
-        //if (menu)
-				//	menustate = MENU_NONE1;
+			
+			// display raw USB input
+			joy_0 = OsdUsbJoyGet();
+			siprintf(s, "    USB: ");
+			siprintbinary(binary_string, sizeof(joy_0), &joy_0);
+			strcat(s, binary_string);
+			strcat(s, " ");
+			joy_0 = OsdUsbJoyGetExtra();
+			siprintbinary(binary_string, sizeof(joy_0), &joy_0);
+			strcat(s, binary_string);
+			OsdWrite(6, s, 0,0);
 				
-				/*
-				if(select) {
-					//iprintf("Selected", 0);
-					if (menusub==1) {
-						menustate = MENU_8BIT_SYSTEM1;
-						menusub = 0;
-					}
-					
-				}*/
-				if(c==KEY_SPACE) {
-					menustate = MENU_8BIT_SYSTEM1;
-					menusub = 0;
-				}
+			// allow allow exit when hitting space
+			if(c==KEY_SPACE) {
+				menustate = MENU_8BIT_SYSTEM1;
+				menusub = 0;
+			}
 				
-				//}
-        break;
-	
+			//}
+			break;
+
         /******************************************************************/
         /* mist main menu                                                 */
         /******************************************************************/
 
     case MENU_MIST_MAIN1 :
-	menumask=0xff;
-	OsdSetTitle("Mist", 0);
+		menumask=0xff;
+		OsdSetTitle("Mist", 0);
 
-	// most important: main page has setup for floppy A: and screen
-	strcpy(s, " A: ");
-	strcat(s, tos_get_disk_name(0));
-	if(tos_system_ctrl() & TOS_CONTROL_FDC_WR_PROT_A) strcat(s, " \x17");
-	OsdWrite(0, s, menusub == 0,0);
+		// most important: main page has setup for floppy A: and screen
+		strcpy(s, " A: ");
+		strcat(s, tos_get_disk_name(0));
+		if(tos_system_ctrl() & TOS_CONTROL_FDC_WR_PROT_A) strcat(s, " \x17");
+		OsdWrite(0, s, menusub == 0,0);
 
-	strcpy(s, " Screen: ");
-	if(tos_system_ctrl() & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
-	else                                          strcat(s, "Mono");
-        OsdWrite(1, s, menusub == 1,0);
+		strcpy(s, " Screen: ");
+		if(tos_system_ctrl() & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
+		else                                          strcat(s, "Mono");
+					OsdWrite(1, s, menusub == 1,0);
 
 	/* everything else is in submenus */
         OsdWrite(2, " Storage                   \x16", menusub == 2,0);

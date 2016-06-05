@@ -95,6 +95,8 @@
 #define OSD_ARROW_LEFT 1
 #define OSD_ARROW_RIGHT 2
 
+#include <inttypes.h>
+
 /*functions*/
 void OsdSetTitle(char *s,int arrow);	// arrow > 0 = display right arrow in bottom right, < 0 = display left arrow
 void OsdWrite(unsigned char n, char *s, unsigned char inver, unsigned char stipple);
@@ -132,6 +134,10 @@ unsigned char OsdKeyGet();
 
 void OsdJoySet(unsigned char);
 unsigned char OsdJoyGet();
+
+void OsdUsbJoySet(uint8_t usbjoy, uint8_t usbextra);
+uint8_t OsdUsbJoyGet();
+uint8_t OsdUsbJoyGetExtra();
 
 void OsdUsbIdSet(unsigned int vid, unsigned int pid);
 unsigned int OsdUsbVidGet();

@@ -734,10 +734,10 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				jmap |= btn << JOY_BTN_SHIFT;      // add buttons
 				
 				// report joystick 1 to OSD
-				if ( iface->jindex==0)
+				if ( iface->jindex==0) {
 					OsdUsbIdSet( conf->joystick_mouse.vid, conf->joystick_mouse.pid );
-				
-				
+					OsdUsbJoySet( jmap, btn_extra );
+				}
 				// map virtual joypad
 				uint16_t vjoy = jmap;
 				vjoy |= btn_extra << 8;
