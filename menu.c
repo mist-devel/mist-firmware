@@ -306,7 +306,10 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	siprintbinary(binary_string, sizeof(joy), &joy);
 	strcat(s, binary_string);
 	strcat(s, " ");
-	joy = OsdUsbJoyGetExtraB();
+	if(joy_num==0)
+		joy = OsdUsbJoyGetExtra();
+	else
+		joy = OsdUsbJoyGetExtraB();
 	siprintbinary(binary_string, sizeof(joy), &joy);
 	strcat(s, binary_string);
 	return;
