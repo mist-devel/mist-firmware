@@ -9,6 +9,18 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+
+#define JOYSTICK_ALIAS_NONE 					""
+#define JOYSTICK_ALIAS_QANBA_Q4RAF 		"Qanba Q4RAF"
+#define JOYSTICK_ALIAS_CHEAP_SNES 		"SNES Generic Pad"
+#define JOYSTICK_ALIAS_IBUFALLO_SNES 	"iBuffalo SFC BSGP801"
+#define JOYSTICK_ALIAS_IBUFALLO_NES 	"iBuffalo FC BGCFC801"
+#define JOYSTICK_ALIAS_RETROLINK_GC 	"Retrolink N64/GC"
+#define JOYSTICK_ALIAS_ROYDS_EX 			"ROYDS Stick.EX"
+#define JOYSTICK_ALIAS_NEOGEO_DAPTOR 	"NEOGEO-daptor"
+#define JOYSTICK_ALIAS_RETRO_FREAK 	  "Retro Freak gamepad"
+
+
 /*****************************************************************************/
 
 // INI parsing
@@ -17,6 +29,9 @@ void virtual_joystick_remap(char *);
 
 // runtime mapping
 uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_input);
+
+// name known joysticks
+char* get_joystick_alias( uint16_t vid, uint16_t pid );
 
 /*****************************************************************************/
 

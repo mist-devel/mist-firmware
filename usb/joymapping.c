@@ -12,6 +12,7 @@ This file defines how to handle mapping in the MiST controllers in various ways:
 
 #include "timer.h"
 #include "debug.h"
+#include "joymapping.h"
 #include "../user_io.h"
 #include "../mist_cfg.h"
 
@@ -114,6 +115,36 @@ void virtual_joystick_remap(char *s) {
 }
 
 /*****************************************************************************/
+
+char* get_joystick_alias( uint16_t vid, uint16_t pid ) {
+	
+	if(vid==0x0F30 && pid==0x1012)
+		return JOYSTICK_ALIAS_QANBA_Q4RAF;
+	
+	if(vid==0x081F && pid==0xE401)
+		return JOYSTICK_ALIAS_CHEAP_SNES;
+	
+	if(vid==0x0583 && pid==0x2060)
+		return JOYSTICK_ALIAS_IBUFALLO_SNES;
+	
+	if(vid==0x0411 && pid==0x00C6) 
+		return JOYSTICK_ALIAS_IBUFALLO_SNES;
+	
+	if (vid==0x0079 && pid==0x0006)
+		return JOYSTICK_ALIAS_RETROLINK_GC;
+	
+	if(vid==0x1F4F && pid==0x0003) 
+		return JOYSTICK_ALIAS_ROYDS_EX;
+	
+	if(vid==0x04D8 && pid==0xF421)
+		return JOYSTICK_ALIAS_NEOGEO_DAPTOR;
+	
+	if(vid==0x1345 && pid==0x1030)
+		return JOYSTICK_ALIAS_RETRO_FREAK;
+	
+	return JOYSTICK_ALIAS_NONE;
+		
+}
 
 /* Translates USB input into internal virtual joystick,
    with some default handling for common/known gampads */
@@ -321,7 +352,7 @@ void joystick_key_map(char *s) {
 
 /*****************************************************************************/
 
-void virtual_joystick_keyboard ( uint16_t vjoy, uint8_t keyb_hit ) {
+void virtual_joystick_keyboard ( uint16_t vjoy ) {
 	
   // ignore if globally switched off
   if(mist_cfg.joystick_disable_shortcuts)

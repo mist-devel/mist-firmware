@@ -323,6 +323,7 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	/* USB specific - current "raw" state 
 	  (in reverse binary format to correspont to MIST.INI mapping entries)
 	*/
+	char buffer[5];
 	if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
 	{
 		strcpy( s, " ");
@@ -336,8 +337,18 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 		joy = OsdUsbJoyGetB();
 	siprintf(s, "    USB: ");
 	siprintbinary(binary_string, sizeof(joy), &joy);
-	strcat(s, binary_string);
+	binary_string[0]=binary_string[0]=='1'?'>':'-';
+	binary_string[1]=binary_string[1]=='1'?'<':'-';
+	binary_string[2]=binary_string[2]=='1'?'\x13':'-';
+	binary_string[3]=binary_string[3]=='1'?'\x12':'-';
+	
+	memcpy( buffer, &binary_string[0], 4 );
+	buffer[4]='\0';
+	strcat(s, buffer );
 	strcat(s, " ");
+	memcpy( buffer, &binary_string[4], 4 );
+	buffer[4]='\0';
+	strcat(s, buffer );
 	if(joy_num==0)
 		joy = OsdUsbJoyGetExtra();
 	else
@@ -352,10 +363,11 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num ) {
 	Builds a string containing the USB VID/PID information of a joystick
 	*/
 	unsigned int i;
-	unsigned int usb_vid = OsdUsbVidGet();
-	unsigned int usb_pid = OsdUsbPidGet();
+	unsigned int usb_vid; 
+	unsigned int usb_pid; 
 	char vid[5] = "    ";
 	char pid[5] = "    ";
+	char buffer[32];
 	
 	if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
 	{
@@ -367,10 +379,24 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num ) {
 	if (joy_num==1) {
 		usb_vid = OsdUsbVidGetB();
 		usb_pid = OsdUsbPidGetB();
+	} else {
+		usb_vid = OsdUsbVidGet();
+		usb_pid = OsdUsbPidGet();
 	}
-	memset(usb_id, '\0', sizeof(usb_id));
-	strcpy(usb_id, "      ");
+	
 	if (usb_vid>0) {
+
+		strcpy(usb_id, get_joystick_alias( usb_vid, usb_pid ));
+		if(strlen(usb_id)>0) {
+			siprintf(buffer, "%*s", (28-strlen(usb_id))/2, " ");
+			strcat(buffer, usb_id); 
+			strcpy(usb_id, buffer);
+			return; //exit, we got an alias for the stick
+		}
+				
+		memset(usb_id, '\0', sizeof(usb_id));
+		strcpy(usb_id, "      ");
+		
 		itoa(usb_vid, vid, 16);
 		itoa(usb_pid, pid, 16);
 		if(strlen(vid)<4) {
@@ -2936,8 +2962,6 @@ void HandleUI(void)
 			OsdWrite(3, "", 0, 0);
 			
 			if(strlen(OsdCoreName())<26) {
-				//strcpy(s, " core: ");
-				//strcat(s, OsdCoreName());
 				siprintf(s, "%*s%s", (28-strlen(OsdCoreName()))/2, " ", OsdCoreName()); 
 			}
 			else strcpy(s, OsdCoreName());
