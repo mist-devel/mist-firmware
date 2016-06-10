@@ -101,7 +101,7 @@ const unsigned short usb2ami[] = {
   NUM_LOCK_TOGGLE,  // 47: Scroll Lock (OSD)
   0x6f | OSD,  // 48: Pause
   0x0d,  // 49: Insert
-  MISS,  // 4a: Home
+  0x6a,  // 4a: Home
   0x6c | OSD,  // 4b: Page Up (OSD)
   0x46,  // 4c: Delete
   MISS,  // 4d: End

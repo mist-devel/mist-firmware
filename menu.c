@@ -1869,12 +1869,12 @@ void HandleUI(void)
 					}
 			}
 
-			if (c == KEY_PGUP)
+			if ((c == KEY_PGUP) || (c == KEY_LEFT))
 			{
 					ScanDirectory(SCAN_PREV_PAGE, fs_pFileExt, fs_Options);
 					menustate = MENU_FILE_SELECT1;        }
 
-			if (c == KEY_PGDN)
+			if ((c == KEY_PGDN) || (c == KEY_RIGHT))
 			{
 					ScanDirectory(SCAN_NEXT_PAGE, fs_pFileExt, fs_Options);
 					menustate = MENU_FILE_SELECT1;
