@@ -2962,7 +2962,7 @@ void HandleUI(void)
 			OsdWrite(3, "", 0, 0);
 			
 			if(strlen(OsdCoreName())<26) {
-				siprintf(s, "%*s%s", (28-strlen(OsdCoreName()))/2, " ", OsdCoreName()); 
+				siprintf(s, "%*s%s", (29-strlen(OsdCoreName()))/2, " ", OsdCoreName()); 
 			}
 			else strcpy(s, OsdCoreName());
 			s[28] = 0;
