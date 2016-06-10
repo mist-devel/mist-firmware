@@ -168,6 +168,11 @@ void OsdUsbIdSetB(unsigned int vid, unsigned int pid);
 unsigned int OsdUsbVidGetB();
 unsigned int OsdUsbPidGetB();
 
+// keyboard status
+void OsdKeyboardSet( unsigned char modifier, char* pressed);
+unsigned char OsdKeyboardModifiers();
+void OsdKeyboardPressed(char *pressed);
+
 // get/set core currently loaded
 void OsdCoreNameSet(const char* str);
 char* OsdCoreName();

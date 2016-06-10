@@ -142,6 +142,9 @@ char* get_joystick_alias( uint16_t vid, uint16_t pid ) {
 	if(vid==0x1345 && pid==0x1030)
 		return JOYSTICK_ALIAS_RETRO_FREAK;
 	
+	if(vid==0x1235 && pid==0xab21)
+		return JOYSTICK_ALIAS_8BITDO_SFC30;
+	
 	return JOYSTICK_ALIAS_NONE;
 		
 }
@@ -253,6 +256,22 @@ uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_inpu
 	  mapping[btn_off+5] = JOY_START;
 	  mapping[btn_off+6] = JOY_SELECT;
 	  use_default=0;
+	}
+	
+	//mapping for 8bitdo SFC30
+	if(vid==0x1235 && pid==0xab21) {
+		mapping[btn_off+1] = JOY_A;
+	  mapping[btn_off+2] = JOY_B;
+	  //mapping[btn_off+3] // not used
+		mapping[btn_off+4] = JOY_X;
+		mapping[btn_off+5] = JOY_Y;
+	  //mapping[btn_off+6] // not used
+		mapping[btn_off+7] = JOY_L | JOY_L2; // also bind to buttons for flippers
+	  mapping[btn_off+8] = JOY_R | JOY_R2; // also bind to buttons for flippers
+	  //9 and 10 not used
+		mapping[btn_off+11] = JOY_SELECT;
+		mapping[btn_off+12] = JOY_START;
+		use_default=0;
 	}
 	
 	// apply remap information from mist.ini if present
@@ -387,7 +406,7 @@ void virtual_joystick_keyboard ( uint16_t vjoy ) {
 		
 		// shortcuts mapped if start is pressed (take priority)
 		if (vjoy & JOY_START) {
-			iprintf("joy2key START is pressed\n");
+			//iprintf("joy2key START is pressed\n");
 			int idx = 0;
 			if(vjoy & JOY_A)       buf[idx++] = 0x28; // ENTER 
 			if(vjoy & JOY_B)       buf[idx++] = 0x2C; // SPACE
@@ -427,7 +446,7 @@ void virtual_joystick_keyboard ( uint16_t vjoy ) {
 			if (joy_key_map[i].modifier) {
 				modifier |= joy_key_map[i].modifier;
 				mapped_hit=1;
-				iprintf("joy2key hit (modifier):%d\n", joy_key_map[i].modifier);
+				//iprintf("joy2key hit (modifier):%d\n", joy_key_map[i].modifier);
 			}
 			// only override up to 6 keys, 
 			// and preserve overrides from further up this function
@@ -440,7 +459,7 @@ void virtual_joystick_keyboard ( uint16_t vjoy ) {
 				if (joy_key_map[i].keys[j]) {
 					buf[k++] = joy_key_map[i].keys[j];
 					mapped_hit=1;
-					iprintf("joy2key hit:%d\n", joy_key_map[i].keys[j]);
+					//iprintf("joy2key hit:%d\n", joy_key_map[i].keys[j]);
 				}
 			}
 	  }

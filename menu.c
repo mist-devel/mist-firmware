@@ -215,7 +215,8 @@ static void substrcpy(char *d, char *s, char idx) {
   *d = 0;
 }
 
-#define STD_EXIT      "            exit"
+#define STD_EXIT       "            exit"
+#define STD_SPACE_EXIT "        SPACE to exit"
 
 #define JOY_NO_INPUT "        \x14" // center of joystick arrows
 #define JOY_VID 		 "VID:"
@@ -314,7 +315,7 @@ void get_joystick_state( char *joy_string, char *joy_string2, unsigned int joy_n
 	
 	if(vjoy & JOY_L3) strcat(joy_string, "L3");
 	// switch to string2 because we run out of space
-	if(vjoy & JOY_L3) strcat(joy_string2, "R3 ");
+	if(vjoy & JOY_R3) strcat(joy_string2, "R3 ");
 	
 	return;
 }
@@ -358,22 +359,51 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	return;
 }
 			
-void get_joystick_id ( char *usb_id, unsigned char joy_num ) {
+void append_joystick_usbid ( char *usb_id, unsigned int usb_vid, unsigned int usb_pid ) {
+	/*
+	appends a string with VID and PID numbers. 
+	Make sure to provide long enough string in usb_id
+	*/
+	unsigned short i;
+	char vid[5] = "    ";
+	char pid[5] = "    ";
+	itoa(usb_vid, vid, 16);
+	itoa(usb_pid, pid, 16);
+	if(strlen(vid)<4) {
+		for(i=5;i>0;i--) {
+			vid[i]=vid[i-1];
+		}
+		vid[0]='0';
+	}
+	if(strlen(pid)<4) {
+		for(i=5;i>0;i--) {
+			pid[i]=pid[i-1];
+		}
+		pid[0]='0';
+	}
+	strcat( usb_id, JOY_VID);
+	strcat( usb_id, vid);
+	strcat( usb_id, " ");
+	strcat( usb_id, JOY_PID);
+	strcat( usb_id, pid);
+	return;
+}		
+		
+void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	/*
 	Builds a string containing the USB VID/PID information of a joystick
 	*/
-	unsigned int i;
 	unsigned int usb_vid; 
 	unsigned int usb_pid; 
-	char vid[5] = "    ";
-	char pid[5] = "    ";
 	char buffer[32];
 	
-	if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
-	{
-		strcpy( usb_id, "      ");
-		strcat( usb_id, "Atari DB9 Joystick");
-		return;
+	if (raw_id==0) {
+		if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
+		{
+			strcpy( usb_id, "      ");
+			strcat( usb_id, "Atari DB9 Joystick");
+			return;
+		}
 	}
 	
 	if (joy_num==1) {
@@ -386,36 +416,19 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num ) {
 	
 	if (usb_vid>0) {
 
-		strcpy(usb_id, get_joystick_alias( usb_vid, usb_pid ));
-		if(strlen(usb_id)>0) {
-			siprintf(buffer, "%*s", (28-strlen(usb_id))/2, " ");
-			strcat(buffer, usb_id); 
-			strcpy(usb_id, buffer);
-			return; //exit, we got an alias for the stick
+		if (raw_id ==0) {
+			strcpy(usb_id, get_joystick_alias( usb_vid, usb_pid ));
+			if(strlen(usb_id)>0) {
+				siprintf(buffer, "%*s", (28-strlen(usb_id))/2, " ");
+				strcat(buffer, usb_id); 
+				strcpy(usb_id, buffer);
+				return; //exit, we got an alias for the stick
+			}
 		}
-				
 		memset(usb_id, '\0', sizeof(usb_id));
 		strcpy(usb_id, "      ");
+		append_joystick_usbid( usb_id, usb_vid, usb_pid );
 		
-		itoa(usb_vid, vid, 16);
-		itoa(usb_pid, pid, 16);
-		if(strlen(vid)<4) {
-			for(i=5;i>0;i--) {
-				vid[i]=vid[i-1];
-			}
-			vid[0]='0';
-		}
-		if(strlen(pid)<4) {
-			for(i=5;i>0;i--) {
-				pid[i]=pid[i-1];
-			}
-			pid[0]='0';
-		}
-		strcat( usb_id, JOY_VID);
-		strcat( usb_id, vid);
-		strcat( usb_id, " ");
-		strcat( usb_id, JOY_PID);
-		strcat( usb_id, pid);
 	} else {
 		strcat(usb_id, "Atari DB9 Joystick");
 	}	
@@ -434,6 +447,7 @@ void HandleUI(void)
 	static long helptext_timer;
 	static const char *helptext;
 	static char helpstate=0;
+	unsigned char keys[6] = {0,0,0,0,0,0};
 	
 	/* check joystick status */
 	char joy_string[32];
@@ -870,18 +884,18 @@ void HandleUI(void)
 
 		case MENU_8BIT_SYSTEM1:
 			helptext=helptexts[HELPTEXT_MAIN];
-			menumask=0x3f; // 5 selections + Exit
+			menumask=0x1f; // 5 selections + Exit
 			OsdSetTitle("System", OSD_ARROW_LEFT); 
 			menustate = MENU_8BIT_SYSTEM2;
 			parentstate = MENU_8BIT_SYSTEM1;
 			OsdWrite(0, "", 0,0);
 			OsdWrite(1, " Firmware & Core           \x16", menusub == 0,0);
-			OsdWrite(2, " Joystick 1 Test           \x16", menusub == 1,0);
-			OsdWrite(3, " Joystick 2 Test           \x16", menusub == 2,0);
-			OsdWrite(4, " Save settings", menusub == 3,0);
-			OsdWrite(5, " About", menusub  == 4,0);
+			OsdWrite(2, " Input Devices             \x16", menusub == 1,0);
+			OsdWrite(3, " Save settings             \x16", menusub == 2,0);
+			OsdWrite(4, "", 0,0);
+			OsdWrite(5, " About", menusub  == 3,0);
 			OsdWrite(6, "", 0,0);
-			OsdWrite(7, STD_EXIT, menusub == 5, 0);
+			OsdWrite(7, STD_EXIT, menusub == 4, 0);
 			break;
 
 		case MENU_8BIT_SYSTEM2 :
@@ -897,15 +911,10 @@ void HandleUI(void)
 						break;
 					case 1:
 						// Joystick1 test
-						menustate = MENU_8BIT_TEST1;
+						menustate = MENU_8BIT_CONTROLLERS1;
 						menusub = 0;
 						break;
 					case 2:
-						// Joystick2 test
-						menustate = MENU_8BIT_JOYTEST_B1;
-						menusub = 0;
-						break;
-					case 3:
 						// Save settings
 						user_io_create_config_name(s);
 						iprintf("Saving config to %s\n", s);
@@ -916,12 +925,12 @@ void HandleUI(void)
 						 iprintf("Settings for %s written\n", s);
 						}
 						break;
-					case 4:
+					case 3:
 						// About logo
 						menustate = MENU_8BIT_ABOUT1; 
 						menusub = 0;
 						break;
-					case 5:
+					case 4:
 						// Exit
 						menustate=MENU_NONE1;
 						menusub = 0;
@@ -982,26 +991,143 @@ void HandleUI(void)
 			}
 			break;
 		
-		case MENU_8BIT_TEST1:
+		case MENU_8BIT_CONTROLLERS1:
+			helptext = helptexts[HELPTEXT_NONE];
+			menumask=0x1f;
+			OsdSetTitle("Inputs", 0);
+			menustate = MENU_8BIT_CONTROLLERS2;
+			parentstate=MENU_8BIT_CONTROLLERS1;
+			OsdWrite(0, "", 0, 0);
+			OsdWrite(1, " Joystick 1 Test           \x16", menusub==0, 0);	
+			OsdWrite(2, " Joystick 2 Test           \x16", menusub==1, 0);
+			OsdWrite(3, " Keyboard Test             \x16", menusub==2, 0);
+			OsdWrite(4, " USB status                \x16", menusub==3, 0);
+			OsdWrite(5, "", 0, 0);
+			OsdWrite(6, "", 0, 0);
+			OsdWrite(7, STD_EXIT, menusub==4, 0);
+			break;
+		
+		case MENU_8BIT_CONTROLLERS2:
+			// menu key closes menu
+			if (menu)
+				menustate = MENU_NONE1;
+			if(select) {
+				switch (menusub) {
+					case 0:
+						// Joystick1 Test
+						menustate = MENU_8BIT_JOYTEST_A1;
+						menusub = 0;
+						break;
+					case 1:
+						// Joystick2 test
+						menustate = MENU_8BIT_JOYTEST_B1;
+						menusub = 0;
+						break;
+					case 2:
+						// Keyboard test
+						menustate = MENU_8BIT_KEYTEST1;
+						menusub = 0;
+						break;
+					case 3:
+						// USB status
+						menustate=MENU_8BIT_USB1;
+						menusub = 0;
+						break;
+					case 4:
+						// Exit
+						menustate=MENU_NONE1;
+						menusub = 0;
+						break;
+				}
+			}
+			break;
+		
+		case MENU_8BIT_KEYTEST1:
 			helptext = helptexts[HELPTEXT_NONE];
 			menumask=1;
-			get_joystick_id( usb_id, 0 );
+			OsdSetTitle("Keyboard", 0);
+			menustate = MENU_8BIT_KEYTEST2;
+			parentstate=MENU_8BIT_KEYTEST1;
+			OsdKeyboardPressed(keys);
+			siprintf(s, "%2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
+			OsdWrite(0, "", 0, 0);
+			OsdWrite(1, s, 0,0);
+			OsdWrite(2, "", 0, 0);
+			OsdWrite(3, "", 0, 0);
+			OsdWrite(4, "", 0, 0);
+			OsdWrite(5, "", 0, 0);
+			OsdWrite(6, " ", 0, 0);
+			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
+			break;
+			
+		case MENU_8BIT_KEYTEST2:
+			OsdKeyboardPressed(keys);
+			siprintf(s, "%2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
+			OsdWrite(1, s, 0,0);
+			// allow allow exit when hitting space
+			if(c==KEY_SPACE) {
+				menustate = MENU_8BIT_CONTROLLERS1;
+				menusub = 0;
+			}
+			break;
+		
+		case MENU_8BIT_USB1:
+			helptext = helptexts[HELPTEXT_NONE];
+			menumask=1;
+			OsdSetTitle("USB", 0);
+			menustate = MENU_8BIT_USB2;
+			parentstate=MENU_8BIT_USB1;
+			get_joystick_id( usb_id, 0, 1);
+			OsdWrite(0, " Joy1:", 0, 0);
+			OsdWrite(1, usb_id, 0, 0);
+			strcpy(usb_id, " ");
+			get_joystick_id( usb_id, 1, 1);
+			OsdWrite(2, " Joy2:", 0, 0);
+			OsdWrite(3, usb_id, 0, 0);
+			OsdWrite(4, "", 0, 0);
+			OsdWrite(5, "", 0, 0);
+			OsdWrite(6, " ", 0, 0);
+			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
+			break;
+		
+		case MENU_8BIT_USB2:
+			menumask=1;
+			OsdSetTitle("USB", 0);
+			get_joystick_id( usb_id, 0, 1);
+			OsdWrite(0, " Joy1:", 0, 0);
+			OsdWrite(1, usb_id, 0, 0);
+			strcpy(usb_id, " ");
+			get_joystick_id( usb_id, 1, 1);
+			OsdWrite(2, " Joy2:", 0, 0);
+			OsdWrite(3, usb_id, 0, 0);
+			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
+			// allow allow exit when hitting space
+			if(c==KEY_SPACE) {
+				menustate = MENU_8BIT_CONTROLLERS1;
+				menusub = 0;
+			}
+			break;
+		
+		case MENU_8BIT_JOYTEST_A1:
+			helptext = helptexts[HELPTEXT_NONE];
+			menumask=1;
+			get_joystick_id( usb_id, 0, 0);
 			OsdSetTitle("Joy1", 0);
-			menustate = MENU_8BIT_TEST2;
-			parentstate=MENU_8BIT_TEST1;
-			OsdWrite(0, "       Test Joystick 1", 0, 0);	
+			menustate = MENU_8BIT_JOYTEST_A2;
+			parentstate=MENU_8BIT_JOYTEST_A1;
+			OsdWrite(0, "       Test Joystick 1", 0, 0);
 			OsdWrite(1, usb_id, 0, 0);
 			OsdWrite(2, "", 0, 0);
 			OsdWrite(3, "", 0, 0);
 			OsdWrite(4, "", 0, 0);
 			OsdWrite(5, "", 0, 0);
 			OsdWrite(6, " ", 0, 0);
-			OsdWrite(7, "        SPACE to exit", menusub==0, 0);
+			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
 			break;
 		
-		case MENU_8BIT_TEST2:
+		case MENU_8BIT_JOYTEST_A2:
 			get_joystick_state( joy_string, joy_string2, 0 ); //grab state of joy 0
-			get_joystick_id( usb_id, 0 );
+			get_joystick_id( usb_id, 0, 0 );
 			OsdWrite(1, usb_id, 0, 0);
 			OsdWrite(3, joy_string, 0, 0);
 			OsdWrite(4, joy_string2, 0, 0);
@@ -1011,7 +1137,7 @@ void HandleUI(void)
 			OsdWrite(6, s, 0,0);
 			// allow allow exit when hitting space
 			if(c==KEY_SPACE) {
-				menustate = MENU_8BIT_SYSTEM1;
+				menustate = MENU_8BIT_CONTROLLERS1;
 				menusub = 0;
 			}
 			break;
@@ -1019,7 +1145,7 @@ void HandleUI(void)
 		case MENU_8BIT_JOYTEST_B1:
 			helptext = helptexts[HELPTEXT_NONE];
 			menumask=1;
-			get_joystick_id( usb_id, 1 );
+			get_joystick_id( usb_id, 1, 0);
 			OsdSetTitle("Joy2", 0);
 			menustate = MENU_8BIT_JOYTEST_B2;
 			parentstate=MENU_8BIT_JOYTEST_B1;
@@ -1030,12 +1156,12 @@ void HandleUI(void)
 			OsdWrite(4, "", 0, 0);
 			OsdWrite(5, "", 0, 0);
 			OsdWrite(6, " ", 0, 0);
-			OsdWrite(7, "        SPACE to exit", menusub==0, 0);
+			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
 			break;
 			
 		case MENU_8BIT_JOYTEST_B2:
 			get_joystick_state( joy_string, joy_string2, 1 );
-			get_joystick_id( usb_id, 1 );
+			get_joystick_id( usb_id, 1, 0);
 			OsdWrite(1, usb_id, 0, 0);
 			OsdWrite(3, joy_string, 0, 0);
 			OsdWrite(4, joy_string2, 0, 0);
@@ -1045,7 +1171,7 @@ void HandleUI(void)
 			OsdWrite(6, s, 0,0);
 			// allow allow exit when hitting space
 			if(c==KEY_SPACE) {
-				menustate = MENU_8BIT_SYSTEM1;
+				menustate = MENU_8BIT_CONTROLLERS1;
 				menusub = 0;
 			}
 			break;

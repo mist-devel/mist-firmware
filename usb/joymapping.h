@@ -19,7 +19,7 @@
 #define JOYSTICK_ALIAS_ROYDS_EX 			"ROYDS Stick.EX"
 #define JOYSTICK_ALIAS_NEOGEO_DAPTOR 	"NEOGEO-daptor"
 #define JOYSTICK_ALIAS_RETRO_FREAK 	  "Retro Freak gamepad"
-
+#define JOYSTICK_ALIAS_8BITDO_SFC30 	"8BitDo SFC30"
 
 /*****************************************************************************/
 

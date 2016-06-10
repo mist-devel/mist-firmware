@@ -1108,8 +1108,8 @@ void user_io_poll() {
 	  ps2_mouse[2] = mouse_pos[Y];
 	
 	// collect movement info and send at predefined rate
-	iprintf("PS2 MOUSE: %x %d %d\n", 
-		ps2_mouse[0], ps2_mouse[1], ps2_mouse[2]);
+	if(!(ps2_mouse[0]==0x08 && ps2_mouse[1]==0 && ps2_mouse[2]==0))
+		iprintf("PS2 MOUSE: %x %d %d\n", ps2_mouse[0], ps2_mouse[1], ps2_mouse[2]);
 
 	spi_uio_cmd_cont(UIO_MOUSE);
 	spi8(ps2_mouse[0]);
@@ -1251,18 +1251,17 @@ static void send_keycode(unsigned short code) {
 
       // pause does not have a break code
       if(!(code & BREAK)) {
-
-	// Pause key sends E11477E1F014E077
-	static const unsigned char c[] = { 
-	  0xe1, 0x14, 0x77, 0xe1, 0xf0, 0x14, 0xf0, 0x77, 0x00 };
-	const unsigned char *p = c;
-	
-	iprintf("PS2 KBD ");
-	while(*p) {
-	  iprintf("%x ", *p);
-	  spi8(*p++);
-	}
-	iprintf("\n");
+				// Pause key sends E11477E1F014E077
+				static const unsigned char c[] = { 
+					0xe1, 0x14, 0x77, 0xe1, 0xf0, 0x14, 0xf0, 0x77, 0x00 };
+				const unsigned char *p = c;
+				
+				iprintf("PS2 KBD ");
+				while(*p) {
+					iprintf("%x ", *p);
+					spi8(*p++);
+				}
+				iprintf("\n");
       }
     } else {
       iprintf("PS2 KBD ");
@@ -1431,12 +1430,14 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
      (core_type == CORE_TYPE_ARCHIE) ||
      (core_type == CORE_TYPE_8BIT)) {
 
+		
 //    iprintf("KBD: %d\n", m);
 //    hexdump(k, 6, 0);
 
     static unsigned char modifier = 0, pressed[6] = { 0,0,0,0,0,0 };
+		char keycodes[6] = { 0,0,0,0,0,0 };
     char i, j;
-    
+    		
     // remap keycodes if requested
     for(i=0;(i<6) && k[i];i++) {
       for(j=0;j<MAX_REMAP;j++) {
@@ -1446,25 +1447,25 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 		}
       }
     }
-	// remap modifiers to each other if requested
-	//  bit  0     1      2    3    4     5      6    7
+		// remap modifiers to each other if requested
+		//  bit  0     1      2    3    4     5      6    7
     //  key  LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
     if (false) { // (disabled until we configure it via INI)
-		uint8_t default_mod_mapping [8] = {
-			  0x1,
-			  0x2,
-			  0x4,
-			  0x8,
-			  0x10,
-			  0x20,
-			  0x40,
-			  0x80
-		};
-		uint8_t modifiers = 0;
-		for(i=0; i<8; i++) 
-			if (m & (0x01<<i))  modifiers |= default_mod_mapping[i];
-		m = modifiers;
-	}
+			uint8_t default_mod_mapping [8] = {
+					0x1,
+					0x2,
+					0x4,
+					0x8,
+					0x10,
+					0x20,
+					0x40,
+					0x80
+			};
+			uint8_t modifiers = 0;
+			for(i=0; i<8; i++) 
+				if (m & (0x01<<i))  modifiers |= default_mod_mapping[i];
+			m = modifiers;
+	  }
 	
     // modifier keys are used as buttons in emu mode
     if(emu_mode != EMU_NONE) {
@@ -1642,8 +1643,12 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
       }
     }
     
-  for(i=0;i<6;i++) 
+  for(i=0;i<6;i++) {
     pressed[i] = k[i];
+		keycodes[i] = keycode(pressed[i]);
+	}
+	OsdKeyboardSet(m, keycodes);
+	
   }
 }
 

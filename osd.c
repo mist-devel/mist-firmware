@@ -820,6 +820,29 @@ unsigned int OsdUsbPidGetB() {
 	return usb_pid_b;
 }
 
+/* keyboard data */
+static unsigned char key_modifier = 0;
+static unsigned char key_pressed[6] = { 0,0,0,0,0,0 };
+void OsdKeyboardSet( unsigned char modifier, char* keycodes) {
+	unsigned i=0;
+	key_modifier = modifier;
+	for(i=0; i<6; i++) {
+		if((keycodes[i]&0xFF) != 0xFF )
+			key_pressed[i]=keycodes[i];
+		else
+			key_pressed[i]=0;
+	}
+	iprintf("keyodes: %x %x\n", key_pressed[0], key_pressed[1]);
+	
+}
+unsigned char OsdKeyboardModifiers() {
+	return key_modifier;
+}
+void OsdKeyboardPressed(char *keycodes) {
+	unsigned i=0;
+	for(i=0; i<6; i++) 
+		keycodes[i]=key_pressed[i];
+}
 
 /* core currently loaded */
 static char lastcorename[261+10] = "CORE";
