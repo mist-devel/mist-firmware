@@ -545,6 +545,16 @@ void user_io_file_mount(fileTYPE *file) {
   // build index for fast random access
   IDXIndex(&sd_image);
   
+  // send mounted image size first then notify about mounting
+  EnableIO();
+  SPI(UIO_SET_SDINFO);
+  // use LE version, so following BYTE(s) may be used for size extension in the future.
+  spi32le(file->size);
+  spi32le(0); // reserved for future expansion
+  spi32le(0); // reserved for future expansion
+  spi32le(0); // reserved for future expansion
+  DisableIO();
+
   // notify core of possible sd image change
   spi_uio_cmd8(UIO_SET_SDSTAT, 0);
 }

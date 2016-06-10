@@ -49,6 +49,7 @@
 #define UIO_ASTICK      0x1a
 #define UIO_SIO_IN      0x1b  // serial in
 #define UIO_SET_SDSTAT  0x1c  // set sd card status 
+#define UIO_SET_SDINFO  0x1d  // send info about mounted image
 
 // codes as used by 8bit (atari 800, zx81) via SS2
 #define UIO_GET_STATUS  0x50
