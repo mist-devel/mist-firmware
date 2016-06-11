@@ -396,7 +396,6 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	unsigned int usb_vid; 
 	unsigned int usb_pid; 
 	char buffer[32];
-	
 	if (raw_id==0) {
 		if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
 		{
@@ -405,7 +404,6 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 			return;
 		}
 	}
-	
 	if (joy_num==1) {
 		usb_vid = OsdUsbVidGetB();
 		usb_pid = OsdUsbPidGetB();
@@ -413,9 +411,9 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 		usb_vid = OsdUsbVidGet();
 		usb_pid = OsdUsbPidGet();
 	}
-	
+	memset(usb_id, '\0', sizeof(usb_id));
+	if (raw_id==0)  strcpy(usb_id, "      "); // if 0 then we're just displaying string directly
 	if (usb_vid>0) {
-
 		if (raw_id ==0) {
 			strcpy(usb_id, get_joystick_alias( usb_vid, usb_pid ));
 			if(strlen(usb_id)>0) {
@@ -425,10 +423,7 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 				return; //exit, we got an alias for the stick
 			}
 		}
-		memset(usb_id, '\0', sizeof(usb_id));
-		strcpy(usb_id, "      ");
 		append_joystick_usbid( usb_id, usb_vid, usb_pid );
-		
 	} else {
 		strcat(usb_id, "Atari DB9 Joystick");
 	}	
@@ -1051,21 +1046,35 @@ void HandleUI(void)
 			menustate = MENU_8BIT_KEYTEST2;
 			parentstate=MENU_8BIT_KEYTEST1;
 			OsdKeyboardPressed(keys);
-			siprintf(s, "%2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
+			OsdKeyboardModifiers(c);
+			//strcpy(usb_id,"00000000");
+			//siprintbinary(usb_id, sizeof(c), &c);
 			OsdWrite(0, "", 0, 0);
-			OsdWrite(1, s, 0,0);
-			OsdWrite(2, "", 0, 0);
+			OsdWrite(1, "       USB scancodes", 0, 0);
+			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
+			OsdWrite(2, s, 0,0);
 			OsdWrite(3, "", 0, 0);
-			OsdWrite(4, "", 0, 0);
-			OsdWrite(5, "", 0, 0);
+			/*
+			OsdWrite(4, "       USB modifiers", 0, 0);
+			siprintf(s, "         %x", c);
+			OsdWrite(5, s, 0, 0);
+			*/
+			OsdWrite(4, " ", 0, 0);
+			OsdWrite(5, " ", 0, 0);
 			OsdWrite(6, " ", 0, 0);
 			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
 			break;
 			
 		case MENU_8BIT_KEYTEST2:
 			OsdKeyboardPressed(keys);
-			siprintf(s, "%2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
-			OsdWrite(1, s, 0,0);
+			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
+			OsdWrite(2, s, 0,0);
+			OsdKeyboardModifiers(c);
+			//strcpy(usb_id,"00000000");
+			//siprintbinary(usb_id, sizeof(c), &c);
+			/*
+			siprintf(s, "         %x", c);
+			OsdWrite(5, s, 0, 0);*/			
 			// allow allow exit when hitting space
 			if(c==KEY_SPACE) {
 				menustate = MENU_8BIT_CONTROLLERS1;
@@ -1081,16 +1090,18 @@ void HandleUI(void)
 			parentstate=MENU_8BIT_USB1;
 			strcpy(usb_id, " ");
 			get_joystick_id( usb_id, 0, 1);
-			OsdWrite(0, " Joy1:", 0, 0);
-			OsdWrite(1, usb_id, 0, 0);
+			siprintf(s, " Joy1 - %s", usb_id);
+			OsdWrite(0, "", 0, 0);
+			OsdWrite(1, s, 0, 0);
 			strcpy(usb_id, " ");
 			get_joystick_id( usb_id, 1, 1);
-			OsdWrite(2, " Joy2:", 0, 0);
-			OsdWrite(3, usb_id, 0, 0);
+			siprintf(s, " Joy2 - %s", usb_id);
+			OsdWrite(2, "", 0, 0);
+			OsdWrite(3, s, 0, 0);
 			OsdWrite(4, "", 0, 0);
 			OsdWrite(5, "", 0, 0);
 			OsdWrite(6, " ", 0, 0);
-			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
+			OsdWrite(7, STD_EXIT, menusub==0, 0);
 			break;
 		
 		case MENU_8BIT_USB2:
@@ -1098,12 +1109,14 @@ void HandleUI(void)
 			OsdSetTitle("USB", 0);
 			strcpy(usb_id, " ");
 			get_joystick_id( usb_id, 0, 1);
-			OsdWrite(0, " Joy1:", 0, 0);
-			OsdWrite(1, usb_id, 0, 0);
+			siprintf(s, " Joy1 - %s", usb_id);
+			OsdWrite(0, "", 0, 0);
+			OsdWrite(1, s, 0, 0);
 			strcpy(usb_id, " ");
 			get_joystick_id( usb_id, 1, 1);
-			OsdWrite(2, " Joy2:", 0, 0);
-			OsdWrite(3, usb_id, 0, 0);
+			siprintf(s, " Joy2 - %s", usb_id);
+			OsdWrite(2, "", 0, 0);
+			OsdWrite(3, s, 0, 0);
 			OsdWrite(7, STD_EXIT, menusub==0, 0);
 			// menu key goes back to previous menu
 			if (menu) {
