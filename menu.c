@@ -1045,36 +1045,27 @@ void HandleUI(void)
 			OsdSetTitle("Keyboard", 0);
 			menustate = MENU_8BIT_KEYTEST2;
 			parentstate=MENU_8BIT_KEYTEST1;
-			OsdKeyboardPressed(keys);
-			OsdKeyboardModifiers(c);
-			//strcpy(usb_id,"00000000");
-			//siprintbinary(usb_id, sizeof(c), &c);
+			OsdKeyboardPressed(keys, 0);
 			OsdWrite(0, "", 0, 0);
 			OsdWrite(1, "       USB scancodes", 0, 0);
 			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
 			OsdWrite(2, s, 0,0);
 			OsdWrite(3, "", 0, 0);
-			/*
-			OsdWrite(4, "       USB modifiers", 0, 0);
-			siprintf(s, "         %x", c);
-			OsdWrite(5, s, 0, 0);
-			*/
-			OsdWrite(4, " ", 0, 0);
-			OsdWrite(5, " ", 0, 0);
+			OsdKeyboardPressed(keys, 1);
+			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
+			OsdWrite(4, "       PS/2 scancodes", 0, 0);
+			OsdWrite(5, s, 0, 0);			
 			OsdWrite(6, " ", 0, 0);
 			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
 			break;
 			
 		case MENU_8BIT_KEYTEST2:
-			OsdKeyboardPressed(keys);
+			OsdKeyboardPressed(keys, 0);
 			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
 			OsdWrite(2, s, 0,0);
-			OsdKeyboardModifiers(c);
-			//strcpy(usb_id,"00000000");
-			//siprintbinary(usb_id, sizeof(c), &c);
-			/*
-			siprintf(s, "         %x", c);
-			OsdWrite(5, s, 0, 0);*/			
+			OsdKeyboardPressed(keys, 1);
+			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
+			OsdWrite(5, s, 0, 0);		
 			// allow allow exit when hitting space
 			if(c==KEY_SPACE) {
 				menustate = MENU_8BIT_CONTROLLERS1;

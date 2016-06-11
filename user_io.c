@@ -1436,6 +1436,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 
     static unsigned char modifier = 0, pressed[6] = { 0,0,0,0,0,0 };
 		char keycodes[6] = { 0,0,0,0,0,0 };
+		char keycodes_ps2[6] = { 0,0,0,0,0,0 };
     char i, j;
     		
     // remap keycodes if requested
@@ -1643,12 +1644,12 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
       }
     }
     
-  for(i=0;i<6;i++) {
-    pressed[i] = k[i];
-		keycodes[i] = pressed[i]; // send raw USB code, not amiga - keycode(pressed[i]);
-	}
-	OsdKeyboardSet(m, keycodes);
-	
+		for(i=0;i<6;i++) {
+			pressed[i] = k[i];
+			keycodes[i] = pressed[i]; // send raw USB code, not amiga - keycode(pressed[i]);
+			keycodes_ps2[i] = usb2ps2[pressed[i]];
+		}
+		OsdKeyboardSet(m, keycodes, keycodes_ps2);
   }
 }
 

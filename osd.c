@@ -44,7 +44,6 @@ This is the Minimig OSD (on-screen-display) handler.
 #include "user_io.h"
 
 
-
 // conversion table of Amiga keyboard scan codes to ASCII codes
 const char keycode_table[128] =
 {
@@ -823,25 +822,29 @@ unsigned int OsdUsbPidGetB() {
 /* keyboard data */
 static unsigned char key_modifier = 0;
 static unsigned char key_pressed[6] = { 0,0,0,0,0,0 };
-void OsdKeyboardSet( unsigned char modifier, char* keycodes) {
+static unsigned char key_ps2[6] = { 0,0,0,0,0,0 };
+void OsdKeyboardSet( unsigned char modifier, char* keycodes, char* keycodes_ps2) {
 	unsigned i=0;
 	key_modifier = modifier;
 	for(i=0; i<6; i++) {
-		if((keycodes[i]&0xFF) != 0xFF )
+		if((keycodes[i]&0xFF) != 0xFF ) {
 			key_pressed[i]=keycodes[i];
-		else
+			key_ps2[i]=keycodes_ps2[i];
+			if(key_ps2[i]==0xFF) key_ps2[i]=0;
+		}
+		else {
 			key_pressed[i]=0;
-	}
-	iprintf("keyodes: %x %x\n", key_pressed[0], key_pressed[1]);
-	
+			key_ps2[i]=0;
+		}
+	}	
 }
 unsigned char OsdKeyboardModifiers() {
 	return key_modifier;
 }
-void OsdKeyboardPressed(char *keycodes) {
+void OsdKeyboardPressed(char *keycodes, unsigned short as_ps2) {
 	unsigned i=0;
 	for(i=0; i<6; i++) 
-		keycodes[i]=key_pressed[i];
+		keycodes[i]= as_ps2 ? key_ps2[i] : key_pressed[i];
 }
 
 /* core currently loaded */
