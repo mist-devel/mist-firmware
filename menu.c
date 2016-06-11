@@ -1077,6 +1077,7 @@ void HandleUI(void)
 			OsdSetTitle("USB", 0);
 			menustate = MENU_8BIT_USB2;
 			parentstate=MENU_8BIT_USB1;
+			strcpy(usb_id, " ");
 			get_joystick_id( usb_id, 0, 1);
 			OsdWrite(0, " Joy1:", 0, 0);
 			OsdWrite(1, usb_id, 0, 0);
@@ -1093,6 +1094,7 @@ void HandleUI(void)
 		case MENU_8BIT_USB2:
 			menumask=1;
 			OsdSetTitle("USB", 0);
+			strcpy(usb_id, " ");
 			get_joystick_id( usb_id, 0, 1);
 			OsdWrite(0, " Joy1:", 0, 0);
 			OsdWrite(1, usb_id, 0, 0);

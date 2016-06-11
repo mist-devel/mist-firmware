@@ -1645,7 +1645,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
     
   for(i=0;i<6;i++) {
     pressed[i] = k[i];
-		keycodes[i] = keycode(pressed[i]);
+		keycodes[i] = pressed[i]; // send raw USB code, not amiga - keycode(pressed[i]);
 	}
 	OsdKeyboardSet(m, keycodes);
 	

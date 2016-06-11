@@ -130,20 +130,35 @@ char* get_joystick_alias( uint16_t vid, uint16_t pid ) {
 	if(vid==0x0411 && pid==0x00C6) 
 		return JOYSTICK_ALIAS_IBUFALLO_SNES;
 	
-	if (vid==0x0079 && pid==0x0006)
+	if (vid==VID_RETROLINK && pid==0x0006)
 		return JOYSTICK_ALIAS_RETROLINK_GC;
+	
+	if (vid==VID_RETROLINK && pid==0x0011)
+		return JOYSTICK_ALIAS_RETROLINK_NES;
 	
 	if(vid==0x1F4F && pid==0x0003) 
 		return JOYSTICK_ALIAS_ROYDS_EX;
+
+	if(vid==VID_DAPTOR && pid==0xF947)
+		return JOYSTICK_ALIAS_ATARI_DAPTOR2;
 	
-	if(vid==0x04D8 && pid==0xF421)
+	if(vid==VID_DAPTOR && pid==0xF421)
 		return JOYSTICK_ALIAS_NEOGEO_DAPTOR;
 	
+	if(vid==VID_DAPTOR && pid==0xF6EC)
+		return JOYSTICK_ALIAS_NEOGEO_DAPTOR;
+	
+	if(vid==VID_DAPTOR && pid==0xF672)
+		return JOYSTICK_ALIAS_VISION_DAPTOR;
+		
 	if(vid==0x1345 && pid==0x1030)
 		return JOYSTICK_ALIAS_RETRO_FREAK;
 	
 	if(vid==0x1235 && pid==0xab21)
 		return JOYSTICK_ALIAS_8BITDO_SFC30;
+	
+	if(vid==0x040b && pid==0x6533)
+		return JOYSTICK_ALIAS_SPEEDLINK_COMP;
 	
 	return JOYSTICK_ALIAS_NONE;
 		
@@ -220,7 +235,7 @@ uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_inpu
 	} 
 
 	//mapping for RetroLink N64 and Gamecube pad (same vid/pid)
-	if(vid==0x0079 && pid==0x0006) {
+	if(vid==VID_RETROLINK && pid==0x0006) {
 	  mapping[btn_off+7] = JOY_A;  // A on N64 pad
 	  mapping[btn_off+9] = JOY_B;  // B on N64 pad
 	  mapping[btn_off+3] = JOY_A;  // A on GC pad
@@ -248,7 +263,7 @@ uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_inpu
 	}
 	
 	//mapping for NEOGEO-daptor
-	if(vid==0x04D8 && pid==0xF421) {
+	if(vid==VID_DAPTOR && pid==0xF421) {
 	  mapping[btn_off+1] = JOY_B;  // red button "A" on pad (inverted order with NES/SNES
 	  mapping[btn_off+2] = JOY_A;  // yellow button "B" on pad (inverted order with NES/SNES
 	  mapping[btn_off+3] = JOY_Y | JOY_L;  // green button, "C" on pad (mapped to Y and L in SNES convention)
@@ -262,10 +277,10 @@ uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_inpu
 	if(vid==0x1235 && pid==0xab21) {
 		mapping[btn_off+1] = JOY_A;
 	  mapping[btn_off+2] = JOY_B;
-	  //mapping[btn_off+3] // not used
+	  //mapping[btn_off+3] // physical button #3 not used
 		mapping[btn_off+4] = JOY_X;
 		mapping[btn_off+5] = JOY_Y;
-	  //mapping[btn_off+6] // not used
+	  //mapping[btn_off+6] // physical button #6 not used
 		mapping[btn_off+7] = JOY_L | JOY_L2; // also bind to buttons for flippers
 	  mapping[btn_off+8] = JOY_R | JOY_R2; // also bind to buttons for flippers
 	  //9 and 10 not used
