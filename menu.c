@@ -891,7 +891,7 @@ void HandleUI(void)
 			OsdWrite(0, "", 0,0);
 			OsdWrite(1, " Firmware & Core           \x16", menusub == 0,0);
 			OsdWrite(2, " Input Devices             \x16", menusub == 1,0);
-			OsdWrite(3, " Save settings             \x16", menusub == 2,0);
+			OsdWrite(3, " Save settings", menusub == 2,0);
 			OsdWrite(4, "", 0,0);
 			OsdWrite(5, " About", menusub  == 3,0);
 			OsdWrite(6, "", 0,0);
@@ -973,20 +973,22 @@ void HandleUI(void)
 			OsdDrawLogo(6,6,1);
 			ScrollText(5,"                                 MiST by Till Harbaum, based on Minimig and other projects. MiST hardware and software is distributed under the terms of the GNU General Public License version 3. MiST FPGA cores are the work of their respective authors under individual licensing.",0,0,0);			
 			// menu key closes menu
-			if (menu)
-				menustate = MENU_NONE1;
+			if (menu) {
+				menustate = MENU_8BIT_SYSTEM1;
+				menusub = 3;
+			}
 			if(select) {
 				//iprintf("Selected", 0);
 				if (menusub==0) {
 					menustate = MENU_8BIT_SYSTEM1;
-					menusub = 0;
+					menusub = 3;
 				}
 			}
 			else { 
 				if (left)
 				{
 					menustate = MENU_8BIT_SYSTEM1;
-					menusub = 0;
+					menusub = 3;
 				} 
 			}
 			break;
@@ -1008,9 +1010,9 @@ void HandleUI(void)
 			break;
 		
 		case MENU_8BIT_CONTROLLERS2:
-			// menu key closes menu
+			// menu key goes back to previous menu
 			if (menu)
-				menustate = MENU_NONE1;
+				menustate = MENU_8BIT_SYSTEM1;
 			if(select) {
 				switch (menusub) {
 					case 0:
@@ -1034,9 +1036,9 @@ void HandleUI(void)
 						menusub = 0;
 						break;
 					case 4:
-						// Exit
-						menustate=MENU_NONE1;
-						menusub = 0;
+						// Exit to system menu
+						menustate=MENU_8BIT_SYSTEM1;
+						menusub = 1;
 						break;
 				}
 			}
@@ -1067,7 +1069,7 @@ void HandleUI(void)
 			// allow allow exit when hitting space
 			if(c==KEY_SPACE) {
 				menustate = MENU_8BIT_CONTROLLERS1;
-				menusub = 0;
+				menusub = 2;
 			}
 			break;
 		
@@ -1102,11 +1104,17 @@ void HandleUI(void)
 			get_joystick_id( usb_id, 1, 1);
 			OsdWrite(2, " Joy2:", 0, 0);
 			OsdWrite(3, usb_id, 0, 0);
-			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
-			// allow allow exit when hitting space
-			if(c==KEY_SPACE) {
-				menustate = MENU_8BIT_CONTROLLERS1;
-				menusub = 0;
+			OsdWrite(7, STD_EXIT, menusub==0, 0);
+			// menu key goes back to previous menu
+			if (menu) {
+					menustate = MENU_8BIT_CONTROLLERS1;
+					menusub = 3;
+			}	
+			if(select) {
+				if(menusub==0) {
+					menustate = MENU_8BIT_CONTROLLERS1;
+					menusub = 3;
+				}
 			}
 			break;
 		
@@ -1174,7 +1182,7 @@ void HandleUI(void)
 			// allow allow exit when hitting space
 			if(c==KEY_SPACE) {
 				menustate = MENU_8BIT_CONTROLLERS1;
-				menusub = 0;
+				menusub = 1;
 			}
 			break;
 			
