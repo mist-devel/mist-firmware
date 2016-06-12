@@ -217,6 +217,7 @@ static void substrcpy(char *d, char *s, char idx) {
 
 #define STD_EXIT       "            exit"
 #define STD_SPACE_EXIT "        SPACE to exit"
+#define STD_COMBO_EXIT " Hold ESC then SPACE to exit"
 
 #define JOY_NO_INPUT "        \x14" // center of joystick arrows
 #define JOY_VID 		 "VID:"
@@ -443,6 +444,7 @@ void HandleUI(void)
 	static const char *helptext;
 	static char helpstate=0;
 	unsigned char keys[6] = {0,0,0,0,0,0};
+	unsigned int keys_ps2[6] = {0,0,0,0,0,0};
 	
 	/* check joystick status */
 	char joy_string[32];
@@ -1045,31 +1047,35 @@ void HandleUI(void)
 			OsdSetTitle("Keyboard", 0);
 			menustate = MENU_8BIT_KEYTEST2;
 			parentstate=MENU_8BIT_KEYTEST1;
-			OsdKeyboardPressed(keys, 0);
+			OsdKeyboardPressed(keys);
 			OsdWrite(0, "", 0, 0);
 			OsdWrite(1, "       USB scancodes", 0, 0);
 			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
 			OsdWrite(2, s, 0,0);
 			OsdWrite(3, "", 0, 0);
-			OsdKeyboardPressed(keys, 1);
-			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
 			OsdWrite(4, "       PS/2 scancodes", 0, 0);
+			OsdKeyboardPressedPS2(keys_ps2);
+			siprintf(s, "    %3x%3x%3x%3x%3x%3x", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3], keys_ps2[4], keys_ps2[5]);
 			OsdWrite(5, s, 0, 0);			
 			OsdWrite(6, " ", 0, 0);
-			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
+			OsdWrite(7, STD_COMBO_EXIT, menusub==0, 0);
 			break;
 			
 		case MENU_8BIT_KEYTEST2:
-			OsdKeyboardPressed(keys, 0);
+			OsdKeyboardPressed(keys);
 			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
 			OsdWrite(2, s, 0,0);
-			OsdKeyboardPressed(keys, 1);
-			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
-			OsdWrite(5, s, 0, 0);		
-			// allow allow exit when hitting space
-			if(c==KEY_SPACE) {
-				menustate = MENU_8BIT_CONTROLLERS1;
-				menusub = 2;
+			OsdKeyboardPressedPS2(keys_ps2);
+			siprintf(s, "   %3x%3x%3x%3x%3x%3x", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3], keys_ps2[4], keys_ps2[5]);
+			OsdWrite(5, s, 0, 0);
+			// allow allow exit when hitting space and ESC
+			for(i=0; i<6; i++) {
+				if(keys[i]==0x29) { //ESC
+					if(c==KEY_SPACE) {
+						menustate = MENU_8BIT_CONTROLLERS1;
+						menusub = 2;
+					}
+				}
 			}
 			break;
 		

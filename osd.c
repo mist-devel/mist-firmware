@@ -822,15 +822,24 @@ unsigned int OsdUsbPidGetB() {
 /* keyboard data */
 static unsigned char key_modifier = 0;
 static unsigned char key_pressed[6] = { 0,0,0,0,0,0 };
-static unsigned char key_ps2[6] = { 0,0,0,0,0,0 };
-void OsdKeyboardSet( unsigned char modifier, char* keycodes, char* keycodes_ps2) {
+static unsigned int key_ps2[6] = { 0,0,0,0,0,0 };
+void OsdKeyboardSet( unsigned char modifier, char* keycodes, int* keycodes_ps2) {
 	unsigned i=0;
 	key_modifier = modifier;
 	for(i=0; i<6; i++) {
 		if((keycodes[i]&0xFF) != 0xFF ) {
 			key_pressed[i]=keycodes[i];
-			key_ps2[i]=keycodes_ps2[i];
-			if(key_ps2[i]==0xFF) key_ps2[i]=0;
+			if((keycodes_ps2[i]&0xFF) != 0xFF ) {
+				//iprintf("PS2 keycode: %x\n", keycodes_ps2[i]);
+				// translate EXT into 0E
+				if(0x1000 & keycodes_ps2[i]) {
+					key_ps2[i] = keycodes_ps2[i]&0xFF | 0x0E00;
+				} else {
+					key_ps2[i] = keycodes_ps2[i]&0xFF;
+				}
+			} else {
+				key_ps2[i]=0;
+			}
 		}
 		else {
 			key_pressed[i]=0;
@@ -841,10 +850,16 @@ void OsdKeyboardSet( unsigned char modifier, char* keycodes, char* keycodes_ps2)
 unsigned char OsdKeyboardModifiers() {
 	return key_modifier;
 }
-void OsdKeyboardPressed(char *keycodes, unsigned short as_ps2) {
+void OsdKeyboardPressed(char *keycodes) {
 	unsigned i=0;
 	for(i=0; i<6; i++) 
-		keycodes[i]= as_ps2 ? key_ps2[i] : key_pressed[i];
+		keycodes[i]=key_pressed[i];
+}
+void OsdKeyboardPressedPS2(unsigned int *keycodes) {
+	unsigned i=0;
+	for(i=0; i<6; i++) {
+		keycodes[i]=key_ps2[i];
+	}
 }
 
 /* core currently loaded */

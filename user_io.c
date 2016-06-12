@@ -480,17 +480,18 @@ static uint8_t joystick_renumber(uint8_t j) {
   // no usb sticks present: no changes are being made
   if(!usb_sticks) return j;
 
-  if(j == 0) {
-    // if usb joysticks are present, then physical joystick 0 (mouse port)
-    // becomes becomes 2,3,...
-    j = usb_sticks + 1;
-  } else {
-    // if one usb joystick is present, then physical joystick 1 (joystick port)
-    // becomes physical joystick 0 (mouse) port. If more than 1 usb joystick
-    // is present it becomes 2,3,...
-    if(usb_sticks == 1) j = 0;
-    else                j = usb_sticks;
-  }
+	if(j == 0) {
+		// if usb joysticks are present, then physical joystick 0 (mouse port)
+		// becomes becomes 2,3,...
+		j = usb_sticks + 1;
+	} else {
+		// if one usb joystick is present, then physical joystick 1 (joystick port)
+		// becomes physical joystick 0 (mouse) port. If more than 1 usb joystick
+		// is present it becomes 2,3,...
+		if(usb_sticks == 1) j = 0;
+		else                j = usb_sticks;
+	}
+	 
   return j;
 }
 
@@ -1436,7 +1437,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 
     static unsigned char modifier = 0, pressed[6] = { 0,0,0,0,0,0 };
 		char keycodes[6] = { 0,0,0,0,0,0 };
-		char keycodes_ps2[6] = { 0,0,0,0,0,0 };
+		unsigned int keycodes_ps2[6] = { 0,0,0,0,0,0 };
     char i, j;
     		
     // remap keycodes if requested
@@ -1647,7 +1648,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 		for(i=0;i<6;i++) {
 			pressed[i] = k[i];
 			keycodes[i] = pressed[i]; // send raw USB code, not amiga - keycode(pressed[i]);
-			keycodes_ps2[i] = usb2ps2[pressed[i]];
+			keycodes_ps2[i] = keycode(pressed[i]);
 		}
 		OsdKeyboardSet(m, keycodes, keycodes_ps2);
   }
