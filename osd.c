@@ -833,7 +833,7 @@ void OsdKeyboardSet( unsigned char modifier, char* keycodes, int* keycodes_ps2) 
 				//iprintf("PS2 keycode: %x\n", keycodes_ps2[i]);
 				// translate EXT into 0E
 				if(0x1000 & keycodes_ps2[i]) {
-					key_ps2[i] = keycodes_ps2[i]&0xFF | 0x0E00;
+					key_ps2[i] = keycodes_ps2[i]&0xFF | 0xE000;
 				} else {
 					key_ps2[i] = keycodes_ps2[i]&0xFF;
 				}
