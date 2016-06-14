@@ -739,8 +739,15 @@ void HandleUI(void)
 
 				// check for 'F'ile or 'S'D image strings
 				if(p && ((p[0] == 'F') || (p[0] == 'S'))) {
-					if(p[0] == 'F') strcpy(s, " Load *.");
-					else            strcpy(s, " Mount *.");
+					substrcpy(s, p, 2);
+					if(strlen(s)) {
+						strcpy(s, " ");
+						substrcpy(s+1, p, 2);
+						strcat(s, " *.");
+					} else {
+						if(p[0] == 'F') strcpy(s, " Load *.");
+						else            strcpy(s, " Mount *.");
+					}
 					substrcpy(s+strlen(s), p, 1);
 					OsdWrite(entry, s, menusub==entry, 0);
 
