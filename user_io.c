@@ -68,6 +68,10 @@ static unsigned long mouse_timer;
 // may be in use by an active OSD
 static char osd_is_visible = false;
 
+// keep delay for autofire
+static uint8_t button_timer_A = 0;
+static uint8_t button_timer_B = 0;
+
 char user_io_osd_is_visible() {
   return osd_is_visible;
 }
@@ -294,6 +298,15 @@ unsigned char usb2amiga( unsigned  char k ) {
 	return usb2ami[k];
 }
 
+unsigned short usb2ps2code( unsigned char k) {
+	//  replace MENU key by RGUI e.g. to allow using RGUI on reduced keyboards without physical key
+	// (it also disables the use of Menu for OSD)
+	if (mist_cfg.key_menu_as_rgui && k==0x65) {
+		return EXT | 0x27;
+	}
+	return usb2ps2[k];
+}
+
 void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
   if(core_type == CORE_TYPE_8BIT) {
     spi_uio_cmd8_cont(UIO_ASTICK, joystick);
@@ -335,22 +348,18 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
   // "only" 6 joysticks are supported
   if(joystick >= 6)
     return;
-
-  // mist cores process joystick events for joystick 0 and 1 via the 
-  // ikbd
-  if((core_type == CORE_TYPE_MINIMIG) || 
-     (core_type == CORE_TYPE_MINIMIG2)  || 
-     (core_type == CORE_TYPE_PACE)  || 
-     (core_type == CORE_TYPE_ARCHIE)  || 
-     ((core_type == CORE_TYPE_MIST) && (joystick >= 2))  || 
-     (core_type == CORE_TYPE_8BIT)) {
-    // joystick 3 and 4 were introduced later
-    spi_uio_cmd8((joystick < 2)?(UIO_JOYSTICK0 + joystick):((UIO_JOYSTICK2 + joystick - 2)), map);
-  }
-
-  // atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
-  if((core_type == CORE_TYPE_MIST) && (joystick < 2))
+	
+	// atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
+	// but only for joystick 1 and 2
+	if((core_type == CORE_TYPE_MIST) && (joystick < 2)) {
     ikbd_joystick(joystick, map);
+		return;
+	}
+	
+  // every other core else uses this
+	// (even MIST, joystick 3 and 4 were introduced later)
+  spi_uio_cmd8((joystick < 2)?(UIO_JOYSTICK0 + joystick):((UIO_JOYSTICK2 + joystick - 2)), map);
+    
 }
 
 static char dig2ana(char min, char max) {
@@ -1358,7 +1367,7 @@ unsigned short keycode(unsigned char in) {
     return usb2archie[in];
 
   if(core_type == CORE_TYPE_8BIT)
-    return usb2ps2[in];
+    return usb2ps2code(in);
 
   return MISS;
 }
