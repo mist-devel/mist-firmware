@@ -953,12 +953,10 @@ void HandleUI(void)
 							break;
 						case CORE_TYPE_8BIT:
 							menusub = 0;
-							menustate = MENU_8BIT_SYSTEM1;
+							menustate = MENU_8BIT_MAIN1;
 							break;
 					}
 				}
-					//menustate = MENU_8BIT_MAIN1;
-					//menusub = 0;
 			}
 			break;
 		
