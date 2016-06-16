@@ -167,6 +167,9 @@ void user_io_send_buttons(char);
 
 void user_io_key_remap(char *);
 
+void user_io_set_index(unsigned char index);
+unsigned char user_io_ext_idx(fileTYPE *, char*);
+
 #define USB_LOAD_VAR   *(int*)(0x0020FF04)
 #define USB_LOAD_VALUE 12345678
 
