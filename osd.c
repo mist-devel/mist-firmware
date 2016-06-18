@@ -794,9 +794,11 @@ uint8_t OsdUsbJoyGetExtraB() {
 /* connected HID information */
 static unsigned int usb_vid;
 static unsigned int usb_pid;
-void OsdUsbIdSet(unsigned int vid, unsigned int pid) {
+static unsigned int num_buttons;
+void OsdUsbIdSet(unsigned int vid, unsigned int pid, unsigned int num) {
 	usb_vid=vid;
 	usb_pid=pid;
+	num_buttons = num;
 }
 unsigned int OsdUsbVidGet() {
 	return usb_vid;
@@ -804,19 +806,27 @@ unsigned int OsdUsbVidGet() {
 unsigned int OsdUsbPidGet() {
 	return usb_pid;
 }
+unsigned int OsdUsbGetNumButtons() {
+	return num_buttons;
+}
 
 /* connected HID information - joy 2*/
 static unsigned int usb_vid_b;
 static unsigned int usb_pid_b;
-void OsdUsbIdSetB(unsigned int vid, unsigned int pid) {
+static unsigned int num_buttons_b;
+void OsdUsbIdSetB(unsigned int vid, unsigned int pid, unsigned int num) {
 	usb_vid_b=vid;
 	usb_pid_b=pid;
+	num_buttons_b = num;
 }
 unsigned int OsdUsbVidGetB() {
 	return usb_vid_b;
 }
 unsigned int OsdUsbPidGetB() {
 	return usb_pid_b;
+}
+unsigned int OsdUsbGetNumButtonsB() {
+	return num_buttons_b;
 }
 
 /* keyboard data */

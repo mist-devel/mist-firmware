@@ -15,27 +15,28 @@ typedef struct {
   union {
     struct {
       struct {
-	uint16_t offset;
-	uint8_t size;
-	struct {
-	  uint16_t min;
-	  uint16_t max;
-	} logical;
+				uint16_t offset;
+				uint8_t size;
+				struct {
+					uint16_t min;
+					uint16_t max;
+				} logical;
       } axis[2];               // x and y axis
 
       struct {
-	uint8_t byte_offset;
-	uint8_t bitmask;
+				uint8_t byte_offset;
+				uint8_t bitmask;
       } button[12];             // 12 buttons max
 
       struct {
-	uint16_t offset;
-	uint8_t size;
+				uint16_t offset;
+				uint8_t size;
       } hat;                   // 1 hat (joystick only)
 
       // for downstream mapping
       uint16_t vid;            
       uint16_t pid;
+			uint8_t button_count;
       
     } joystick_mouse;
   };

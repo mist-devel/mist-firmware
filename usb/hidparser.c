@@ -130,21 +130,21 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
     // we are currently skipping an unknown/unsupported collection) 
     if(skip_collection) {
       if(!type) {  // main item
-	// any new collection increases the depth of collections to skip
-	if(tag == 10) {
-	  skip_collection++;
-	  collection_depth++;
-	}
+				// any new collection increases the depth of collections to skip
+				if(tag == 10) {
+					skip_collection++;
+					collection_depth++;
+				}
 
-	// any end collection decreases it
-	if(tag == 12) {
-	  skip_collection--;
-	  collection_depth--;
+				// any end collection decreases it
+				if(tag == 12) {
+					skip_collection--;
+					collection_depth--;
 
-	  // leaving the depth the generic desktop was valid for
-	  if(generic_desktop > collection_depth)
-	    generic_desktop = -1;
-	}
+					// leaving the depth the generic desktop was valid for
+					if(generic_desktop > collection_depth)
+						generic_desktop = -1;
+				}
       }
 
       
@@ -173,6 +173,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 		  conf->joystick_mouse.button[b].byte_offset = this_bit/8;
 		  conf->joystick_mouse.button[b].bitmask = 1 << (this_bit%8);
 		}
+					conf->joystick_mouse.button_count = report_count * report_size;
 	      }
 
 	      // we found at least one button which is all we want to accept this as a valid 
@@ -345,7 +346,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 	case 7:
 	  hidp_extreme_debugf("REPORT_SIZE(%d)", value);
 	  report_size = value;
-	  break;
+		break;
 
 	case 8:
 	  hidp_extreme_debugf("REPORT_ID(%d)", value);
@@ -354,7 +355,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 
 	case 9:
 	  hidp_extreme_debugf("REPORT_COUNT(%d)", value);
-	  report_count = value;
+		report_count = value;
 	  break;
 	  
 	default:

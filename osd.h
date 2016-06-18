@@ -156,17 +156,20 @@ unsigned char OsdNumJoysticksSet(unsigned char num);
 void OsdUsbJoySet(uint8_t usbjoy, uint8_t usbextra);
 uint8_t OsdUsbJoyGet();
 uint8_t OsdUsbJoyGetExtra();
-void OsdUsbIdSet(unsigned int vid, unsigned int pid);
+void OsdUsbIdSet(unsigned int vid, unsigned int pid, unsigned int num_buttons);
 unsigned int OsdUsbVidGet();
 unsigned int OsdUsbPidGet();
+unsigned int OsdUsbGetNumButtons();
+
 
 // USB raw data for joystick 2
 void OsdUsbJoySetB(uint8_t usbjoy, uint8_t usbextra);
 uint8_t OsdUsbJoyGetB();
 uint8_t OsdUsbJoyGetExtraB();
-void OsdUsbIdSetB(unsigned int vid, unsigned int pid);
+void OsdUsbIdSetB(unsigned int vid, unsigned int pid, unsigned int num_buttons);
 unsigned int OsdUsbVidGetB();
 unsigned int OsdUsbPidGetB();
+unsigned int OsdUsbGetNumButtonsB();
 
 // keyboard status
 void OsdKeyboardSet( unsigned char modifier, char* pressed, int* pressed_ps2); //get usb and ps2 codes

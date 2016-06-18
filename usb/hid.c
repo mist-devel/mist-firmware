@@ -737,10 +737,10 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				
 				// report joystick 1 to OSD
 				if ( iface->jindex==0) {
-					OsdUsbIdSet( conf->joystick_mouse.vid, conf->joystick_mouse.pid );
+					OsdUsbIdSet( conf->joystick_mouse.vid, conf->joystick_mouse.pid, conf->joystick_mouse.button_count );
 					OsdUsbJoySet( jmap, btn_extra );
 				} else if (iface->jindex==1) {
-					OsdUsbIdSetB( conf->joystick_mouse.vid, conf->joystick_mouse.pid );
+					OsdUsbIdSetB( conf->joystick_mouse.vid, conf->joystick_mouse.pid, conf->joystick_mouse.button_count );
 					OsdUsbJoySetB( jmap, btn_extra );
 				}
 				// map virtual joypad

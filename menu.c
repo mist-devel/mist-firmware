@@ -86,8 +86,8 @@ extern char DirEntryLFN[MAXDIRENTRIES][261];
 char DirEntryInfo[MAXDIRENTRIES][5]; // disk number info of dir entries
 char DiskInfo[5]; // disk number info of selected entry
 
-extern const char version[];
 
+extern const char version[];
 const char *config_tos_mem[] =  {"512 kB", "1 MB", "2 MB", "4 MB", "8 MB", "14 MB", "--", "--" };
 const char *config_tos_wrprot[] =  {"none", "A:", "B:", "A: and B:"};
 const char *config_tos_usb[] =  {"none", "control", "debug", "serial", "parallel", "midi"};
@@ -242,22 +242,20 @@ static void substrcpy(char *d, char *s, char idx) {
 #define HELPTEXT_DELAY 10000
 #define FRAME_DELAY 150
 
-//assumes big endian
+// prints input as a string of binary (on/off) values
+// assumes big endian, returns using special characters (checked box/unchecked box)
 void siprintbinary(char* buffer, size_t const size, void const * const ptr)
 {
     unsigned char *b = (unsigned char*) ptr;
     unsigned char byte;
     int i, j;
-		siprintf(buffer, "%*s", size-1, "");
+		memset(buffer, '\0', size);
     for (i=size-1;i>=0;i--)
     {
         for (j=0;j<8;j++)
         {
             byte = (b[i] >> j) & 1;
-            if(byte)
-							strcat(buffer, "1");
-						else
-							strcat(buffer, "0");
+            buffer[j]=byte?'\x1a':'\x19';
         }
     }
 		return;
@@ -278,6 +276,7 @@ void get_joystick_state( char *joy_string, char *joy_string2, unsigned int joy_n
 	if (vjoy==0) {
 		memset(joy_string2, ' ', 8);
 		memset(joy_string2+8, '\x14', 1);
+		memset(joy_string2+9, ' ', 1);
 		return;		
 	}
 	strcpy(joy_string,  "        \x12   X Y L R L2 R2 L3");
@@ -298,7 +297,6 @@ void get_joystick_state( char *joy_string, char *joy_string2, unsigned int joy_n
 	if(!(vjoy & JOY_SELECT))memset(joy_string2+16, ' ', 3);
 	if(!(vjoy & JOY_START)) memset(joy_string2+20, ' ', 3);
 	if(!(vjoy & JOY_R3))  	memset(joy_string2+24, ' ', 2);
-	
 	return;
 }
 
@@ -307,37 +305,46 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	  (in reverse binary format to correspont to MIST.INI mapping entries)
 	*/
 	char buffer[5];
+	unsigned short i;
+	char binary_string[9]="00000000";
+	unsigned char joy = 0;
+	unsigned int max_btn = 1;
 	if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
 	{
 		strcpy( s, " ");
 		return;
 	}
-	char binary_string[9]="00000000";
-	unsigned char joy = 0;
-	if(joy_num==0)
+	if(joy_num==0) {
 		joy = OsdUsbJoyGet();
-	else
+		max_btn = OsdUsbGetNumButtons();
+	}
+	else {
 		joy = OsdUsbJoyGetB();
-	siprintf(s, "    USB: ");
+		max_btn = OsdUsbGetNumButtonsB();
+	}
+	siprintf(s, "  USB: ---- 0000 0000 0000");
 	siprintbinary(binary_string, sizeof(joy), &joy);
-	binary_string[0]=binary_string[0]=='1'?'>':'-';
-	binary_string[1]=binary_string[1]=='1'?'<':'-';
-	binary_string[2]=binary_string[2]=='1'?'\x13':'-';
-	binary_string[3]=binary_string[3]=='1'?'\x12':'-';
-	
-	memcpy( buffer, &binary_string[0], 4 );
-	buffer[4]='\0';
-	strcat(s, buffer );
-	strcat(s, " ");
-	memcpy( buffer, &binary_string[4], 4 );
-	buffer[4]='\0';
-	strcat(s, buffer );
+	s[7]  = binary_string[0]=='\x1a'?'>':'\x1b';
+	s[8]  = binary_string[1]=='\x1a'?'<':'\x1b';
+	s[9]  = binary_string[2]=='\x1a'?'\x13':'\x1b';
+	s[10] = binary_string[3]=='\x1a'?'\x12':'\x1b';  
+	s[12] = binary_string[4];
+	s[13] = max_btn>1 ? binary_string[5] : ' ';
+	s[14] = max_btn>2 ? binary_string[6] : ' ';
+	s[15] = max_btn>3 ? binary_string[7] : ' ';
 	if(joy_num==0)
 		joy = OsdUsbJoyGetExtra();
 	else
 		joy = OsdUsbJoyGetExtraB();
 	siprintbinary(binary_string, sizeof(joy), &joy);
-	strcat(s, binary_string);
+	s[17] = max_btn>4 ? binary_string[0] : ' ';
+	s[18] = max_btn>5 ? binary_string[1] : ' ';
+	s[19] = max_btn>6 ? binary_string[2] : ' ';
+	s[20] = max_btn>7 ? binary_string[3] : ' ';
+	s[22] = max_btn>8 ? binary_string[4] : ' ';
+	s[23] = max_btn>9 ? binary_string[5] : ' ';
+	s[24] = max_btn>10 ? binary_string[6] : ' ';
+	s[25] = max_btn>11 ? binary_string[7] : ' ';	
 	return;
 }
 			
@@ -1033,6 +1040,7 @@ void HandleUI(void)
 		case MENU_8BIT_CONTROLLERS1:
 			helptext = helptexts[HELPTEXT_NONE];
 			menumask=0x1f;
+			//menumask=0x3f;
 			OsdSetTitle("Inputs", 0);
 			menustate = MENU_8BIT_CONTROLLERS2;
 			parentstate=MENU_8BIT_CONTROLLERS1;
@@ -1042,8 +1050,10 @@ void HandleUI(void)
 			OsdWrite(3, " Keyboard Test             \x16", menusub==2, 0);
 			OsdWrite(4, " USB status                \x16", menusub==3, 0);
 			OsdWrite(5, "", 0, 0);
+			//OsdWrite(5, " CHR test                  \x16", menusub==4, 0);
 			OsdWrite(6, "", 0, 0);
 			OsdWrite(7, STD_EXIT, menusub==4, 0);
+			//OsdWrite(7, STD_EXIT, menusub==5, 0);
 			break;
 		
 		case MENU_8BIT_CONTROLLERS2:
@@ -1072,6 +1082,12 @@ void HandleUI(void)
 						menustate=MENU_8BIT_USB1;
 						menusub = 0;
 						break;
+					/*case 4:
+						// character rom test
+						menustate=MENU_8BIT_CHRTEST1;
+						menusub = 0;
+						break;
+					*/
 					case 4:
 						// Exit to system menu
 						menustate=MENU_8BIT_SYSTEM1;
@@ -1243,6 +1259,44 @@ void HandleUI(void)
 			get_joystick_state_usb ( s, 1 );
 			OsdWrite(6, s, 0,0);
 			// allow allow exit when hitting space
+			if(c==KEY_SPACE) {
+				menustate = MENU_8BIT_CONTROLLERS1;
+				menusub = 1;
+			}
+			break;
+			
+		case MENU_8BIT_CHRTEST1:
+			helptext = helptexts[HELPTEXT_NONE];
+			menumask=0;
+			OsdSetTitle("CHR", 0);
+			menustate = MENU_8BIT_CHRTEST2;
+			parentstate=MENU_8BIT_CHRTEST1;
+			strcpy(usb_id, "                          ");
+			for(i=1; i<24; i++) {
+				if(i<4 || i>13)
+					usb_id[i] = i;
+				else
+					usb_id[i] = ' ';
+			}
+			OsdWrite(0, usb_id, 0, 0);
+			for(i=0; i<24; i++) usb_id[i] = i+24;
+			OsdWrite(1, usb_id, 0, 0);
+			for(i=0; i<24; i++) usb_id[i] = i+(24*2);
+			OsdWrite(2, usb_id, 0, 0);	
+			for(i=0; i<24; i++) usb_id[i] = i+(24*3);
+			OsdWrite(3, usb_id, 0, 0);
+			for(i=0; i<24; i++) usb_id[i] = i+(24*4);
+			OsdWrite(4, usb_id, 0, 0);
+			strcpy(usb_id, "                          ");
+			for(i=0; i<8; i++) usb_id[i] = i+(24*5);
+			OsdWrite(5, usb_id, 0, 0);
+			//for(i=0; i<24; i++) usb_id[i] = i+(24*6);
+			OsdWrite(6, "", 0, 0);
+			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
+			break;
+			
+		case MENU_8BIT_CHRTEST2:
+			
 			if(c==KEY_SPACE) {
 				menustate = MENU_8BIT_CONTROLLERS1;
 				menusub = 1;
