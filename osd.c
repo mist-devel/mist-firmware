@@ -852,6 +852,7 @@ void OsdTurboSet ( uint16_t turbo, uint16_t mask, uint8_t joy_num ) {
 uint8_t OsdJoyState ( uint8_t joy_num ) {
 	if(joy_num>1) return 0;
 	uint8_t result = mist_joy[joy_num].state;
+	if(mist_joy[joy_num].turbo==0) return result;
 	result &=  mist_joy[joy_num].turbo_state;
 	return result;
 }

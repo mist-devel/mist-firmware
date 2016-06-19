@@ -754,20 +754,18 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				//if (jmap != 0) iprintf("JMAP post map:%d\n", jmap);
 				
 				// report joystick extra buttons to OSD
-				OsdJoySetExtra( btn_extra, iface->jindex );
+				idx = iface->jindex;
+				OsdJoySet( jmap, idx );
+				OsdJoySetExtra( btn_extra, idx );
 				
 				// swap joystick 0 and 1 since 1 is the one 
 				// used primarily on most systems
-				idx = iface->jindex;
+				
 				if(idx == 0)      idx = 1;
 				else if(idx == 1) idx = 0;
-
-				// check if joystick state has changed
-				if(jmap != iface->jmap) {
-					// and feed into joystick input system
-					user_io_digital_joystick(idx, jmap);
-					iface->jmap = jmap;
-				}
+				
+				// run even if not changed
+				user_io_digital_joystick(idx, jmap);
 				
 				// also send analog values
 				user_io_analog_joystick(idx, a[0]-128, a[1]-128);
