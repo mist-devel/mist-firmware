@@ -736,13 +736,9 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				jmap |= btn << JOY_BTN_SHIFT;      // add buttons
 				
 				// report joystick 1 to OSD
-				if ( iface->jindex==0) {
-					OsdUsbIdSet( conf->joystick_mouse.vid, conf->joystick_mouse.pid, conf->joystick_mouse.button_count );
-					OsdUsbJoySet( jmap, btn_extra );
-				} else if (iface->jindex==1) {
-					OsdUsbIdSetB( conf->joystick_mouse.vid, conf->joystick_mouse.pid, conf->joystick_mouse.button_count );
-					OsdUsbJoySetB( jmap, btn_extra );
-				}
+				OsdUsbIdSet( conf->joystick_mouse.vid, conf->joystick_mouse.pid, conf->joystick_mouse.button_count, iface->jindex );
+				OsdUsbJoySet( jmap, btn_extra, iface->jindex );
+				
 				// map virtual joypad
 				uint16_t vjoy = jmap;
 				vjoy |= btn_extra << 8;
@@ -757,12 +753,8 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				
 				//if (jmap != 0) iprintf("JMAP post map:%d\n", jmap);
 				
-				// report joystick 1 to OSD
-				if ( iface->jindex==0) {
-					OsdJoySetExtra( btn_extra );
-				} else if (iface->jindex==1) {
-					OsdJoySetExtra2( btn_extra );
-				}
+				// report joystick extra buttons to OSD
+				OsdJoySetExtra( btn_extra, iface->jindex );
 				
 				// swap joystick 0 and 1 since 1 is the one 
 				// used primarily on most systems

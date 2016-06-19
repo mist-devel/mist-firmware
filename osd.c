@@ -728,109 +728,136 @@ static unsigned char joysticks;
 unsigned char OsdNumJoysticks() {
 	return joysticks;
 }
-unsigned char OsdNumJoysticksSet(unsigned char num) {
+
+
+/* latest joystick state */
+
+static mist_joystick_t mist_joy[3] = { // 3rd one is dummy, used to store defaults
+	{
+		.vid = 0,
+		.pid = 0,
+		.num_buttons=1, // DB9 has 1 button
+		.state=0,
+		.state_extra=0,
+		.usb_state=0,
+		.usb_state_extra=0,
+		.turbo=50,
+		.turbo_counter=0,
+		.turbo_mask=0x30,	 // A and B buttons		
+		.turbo_state=0xFF  // flip state (0 or 1)
+	},
+	{
+		.vid = 0,
+		.pid = 0,
+		.num_buttons=1, // DB9 has 1 button
+		.state=0,
+		.state_extra=0,
+		.usb_state=0,
+		.usb_state_extra=0,
+		.turbo=0,
+		.turbo_counter=0,
+		.turbo_mask=0x30, // A and B buttons		
+		.turbo_state=0xFF // flip state (0 or 1)
+	},
+	{
+		.vid = 0,
+		.pid = 0,
+		.num_buttons=1, // DB9 has 1 button
+		.state=0,
+		.state_extra=0,
+		.usb_state=0,
+		.usb_state_extra=0,
+		.turbo=0,
+		.turbo_counter=0,
+		.turbo_mask=0x30, // A and B buttons		
+		.turbo_state=0xFF // flip state (0 or 1)
+	}
+};
+
+void OsdNumJoysticksSet(unsigned char num) {
+	mist_joystick_t joy;
 	joysticks = num;
+	if(joysticks<3) {
+		//clear USB joysticks
+		if(joysticks<2)
+			joy = mist_joy[0];
+		else
+			joy = mist_joy[1];
+		joy.vid=0;
+		joy.vid=0;
+		joy.num_buttons=1;
+		joy.state=0;
+		joy.state_extra=0;
+		joy.usb_state=0;
+		joy.usb_state_extra=0;
+	}
 }
 
-/* latest joystick state */
-static unsigned char osd_joy;
-static unsigned char osd_joy_extra;
-void OsdJoySet(unsigned char c) {
-  //iprintf("OSD joy: %x\n", c);
-  osd_joy = c;
-}
-void OsdJoySetExtra(unsigned char c) {
-  osd_joy_extra = c;
-}
-unsigned char OsdJoyGet() {
-  return osd_joy;
-}
-unsigned char OsdJoyGetExtra() {
-  return osd_joy_extra;
-}
-/* latest joystick state */
-static unsigned char osd_joy2;
-static unsigned char osd_joy_extra2;
-void OsdJoySet2(unsigned char c) {
-  //iprintf("OSD joy 2: %x\n", c);
-  osd_joy2 = c;
-}
-void OsdJoySetExtra2(unsigned char c) {
-  osd_joy_extra2 = c;
-}
-unsigned char OsdJoyGet2() {
-  return osd_joy2;
-}
-unsigned char OsdJoyGetExtra2() {
-  return osd_joy_extra2;
+// state of MIST virtual joystick
+
+mist_joystick_t OsdJoyGet(uint8_t joy_num) {
+		if(joy_num>1) return mist_joy[2]; 
+		return mist_joy[joy_num];
 }
 
-static uint8_t raw_usb_joy;	      // four directions and 4 buttons
-static uint8_t raw_usb_joy_extra; // eight extra buttons
-void OsdUsbJoySet(uint8_t usbjoy, uint8_t usbextra) {
-	raw_usb_joy = usbjoy;
-	raw_usb_joy_extra = usbextra;
+void OsdJoySet(unsigned char c, uint8_t joy_num) {
+  if(joy_num>1) return;
+	mist_joy[joy_num].state = c;
+	if(c==0) OsdTurboReset(joy_num); //clear turbo if no button pressed
 }
-uint8_t OsdUsbJoyGet() {
-	return raw_usb_joy;
-}
-uint8_t OsdUsbJoyGetExtra() {
-	return raw_usb_joy_extra;
+void OsdJoySetExtra(unsigned char c, uint8_t joy_num) {
+  if(joy_num>1) return;
+	mist_joy[joy_num].state_extra = c;
 }
 
-static uint8_t raw_usb_joy_b;	      // four directions and 4 buttons
-static uint8_t raw_usb_joy_extra_b; // eight extra buttons
-void OsdUsbJoySetB(uint8_t usbjoy, uint8_t usbextra) {
-	raw_usb_joy_b = usbjoy;
-	raw_usb_joy_extra_b = usbextra;
-}
-uint8_t OsdUsbJoyGetB() {
-	return raw_usb_joy_b;
-}
-uint8_t OsdUsbJoyGetExtraB() {
-	return raw_usb_joy_extra_b;
+// raw state of USB controller
+
+void OsdUsbJoySet(uint8_t usbjoy, uint8_t usbextra, uint8_t joy_num) {
+	if(joy_num>1) return;
+	mist_joy[joy_num].usb_state = usbjoy;
+	mist_joy[joy_num].usb_state_extra = usbextra;
 }
 
 /* connected HID information */
-static unsigned int usb_vid;
-static unsigned int usb_pid;
-static unsigned int num_buttons;
-void OsdUsbIdSet(unsigned int vid, unsigned int pid, unsigned int num) {
-	usb_vid=vid;
-	usb_pid=pid;
-	num_buttons = num;
-}
-unsigned int OsdUsbVidGet() {
-	return usb_vid;
-}
-unsigned int OsdUsbPidGet() {
-	return usb_pid;
-}
-unsigned int OsdUsbGetNumButtons() {
-	return num_buttons;
+void OsdUsbIdSet(unsigned int vid, unsigned int pid, unsigned int btn_count, uint8_t joy_num) {
+	if(joy_num>1) return;
+	mist_joy[joy_num].vid = vid;
+	mist_joy[joy_num].pid = pid;
+	mist_joy[joy_num].num_buttons = btn_count;
 }
 
-/* connected HID information - joy 2*/
-static unsigned int usb_vid_b;
-static unsigned int usb_pid_b;
-static unsigned int num_buttons_b;
-void OsdUsbIdSetB(unsigned int vid, unsigned int pid, unsigned int num) {
-	usb_vid_b=vid;
-	usb_pid_b=pid;
-	num_buttons_b = num;
+/* handle button's turbo timers */
+void OsdTurboUpdate(uint8_t joy_num) {
+	if(joy_num>1) return;
+	mist_joy[joy_num].turbo_counter += 1;
+	if(mist_joy[joy_num].turbo_counter > mist_joy[joy_num].turbo) {
+		mist_joy[joy_num].turbo_counter = 0;
+		mist_joy[joy_num].turbo_state ^= mist_joy[joy_num].turbo_mask;
+	}
 }
-unsigned int OsdUsbVidGetB() {
-	return usb_vid_b;
+/* reset all turbo timers and state */
+void OsdTurboReset(uint8_t joy_num) {
+	if(joy_num>1) return;
+	mist_joy[joy_num].turbo_counter = 0;
+	mist_joy[joy_num].turbo_state = 0xFF;
 }
-unsigned int OsdUsbPidGetB() {
-	return usb_pid_b;
+/* set a specific turbo mask and timeout */
+void OsdTurboSet ( uint16_t turbo, uint16_t mask, uint8_t joy_num ) {
+	if(joy_num>1) return;
+	OsdTurboReset(joy_num);
+	mist_joy[joy_num].turbo = turbo;
+	mist_joy[joy_num].turbo_mask = mask;
 }
-unsigned int OsdUsbGetNumButtonsB() {
-	return num_buttons_b;
+/* return Joy state including turbo settings */
+uint8_t OsdJoyState ( uint8_t joy_num ) {
+	if(joy_num>1) return 0;
+	uint8_t result = mist_joy[joy_num].state;
+	result &=  mist_joy[joy_num].turbo_state;
+	return result;
 }
 
 /* keyboard data */
-static unsigned char key_modifier = 0;
+static uint8_t key_modifier = 0;
 static unsigned char key_pressed[6] = { 0,0,0,0,0,0 };
 static unsigned int key_ps2[6] = { 0,0,0,0,0,0 };
 void OsdKeyboardSet( unsigned char modifier, char* keycodes, int* keycodes_ps2) {
@@ -857,7 +884,7 @@ void OsdKeyboardSet( unsigned char modifier, char* keycodes, int* keycodes_ps2) 
 		}
 	}	
 }
-unsigned char OsdKeyboardModifiers() {
+uint8_t OsdKeyboardModifiers() {
 	return key_modifier;
 }
 void OsdKeyboardPressed(char *keycodes) {

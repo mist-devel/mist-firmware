@@ -313,24 +313,33 @@ void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
 }
 
 void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
+	
+	// "only" 6 joysticks are supported
+  if(joystick >= 6)
+    return;
+	
+	// the physical joysticks (db9 ports at the right device side)
+	// as well as the joystick emulation are renumbered if usb joysticks
+	// are present in the system. The USB joystick(s) replace joystick 1
+	// and 0 and the physical joysticks are "shifted up". 
+	// Since the primary joystick is in port 1 the first usb joystick 
+	// becomes joystick 1 and only the second one becomes joystick 0
+	// (mouse port)
+		
+	if (joystick==1) {
+		OsdJoySet(map, 0);
+		//map = (unsigned char)OsdJoyState(0); //apply turbo
+	}
+	else if (joystick==0) {// WARNING: 0 is the second joystick, either USB or DB9
+		OsdJoySet(map, 1);
+		//map = (unsigned char)OsdJoyState(1); //apply turbo
+	}	
+			
   // if osd is open control it via joystick
   if(osd_is_visible) {
     static const uint8_t joy2kbd[] = { 
       OSDCTRLMENU, OSDCTRLMENU, OSDCTRLMENU, OSDCTRLSELECT,
       OSDCTRLUP, OSDCTRLDOWN, OSDCTRLLEFT, OSDCTRLRIGHT };
-		
-		// the physical joysticks (db9 ports at the right device side)
-		// as well as the joystick emulation are renumbered if usb joysticks
-		// are present in the system. The USB joystick(s) replace joystick 1
-		// and 0 and the physical joysticks are "shifted up". 
-		// Since the primary joystick is in port 1 the first usb joystick 
-		// becomes joystick 1 and only the second one becomes joystick 0
-		// (mouse port)
-		
-		if (joystick==1) 
-			OsdJoySet(map);
-		else if (joystick==0) // WARNING: 0 is the second joystick, either USB or DB9
-			OsdJoySet2(map);
 		
     	// iprintf("joy to osd\n");
     
@@ -341,10 +350,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 
   //  iprintf("j%d: %x\n", joystick, map);
 
-  // "only" 6 joysticks are supported
-  if(joystick >= 6)
-    return;
-		
+  
 	// atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
 	// but only for joystick 1 and 2
 	if((core_type == CORE_TYPE_MIST) && (joystick < 2)) {

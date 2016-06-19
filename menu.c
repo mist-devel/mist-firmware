@@ -249,14 +249,14 @@ void siprintbinary(char* buffer, size_t const size, void const * const ptr)
     unsigned char *b = (unsigned char*) ptr;
     unsigned char byte;
     int i, j;
-		memset(buffer, '\0', size);
+		memset(buffer, '\0', sizeof(buffer));
     for (i=size-1;i>=0;i--)
     {
-        for (j=0;j<8;j++)
-        {
-            byte = (b[i] >> j) & 1;
-            buffer[j]=byte?'\x1a':'\x19';
-        }
+      for (j=0;j<8;j++)
+      {
+        byte = (b[i] >> j) & 1;
+        buffer[j]=byte?'\x1a':'\x19';
+      }
     }
 		return;
 }
@@ -266,13 +266,9 @@ void get_joystick_state( char *joy_string, char *joy_string2, unsigned int joy_n
 	uint16_t vjoy;
 	memset(joy_string, '\0', sizeof(joy_string));
 	memset(joy_string2, '\0', sizeof(joy_string2));
-	if (joy_num==0) {
-		vjoy = (uint16_t)OsdJoyGet();
-		vjoy |= OsdJoyGetExtra() << 8;
-	} else {
-		vjoy = (uint16_t)OsdJoyGet2();
-		vjoy |= OsdJoyGetExtra2() << 8;
-	}
+	mist_joystick_t joystick = OsdJoyGet(joy_num);
+	vjoy = OsdJoyState(joy_num);;
+	vjoy |= joystick.state_extra << 8;
 	if (vjoy==0) {
 		memset(joy_string2, ' ', 8);
 		memset(joy_string2+8, '\x14', 1);
@@ -309,19 +305,15 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	char binary_string[9]="00000000";
 	unsigned char joy = 0;
 	unsigned int max_btn = 1;
+		
 	if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
 	{
 		strcpy( s, " ");
 		return;
 	}
-	if(joy_num==0) {
-		joy = OsdUsbJoyGet();
-		max_btn = OsdUsbGetNumButtons();
-	}
-	else {
-		joy = OsdUsbJoyGetB();
-		max_btn = OsdUsbGetNumButtonsB();
-	}
+	mist_joystick_t joystick = OsdJoyGet(joy_num);
+	joy = joystick.usb_state;
+	max_btn = joystick.num_buttons;
 	siprintf(s, "  USB: ---- 0000 0000 0000");
 	siprintbinary(binary_string, sizeof(joy), &joy);
 	s[7]  = binary_string[0]=='\x1a'?'>':'\x1b';
@@ -332,10 +324,7 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	s[13] = max_btn>1 ? binary_string[5] : ' ';
 	s[14] = max_btn>2 ? binary_string[6] : ' ';
 	s[15] = max_btn>3 ? binary_string[7] : ' ';
-	if(joy_num==0)
-		joy = OsdUsbJoyGetExtra();
-	else
-		joy = OsdUsbJoyGetExtraB();
+	joy = joystick.usb_state_extra;
 	siprintbinary(binary_string, sizeof(joy), &joy);
 	s[17] = max_btn>4 ? binary_string[0] : ' ';
 	s[18] = max_btn>5 ? binary_string[1] : ' ';
@@ -382,8 +371,6 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	/*
 	Builds a string containing the USB VID/PID information of a joystick
 	*/
-	unsigned int usb_vid; 
-	unsigned int usb_pid; 
 	char buffer[32]="";
 	if (raw_id==0) {
 		if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
@@ -393,20 +380,14 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 			return;
 		}
 	}
-	if (joy_num==1) {
-		usb_vid = OsdUsbVidGetB();
-		usb_pid = OsdUsbPidGetB();
-	} else {
-		usb_vid = OsdUsbVidGet();
-		usb_pid = OsdUsbPidGet();
-	}
+	mist_joystick_t joystick = OsdJoyGet( joy_num );
 	memset(usb_id, '\0', sizeof(usb_id));
-	if (usb_vid>0) {
+	if (joystick.vid>0) {
 		if (raw_id == 0) {
-			strcpy(buffer, get_joystick_alias( usb_vid, usb_pid ));
+			strcpy(buffer, get_joystick_alias( joystick.vid, joystick.pid ));
 		}
 		if(strlen(buffer)==0) {
-			append_joystick_usbid( buffer, usb_vid, usb_pid );
+			append_joystick_usbid( buffer, joystick.vid, joystick.pid );
 		}		
 	} else {
 		strcpy(buffer, "Atari DB9 Joystick");
@@ -437,6 +418,7 @@ void HandleUI(void)
 {
 	char *p;
 	unsigned char i, c, m, up, down, select, menu, right, left, plus, minus;
+	uint8_t mod;
 	unsigned long len;
 	static hardfileTYPE t_hardfile[2]; // temporary copy of former hardfile configuration
 	static unsigned char ctrl = false;
@@ -452,6 +434,10 @@ void HandleUI(void)
 	char joy_string[32];
 	char joy_string2[32];
 	char usb_id[64];
+		
+	// update turbo status for joysticks
+	OsdTurboUpdate(0);
+	OsdTurboUpdate(1);
 		
 	// get user control codes
 	c = OsdGetCtrl();
@@ -582,6 +568,7 @@ void HandleUI(void)
 		}
 	}
 
+	
 	// Switch to current menu screen
   switch (menustate)
 	{
@@ -1058,8 +1045,10 @@ void HandleUI(void)
 		
 		case MENU_8BIT_CONTROLLERS2:
 			// menu key goes back to previous menu
-			if (menu)
+			if (menu) {
+				menusub = 1;
 				menustate = MENU_8BIT_SYSTEM1;
+			}
 			if(select) {
 				switch (menusub) {
 					case 0:
@@ -1106,6 +1095,12 @@ void HandleUI(void)
 			OsdKeyboardPressed(keys);
 			OsdWrite(0, "       USB scancodes", 0,0);
 			siprintf(s, "     %2x   %2x   %2x   %2x", keys[0], keys[1], keys[2], keys[3]); // keys[4], keys[5]); - no need to show all, save some space...
+			OsdWrite(1, s, 0,0);
+			mod = OsdKeyboardModifiers();
+			siprintbinary(usb_id, sizeof(mod), &mod);
+			siprintf(s, "    mod keys - 00000000");
+			for(i=0; i<8; i++)
+				s[15+i] = usb_id[i];
 			OsdWrite(2, s, 0,0);
 			OsdWrite(3, "", 0, 0);
 			OsdWrite(4, "       PS/2 scancodes", 0, 0);
@@ -1121,9 +1116,11 @@ void HandleUI(void)
 			OsdWrite(0, "       USB scancodes", 0,0);
 			siprintf(s, "     %2x   %2x   %2x   %2x", keys[0], keys[1], keys[2], keys[3]); // keys[4], keys[5]);
 			OsdWrite(1, s, 0,0);
-			m = OsdKeyboardModifiers();
-			siprintbinary(usb_id, sizeof(m), &m);
-			siprintf(s, "    mod keys - %s", usb_id);
+			mod = OsdKeyboardModifiers();
+			siprintbinary(usb_id, sizeof(mod), &mod);
+			siprintf(s, "    mod keys - 00000000");
+			for(i=0; i<8; i++)
+				s[15+i] = usb_id[i];
 			OsdWrite(2, s, 0,0);
 			OsdKeyboardPressedPS2(keys_ps2);
 			assign_ps2_modifier( m, keys_ps2, 0x1,  0x14);   // LCTRL
