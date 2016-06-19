@@ -104,6 +104,9 @@ const char *config_chipset_msg[] = {"OCS-A500", "OCS-A1000", "ECS", "---", "---"
 const char *config_turbo_msg[] = {"none", "CHIPRAM", "KICK", "BOTH"};
 char *config_autofire_msg[] = {"        AUTOFIRE OFF", "        AUTOFIRE FAST", "        AUTOFIRE MEDIUM", "        AUTOFIRE SLOW"};
 const char *config_cd32pad_msg[] =  {"OFF", "ON"};
+char *config_button_turbo_msg[] = {"OFF", "FAST", "MEDIUM", "SLOW"};
+char *config_button_turbo_choice_msg[] = {"A only", "B only", "A & B"};
+
 
 enum HelpText_Message {HELPTEXT_NONE,HELPTEXT_MAIN,HELPTEXT_HARDFILE,HELPTEXT_CHIPSET,HELPTEXT_MEMORY,HELPTEXT_VIDEO};
 const char *helptexts[]={
@@ -429,6 +432,7 @@ void HandleUI(void)
 	static char helpstate=0;
 	unsigned char keys[6] = {0,0,0,0,0,0};
 	unsigned int keys_ps2[6] = {0,0,0,0,0,0};
+	mist_joystick_t joy0, joy1;
 	
 	/* check joystick status */
 	char joy_string[32];
@@ -1026,21 +1030,19 @@ void HandleUI(void)
 		
 		case MENU_8BIT_CONTROLLERS1:
 			helptext = helptexts[HELPTEXT_NONE];
-			menumask=0x1f;
-			//menumask=0x3f;
+			menumask=0x3f;
 			OsdSetTitle("Inputs", 0);
 			menustate = MENU_8BIT_CONTROLLERS2;
 			parentstate=MENU_8BIT_CONTROLLERS1;
-			OsdWrite(0, "", 0, 0);
-			OsdWrite(1, " Joystick 1 Test           \x16", menusub==0, 0);	
-			OsdWrite(2, " Joystick 2 Test           \x16", menusub==1, 0);
-			OsdWrite(3, " Keyboard Test             \x16", menusub==2, 0);
-			OsdWrite(4, " USB status                \x16", menusub==3, 0);
+			OsdWrite(0, " Turbo Settings            \x16", menusub==0, 0);
+			OsdWrite(1, " Joystick 1 Test           \x16", menusub==1, 0);	
+			OsdWrite(2, " Joystick 2 Test           \x16", menusub==2, 0);
+			OsdWrite(3, " Keyboard Test             \x16", menusub==3, 0);
+			OsdWrite(4, " USB status                \x16", menusub==4, 0);
 			OsdWrite(5, "", 0, 0);
-			//OsdWrite(5, " CHR test                  \x16", menusub==4, 0);
+			//OsdWrite(5, " CHR test                  \x16", menusub==6, 0);
 			OsdWrite(6, "", 0, 0);
-			OsdWrite(7, STD_EXIT, menusub==4, 0);
-			//OsdWrite(7, STD_EXIT, menusub==5, 0);
+			OsdWrite(7, STD_EXIT, menusub==5, 0);
 			break;
 		
 		case MENU_8BIT_CONTROLLERS2:
@@ -1052,36 +1054,41 @@ void HandleUI(void)
 			if(select) {
 				switch (menusub) {
 					case 0:
+						// Turbo config
+						menustate = MENU_8BIT_TURBO1;
+						menusub=0;
+						break;
+					case 1:
 						// Joystick1 Test
 						menustate = MENU_8BIT_JOYTEST_A1;
 						menusub = 0;
 						break;
-					case 1:
+					case 2:
 						// Joystick2 test
 						menustate = MENU_8BIT_JOYTEST_B1;
 						menusub = 0;
 						break;
-					case 2:
+					case 3:
 						// Keyboard test
 						menustate = MENU_8BIT_KEYTEST1;
 						menusub = 0;
 						break;
-					case 3:
+					case 4:
 						// USB status
 						menustate=MENU_8BIT_USB1;
 						menusub = 0;
 						break;
-					/*case 4:
+					case 5:
+						// Exit to system menu
+						menustate=MENU_8BIT_SYSTEM1;
+						menusub = 1;
+						break;
+					/*case 6:
 						// character rom test
 						menustate=MENU_8BIT_CHRTEST1;
 						menusub = 0;
 						break;
 					*/
-					case 4:
-						// Exit to system menu
-						menustate=MENU_8BIT_SYSTEM1;
-						menusub = 1;
-						break;
 				}
 			}
 			break;
@@ -1262,6 +1269,81 @@ void HandleUI(void)
 			}
 			break;
 			
+		case MENU_8BIT_TURBO1:
+			helptext = helptexts[HELPTEXT_NONE];
+			menumask=0x1F;
+			OsdSetTitle("Turbo", 0);
+			menustate = MENU_8BIT_TURBO2;
+			parentstate=MENU_8BIT_TURBO1;
+			joy0 = OsdJoyGet(0);
+			joy1 = OsdJoyGet(1);
+			OsdWrite(0, "    Button Configuration", 1, 0);
+			OsdWrite(1, "", 0, 0);
+			strcpy(s,   "    Joy 1 Turbo     : ");
+			strcat(s, config_button_turbo_msg[(int)joy0.turbo/OSD_TURBO_STEP]);
+			OsdWrite(2, s, menusub==0, 0);
+			strcpy(s,   "          Buttons   : ");
+			strcat(s, config_button_turbo_choice_msg[(int)joy0.turbo_mask/16]);
+			OsdWrite(3, s, menusub==1, 0);
+			strcpy(s,   "    Joy 2 Turbo     : ");
+			strcat(s, config_button_turbo_msg[(int)joy1.turbo/OSD_TURBO_STEP]);
+			OsdWrite(4, s, menusub==2, 0);
+			strcpy(s,   "          Buttons   : ");
+			strcat(s, config_button_turbo_choice_msg[(int)joy1.turbo_mask/16]);
+			OsdWrite(5, s, menusub==3, 0);
+			OsdWrite(6, " ", 0, 0);
+			OsdWrite(7, STD_EXIT, menusub==4, 0);
+			break;
+			
+		case MENU_8BIT_TURBO2:
+			joy0 = OsdJoyGet(0);
+			joy1 = OsdJoyGet(1);
+			
+			strcpy(s,   "    Joy 1 Turbo     : ");
+			strcat(s, config_button_turbo_msg[(int)joy0.turbo/OSD_TURBO_STEP]);
+			OsdWrite(2, s, menusub==0, 0);
+			strcpy(s,   "          Buttons   : ");
+			strcat(s, config_button_turbo_choice_msg[(int)joy0.turbo_mask/16-1]);
+			OsdWrite(3, s, menusub==1, 0);
+			strcpy(s,   "    Joy 2 Turbo     : ");
+			strcat(s, config_button_turbo_msg[(int)joy1.turbo/OSD_TURBO_STEP]);
+			OsdWrite(4, s, menusub==2, 0);
+			strcpy(s,   "          Buttons   : ");
+			strcat(s, config_button_turbo_choice_msg[(int)joy1.turbo_mask/16-1]);
+			OsdWrite(5, s, menusub==3, 0);
+			// menu key goes back to previous menu
+			if (menu) {
+					menustate = MENU_8BIT_CONTROLLERS1;
+					menusub = 0;
+			}	
+			if(select) {
+				if(menusub==0) {
+					joy0.turbo += OSD_TURBO_STEP;
+					if(joy0.turbo>OSD_TURBO_STEP*3) joy0.turbo=0;
+					OsdTurboSet(joy0.turbo, joy0.turbo_mask, 0); // set central state
+				}
+				if(menusub==1) {
+					joy0.turbo_mask += 16;
+					if(joy0.turbo_mask>16*3) joy0.turbo_mask=16;
+					OsdTurboSet(joy0.turbo, joy0.turbo_mask, 0); // set central state
+				}
+				if(menusub==2) {
+					joy1.turbo += OSD_TURBO_STEP;
+					if(joy1.turbo>OSD_TURBO_STEP*3) joy1.turbo=0;
+					OsdTurboSet(joy1.turbo, joy1.turbo_mask, 1); // set central state
+				}
+				if(menusub==3) {
+					joy1.turbo_mask += 16;
+					if(joy1.turbo_mask>16*3) joy1.turbo_mask=16;
+					OsdTurboSet(joy1.turbo, joy1.turbo_mask, 1); // set central state
+				}
+				if(menusub==4) {
+					menustate = MENU_8BIT_CONTROLLERS1;
+					menusub = 0;
+				}
+			}
+			break;
+						
 		case MENU_8BIT_CHRTEST1:
 			helptext = helptexts[HELPTEXT_NONE];
 			menumask=0;
