@@ -260,9 +260,10 @@ void user_io_detect_core_type() {
 
       if (FileOpen(&file, s))  {
 	iprintf("Found config\n");
-	if(file.size == 1) {
+	if(file.size <= 4) {
+      ((unsigned long*)sector_buffer)[0] = 0;
 	  FileRead(&file, sector_buffer);
-	  user_io_8bit_set_status(sector_buffer[0], 0xff);
+	  user_io_8bit_set_status(((unsigned long*)sector_buffer)[0], 0xffffffff);
 	}
       }
 
@@ -642,7 +643,7 @@ void user_io_file_tx(fileTYPE *file, unsigned char index) {
 // to treat it
 char *user_io_8bit_get_string(char index) {
   unsigned char i, lidx = 0, j = 0;
-  static char buffer[32+1];  // max 32 bytes per config item
+  static char buffer[128+1];  // max 128 bytes per config item
 
   // clear buffer
   buffer[0] = 0;
@@ -686,8 +687,8 @@ char *user_io_8bit_get_string(char index) {
   return buffer;
 }    
 
-unsigned char user_io_8bit_set_status(unsigned char new_status, unsigned char mask) {
-  static unsigned char status = 0;
+unsigned long user_io_8bit_set_status(unsigned long new_status, unsigned long mask) {
+  static unsigned long status = 0;
 
   // if mask is 0 just return the current status 
   if(mask) {
@@ -697,6 +698,7 @@ unsigned char user_io_8bit_set_status(unsigned char new_status, unsigned char ma
     status |= new_status & mask;
 
     spi_uio_cmd8(UIO_SET_STATUS, status);
+	spi_uio_cmd32(UIO_SET_STATUS2, status);
   }
 
   return status;
