@@ -5,6 +5,7 @@
 
 #include "hardware.h"
 #include "osd.h"
+#include "state.h"
 #include "user_io.h"
 #include "archie.h"
 #include "cdc_control.h"
@@ -309,10 +310,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 		// becomes joystick 1 and only the second one becomes joystick 0
 		// (mouse port)
 		
-		if (joystick==1) 
-			OsdJoySet(map);
-		else if (joystick==0) // WARNING: 0 is the second joystick, either USB or DB9
-			OsdJoySet2(map);
+		StateJoySet(map, joystick);// WARNING: 0 is the second joystick, either USB or DB9
 		
     	// iprintf("joy to osd\n");
     
@@ -1650,7 +1648,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 			keycodes[i] = pressed[i]; // send raw USB code, not amiga - keycode(pressed[i]);
 			keycodes_ps2[i] = keycode(pressed[i]);
 		}
-		OsdKeyboardSet(m, keycodes, keycodes_ps2);
+		StateKeyboardSet(m, keycodes, keycodes_ps2);
   }
 }
 

@@ -168,12 +168,6 @@ void OsdUsbIdSetB(unsigned int vid, unsigned int pid);
 unsigned int OsdUsbVidGetB();
 unsigned int OsdUsbPidGetB();
 
-// keyboard status
-void OsdKeyboardSet( unsigned char modifier, char* pressed, int* pressed_ps2); //get usb and ps2 codes
-unsigned char OsdKeyboardModifiers();
-void OsdKeyboardPressed(char *pressed);
-void OsdKeyboardPressedPS2(unsigned int *keycodes);
-
 // get/set core currently loaded
 void OsdCoreNameSet(const char* str);
 char* OsdCoreName();
