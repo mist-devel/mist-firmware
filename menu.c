@@ -220,7 +220,6 @@ static void substrcpy(char *d, char *s, char idx) {
 #define STD_SPACE_EXIT "        SPACE to exit"
 #define STD_COMBO_EXIT " Hold ESC then SPACE to exit"
 
-#define JOY_NO_INPUT "        \x14" // center of joystick arrows
 #define JOY_VID 		 "VID:"
 #define JOY_PID 	   "PID:"
 
@@ -250,74 +249,39 @@ void siprintbinary(char* buffer, size_t const size, void const * const ptr)
 
 void get_joystick_state( char *joy_string, char *joy_string2, unsigned int joy_num ) {	
 	// helper to get joystick status (both USB or DB9)
-	unsigned char joy;
 	uint16_t vjoy;
 	memset(joy_string, '\0', sizeof(joy_string));
 	memset(joy_string2, '\0', sizeof(joy_string2));
 	if (joy_num==0) {
-		joy = OsdJoyGet();
-		vjoy = joy;
+		vjoy = (uint16_t)OsdJoyGet();
 		vjoy |= OsdJoyGetExtra() << 8;
 	} else {
-		joy = OsdJoyGet2();
-		vjoy = joy;
+		vjoy = (uint16_t)OsdJoyGet2();
 		vjoy |= OsdJoyGetExtra2() << 8;
 	}
 	if (vjoy==0) {
-		strcpy(joy_string2, JOY_NO_INPUT);
-		return;
+		memset(joy_string2, ' ', 8);
+		memset(joy_string2+8, '\x14', 1);
+		return;		
 	}
-	strcat(joy_string,  "        ");
-	strcat(joy_string2, "      " );
-	
-	if(joy & JOY_UP) strcat(joy_string, "\x12   ");
-	else strcat(joy_string, "    ");
-	
-	if(joy & JOY_LEFT) {
-		if(joy & JOY_DOWN) 
-			strcat(joy_string2, "< \x13 ");
-		else 
-			strcat(joy_string2, "< \x14 ");
-	}
-	else {
-		if (joy & JOY_DOWN)
-			strcat(joy_string2, "  \x13 ");
-		else
-			strcat(joy_string2, "  \x14 ");	
-	}
-	if(joy & JOY_RIGHT) 
-			strcat(joy_string2, "> "); //"\x16 ");
-	else
-			strcat(joy_string2, "  ");
-	if(joy & JOY_A) strcat(joy_string2, "A ");
-	else strcat(joy_string2, "  ");
-	if(joy & JOY_B) strcat(joy_string2, "B ");
-	else strcat(joy_string2, "  ");
-	if(joy & JOY_SELECT) strcat(joy_string2, "Sel ");
-	else strcat(joy_string2, "    ");
-	if(joy & JOY_START) strcat(joy_string2, "Sta");
-	
-	if(vjoy & JOY_X) strcat(joy_string, "X ");
-	else strcat(joy_string, "  ");
-	
-	if(vjoy & JOY_Y) strcat(joy_string, "Y ");
-	else strcat(joy_string, "  ");
-	
-	if(vjoy & JOY_L) strcat(joy_string, "L ");
-	else strcat(joy_string, "  ");
-	
-	if(vjoy & JOY_R) strcat(joy_string, "R ");
-	else strcat(joy_string, "  ");
-		
-	if(vjoy & JOY_L2) strcat(joy_string, "L2 ");
-	else strcat(joy_string, "   ");
-
-	if(vjoy & JOY_R2) strcat(joy_string, "R2 ");
-	else strcat(joy_string, "   ");
-	
-	if(vjoy & JOY_L3) strcat(joy_string, "L3");
-	// switch to string2 because we run out of space
-	if(vjoy & JOY_R3) strcat(joy_string2, "R3 ");
+	strcpy(joy_string,  "        \x12   X Y L R L2 R2 L3");
+	strcpy(joy_string2, "      < \x13 > A B Sel Sta R3");
+	if(!(vjoy & JOY_UP)) memset(joy_string+8, ' ', 1);
+	if(!(vjoy & JOY_X))  memset(joy_string+12, ' ', 1);
+	if(!(vjoy & JOY_Y))  memset(joy_string+14, ' ', 1);
+	if(!(vjoy & JOY_L))  memset(joy_string+16, ' ', 1);
+	if(!(vjoy & JOY_R))  memset(joy_string+18, ' ', 1);
+	if(!(vjoy & JOY_L2))  memset(joy_string+20, ' ', 2);
+	if(!(vjoy & JOY_R2))  memset(joy_string+23, ' ', 2);
+	if(!(vjoy & JOY_L3))  memset(joy_string+26, ' ', 2);
+	if(!(vjoy & JOY_LEFT)) 	memset(joy_string2+6, ' ', 1);
+	if(!(vjoy & JOY_DOWN))  memset(joy_string2+8, '\x14', 1);
+	if(!(vjoy & JOY_RIGHT)) memset(joy_string2+10, ' ', 1);
+	if(!(vjoy & JOY_A))  		memset(joy_string2+12, ' ', 1);
+	if(!(vjoy & JOY_B))  		memset(joy_string2+14, ' ', 1);
+	if(!(vjoy & JOY_SELECT))memset(joy_string2+16, ' ', 3);
+	if(!(vjoy & JOY_START)) memset(joy_string2+20, ' ', 3);
+	if(!(vjoy & JOY_R3))  	memset(joy_string2+24, ' ', 2);
 	
 	return;
 }
@@ -397,7 +361,7 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	*/
 	unsigned int usb_vid; 
 	unsigned int usb_pid; 
-	char buffer[32];
+	char buffer[32]="";
 	if (raw_id==0) {
 		if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
 		{
@@ -414,21 +378,18 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 		usb_pid = OsdUsbPidGet();
 	}
 	memset(usb_id, '\0', sizeof(usb_id));
-	if (raw_id==0)  strcpy(usb_id, "      "); // if 0 then we're just displaying string directly
 	if (usb_vid>0) {
-		if (raw_id ==0) {
-			strcpy(usb_id, get_joystick_alias( usb_vid, usb_pid ));
-			if(strlen(usb_id)>0) {
-				siprintf(buffer, "%*s", (28-strlen(usb_id))/2, " ");
-				strcat(buffer, usb_id); 
-				strcpy(usb_id, buffer);
-				return; //exit, we got an alias for the stick
-			}
+		if (raw_id == 0) {
+			strcpy(buffer, get_joystick_alias( usb_vid, usb_pid ));
 		}
-		append_joystick_usbid( usb_id, usb_vid, usb_pid );
+		if(strlen(buffer)==0) {
+			append_joystick_usbid( buffer, usb_vid, usb_pid );
+		}		
 	} else {
-		strcat(usb_id, "Atari DB9 Joystick");
+		strcpy(buffer, "Atari DB9 Joystick");
 	}	
+	siprintf(usb_id, "%*s", (28-strlen(buffer))/2, " ");
+	strcat(usb_id, buffer);
 	return;
 }
 
