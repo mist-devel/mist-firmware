@@ -364,7 +364,7 @@ const unsigned short usb2ps2[] = {
   0x70,  // 62: KP 0
   0x71,  // 63: KP .
   0x61,  // 64: Europe 2
-  EXT | 0x2f, // 65: App
+  OSD_OPEN | EXT | 0x2f, // 65: App
   EXT | 0x37, // 66: Power
   0x0f,  // 67: KP =
   0x08,  // 68: F13

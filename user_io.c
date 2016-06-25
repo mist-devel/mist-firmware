@@ -286,6 +286,15 @@ void user_io_detect_core_type() {
   }
 }
 
+unsigned char usb2amiga( unsigned  char k ) {
+	//  replace MENU key by RGUI to allow using Right Amiga on reduced keyboards
+	// (it also disables the use of Menu for OSD)
+	if (mist_cfg.key_menu_as_rgui && k==0x65) {
+		return 0x67;
+	}
+	return usb2ami[k];
+}
+
 void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
   if(core_type == CORE_TYPE_8BIT) {
     spi_uio_cmd8_cont(UIO_ASTICK, joystick);
@@ -1336,7 +1345,7 @@ static unsigned char is_emu_key(unsigned char c) {
 unsigned short keycode(unsigned char in) {
   if((core_type == CORE_TYPE_MINIMIG) ||
      (core_type == CORE_TYPE_MINIMIG2)) 
-    return usb2ami[in];
+    return usb2amiga(in);
   
   // atari st and the 8 bit core (currently only used for atari 800)
   // use the same key codes
@@ -1545,7 +1554,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 	  else {
 	    // special OSD key handled internally 
 	    if(osd_is_visible)
-	      OsdKeySet(0x80 | usb2ami[pressed[i]]);
+	      OsdKeySet(0x80 | usb2amiga(pressed[i]));
 	  }
 
 	  if(!key_used_by_osd(code)) {
@@ -1586,7 +1595,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 	  else {
 	    // special OSD key handled internally 
 	    if(osd_is_visible)
-	      OsdKeySet(usb2ami[k[i]]);
+	      OsdKeySet(usb2amiga(k[i]));
 	  }
 
 	  // no further processing of any key that is currently 

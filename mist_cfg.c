@@ -27,7 +27,8 @@ mist_cfg_t mist_cfg = {
   .mouse_boot_mode = 0, 
   .joystick_ignore_hat = 0,
   .joystick_ignore_osd = 0,
-  .joystick_disable_shortcuts = 0
+  .joystick_disable_shortcuts = 0,
+	.key_menu_as_rgui = 0
 };
 
 // mist ini sections
@@ -42,6 +43,7 @@ const ini_var_t mist_ini_vars[] = {
   {"JOYSTICK_IGNORE_HAT", (void*)(&(mist_cfg.joystick_ignore_hat)), UINT8, 0, 1, 1},
   {"JOYSTICK_DISABLE_SHORTCUTS", (void*)(&(mist_cfg.joystick_disable_shortcuts)), UINT8, 0, 1, 1},
   {"JOYSTICK_IGNORE_OSD", (void*)(&(mist_cfg.joystick_ignore_osd)), UINT8, 0, 1, 1},
+	{"KEY_MENU_AS_RGUI", (void*)(&(mist_cfg.key_menu_as_rgui)), UINT8, 0, 1, 1},
   {"KEY_REMAP", (void*)user_io_key_remap, CUSTOM_HANDLER, 0, 0, 1},
   {"HID_BUTTON_REMAP", (void*)hid_joystick_button_remap, CUSTOM_HANDLER, 0, 0, 1},
   {"JOYSTICK_REMAP", (void*)virtual_joystick_remap, CUSTOM_HANDLER, 0, 0, 1},
