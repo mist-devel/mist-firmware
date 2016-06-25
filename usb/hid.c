@@ -756,11 +756,7 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				//if (jmap != 0) iprintf("JMAP post map:%d\n", jmap);
 				
 				// report joystick 1 to OSD
-				if ( iface->jindex==0) {
-					OsdJoySetExtra( btn_extra );
-				} else if (iface->jindex==1) {
-					OsdJoySetExtra2( btn_extra );
-				}
+				StateJoySetExtra( btn_extra, iface->jindex);
 				
 				// swap joystick 0 and 1 since 1 is the one 
 				// used primarily on most systems

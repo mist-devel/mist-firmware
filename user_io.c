@@ -329,14 +329,14 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 		// becomes joystick 1 and only the second one becomes joystick 0
 		// (mouse port)
 		
-	
+	StateJoySet(map, joystick);
 	if (joystick==1) {
-		OsdJoySet(map);
+		//OsdJoySet(map);
 		//OsdTurboUpdate(0);
 		//map = (unsigned char)OsdJoyState(0); //apply turbo
 	}
 	else if (joystick==0) {// WARNING: 0 is the second joystick, either USB or DB9
-		OsdJoySet2(map);
+		//OsdJoySet2(map);
 		//OsdTurboUpdate(1);
 		//map = (unsigned char)OsdJoyState(1); //apply turbo
 	}	

@@ -98,26 +98,15 @@ static mist_joystick_t mist_joy[3] = { // 3rd one is dummy, used to store defaul
 };
 // state of MIST virtual joystick
 
-mist_joystick_t StateJoyGet(uint8_t joy_num) {
-		if(joy_num>1) return mist_joy[2]; 
-		return mist_joy[joy_num];
-}
-
-
-void StateJoySetExtra(unsigned char c, uint8_t joy_num) {
-  if(joy_num>1) return;
-	mist_joy[joy_num].state_extra = c;
-}
-
-
 
 /* return Joy state including turbo settings */
+/*
 uint8_t StateJoyState ( uint8_t joy_num ) {
 	if(joy_num>1) return 0;
 	uint8_t result = mist_joy[joy_num].state;
 	result &=  mist_joy[joy_num].turbo_state;
 	return result;
-}
+}*/
 
 
 void StateNumJoysticksSet(unsigned char num) {
@@ -163,11 +152,12 @@ void StateTurboSet ( uint16_t turbo, uint16_t mask, uint8_t joy_num ) {
 	mist_joy[joy_num].turbo_mask = mask;
 }
 
+/*
 void StateJoySet(unsigned char c, uint8_t joy_num) {
   if(joy_num>1) return;
 	mist_joy[joy_num].state = c;
 	if(c==0) StateTurboReset(joy_num); //clear turbo if no button pressed
-}
+}*/
 
 // other constants
 #define DIRSIZE 8 // number of items in directory display window
@@ -386,13 +376,8 @@ void get_joystick_state( char *joy_string, char *joy_string2, unsigned int joy_n
 	uint16_t vjoy;
 	memset(joy_string, '\0', sizeof(joy_string));
 	memset(joy_string2, '\0', sizeof(joy_string2));
-	if (joy_num==0) {
-		vjoy = (uint16_t)OsdJoyGet();
-		vjoy |= OsdJoyGetExtra() << 8;
-	} else {
-		vjoy = (uint16_t)OsdJoyGet2();
-		vjoy |= OsdJoyGetExtra2() << 8;
-	}
+	vjoy = StateJoyGet(joy_num);
+	vjoy |=  StateJoyGetExtra(joy_num) << 8;
 	if (vjoy==0) {
 		memset(joy_string2, ' ', 8);
 		memset(joy_string2+8, '\x14', 1);
@@ -494,6 +479,12 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	Builds a string containing the USB VID/PID information of a joystick
 	*/
 	char buffer[32]="";
+	mist_joystick_t joystick;
+	if (joy_num>3) 
+			joystick=mist_joy[2];
+	else
+			joystick=mist_joy[joy_num];
+	
 	if (raw_id==0) {
 		if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
 		{
@@ -502,7 +493,6 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 			return;
 		}
 	}
-	mist_joystick_t joystick = StateJoyGet( joy_num );
 	
 	//hack populate from outside
 	joystick.vid = StateUsbVidGet(joy_num);
@@ -1460,8 +1450,8 @@ void HandleUI(void)
 			OsdSetTitle("Turbo", 0);
 			menustate = MENU_8BIT_TURBO2;
 			parentstate=MENU_8BIT_TURBO1;
-			joy0 = StateJoyGet(0);
-			joy1 = StateJoyGet(1);
+			joy0 = mist_joy[0];//StateJoyGet(0);
+			joy1 = mist_joy[1];//StateJoyGet(1);
 			OsdWrite(0, "    Button Configuration", 1, 0);
 			OsdWrite(1, "", 0, 0);
 			strcpy(s,   "    Joy 1 Turbo     : ");
@@ -1481,9 +1471,8 @@ void HandleUI(void)
 			break;
 			
 		case MENU_8BIT_TURBO2:
-			joy0 = StateJoyGet(0);
-			joy1 = StateJoyGet(1);
-			
+			joy0 = mist_joy[0];//StateJoyGet(0);
+			joy1 = mist_joy[1];//StateJoyGet(1);
 			strcpy(s,   "    Joy 1 Turbo     : ");
 			strcat(s, config_button_turbo_msg[(int)joy0.turbo/OSD_TURBO_STEP]);
 			OsdWrite(2, s, menusub==0, 0);

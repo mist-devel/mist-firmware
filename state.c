@@ -47,24 +47,31 @@ void joy_reset ( mist_joystick_t joy ) {
 
 
 /* latest joystick state */
-static unsigned char osd_joy;
-static unsigned char osd_joy_extra;
-void OsdJoySet(unsigned char c) {
+static uint8_t osd_joy;
+static uint8_t osd_joy_extra;
+static uint8_t osd_joy2;
+static uint8_t osd_joy_extra2;
+void StateJoySet(uint8_t c, uint8_t joy_num) {
   //iprintf("OSD joy: %x\n", c);
-  osd_joy = c;
+	if(joy_num==0) 
+		osd_joy = c;
+	else
+		osd_joy2 = c;
 }
-void OsdJoySetExtra(unsigned char c) {
-  osd_joy_extra = c;
+void StateJoySetExtra(uint8_t c, uint8_t joy_num) {
+		if(joy_num==0) 
+		osd_joy_extra = c;
+	else
+		osd_joy_extra = c;
 }
-unsigned char OsdJoyGet() {
-  return osd_joy;
+uint8_t StateJoyGet(uint8_t joy_num) {
+  return joy_num==0?osd_joy:osd_joy2;
 }
-unsigned char OsdJoyGetExtra() {
-  return osd_joy_extra;
+uint8_t StateJoyGetExtra(uint8_t joy_num) {
+  return joy_num==0?osd_joy_extra:osd_joy_extra2;
 }
 /* latest joystick state */
-static unsigned char osd_joy2;
-static unsigned char osd_joy_extra2;
+
 void OsdJoySet2(unsigned char c) {
   //iprintf("OSD joy 2: %x\n", c);
   osd_joy2 = c;

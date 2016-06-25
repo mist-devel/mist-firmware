@@ -36,13 +36,17 @@ uint8_t StateUsbGetNumButtons(uint8_t joy_num);
 uint16_t StateUsbVidGet(uint8_t joy_num);
 uint16_t StateUsbPidGet(uint8_t joy_num);
 
+
+// State of first (virtual) internal joystisk i.e. after mapping
+void StateJoySet(uint8_t c, uint8_t joy_num);
+void StateJoySetExtra(uint8_t c, uint8_t joy_num);
+uint8_t StateJoyGet(uint8_t joy_num);
+uint8_t StateJoyGetExtra(uint8_t joy_num);
+
+
  /*
 mist_joystick_t StateJoyGet(uint8_t joy_num); // all data
 uint8_t StateJoyState ( uint8_t joy_num );		// directions and 4 buttons, reflecting turbo settings
-
-// State of first (virtual) internal joystisk i.e. after mapping
-void StateJoySet(unsigned char, uint8_t joy_num);
-void StateJoySetExtra(unsigned char, uint8_t joy_num);
 
 // Keep track of connected sticks
 unsigned char StateNumJoysticks();
