@@ -388,7 +388,10 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	} else {
 		strcpy(buffer, "Atari DB9 Joystick");
 	}	
-	siprintf(usb_id, "%*s", (28-strlen(buffer))/2, " ");
+	if(raw_id == 0)
+		siprintf(usb_id, "%*s", (28-strlen(buffer))/2, " ");
+	else
+		strcpy(usb_id, "");
 	strcat(usb_id, buffer);
 	return;
 }
@@ -870,21 +873,30 @@ void HandleUI(void)
 
 		case MENU_8BIT_SYSTEM1:
 			helptext=helptexts[HELPTEXT_MAIN];
+			m = 0;
+			if (user_io_core_type()==CORE_TYPE_MINIMIG || user_io_core_type()==CORE_TYPE_MINIMIG2)
+				m = 1;
 			menumask=0x1f; // 5 selections + Exit
 			OsdSetTitle("System", OSD_ARROW_LEFT); 
 			menustate = MENU_8BIT_SYSTEM2;
 			parentstate = MENU_8BIT_SYSTEM1;
-			OsdWrite(0, "", 0,0);
+			OsdWrite(0, "", 0, 0);
 			OsdWrite(1, " Firmware & Core           \x16", menusub == 0,0);
 			OsdWrite(2, " Input Devices             \x16", menusub == 1,0);
-			OsdWrite(3, " Save settings", menusub == 2,0);
+			if (m)
+				OsdWrite(3, " Reset", menusub == 2,0); // reset only works for minimig
+			else
+				OsdWrite(3, " Save settings", menusub == 2,0); // Minimig saves settings elsewhere
 			OsdWrite(4, "", 0,0);
 			OsdWrite(5, " About", menusub  == 3,0);
 			OsdWrite(6, "", 0,0);
-			OsdWrite(7, STD_EXIT, menusub == 4, 0);
+			OsdWrite(7, STD_EXIT, menusub == 4,0);
 			break;
 
 		case MENU_8BIT_SYSTEM2 :
+			m = 0;
+			if (user_io_core_type()==CORE_TYPE_MINIMIG || user_io_core_type()==CORE_TYPE_MINIMIG2)
+				m = 1;
 			// menu key closes menu
 			if (menu)
 				menustate = MENU_NONE1;
@@ -901,14 +913,20 @@ void HandleUI(void)
 						menusub = 0;
 						break;
 					case 2:
-						// Save settings
-						user_io_create_config_name(s);
-						iprintf("Saving config to %s\n", s);
-						if(FileNew(&file, s, 1)) {
-						 // finally write data
-						 sector_buffer[0] = user_io_8bit_set_status(0,0);
-						 FileWrite(&file, sector_buffer); 
-						 iprintf("Settings for %s written\n", s);
+						if (m) {
+								// reset for minimig
+							menustate = MENU_RESET1; 
+							menusub = 1;
+						} else {
+							// Save settings
+							user_io_create_config_name(s);
+							iprintf("Saving config to %s\n", s);
+							if(FileNew(&file, s, 1)) {
+							 // finally write data
+							 sector_buffer[0] = user_io_8bit_set_status(0,0);
+							 FileWrite(&file, sector_buffer); 
+							 iprintf("Settings for %s written\n", s);
+							}
 						}
 						break;
 					case 3:
@@ -921,12 +939,33 @@ void HandleUI(void)
 						menustate=MENU_NONE1;
 						menusub = 0;
 						break;
+					
 				}
 			} else { 
 				if (left) {
-					menustate = MENU_8BIT_MAIN1;
-					menusub = 0;
+					// go back to core requesting this menu
+					switch(user_io_core_type()) {
+						case CORE_TYPE_MINIMIG:
+						case CORE_TYPE_MINIMIG2:
+							menusub = 1;
+							menustate = MENU_MAIN2_1;
+							break;
+						case CORE_TYPE_MIST:
+							menusub = 5;
+							menustate = MENU_MIST_MAIN1;
+							break;
+						case CORE_TYPE_ARCHIE:
+							menusub = 3;
+							menustate = MENU_ARCHIE_MAIN1;
+							break;
+						case CORE_TYPE_8BIT:
+							menusub = 0;
+							menustate = MENU_8BIT_SYSTEM1;
+							break;
+					}
 				}
+					//menustate = MENU_8BIT_MAIN1;
+					//menusub = 0;
 			}
 			break;
 		
@@ -957,7 +996,7 @@ void HandleUI(void)
 			OsdDrawLogo(3,3,1);
 			OsdDrawLogo(4,4,1);
 			OsdDrawLogo(6,6,1);
-			ScrollText(5,"                                 MiST by Till Harbaum, based on Minimig and other projects. MiST hardware and software is distributed under the terms of the GNU General Public License version 3. MiST FPGA cores are the work of their respective authors under individual licensing.",0,0,0);			
+			ScrollText(5,"                                 MiST by Till Harbaum, based on Minimig by Dennis van Weeren and other projects. MiST hardware and software is distributed under the terms of the GNU General Public License version 3. MiST FPGA cores are the work of their respective authors under individual licensing.", 0, 0, 0);			
 			// menu key closes menu
 			if (menu) {
 				menustate = MENU_8BIT_SYSTEM1;
@@ -1836,95 +1875,12 @@ void HandleUI(void)
 			}
 			else if (right)
 			{
-					menustate = MENU_MISC1;
+					menustate = MENU_8BIT_SYSTEM1; 
 					menusub = 0;
 			}
 			break;
-
-		case MENU_MISC1 :
-			helptext=helptexts[HELPTEXT_MAIN];
-			menumask=0x0f;	// Reset, firmware, about and exit.
-			OsdSetTitle("Misc",OSD_ARROW_LEFT);
-			
-			OsdWrite(0, "", 0,0);
-			OsdWrite(1, "       Reset", menusub == 0,0);
-			OsdWrite(2, "", 0,0);
-			OsdWrite(3, "       Firmware & Core \x16", menusub == 1,0);
-			OsdWrite(4, "", 0,0);
-			OsdWrite(5, "       About", menusub == 2,0);
-			OsdWrite(6, "", 0,0);
-			OsdWrite(7, STD_EXIT, menusub == 3,0);
-			
-			parentstate = menustate;
-			menustate = MENU_MISC2;
-			break;
-			
-		case MENU_MISC2 :
-
-			if (menu)
-					menusub=0, menustate = MENU_NONE1;
-			if (left)
-				menusub=0, menustate = MENU_MAIN2_1;
-			else if (select)
-			{
-					if (menusub == 0)	// Reset
-					{
-						menustate=MENU_RESET1;
-					}
-					if (menusub == 1)	// Firware
-					{
-						menusub=1;
-						menustate=MENU_FIRMWARE1;
-					}
-					if (menusub == 2)	// About
-					{
-						menusub=0;
-						menustate=MENU_ABOUT1;
-					}
-					if (menusub == 2)	// Exit
-					{
-						menustate=MENU_NONE1;
-					}
-			}
-			break;
-
-		case MENU_ABOUT1 :
-			helptext=helptexts[HELPTEXT_NONE];
-			menumask=0x01;	// Just Exit
-			OsdSetTitle("About",0);
-			OsdDrawLogo(0,0,1);
-			OsdDrawLogo(1,1,1);
-			OsdDrawLogo(2,2,1);
-			OsdDrawLogo(3,3,1);
-			OsdDrawLogo(4,4,1);
-			OsdDrawLogo(6,6,1);
-			OsdWrite(5, "", 0,0);
-			OsdWrite(6, "", 0,0);
-			OsdWrite(7, STD_EXIT, menusub == 0,0);
-
-			StarsInit();
-			ScrollReset();
-
-			parentstate = menustate;
-			menustate = MENU_ABOUT2;
-			break;
-
-		case MENU_ABOUT2 :
-				StarsUpdate();
-			OsdDrawLogo(0,0,1);
-			OsdDrawLogo(1,1,1);
-			OsdDrawLogo(2,2,1);
-			OsdDrawLogo(3,3,1);
-			OsdDrawLogo(4,4,1);
-			OsdDrawLogo(6,6,1);
-			ScrollText(5,"                                 Minimig by Dennis van Weeren.  Chipset improvements by Jakub Bednarski and Sascha Boing.  TG68 softcore and Chameleon port by Tobias Gubener.  Menu / disk code by Dennis van Weeren, Jakub Bednarski and Alastair M. Robinson.  Build process, repository and tooling by Christian Vogelgsang.  Minimig logo based on a design by Loriano Pagni.  Minimig is distributed under the terms of the GNU General Public License version 3.",0,0,0);
-			if (select || menu)
-			{
-				menusub = 2;
-				menustate=MENU_MISC1;
-			}
-			break;
-
+		
+	
 		case MENU_LOADCONFIG_1 :
 			helptext=helptexts[HELPTEXT_NONE];
 			if(parentstate!=menustate)	// First run?
@@ -2151,7 +2107,7 @@ void HandleUI(void)
 			parentstate=menustate;
 
 			OsdWrite(0, "", 0,0);
-			OsdWrite(1, "         Reset Minimig?", 0,0);
+			OsdWrite(1, "         Reset MiST?", 0,0);
 			OsdWrite(2, "", 0,0);
 			OsdWrite(3, "               yes", menusub == 0,0);
 			OsdWrite(4, "               no", menusub == 1,0);
@@ -2172,95 +2128,11 @@ void HandleUI(void)
 
 			if (menu || (select && (menusub == 1))) // exit menu
 			{
-					menustate = MENU_MISC1;
+					menustate = MENU_8BIT_SYSTEM1;
 					menusub = 0;
 			}
 			break;
-
-			/******************************************************************/
-			/* settings menu                                                  */
-			/******************************************************************/
-/*
-		case MENU_SETTINGS1 :
-		menumask=0;
-		OsdSetTitle("Settings",0);
-
-			OsdWrite(0, "", 0,0);
-			OsdWrite(1, "             chipset", menusub == 0,0);
-			OsdWrite(2, "             memory", menusub == 1,0);
-			OsdWrite(3, "             drives", menusub == 2,0);
-			OsdWrite(4, "             video", menusub == 3,0);
-			OsdWrite(5, "", 0,0);
-			OsdWrite(6, "", 0,0);
-
-			if (menusub == 5)
-					OsdWrite(7, "  \x12           save           \x12", 1,0);
-			else if (menusub == 4)
-					OsdWrite(7, "  \x13           exit           \x13", 1,0);
-			else
-					OsdWrite(7, STD_EXIT, 0,0);
-
-			menustate = MENU_SETTINGS2;
-			break;
-
-	case MENU_SETTINGS2 :
-
-			if (down && menusub < 5)
-			{
-					menusub++;
-					menustate = MENU_SETTINGS1;
-			}
-
-			if (up && menusub > 0)
-			{
-					menusub--;
-					menustate = MENU_SETTINGS1;
-			}
-
-			if (select)
-			{
-					if (menusub == 0)
-					{
-							menustate = MENU_SETTINGS_CHIPSET1;
-							menusub = 0;
-					}
-					else if (menusub == 1)
-					{
-							menustate = MENU_SETTINGS_MEMORY1;
-							menusub = 0;
-					}
-					else if (menusub == 2)
-					{
-							menustate = MENU_SETTINGS_DRIVES1;
-							menusub = 0;
-					}
-					else if (menusub == 3)
-					{
-							menustate = MENU_SETTINGS_VIDEO1;
-							menusub = 0;
-					}
-					else if (menusub == 4)
-					{
-							menustate = MENU_MAIN2_1;
-							menusub = 1;
-					}
-					else if (menusub == 5)
-					{
-//                SaveConfiguration(0);	// Use slot-based config filename instead
-									
-							menustate = MENU_SAVECONFIG_1;
-							menusub = 0;
-					}
-			}
-
-			if (menu)
-			{
-					menustate = MENU_MAIN2_1;
-					menusub = 1;
-			}
-			break;
-*/
-
+	
 		case MENU_SAVECONFIG_1 :
 			helptext=helptexts[HELPTEXT_NONE];
 			menumask=0x3f;
@@ -3126,11 +2998,6 @@ void HandleUI(void)
 		case MENU_FIRMWARE2 :
 			if (menu) {
 				switch(user_io_core_type()) {
-				case CORE_TYPE_MINIMIG:
-				case CORE_TYPE_MINIMIG2:
-					menusub = 1;
-					menustate = MENU_MISC1;
-					break;
 				case CORE_TYPE_MIST:
 					menusub = 5;
 					menustate = MENU_MIST_MAIN1;
@@ -3139,7 +3006,7 @@ void HandleUI(void)
 					menusub = 3;
 					menustate = MENU_ARCHIE_MAIN1;
 					break;
-				case CORE_TYPE_8BIT:
+				default:
 					menusub = 0;
 					menustate = MENU_8BIT_SYSTEM1;
 					break;
@@ -3159,11 +3026,6 @@ void HandleUI(void)
 				}
 				else if (menusub == fat_uses_mmc()?2:1) {
 					switch(user_io_core_type()) {
-					case CORE_TYPE_MINIMIG:
-					case CORE_TYPE_MINIMIG2:
-						menusub = 1;
-						menustate = MENU_MISC1;
-						break;
 					case CORE_TYPE_MIST:
 						menusub = 5;
 						menustate = MENU_MIST_MAIN1;
@@ -3172,7 +3034,7 @@ void HandleUI(void)
 						menusub = 3;
 						menustate = MENU_ARCHIE_MAIN1;
 						break;
-					case CORE_TYPE_8BIT:
+					default:
 						menusub = 0;
 						menustate = MENU_8BIT_SYSTEM1;
 						break;
