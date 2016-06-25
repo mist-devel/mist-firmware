@@ -25,6 +25,7 @@ This code keeps status of MiST state
 #include "stdio.h"
 
 #include "state.h"
+#include "osd.h"
 //#include "charrom.h"
 
 
@@ -44,129 +45,7 @@ void joy_reset ( mist_joystick_t joy ) {
 	joy.turbo_state=0xFF;  // flip state (0 or 1)
 }
 
-static mist_joystick_t mist_joy[3] = { // 3rd one is dummy, used to store defaults
-	{
-		.vid = 0,
-		.pid = 0,
-		.num_buttons=1, // DB9 has 1 button
-		.state=0,
-		.state_extra=0,
-		.usb_state=0,
-		.usb_state_extra=0,
-		.turbo=50,
-		.turbo_counter=0,
-		.turbo_mask=0x30,	 // A and B buttons		
-		.turbo_state=0xFF  // flip state (0 or 1)
-	},
-	{
-		.vid = 0,
-		.pid = 0,
-		.num_buttons=1, // DB9 has 1 button
-		.state=0,
-		.state_extra=0,
-		.usb_state=0,
-		.usb_state_extra=0,
-		.turbo=0,
-		.turbo_counter=0,
-		.turbo_mask=0x30, // A and B buttons		
-		.turbo_state=0xFF // flip state (0 or 1)
-	},
-	{
-		.vid = 0,
-		.pid = 0,
-		.num_buttons=1, // DB9 has 1 button
-		.state=0,
-		.state_extra=0,
-		.usb_state=0,
-		.usb_state_extra=0,
-		.turbo=0,
-		.turbo_counter=0,
-		.turbo_mask=0x30, // A and B buttons		
-		.turbo_state=0xFF // flip state (0 or 1)
-	}
-};
 
-void StateNumJoysticksSet(unsigned char num) {
-	mist_joystick_t joy;
-	//joysticks = num;
-	if(1) { //joysticks<3) {
-		//clear USB joysticks
-		if(1) //joysticks<2)
-			joy = mist_joy[0];
-		else
-			joy = mist_joy[1];
-		joy.vid=0;
-		joy.vid=0;
-		joy.num_buttons=1;
-		joy.state=0;
-		joy.state_extra=0;
-		joy.usb_state=0;
-		joy.usb_state_extra=0;
-	}
-}
-
-// state of MIST virtual joystick
-
-mist_joystick_t StateJoyGet(uint8_t joy_num) {
-		if(joy_num>1) return mist_joy[2]; 
-		return mist_joy[joy_num];
-}
-
-void StateJoySet(unsigned char c, uint8_t joy_num) {
-  if(joy_num>1) return;
-	mist_joy[joy_num].state = c;
-	if(c==0) StateTurboReset(joy_num); //clear turbo if no button pressed
-}
-void StateJoySetExtra(unsigned char c, uint8_t joy_num) {
-  if(joy_num>1) return;
-	mist_joy[joy_num].state_extra = c;
-}
-
-// raw state of USB controller
-
-void StateUsbJoySet(uint8_t usbjoy, uint8_t usbextra, uint8_t joy_num) {
-	if(joy_num>1) return;
-	mist_joy[joy_num].usb_state = usbjoy;
-	mist_joy[joy_num].usb_state_extra = usbextra;
-}
-
-/* connected HID information */
-void StateUsbIdSet(unsigned int vid, unsigned int pid, unsigned int btn_count, uint8_t joy_num) {
-	if(joy_num>1) return;
-	mist_joy[joy_num].vid = vid;
-	mist_joy[joy_num].pid = pid;
-	mist_joy[joy_num].num_buttons = btn_count;
-}
-
-/* handle button's turbo timers */
-void StateTurboUpdate(uint8_t joy_num) {
-	if(joy_num>1) return;
-	mist_joy[joy_num].turbo_counter += 1;
-	if(mist_joy[joy_num].turbo_counter > mist_joy[joy_num].turbo) {
-		mist_joy[joy_num].turbo_counter = 0;
-		mist_joy[joy_num].turbo_state ^= mist_joy[joy_num].turbo_mask;
-	}
-}
-/* reset all turbo timers and state */
-void StateTurboReset(uint8_t joy_num) {
-	if(joy_num>1) return;
-	mist_joy[joy_num].turbo_counter = 0;
-	mist_joy[joy_num].turbo_state = 0xFF;
-}
-/* set a specific turbo mask and timeout */
-void StateTurboSet ( uint16_t turbo, uint16_t mask, uint8_t joy_num ) {
-	if(joy_num>1) return;
-	StateTurboReset(joy_num);
-	mist_joy[joy_num].turbo = turbo;
-	mist_joy[joy_num].turbo_mask = mask;
-}
-/* return Joy state including turbo settings */
-uint8_t StateJoyState ( uint8_t joy_num ) {
-	if(joy_num>1) return 0;
-	uint8_t result = mist_joy[joy_num].state;
-	result &=  mist_joy[joy_num].turbo_state;
-	return result;
-}
 
 /* keyboard data */
 static uint8_t key_modifier = 0;
@@ -226,7 +105,7 @@ void StateReset() {
 		key_pressed[i]=0;
 		//key_ps2[i]=0;
 	}
-  joy_reset(mist_joy[0]);
-  joy_reset(mist_joy[1]);
-  joy_reset(mist_joy[2]);
+  //joy_reset(mist_joy[0]);
+  //joy_reset(mist_joy[1]);
+  //joy_reset(mist_joy[2]);
 }

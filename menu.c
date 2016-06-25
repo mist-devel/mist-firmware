@@ -53,6 +53,137 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #define ALLOW_TEST_MENU 0 //remove to disable in prod version
 
 
+// central MiST joystick status
+
+static mist_joystick_t mist_joy[3] = { // 3rd one is dummy, used to store defaults
+	{
+		.vid = 0,
+		.pid = 0,
+		.num_buttons=1, // DB9 has 1 button
+		.state=0,
+		.state_extra=0,
+		.usb_state=0,
+		.usb_state_extra=0,
+		.turbo=50,
+		.turbo_counter=0,
+		.turbo_mask=0x30,	 // A and B buttons		
+		.turbo_state=0xFF  // flip state (0 or 1)
+	},
+	{
+		.vid = 0,
+		.pid = 0,
+		.num_buttons=1, // DB9 has 1 button
+		.state=0,
+		.state_extra=0,
+		.usb_state=0,
+		.usb_state_extra=0,
+		.turbo=0,
+		.turbo_counter=0,
+		.turbo_mask=0x30, // A and B buttons		
+		.turbo_state=0xFF // flip state (0 or 1)
+	},
+	{
+		.vid = 0,
+		.pid = 0,
+		.num_buttons=1, // DB9 has 1 button
+		.state=0,
+		.state_extra=0,
+		.usb_state=0,
+		.usb_state_extra=0,
+		.turbo=0,
+		.turbo_counter=0,
+		.turbo_mask=0x30, // A and B buttons		
+		.turbo_state=0xFF // flip state (0 or 1)
+	}
+};
+// state of MIST virtual joystick
+
+mist_joystick_t StateJoyGet(uint8_t joy_num) {
+		if(joy_num>1) return mist_joy[2]; 
+		return mist_joy[joy_num];
+}
+
+
+void StateJoySetExtra(unsigned char c, uint8_t joy_num) {
+  if(joy_num>1) return;
+	mist_joy[joy_num].state_extra = c;
+}
+
+// raw state of USB controller
+
+void StateUsbJoySet(uint8_t usbjoy, uint8_t usbextra, uint8_t joy_num) {
+	if(joy_num>1) return;
+	mist_joy[joy_num].usb_state = usbjoy;
+	mist_joy[joy_num].usb_state_extra = usbextra;
+}
+
+/* connected HID information */
+void StateUsbIdSet(unsigned int vid, unsigned int pid, unsigned int btn_count, uint8_t joy_num) {
+	if(joy_num>1) return;
+	mist_joy[joy_num].vid = vid;
+	mist_joy[joy_num].pid = pid;
+	mist_joy[joy_num].num_buttons = btn_count;
+}
+
+
+/* return Joy state including turbo settings */
+uint8_t StateJoyState ( uint8_t joy_num ) {
+	if(joy_num>1) return 0;
+	uint8_t result = mist_joy[joy_num].state;
+	result &=  mist_joy[joy_num].turbo_state;
+	return result;
+}
+
+
+void StateNumJoysticksSet(unsigned char num) {
+	mist_joystick_t joy;
+	OsdNumJoysticksSet(num);
+	if(num<3) {
+		//clear USB joysticks
+		if(num<2)
+			joy = mist_joy[0];
+		else
+			joy = mist_joy[1];
+		joy.vid=0;
+		joy.vid=0;
+		joy.num_buttons=1;
+		joy.state=0;
+		joy.state_extra=0;
+		joy.usb_state=0;
+		joy.usb_state_extra=0;
+	}
+}
+
+
+/* handle button's turbo timers */
+void StateTurboUpdate(uint8_t joy_num) {
+	if(joy_num>1) return;
+	mist_joy[joy_num].turbo_counter += 1;
+	if(mist_joy[joy_num].turbo_counter > mist_joy[joy_num].turbo) {
+		mist_joy[joy_num].turbo_counter = 0;
+		mist_joy[joy_num].turbo_state ^= mist_joy[joy_num].turbo_mask;
+	}
+}
+/* reset all turbo timers and state */
+void StateTurboReset(uint8_t joy_num) {
+	if(joy_num>1) return;
+	mist_joy[joy_num].turbo_counter = 0;
+	mist_joy[joy_num].turbo_state = 0xFF;
+}
+/* set a specific turbo mask and timeout */
+void StateTurboSet ( uint16_t turbo, uint16_t mask, uint8_t joy_num ) {
+	if(joy_num>1) return;
+	StateTurboReset(joy_num);
+	mist_joy[joy_num].turbo = turbo;
+	mist_joy[joy_num].turbo_mask = mask;
+}
+
+void StateJoySet(unsigned char c, uint8_t joy_num) {
+  if(joy_num>1) return;
+	mist_joy[joy_num].state = c;
+	if(c==0) StateTurboReset(joy_num); //clear turbo if no button pressed
+}
+
 // other constants
 #define DIRSIZE 8 // number of items in directory display window
 
@@ -250,7 +381,7 @@ void siprintbinary(char* buffer, size_t const size, void const * const ptr)
     unsigned char *b = (unsigned char*) ptr;
     unsigned char byte;
     int i, j;
-		memset(buffer, '\0', size);
+		memset(buffer, '\0', sizeof(buffer));
     for (i=size-1;i>=0;i--)
     {
         for (j=0;j<8;j++)
@@ -383,8 +514,6 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	/*
 	Builds a string containing the USB VID/PID information of a joystick
 	*/
-	unsigned int usb_vid; 
-	unsigned int usb_pid; 
 	char buffer[32]="";
 	if (raw_id==0) {
 		if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
@@ -394,20 +523,14 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 			return;
 		}
 	}
-	if (joy_num==1) {
-		usb_vid = OsdUsbVidGetB();
-		usb_pid = OsdUsbPidGetB();
-	} else {
-		usb_vid = OsdUsbVidGet();
-		usb_pid = OsdUsbPidGet();
-	}
+	mist_joystick_t joystick = StateJoyGet( joy_num );
 	memset(usb_id, '\0', sizeof(usb_id));
-	if (usb_vid>0) {
+	if (joystick.vid>0) {
 		if (raw_id == 0) {
-			strcpy(buffer, get_joystick_alias( usb_vid, usb_pid ));
+			strcpy(buffer, get_joystick_alias( joystick.vid, joystick.pid ));
 		}
 		if(strlen(buffer)==0) {
-			append_joystick_usbid( buffer, usb_vid, usb_pid );
+			append_joystick_usbid( buffer, joystick.vid, joystick.pid );
 		}		
 	} else {
 		strcpy(buffer, "Atari DB9 Joystick");
@@ -445,6 +568,7 @@ void HandleUI(void)
 {
 	char *p;
 	unsigned char i, c, m, up, down, select, menu, right, left, plus, minus;
+	uint8_t mod;
 	unsigned long len;
 	static hardfileTYPE t_hardfile[2]; // temporary copy of former hardfile configuration
 	static unsigned char ctrl = false;
@@ -459,6 +583,10 @@ void HandleUI(void)
 	char joy_string[32];
 	char joy_string2[32];
 	char usb_id[64];
+		
+	// update turbo status for joysticks
+	//StateTurboUpdate(0);
+	//StateTurboUpdate(1);
 		
 	// get user control codes
 	c = OsdGetCtrl();
@@ -589,6 +717,7 @@ void HandleUI(void)
 		}
 	}
 
+	
 	// Switch to current menu screen
   switch (menustate)
 	{
@@ -1065,8 +1194,10 @@ void HandleUI(void)
 		
 		case MENU_8BIT_CONTROLLERS2:
 			// menu key goes back to previous menu
-			if (menu)
+			if (menu) {
+				menusub = 1;
 				menustate = MENU_8BIT_SYSTEM1;
+			}
 			if(select) {
 				switch (menusub) {
 					case 0:
@@ -1113,6 +1244,12 @@ void HandleUI(void)
 			StateKeyboardPressed(keys);
 			OsdWrite(0, "       USB scancodes", 0,0);
 			siprintf(s, "     %2x   %2x   %2x   %2x", keys[0], keys[1], keys[2], keys[3]); // keys[4], keys[5]); - no need to show all, save some space...
+			OsdWrite(1, s, 0,0);
+			mod = 0; //OsdKeyboardModifiers();
+			siprintbinary(usb_id, sizeof(mod), &mod);
+			siprintf(s, "    mod keys - 00000000");
+			for(i=0; i<8; i++)
+				s[15+i] = usb_id[i];
 			OsdWrite(2, s, 0,0);
 			OsdWrite(3, "", 0, 0);
 			OsdWrite(4, "       PS/2 scancodes", 0, 0);
@@ -1131,6 +1268,8 @@ void HandleUI(void)
 			m = 0; // OsdKeyboardModifiers();
 			siprintbinary(usb_id, sizeof(m), &m);
 			siprintf(s, "    mod keys - %s", usb_id);
+			for(i=0; i<8; i++)
+				s[15+i] = usb_id[i];
 			OsdWrite(2, s, 0,0);
 			//StateKeyboardPressedPS2(keys_ps2);
 			assign_ps2_modifier( m, 0x1,  0x14);   // LCTRL

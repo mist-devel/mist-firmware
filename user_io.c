@@ -6,6 +6,7 @@
 #include "hardware.h"
 #include "osd.h"
 #include "state.h"
+#include "state.h"
 #include "user_io.h"
 #include "archie.h"
 #include "cdc_control.h"
@@ -314,12 +315,11 @@ void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
 }
 
 void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
-  // if osd is open control it via joystick
-  if(osd_is_visible) {
-    static const uint8_t joy2kbd[] = { 
-      OSDCTRLMENU, OSDCTRLMENU, OSDCTRLMENU, OSDCTRLSELECT,
-      OSDCTRLUP, OSDCTRLDOWN, OSDCTRLLEFT, OSDCTRLRIGHT };
 		
+	// "only" 6 joysticks are supported
+  if(joystick >= 6)
+    return;
+	
 		// the physical joysticks (db9 ports at the right device side)
 		// as well as the joystick emulation are renumbered if usb joysticks
 		// are present in the system. The USB joystick(s) replace joystick 1
@@ -328,7 +328,13 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 		// becomes joystick 1 and only the second one becomes joystick 0
 		// (mouse port)
 		
-		StateJoySet(map, joystick);// WARNING: 0 is the second joystick, either USB or DB9
+		OsdJoySet(map); //, joystick);// WARNING: 0 is the second joystick, either USB or DB9
+		
+  // if osd is open control it via joystick
+  if(osd_is_visible) {
+    static const uint8_t joy2kbd[] = { 
+      OSDCTRLMENU, OSDCTRLMENU, OSDCTRLMENU, OSDCTRLSELECT,
+      OSDCTRLUP, OSDCTRLDOWN, OSDCTRLLEFT, OSDCTRLRIGHT };
 		
     	// iprintf("joy to osd\n");
     
@@ -339,9 +345,6 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 
   //  iprintf("j%d: %x\n", joystick, map);
 
-  // "only" 6 joysticks are supported
-  if(joystick >= 6)
-    return;
 		
 	// atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
 	// but only for joystick 1 and 2

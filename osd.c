@@ -830,7 +830,7 @@ unsigned int OsdUsbGetNumButtonsB() {
 }
 
 /* keyboard data */
-static unsigned char key_modifier = 0;
+static uint8_t key_modifier = 0;
 static unsigned char key_pressed[6] = { 0,0,0,0,0,0 };
 static unsigned int key_ps2[6] = { 0,0,0,0,0,0 };
 void OsdKeyboardSet( unsigned char modifier, char* keycodes, int* keycodes_ps2) {
@@ -857,7 +857,7 @@ void OsdKeyboardSet( unsigned char modifier, char* keycodes, int* keycodes_ps2) 
 		}
 	}	
 }
-unsigned char OsdKeyboardModifiers() {
+uint8_t OsdKeyboardModifiers() {
 	return key_modifier;
 }
 void OsdKeyboardPressed(char *keycodes) {

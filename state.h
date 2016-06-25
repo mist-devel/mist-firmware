@@ -27,6 +27,7 @@ typedef struct {
  * Various functions to retrieve hardware state from the State
  */
 
+ /*
 mist_joystick_t StateJoyGet(uint8_t joy_num); // all data
 uint8_t StateJoyState ( uint8_t joy_num );		// directions and 4 buttons, reflecting turbo settings
 
@@ -43,9 +44,11 @@ unsigned char StateNumJoysticks();
 void StateNumJoysticksSet(unsigned char num);
 
 // turbo function
+/*
 void StateTurboUpdate(uint8_t joy_num);
 void StateTurboReset(uint8_t joy_num);
 void StateTurboSet ( uint16_t turbo, uint16_t mask, uint8_t joy_num );
+*/
 
 // keyboard status
 void StateKeyboardSet( unsigned char modifier, char* pressed, int* pressed_ps2); //get usb and ps2 codes
