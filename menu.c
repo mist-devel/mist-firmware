@@ -109,21 +109,6 @@ void StateJoySetExtra(unsigned char c, uint8_t joy_num) {
 	mist_joy[joy_num].state_extra = c;
 }
 
-// raw state of USB controller
-
-void StateUsbJoySet(uint8_t usbjoy, uint8_t usbextra, uint8_t joy_num) {
-	if(joy_num>1) return;
-	mist_joy[joy_num].usb_state = usbjoy;
-	mist_joy[joy_num].usb_state_extra = usbextra;
-}
-
-/* connected HID information */
-void StateUsbIdSet(unsigned int vid, unsigned int pid, unsigned int btn_count, uint8_t joy_num) {
-	if(joy_num>1) return;
-	mist_joy[joy_num].vid = vid;
-	mist_joy[joy_num].pid = pid;
-	mist_joy[joy_num].num_buttons = btn_count;
-}
 
 
 /* return Joy state including turbo settings */
@@ -449,14 +434,8 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 		strcpy( s, " ");
 		return;
 	}
-	if(joy_num==0) {
-		joy = OsdUsbJoyGet();
-		max_btn = OsdUsbGetNumButtons();
-	}
-	else {
-		joy = OsdUsbJoyGetB();
-		max_btn = OsdUsbGetNumButtonsB();
-	}
+	max_btn = StateUsbGetNumButtons(joy_num);
+	joy = StateUsbJoyGet(joy_num);
 	siprintf(s, "  USB: ---- 0000 0000 0000");
 	siprintbinary(binary_string, sizeof(joy), &joy);
 	s[7]  = binary_string[0]=='\x1a'?'>':'\x1b';
@@ -467,10 +446,7 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	s[13] = max_btn>1 ? binary_string[5] : ' ';
 	s[14] = max_btn>2 ? binary_string[6] : ' ';
 	s[15] = max_btn>3 ? binary_string[7] : ' ';
-	if(joy_num==0)
-		joy = OsdUsbJoyGetExtra();
-	else
-		joy = OsdUsbJoyGetExtraB();
+	joy = StateUsbJoyGetExtra(joy_num);
 	siprintbinary(binary_string, sizeof(joy), &joy);
 	s[17] = max_btn>4 ? binary_string[0] : ' ';
 	s[18] = max_btn>5 ? binary_string[1] : ' ';
@@ -527,6 +503,11 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 		}
 	}
 	mist_joystick_t joystick = StateJoyGet( joy_num );
+	
+	//hack populate from outside
+	joystick.vid = StateUsbVidGet(joy_num);
+	joystick.pid = StateUsbPidGet(joy_num);
+	
 	memset(usb_id, '\0', sizeof(usb_id));
 	if (joystick.vid>0) {
 		if (raw_id == 0) {

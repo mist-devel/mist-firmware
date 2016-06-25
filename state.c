@@ -81,63 +81,51 @@ unsigned char OsdJoyGetExtra2() {
 
 static uint8_t raw_usb_joy;	      // four directions and 4 buttons
 static uint8_t raw_usb_joy_extra; // eight extra buttons
-void OsdUsbJoySet(uint8_t usbjoy, uint8_t usbextra) {
-	raw_usb_joy = usbjoy;
-	raw_usb_joy_extra = usbextra;
-}
-uint8_t OsdUsbJoyGet() {
-	return raw_usb_joy;
-}
-uint8_t OsdUsbJoyGetExtra() {
-	return raw_usb_joy_extra;
-}
-
 static uint8_t raw_usb_joy_b;	      // four directions and 4 buttons
 static uint8_t raw_usb_joy_extra_b; // eight extra buttons
-void OsdUsbJoySetB(uint8_t usbjoy, uint8_t usbextra) {
-	raw_usb_joy_b = usbjoy;
-	raw_usb_joy_extra_b = usbextra;
-}
-uint8_t OsdUsbJoyGetB() {
-	return raw_usb_joy_b;
-}
-uint8_t OsdUsbJoyGetExtraB() {
-	return raw_usb_joy_extra_b;
-}
-
-/* connected HID information */
-static unsigned int usb_vid;
-static unsigned int usb_pid;
-static unsigned int num_buttons;
-unsigned int OsdUsbVidGet() {
-	return usb_vid;
-}
-unsigned int OsdUsbPidGet() {
-	return usb_pid;
-}
-unsigned int OsdUsbGetNumButtons() {
-	return num_buttons;
+void StateUsbJoySet(uint8_t usbjoy, uint8_t usbextra, uint8_t joy_num) {
+	if(joy_num==0) {
+		raw_usb_joy = usbjoy;
+		raw_usb_joy_extra = usbextra;
+	} else {
+		raw_usb_joy_b = usbjoy;
+		raw_usb_joy_extra_b = usbextra;
+	}
 }
 
-/* connected HID information - joy 2*/
-static unsigned int usb_vid_b;
-static unsigned int usb_pid_b;
-static unsigned int num_buttons_b;
-void OsdUsbIdSetB(unsigned int vid, unsigned int pid, unsigned int num) {
-	usb_vid_b=vid;
-	usb_pid_b=pid;
-	num_buttons_b = num;
+uint8_t StateUsbJoyGet(uint8_t joy_num) {
+	return (joy_num==0)?raw_usb_joy:raw_usb_joy_b;
 }
-unsigned int OsdUsbVidGetB() {
-	return usb_vid_b;
-}
-unsigned int OsdUsbPidGetB() {
-	return usb_pid_b;
-}
-unsigned int OsdUsbGetNumButtonsB() {
-	return num_buttons_b;
+uint8_t StateUsbJoyGetExtra(uint8_t joy_num) {
+	return (joy_num==0)?raw_usb_joy_extra:raw_usb_joy_extra_b;
 }
 
+static uint16_t usb_vid;
+static uint16_t usb_pid;
+static uint8_t num_buttons;
+static uint16_t usb_vid_b;
+static uint16_t usb_pid_b;
+static uint8_t num_buttons_b;
+void StateUsbIdSet(uint16_t vid, uint16_t pid, uint8_t num, uint8_t joy_num) {
+	if(joy_num==0) {
+		usb_vid=vid;
+		usb_pid=pid;
+		num_buttons = num;
+	} else {
+		usb_vid_b=vid;
+		usb_pid_b=pid;
+		num_buttons_b = num;
+	}
+}
+uint16_t StateUsbVidGet(uint8_t joy_num) {
+	return joy_num==0?usb_vid:usb_vid_b;
+}
+uint16_t StateUsbPidGet(uint8_t joy_num) {
+	return joy_num==0?usb_pid:usb_pid_b;
+}
+uint8_t StateUsbGetNumButtons(uint8_t joy_num) {
+	return (joy_num==0)?num_buttons:num_buttons_b;
+}
 
 /* keyboard data */
 static uint8_t key_modifier = 0;
