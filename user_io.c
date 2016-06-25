@@ -69,10 +69,6 @@ static unsigned long mouse_timer;
 // may be in use by an active OSD
 static char osd_is_visible = false;
 
-// keep delay for autofire
-static uint8_t button_timer_A = 0;
-static uint8_t button_timer_B = 0;
-
 char user_io_osd_is_visible() {
   return osd_is_visible;
 }
@@ -346,7 +342,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
   // "only" 6 joysticks are supported
   if(joystick >= 6)
     return;
-	
+		
 	// atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
 	// but only for joystick 1 and 2
 	if((core_type == CORE_TYPE_MIST) && (joystick < 2)) {
