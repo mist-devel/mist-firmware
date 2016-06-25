@@ -439,11 +439,24 @@ void StateKeyboardPressedPS2(unsigned int *keycodes) {
 		keycodes[i]=keys_ps2[i];
 	}
 }
+/* translates a USB modifier bit into a PS2 scancode */
+void assign_ps2_modifier ( unsigned char mod, unsigned char offset, unsigned int ps2_value) {
+	unsigned int i;
+	if(mod&offset) {
+		for(i=0; i<4; i++) {
+			if(keys_ps2[i]==0) {
+				keys_ps2[i] = ps2_value;
+				return;
+			}
+		}
+	}
+}
+			
 			
 void HandleUI(void)
 {
 	char *p;
-	unsigned char i, c, up, down, select, menu, right, left, plus, minus;
+	unsigned char i, c, m, up, down, select, menu, right, left, plus, minus;
 	unsigned long len;
 	static hardfileTYPE t_hardfile[2]; // temporary copy of former hardfile configuration
 	static unsigned char ctrl = false;
@@ -1056,14 +1069,13 @@ void HandleUI(void)
 			menustate = MENU_8BIT_KEYTEST2;
 			parentstate=MENU_8BIT_KEYTEST1;
 			StateKeyboardPressed(keys);
-			OsdWrite(0, "", 0, 0);
-			OsdWrite(1, "       USB scancodes", 0, 0);
-			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
+			OsdWrite(0, "       USB scancodes", 0,0);
+			siprintf(s, "     %2x   %2x   %2x   %2x", keys[0], keys[1], keys[2], keys[3]); // keys[4], keys[5]); - no need to show all, save some space...
 			OsdWrite(2, s, 0,0);
 			OsdWrite(3, "", 0, 0);
 			OsdWrite(4, "       PS/2 scancodes", 0, 0);
 			//OsdKeyboardPressedPS2(keys_ps2);
-			siprintf(s, "    %3x%3x%3x%3x%3x%3x", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3], keys_ps2[4], keys_ps2[5]);
+			siprintf(s, "   %4x %4x %4x %4x", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3]); // keys_ps2[4], keys_ps2[5]);
 			OsdWrite(5, s, 0, 0);			
 			OsdWrite(6, " ", 0, 0);
 			OsdWrite(7, STD_COMBO_EXIT, menusub==0, 0);
@@ -1071,11 +1083,25 @@ void HandleUI(void)
 			
 		case MENU_8BIT_KEYTEST2:
 			StateKeyboardPressed(keys);
-			siprintf(s, "    %2x %2x %2x %2x %2x %2x", keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
+			OsdWrite(0, "       USB scancodes", 0,0);
+			siprintf(s, "     %2x   %2x   %2x   %2x", keys[0], keys[1], keys[2], keys[3]); // keys[4], keys[5]);
+			OsdWrite(1, s, 0,0);
+			m = 0; // OsdKeyboardModifiers();
+			siprintbinary(usb_id, sizeof(m), &m);
+			siprintf(s, "    mod keys - %s", usb_id);
 			OsdWrite(2, s, 0,0);
 			//StateKeyboardPressedPS2(keys_ps2);
-			siprintf(s, "   %3x%3x%3x%3x%3x%3x", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3], keys_ps2[4], keys_ps2[5]);
+			assign_ps2_modifier( m, 0x1,  0x14);   // LCTRL
+			assign_ps2_modifier( m, 0x2,  0x12);   // LSHIFT
+			assign_ps2_modifier( m, 0x4,  0x11);   // LALT
+			assign_ps2_modifier( m, 0x8,  0xE01F); // LGUI
+			assign_ps2_modifier( m, 0x10, 0xE015); // RCTRL
+			assign_ps2_modifier( m, 0x20, 0x59);   // RSHIFT
+			assign_ps2_modifier( m, 0x40, 0xE011); // RALT
+			assign_ps2_modifier( m, 0x80, 0xE027); // RGUI
+			siprintf(s, "   %4x %4x %4x %4x", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3]);// keys_ps2[4], keys_ps2[5]);
 			OsdWrite(5, s, 0, 0);
+									
 			// allow allow exit when hitting space and ESC
 			for(i=0; i<6; i++) {
 				if(keys[i]==0x29) { //ESC
