@@ -150,7 +150,7 @@ unsigned char OsdJoyGetExtra2();
 
 // Keep track of connected sticks
 unsigned char OsdNumJoysticks();
-unsigned char OsdNumJoysticksSet(unsigned char num);
+void OsdNumJoysticksSet(unsigned char num);
 
 // USB raw data for joystick 1
 void OsdUsbJoySet(uint8_t usbjoy, uint8_t usbextra);

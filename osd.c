@@ -826,13 +826,8 @@ unsigned int OsdUsbVidGetB() {
 unsigned int OsdUsbPidGetB() {
 	return usb_pid_b;
 }
-/* return Joy state including turbo settings */
-uint8_t OsdJoyState ( uint8_t joy_num ) {
-	if(joy_num>1) return 0;
-	uint8_t result = mist_joy[joy_num].state;
-	if(mist_joy[joy_num].turbo==0) return result;
-	result &=  mist_joy[joy_num].turbo_state;
-	return result;
+unsigned int OsdUsbGetNumButtonsB() {
+	return num_buttons_b;
 }
 
 /* keyboard data */
