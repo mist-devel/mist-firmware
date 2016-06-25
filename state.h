@@ -27,6 +27,10 @@ typedef struct {
  * Various functions to retrieve hardware state from the State
  */
 
+ // USB raw data for joystick
+void StateUsbJoySet(uint8_t usbjoy, uint8_t usbextra, uint8_t joy_num);
+void StateUsbIdSet(unsigned int vid, unsigned int pid, unsigned int num_buttons, uint8_t joy_num);
+
  /*
 mist_joystick_t StateJoyGet(uint8_t joy_num); // all data
 uint8_t StateJoyState ( uint8_t joy_num );		// directions and 4 buttons, reflecting turbo settings
@@ -34,10 +38,6 @@ uint8_t StateJoyState ( uint8_t joy_num );		// directions and 4 buttons, reflect
 // State of first (virtual) internal joystisk i.e. after mapping
 void StateJoySet(unsigned char, uint8_t joy_num);
 void StateJoySetExtra(unsigned char, uint8_t joy_num);
-
-// USB raw data for joystick 1
-void StateUsbJoySet(uint8_t usbjoy, uint8_t usbextra, uint8_t joy_num);
-void StateUsbIdSet(unsigned int vid, unsigned int pid, unsigned int num_buttons, uint8_t joy_num);
 
 // Keep track of connected sticks
 unsigned char StateNumJoysticks();
@@ -49,6 +49,25 @@ void StateTurboUpdate(uint8_t joy_num);
 void StateTurboReset(uint8_t joy_num);
 void StateTurboSet ( uint16_t turbo, uint16_t mask, uint8_t joy_num );
 */
+
+// USB raw data for joystick 1
+void OsdUsbJoySet(uint8_t usbjoy, uint8_t usbextra);
+uint8_t OsdUsbJoyGet();
+uint8_t OsdUsbJoyGetExtra();
+//void OsdUsbIdSet(unsigned int vid, unsigned int pid, unsigned int num_buttons);
+unsigned int OsdUsbVidGet();
+unsigned int OsdUsbPidGet();
+unsigned int OsdUsbGetNumButtons();
+
+
+// USB raw data for joystick 2
+void OsdUsbJoySetB(uint8_t usbjoy, uint8_t usbextra);
+uint8_t OsdUsbJoyGetB();
+uint8_t OsdUsbJoyGetExtraB();
+void OsdUsbIdSetB(unsigned int vid, unsigned int pid, unsigned int num_buttons);
+unsigned int OsdUsbVidGetB();
+unsigned int OsdUsbPidGetB();
+unsigned int OsdUsbGetNumButtonsB();
 
 // keyboard status
 void StateKeyboardSet( unsigned char modifier, char* pressed, int* pressed_ps2); //get usb and ps2 codes
