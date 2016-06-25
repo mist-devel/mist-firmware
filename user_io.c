@@ -543,7 +543,7 @@ static void kbd_fifo_poll() {
   kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
 }
 
-static void user_io_set_index(unsigned char index) {
+void user_io_set_index(unsigned char index) {
   EnableFpga();
   SPI(UIO_FILE_INDEX);
   SPI(index);
@@ -1684,4 +1684,18 @@ void user_io_key_remap(char *s) {
       return;
     }
   }
+}
+
+unsigned char user_io_ext_idx(fileTYPE *file, char* ext) {
+	unsigned char idx = 0;
+	int len = strlen(ext);
+	
+	while((len>3) && *ext) {
+		if(!strncmp(file->name+8,ext,3)) return idx;
+		if(strlen(ext)<=3) break;
+		idx++;
+		ext +=3;
+	}
+
+	return 0;
 }

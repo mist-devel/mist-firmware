@@ -470,6 +470,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
     unsigned char name_checksum = 0;
     unsigned char prev_sequence_number = 0;
     unsigned char prev_name_checksum = 0;
+    unsigned long extlen;
 
     char *ptr;
     static char lfn[261];
@@ -479,6 +480,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
     time = GetTimer(0);
     */
     lfn[0] = 0;
+	extlen = strlen(extension);
 
     if (mode == SCAN_INIT)
     {
@@ -617,7 +619,12 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 
                     if (!(pEntry->Attributes & (ATTR_VOLUME | ATTR_HIDDEN)) && (pEntry->Name[0] != '.' || pEntry->Name[1] != ' ')) // if not VOLUME label (also filter current directory entry)
                     {
-                        if ((extension[0] == '*') || (strncmp((const char*)&pEntry->Name[8], extension, 3) == 0) || (options & SCAN_DIR && pEntry->Attributes & ATTR_DIRECTORY))
+                        if ((extension[0] == '*') 
+						|| (strncmp((const char*)&pEntry->Name[8], extension, 3) == 0)
+						|| ((extlen>3) && (strncmp((const char*)&pEntry->Name[8], extension+3, 3) == 0))
+						|| ((extlen>6) && (strncmp((const char*)&pEntry->Name[8], extension+6, 3) == 0))
+						|| ((extlen>9) && (strncmp((const char*)&pEntry->Name[8], extension+9, 3) == 0))
+						|| (options & SCAN_DIR && pEntry->Attributes & ATTR_DIRECTORY))
                         {
                             if (mode == SCAN_INIT)
                             { // scan the directory table and return first MAXDIRENTRIES alphabetically sorted entries

@@ -128,10 +128,26 @@ const char* atari_chipset[]={"ST","STE","MegaSTE","STEroids"};
 unsigned char config_autofire = 0;
 
 // file selection menu variables
-char fs_pFileExt[4] = "xxx";
+char fs_pFileExt[13] = "xxx";
+unsigned char fs_ExtLen = 0;
 unsigned char fs_Options;
 unsigned char fs_MenuSelect;
 unsigned char fs_MenuCancel;
+
+char* GetExt(char *ext) {
+	static char extlist[32];
+	char *p = extlist;
+	
+	while(*ext) {
+		strcpy(p, ",");
+		strncat(p, ext, 3);
+		if(strlen(ext)<=3) break;
+		ext +=3;
+		p += strlen(p);
+	}
+	
+	return extlist+1;
+}
 
 void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect, unsigned char MenuCancel, char chdir)
 {
@@ -139,7 +155,7 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 
   iprintf("%s - %s\n", pFileExt, fs_pFileExt);
   
-  if (strncmp(pFileExt, fs_pFileExt, 3) != 0) // check desired file extension
+  if (strncmp(pFileExt, fs_pFileExt, 12) != 0) // check desired file extension
   { // if different from the current one go to the root directory and init entry buffer
     ChangeDirectory(DIRECTORY_ROOT);
 
@@ -191,6 +207,7 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 
   iprintf("pFileExt = %3s\n", pFileExt);
   strcpy(fs_pFileExt, pFileExt);
+  fs_ExtLen = strlen(fs_pFileExt);
   //  fs_pFileExt = pFileExt;
   fs_Options = Options;
   fs_MenuSelect = MenuSelect;
@@ -696,13 +713,14 @@ void HandleUI(void)
 				entry = 1;
 				menumask = 3; //allow to choose "exit" at tht end
 				strcpy(s, " Load *.");
-				strcat(s, p);
+				strcat(s, GetExt(p));
 				OsdWrite(0, s, menusub==0, 0);
 			}
 
 			// add options as requested by core
 			i = 2;
 			do {
+				char* pos;
 				unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 							
 				p = user_io_8bit_get_string(i);
@@ -719,7 +737,9 @@ void HandleUI(void)
 						if(p[0] == 'F') strcpy(s, " Load *.");
 						else            strcpy(s, " Mount *.");
 					}
-					substrcpy(s+strlen(s), p, 1);
+					pos = s+strlen(s);
+					substrcpy(pos, p, 1);
+					strcpy(pos, GetExt(pos));
 					OsdWrite(entry, s, menusub==entry, 0);
 
 					// add bit in menu mask
@@ -818,15 +838,15 @@ void HandleUI(void)
 						p = user_io_8bit_get_string(1);
 
 					// use a local copy of "p" since SelectFile will destroy the buffer behind it
-					static char ext[4];
-					strncpy(ext, p, 4);
+					static char ext[13];
+					strncpy(ext, p, 13);
 					while(strlen(ext) < 3) strcat(ext, " ");
 						SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1, 1);
 					} else {
 						p = user_io_8bit_get_string(menusub + (fs_present?1:2));
 
 						if((p[0] == 'F')||(p[0] == 'S')) {
-							static char ext[4];
+							static char ext[13];
 							substrcpy(ext, p, 1);
 							while(strlen(ext) < 3) strcat(ext, " ");
 							SelectFile(ext, SCAN_DIR | SCAN_LFN, 
@@ -859,13 +879,14 @@ void HandleUI(void)
 
 		case MENU_8BIT_MAIN_FILE_SELECTED : // file successfully selected
 			// this assumes that further file entries only exist if the first one also exists
-			user_io_file_tx(&file, menusub+1);
+			user_io_file_tx(&file, user_io_ext_idx(&file, fs_pFileExt)<<6 | (menusub+1));
 			// close menu afterwards
 			menustate = MENU_NONE1;
 			break;
 
 		case MENU_8BIT_MAIN_IMAGE_SELECTED :
 			iprintf("Image selected: %s\n", file.name);
+			user_io_set_index(user_io_ext_idx(&file, fs_pFileExt)<<6 | (menusub+1));
 			user_io_file_mount(&file);
 			// select image for SD card
 			menustate = MENU_NONE1;
@@ -2065,7 +2086,7 @@ void HandleUI(void)
 							{
 									file.long_name[0] = 0;
 									len = strlen(DirEntryLFN[sort_table[iSelectedEntry]]);
-									if (len > 4)
+									if ((len > 4) && (fs_ExtLen<=3))
 											if (DirEntryLFN[sort_table[iSelectedEntry]][len-4] == '.')
 													len -= 4; // remove extension
 
@@ -3215,7 +3236,7 @@ void ScrollLongName(void)
 		// FIXME - yuk, we don't want to do this every frame!
         len = strlen(DirEntryLFN[k]); // get name length
 
-        if (len > 4)
+        if((len > 4) && (fs_ExtLen<=3))
             if (DirEntryLFN[k][len - 4] == '.')
                 len -= 4; // remove extension
 
@@ -3325,7 +3346,7 @@ void PrintDirectory(void)
 
                 if (!(DirEntry[k].Attributes & ATTR_DIRECTORY)) // if a file
                 {
-                if (len > 4)
+                if((len > 4) && (fs_ExtLen<=3))
                     if (lfn[len-4] == '.')
                         len -= 4; // remove extension
 
@@ -3349,7 +3370,7 @@ void PrintDirectory(void)
             else  // no LFN
             {
                 strncpy(s + 1, (const char*)DirEntry[k].Name, 8); // if no LFN then display base name (8 chars)
-                if (DirEntry[k].Attributes & ATTR_DIRECTORY && DirEntry[k].Extension[0] != ' ')
+                if(((DirEntry[k].Attributes & ATTR_DIRECTORY) || (fs_ExtLen>3)) && DirEntry[k].Extension[0] != ' ')
                 {
                     p = (char*)&DirEntry[k].Name[7];
                     j = 8;
