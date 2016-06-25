@@ -105,6 +105,8 @@ enum MENU
 		MENU_8BIT_KEYTEST2,
 		MENU_8BIT_USB1,
 		MENU_8BIT_USB2,
+		MENU_8BIT_TURBO1,
+		MENU_8BIT_TURBO2,
 		MENU_8BIT_CHRTEST1,
 		MENU_8BIT_CHRTEST2
 		
@@ -119,6 +121,7 @@ extern const char *config_scanline_msg[];
 extern const char *config_cpu_msg[];
 extern const char *config_hdf_msg[];
 extern const char *config_chipset_msg[];
+
 
 
 void InsertFloppy(adfTYPE *drive);

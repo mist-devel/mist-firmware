@@ -95,6 +95,8 @@
 #define OSD_ARROW_LEFT 1
 #define OSD_ARROW_RIGHT 2
 
+#define OSD_TURBO_STEP 50
+
 #include <inttypes.h>
 
 /*functions*/
