@@ -247,3 +247,13 @@ void spi_uio_cmd8(unsigned char cmd, unsigned char parm) {
   spi_uio_cmd8_cont(cmd, parm);
   DisableIO();
 }
+
+void spi_uio_cmd32(unsigned char cmd, unsigned long parm) {
+  EnableIO();
+  SPI(cmd);
+  SPI(parm);
+  SPI(parm>>8);
+  SPI(parm>>16);
+  SPI(parm>>24);
+  DisableIO();
+}

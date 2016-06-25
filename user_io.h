@@ -50,6 +50,7 @@
 #define UIO_SIO_IN      0x1b  // serial in
 #define UIO_SET_SDSTAT  0x1c  // set sd card status 
 #define UIO_SET_SDINFO  0x1d  // send info about mounted image
+#define UIO_SET_STATUS2 0x1e  // 32bit status
 
 // codes as used by 8bit (atari 800, zx81) via SS2
 #define UIO_GET_STATUS  0x50
@@ -141,7 +142,7 @@ char user_io_user_button();
 void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
 char *user_io_8bit_get_string(char);
-unsigned char user_io_8bit_set_status(unsigned char, unsigned char);
+unsigned long user_io_8bit_set_status(unsigned long, unsigned long);
 void user_io_file_tx(fileTYPE *, unsigned char);
 void user_io_sd_set_config(void);
 char user_io_dip_switch1(void);

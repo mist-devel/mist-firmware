@@ -565,8 +565,49 @@ void assign_ps2_modifier ( unsigned char mod, unsigned char offset, unsigned int
 		}
 	}
 }
-			
-			
+
+unsigned char getIdx(char *opt) {
+	if((opt[1]>='0') && (opt[1]<='9')) return opt[1]-'0';
+	if((opt[1]>='A') && (opt[1]<='V')) return opt[1]-'A'+10;
+	return 0; // basically 0 cannot be valid because used as a reset. Thus can be used as a error.
+}
+
+unsigned long getStatus(char *opt, unsigned long status) {
+	char idx1 = getIdx(opt);
+	char idx2 = getIdx(opt+1);
+	unsigned long x = (status & (1<<idx1)) ? 1 : 0;
+
+	if(idx2>idx1) {
+		x = status >> idx1;
+		x = x & ~(0xffffffff << (idx2 - idx1 + 1));
+	}
+
+	return x;
+}
+
+unsigned long setStatus(char *opt, unsigned long status, unsigned long value) {
+	unsigned char idx1 = getIdx(opt);
+	unsigned char idx2 = getIdx(opt+1);
+	unsigned long x = 1;
+
+	if(idx2>idx1) x = ~(0xffffffff << (idx2 - idx1 + 1));
+	x = x << idx1;
+
+	return (status & ~x) | ((value << idx1) & x);
+}
+
+unsigned long getStatusMask(char *opt) {
+	char idx1 = getIdx(opt);
+	char idx2 = getIdx(opt+1);
+	unsigned long x = 1;
+
+	if(idx2>idx1) x = ~(0xffffffff << (idx2 - idx1 + 1));
+
+	//iprintf("grtStatusMask %d %d %x\n", idx1, idx2, x);
+
+	return x << idx1;
+}
+
 void HandleUI(void)
 {
 	char *p;
@@ -861,7 +902,7 @@ void HandleUI(void)
 			i = 2;
 			do {
 				char* pos;
-				unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+				unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 							
 				p = user_io_8bit_get_string(i);
 				//	  iprintf("Option %d: %s\n", i-1, p);
@@ -889,8 +930,6 @@ void HandleUI(void)
 
 				// check for 'T'oggle strings
 				if(p && (p[0] == 'T')) {
-					// p[1] is the digit after the O, so O1 is status bit 1
-					char x = (status & (1<<(p[1]-'0')))?1:0;
 
 					s[0] = ' ';
 					substrcpy(s+1, p, 1);
@@ -903,13 +942,12 @@ void HandleUI(void)
 
 				// check for 'O'ption strings
 				if(p && (p[0] == 'O')) {
-					// p[1] is the digit after the O, so O1 is status bit 1
-					char x = (status & (1<<(p[1]-'0')))?1:0;
+					unsigned long x = getStatus(p, status);
 
 					// get currently active option
 					substrcpy(s, p, 2+x);
 					char l = strlen(s);
-					
+
 					s[0] = ' ';
 					substrcpy(s+1, p, 1);
 					strcat(s, ":");
@@ -992,10 +1030,28 @@ void HandleUI(void)
 							SelectFile(ext, SCAN_DIR | SCAN_LFN, 
 							(p[0] == 'F')?MENU_8BIT_MAIN_FILE_SELECTED:MENU_8BIT_MAIN_IMAGE_SELECTED, 
 							MENU_8BIT_MAIN1, 1);
+						} else if(p[0] == 'O') {
+							unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+							unsigned long x = getStatus(p, status) + 1;
+
+							//unsigned long mask = getStatusMask(p);
+							//unsigned long x2 = x;
+
+							// check if next value available
+							substrcpy(s, p, 2+x);
+							if(!strlen(s)) x = 0;
+
+							//iprintf("Option %s %x %x %x %x\n", p, status, mask, x2, x);
+
+							user_io_8bit_set_status(setStatus(p, status, x), 0xffffffff);
+
+							menustate = MENU_8BIT_MAIN1;
 						} else {
+							// 'T' option
+
 							// determine which status bit is affected
-							unsigned char mask = 1<<(p[1]-'0');
-							unsigned char status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+							unsigned long mask = 1<<getIdx(p);
+							unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 
 							//	    iprintf("Option %s %x\n", p, status ^ mask);
 
@@ -1003,7 +1059,6 @@ void HandleUI(void)
 							user_io_8bit_set_status(status ^ mask, mask);
 
 							// ... and change it again in case of a toggle bit
-							if(p[0] == 'T')
 								user_io_8bit_set_status(status, mask);
 
 							menustate = MENU_8BIT_MAIN1;
@@ -1082,9 +1137,9 @@ void HandleUI(void)
 							// Save settings
 							user_io_create_config_name(s);
 							iprintf("Saving config to %s\n", s);
-							if(FileNew(&file, s, 1)) {
+							if(FileNew(&file, s, 4)) {
 							 // finally write data
-							 sector_buffer[0] = user_io_8bit_set_status(0,0);
+							 ((unsigned long*)sector_buffer)[0] = user_io_8bit_set_status(0,0);
 							 FileWrite(&file, sector_buffer); 
 							 iprintf("Settings for %s written\n", s);
 							}
