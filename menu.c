@@ -109,9 +109,9 @@ uint8_t StateJoyState ( uint8_t joy_num ) {
 }*/
 
 
-void StateNumJoysticksSet(unsigned char num) {
+void NumJoysticksSet(unsigned char num) {
 	mist_joystick_t joy;
-	OsdNumJoysticksSet(num);
+	StateNumJoysticksSet(num);
 	if(num<3) {
 		//clear USB joysticks
 		if(num<2)
@@ -414,7 +414,7 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	char binary_string[9]="00000000";
 	unsigned char joy = 0;
 	unsigned int max_btn = 1;
-	if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
+	if (StateNumJoysticks()==0 || (joy_num==1 && StateNumJoysticks()<2)) 
 	{
 		strcpy( s, " ");
 		return;
@@ -486,7 +486,7 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 			joystick=mist_joy[joy_num];
 	
 	if (raw_id==0) {
-		if (OsdNumJoysticks()==0 || (joy_num==1 && OsdNumJoysticks()<2)) 
+		if (StateNumJoysticks()==0 || (joy_num==1 && StateNumJoysticks()<2)) 
 		{
 			strcpy( usb_id, "      ");
 			strcat( usb_id, "Atari DB9 Joystick");
@@ -517,16 +517,10 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	return;
 }
 
-static unsigned int keys_ps2[6] = { 0,0,0,0,0,0 };
-void StateKeyboardPressedPS2(unsigned int *keycodes) {
-	unsigned i=0;
-	for(i=0; i<6; i++) {
-		keycodes[i]=keys_ps2[i];
-	}
-}
+
 /* translates a USB modifier bit into a PS2 scancode */
-void assign_ps2_modifier ( unsigned char mod, unsigned char offset, unsigned int ps2_value) {
-	unsigned int i;
+void assign_ps2_modifier ( uint8_t mod, uint8_t offset, uint16_t ps2_value, uint16_t* keys_ps2) {
+	uint8_t i;
 	if(mod&offset) {
 		for(i=0; i<4; i++) {
 			if(keys_ps2[i]==0) {
@@ -592,7 +586,9 @@ void HandleUI(void)
 	static long helptext_timer;
 	static const char *helptext;
 	static char helpstate=0;
-	unsigned char keys[6] = {0,0,0,0,0,0};
+	uint8_t keys[6] = {0,0,0,0,0,0};
+	uint16_t keys_ps2[6] = {0,0,0,0,0,0};
+	
 	mist_joystick_t joy0, joy1;
 	
 	/* check joystick status */
@@ -1280,14 +1276,15 @@ void HandleUI(void)
 			OsdWrite(1, s, 0,0);
 			mod = 0; //OsdKeyboardModifiers();
 			siprintbinary(usb_id, sizeof(mod), &mod);
-			siprintf(s, "    mod keys - 00000000");
+			siprintf(s, "    mod keys - 00000000 ");
 			for(i=0; i<8; i++)
 				s[15+i] = usb_id[i];
 			OsdWrite(2, s, 0,0);
 			OsdWrite(3, "", 0, 0);
 			OsdWrite(4, "       PS/2 scancodes", 0, 0);
-			//OsdKeyboardPressedPS2(keys_ps2);
-			siprintf(s, "   %4x %4x %4x %4x", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3]); // keys_ps2[4], keys_ps2[5]);
+			//StateKeyboardPressedPS2(keys_ps2);
+			uint16_t keys_ps2b[6]={0,0,0,0,0,0};
+			siprintf(s, "   %4x %4x %4x %4x", keys_ps2b[0], keys_ps2b[1], keys_ps2b[2], keys_ps2b[3]); // keys_ps2[4], keys_ps2[5]);
 			OsdWrite(5, s, 0, 0);			
 			OsdWrite(6, " ", 0, 0);
 			OsdWrite(7, STD_COMBO_EXIT, menusub==0, 0);
@@ -1298,22 +1295,23 @@ void HandleUI(void)
 			OsdWrite(0, "       USB scancodes", 0,0);
 			siprintf(s, "     %2x   %2x   %2x   %2x", keys[0], keys[1], keys[2], keys[3]); // keys[4], keys[5]);
 			OsdWrite(1, s, 0,0);
-			m = 0; // OsdKeyboardModifiers();
-			siprintbinary(usb_id, sizeof(m), &m);
+			mod = 0; // OsdKeyboardModifiers();
+			siprintbinary(usb_id, sizeof(mod), &mod);
 			siprintf(s, "    mod keys - %s", usb_id);
-			for(i=0; i<8; i++)
-				s[15+i] = usb_id[i];
+			/*for(i=0; i<8; i++)
+				s[15+i] = usb_id[i];*/
 			OsdWrite(2, s, 0,0);
 			//StateKeyboardPressedPS2(keys_ps2);
-			assign_ps2_modifier( m, 0x1,  0x14);   // LCTRL
-			assign_ps2_modifier( m, 0x2,  0x12);   // LSHIFT
-			assign_ps2_modifier( m, 0x4,  0x11);   // LALT
-			assign_ps2_modifier( m, 0x8,  0xE01F); // LGUI
-			assign_ps2_modifier( m, 0x10, 0xE014); // RCTRL
-			assign_ps2_modifier( m, 0x20, 0x59);   // RSHIFT
-			assign_ps2_modifier( m, 0x40, 0xE011); // RALT
-			assign_ps2_modifier( m, 0x80, 0xE027); // RGUI
-			siprintf(s, "   %4x %4x %4x %4x", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3]);// keys_ps2[4], keys_ps2[5]);
+			uint16_t keys_ps2[6]={0,0,0,0,0,0};
+			assign_ps2_modifier( m, 0x1,  0x14, keys_ps2);   // LCTRL
+			assign_ps2_modifier( m, 0x2,  0x12, keys_ps2);   // LSHIFT
+			assign_ps2_modifier( m, 0x4,  0x11, keys_ps2);   // LALT
+			assign_ps2_modifier( m, 0x8,  0xE01F, keys_ps2); // LGUI
+			assign_ps2_modifier( m, 0x10, 0xE014, keys_ps2); // RCTRL
+			assign_ps2_modifier( m, 0x20, 0x59, keys_ps2);   // RSHIFT
+			assign_ps2_modifier( m, 0x40, 0xE011, keys_ps2); // RALT
+			assign_ps2_modifier( m, 0x80, 0xE027, keys_ps2); // RGUI
+			siprintf(s, "   %4x %4x %4x %4x ", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3]);// keys_ps2[4], keys_ps2[5]);
 			OsdWrite(5, s, 0, 0);
 									
 			// allow allow exit when hitting space and ESC

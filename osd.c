@@ -723,58 +723,6 @@ unsigned char OsdKeyGet() {
   return osd_key;
 }
 
-// Keep track of connected sticks
-static unsigned char joysticks;
-unsigned char OsdNumJoysticks() {
-	return joysticks;
-}
-
-void OsdNumJoysticksSet(unsigned char num) {
-	joysticks = num;
-}
-
-/* keyboard data */
-static uint8_t key_modifier = 0;
-static unsigned char key_pressed[6] = { 0,0,0,0,0,0 };
-static unsigned int key_ps2[6] = { 0,0,0,0,0,0 };
-void OsdKeyboardSet( unsigned char modifier, char* keycodes, int* keycodes_ps2) {
-	unsigned i=0;
-	key_modifier = modifier;
-	for(i=0; i<6; i++) {
-		if((keycodes[i]&0xFF) != 0xFF ) {
-			key_pressed[i]=keycodes[i];
-			if((keycodes_ps2[i]&0xFF) != 0xFF ) {
-				//iprintf("PS2 keycode: %x\n", keycodes_ps2[i]);
-				// translate EXT into 0E
-				if(0x1000 & keycodes_ps2[i]) {
-					key_ps2[i] = keycodes_ps2[i]&0xFF | 0xE000;
-				} else {
-					key_ps2[i] = keycodes_ps2[i]&0xFF;
-				}
-			} else {
-				key_ps2[i]=0;
-			}
-		}
-		else {
-			key_pressed[i]=0;
-			key_ps2[i]=0;
-		}
-	}	
-}
-uint8_t OsdKeyboardModifiers() {
-	return key_modifier;
-}
-void OsdKeyboardPressed(char *keycodes) {
-	unsigned i=0;
-	for(i=0; i<6; i++) 
-		keycodes[i]=key_pressed[i];
-}
-void OsdKeyboardPressedPS2(unsigned int *keycodes) {
-	unsigned i=0;
-	for(i=0; i<6; i++) {
-		keycodes[i]=key_ps2[i];
-	}
-}
 
 /* core currently loaded */
 static char lastcorename[261+10] = "CORE";

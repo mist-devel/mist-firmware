@@ -44,28 +44,25 @@ uint8_t StateJoyGet(uint8_t joy_num);
 uint8_t StateJoyGetExtra(uint8_t joy_num);
 
 
+// Keep track of connected sticks
+uint8_t StateNumJoysticks();
+void StateNumJoysticksSet(uint8_t num);
+
  /*
-mist_joystick_t StateJoyGet(uint8_t joy_num); // all data
 uint8_t StateJoyState ( uint8_t joy_num );		// directions and 4 buttons, reflecting turbo settings
 
-// Keep track of connected sticks
-unsigned char StateNumJoysticks();
-void StateNumJoysticksSet(unsigned char num);
-
 // turbo function
-/*
 void StateTurboUpdate(uint8_t joy_num);
 void StateTurboReset(uint8_t joy_num);
 void StateTurboSet ( uint16_t turbo, uint16_t mask, uint8_t joy_num );
+
 */
 
-
-
 // keyboard status
-void StateKeyboardSet( unsigned char modifier, char* pressed, int* pressed_ps2); //get usb and ps2 codes
-void StateKeyboardModifiers(uint8_t m);
-void StateKeyboardPressed(char *pressed);
-void StateKeyboardPressedPS2(unsigned int *keycodes);
+void StateKeyboardSet( uint8_t modifier, uint8_t* pressed, uint16_t* pressed_ps2); //get usb and ps2 codes
+uint8_t StateKeyboardModifiers();
+void StateKeyboardPressed(uint8_t *pressed);
+void StateKeyboardPressedPS2(uint16_t *keycodes);
 
 // get/set core currently loaded
 void StateCoreNameSet(const char* str);

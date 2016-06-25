@@ -134,11 +134,28 @@ uint8_t StateUsbGetNumButtons(uint8_t joy_num) {
 	return (joy_num==0)?num_buttons:num_buttons_b;
 }
 
+// Keep track of connected sticks
+uint8_t joysticks=0;
+uint8_t StateNumJoysticks() {
+	return joysticks;
+}
+
+void StateNumJoysticksSet(uint8_t num) {
+	joysticks = num;
+}
+
 /* keyboard data */
 static uint8_t key_modifier = 0;
-static unsigned char key_pressed[6] = { 0,0,0,0,0,0 };
+static uint8_t key_pressed[6] = { 0,0,0,0,0,0 };
+static uint16_t keys_ps2[6] = { 0,0,0,0,0,0 };
 
-void StateKeyboardSet( unsigned char modifier, char* keycodes, int* keycodes_ps2) {
+void StateKeyboardPressedPS2(uint16_t *keycodes) {
+	unsigned i=0;
+	for(i=0; i<6; i++) {
+		keycodes[i]=keys_ps2[i];
+	}
+}
+void StateKeyboardSet( uint8_t modifier, uint8_t* keycodes, uint16_t* keycodes_ps2) {
 	unsigned i=0;
 	key_modifier = modifier;
 	for(i=0; i<6; i++) {
@@ -162,12 +179,11 @@ void StateKeyboardSet( unsigned char modifier, char* keycodes, int* keycodes_ps2
 		}
 	}	
 }
-void StateKeyboardModifiers(uint8_t m) {
-	m = key_modifier;
-	return;
+uint8_t StateKeyboardModifiers() {
+	return key_modifier;
 }
-void StateKeyboardPressed(char *keycodes) {
-	unsigned i=0;
+void StateKeyboardPressed(uint8_t *keycodes) {
+	uint8_t i=0;
 	for(i=0; i<6; i++) 
 		keycodes[i]=key_pressed[i];
 }

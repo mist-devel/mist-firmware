@@ -331,12 +331,10 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 		
 	StateJoySet(map, joystick);
 	if (joystick==1) {
-		//OsdJoySet(map);
 		//OsdTurboUpdate(0);
 		//map = (unsigned char)OsdJoyState(0); //apply turbo
 	}
 	else if (joystick==0) {// WARNING: 0 is the second joystick, either USB or DB9
-		//OsdJoySet2(map);
 		//OsdTurboUpdate(1);
 		//map = (unsigned char)OsdJoyState(1); //apply turbo
 	}	
@@ -1464,7 +1462,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
 
     static unsigned char modifier = 0, pressed[6] = { 0,0,0,0,0,0 };
 		char keycodes[6] = { 0,0,0,0,0,0 };
-		unsigned int keycodes_ps2[6] = { 0,0,0,0,0,0 };
+		uint16_t keycodes_ps2[6] = { 0,0,0,0,0,0 };
     char i, j;
     		
     // remap keycodes if requested

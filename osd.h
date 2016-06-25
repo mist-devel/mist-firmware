@@ -134,16 +134,6 @@ void StarsUpdate();
 void OsdKeySet(unsigned char);
 unsigned char OsdKeyGet();
 
-/*****
- * Various functions to retrieve hardware state from the OSD
- */
-
-// Keep track of connected sticks
-unsigned char OsdNumJoysticks();
-void OsdNumJoysticksSet(unsigned char num);
-
-
-
 // get/set core currently loaded
 void OsdCoreNameSet(const char* str);
 char* OsdCoreName();

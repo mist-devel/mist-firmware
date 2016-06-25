@@ -96,7 +96,7 @@ static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t i, uint16_t size)
 				hid_debugf("Detected USB joystick #%d", joysticks);
 				info->iface[i].device_type = HID_DEVICE_JOYSTICK;
 				info->iface[i].jindex = joysticks++;
-				OsdNumJoysticksSet(joysticks);			
+				StateNumJoysticksSet(joysticks);			
       }
     } else {
       // parsing failed. Fall back to boot mode for mice
@@ -471,7 +471,7 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
       }
       // one less joystick in the system ...
       joysticks--;
-			OsdNumJoysticksSet(joysticks);
+			StateNumJoysticksSet(joysticks);
     }
   }
 
