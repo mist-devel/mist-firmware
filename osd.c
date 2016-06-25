@@ -728,7 +728,8 @@ static unsigned char joysticks;
 unsigned char OsdNumJoysticks() {
 	return joysticks;
 }
-unsigned char OsdNumJoysticksSet(unsigned char num) {
+
+void OsdNumJoysticksSet(unsigned char num) {
 	joysticks = num;
 }
 
