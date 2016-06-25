@@ -1095,7 +1095,7 @@ void HandleUI(void)
 			assign_ps2_modifier( m, 0x2,  0x12);   // LSHIFT
 			assign_ps2_modifier( m, 0x4,  0x11);   // LALT
 			assign_ps2_modifier( m, 0x8,  0xE01F); // LGUI
-			assign_ps2_modifier( m, 0x10, 0xE015); // RCTRL
+			assign_ps2_modifier( m, 0x10, 0xE014); // RCTRL
 			assign_ps2_modifier( m, 0x20, 0x59);   // RSHIFT
 			assign_ps2_modifier( m, 0x40, 0xE011); // RALT
 			assign_ps2_modifier( m, 0x80, 0xE027); // RGUI
