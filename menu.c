@@ -64,7 +64,7 @@ static mist_joystick_t mist_joy[3] = { // 3rd one is dummy, used to store defaul
 		.state_extra=0,
 		.usb_state=0,
 		.usb_state_extra=0,
-		.turbo=50,
+		.turbo=0,
 		.turbo_counter=0,
 		.turbo_mask=0x30,	 // A and B buttons		
 		.turbo_state=0xFF  // flip state (0 or 1)
@@ -99,14 +99,7 @@ static mist_joystick_t mist_joy[3] = { // 3rd one is dummy, used to store defaul
 // state of MIST virtual joystick
 
 
-/* return Joy state including turbo settings */
-/*
-uint8_t StateJoyState ( uint8_t joy_num ) {
-	if(joy_num>1) return 0;
-	uint8_t result = mist_joy[joy_num].state;
-	result &=  mist_joy[joy_num].turbo_state;
-	return result;
-}*/
+
 
 
 void NumJoysticksSet(unsigned char num) {
@@ -371,7 +364,7 @@ void siprintbinary(char* buffer, size_t const size, void const * const ptr)
 		return;
 }
 
-void get_joystick_state( char *joy_string, char *joy_string2, unsigned int joy_num ) {	
+void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) {	
 	// helper to get joystick status (both USB or DB9)
 	uint16_t vjoy;
 	memset(joy_string, '\0', sizeof(joy_string));
@@ -382,6 +375,7 @@ void get_joystick_state( char *joy_string, char *joy_string2, unsigned int joy_n
 		memset(joy_string2, ' ', 8);
 		memset(joy_string2+8, '\x14', 1);
 		memset(joy_string2+9, ' ', 1);
+		strcat(joy_string2, "\0");
 		return;		
 	}
 	strcpy(joy_string,  "        \x12   X Y L R L2 R2 L3");
@@ -1205,7 +1199,7 @@ void HandleUI(void)
 			OsdSetTitle("Inputs", 0);
 			menustate = MENU_8BIT_CONTROLLERS2;
 			parentstate=MENU_8BIT_CONTROLLERS1;
-			OsdWrite(0, " Turbo Settings            \x16", menusub==0, 0);
+			OsdWrite(0, " Turbo Settings (disabled)  ", menusub==0, 1);
 			OsdWrite(1, " Joystick 1 Test           \x16", menusub==1, 0);	
 			OsdWrite(2, " Joystick 2 Test           \x16", menusub==2, 0);
 			OsdWrite(3, " Keyboard Test             \x16", menusub==3, 0);
@@ -1226,7 +1220,7 @@ void HandleUI(void)
 				switch (menusub) {
 					case 0:
 						// Turbo config
-						menustate = MENU_8BIT_TURBO1;
+						//menustate = MENU_8BIT_TURBO1;
 						menusub=0;
 						break;
 					case 1:
@@ -1274,14 +1268,15 @@ void HandleUI(void)
 			OsdWrite(0, "       USB scancodes", 0,0);
 			siprintf(s, "     %2x   %2x   %2x   %2x", keys[0], keys[1], keys[2], keys[3]); // keys[4], keys[5]); - no need to show all, save some space...
 			OsdWrite(1, s, 0,0);
-			mod = 0; //OsdKeyboardModifiers();
+			mod = StateKeyboardModifiers();
 			siprintbinary(usb_id, sizeof(mod), &mod);
 			siprintf(s, "    mod keys - 00000000 ");
 			for(i=0; i<8; i++)
 				s[15+i] = usb_id[i];
 			OsdWrite(2, s, 0,0);
 			OsdWrite(3, "", 0, 0);
-			OsdWrite(4, "       PS/2 scancodes", 0, 0);
+			OsdWrite(4, "", 0, 0);
+			//OsdWrite(4, "       PS/2 scancodes", 0, 0);
 			//StateKeyboardPressedPS2(keys_ps2);
 			uint16_t keys_ps2b[6]={0,0,0,0,0,0};
 			siprintf(s, "   %4x %4x %4x %4x", keys_ps2b[0], keys_ps2b[1], keys_ps2b[2], keys_ps2b[3]); // keys_ps2[4], keys_ps2[5]);
@@ -1295,9 +1290,10 @@ void HandleUI(void)
 			OsdWrite(0, "       USB scancodes", 0,0);
 			siprintf(s, "     %2x   %2x   %2x   %2x", keys[0], keys[1], keys[2], keys[3]); // keys[4], keys[5]);
 			OsdWrite(1, s, 0,0);
-			mod = 0; // OsdKeyboardModifiers();
+			mod = StateKeyboardModifiers();
+			strcpy(usb_id, "                      ");
 			siprintbinary(usb_id, sizeof(mod), &mod);
-			siprintf(s, "    mod keys - %s", usb_id);
+			siprintf(s, "    mod keys - %s ", usb_id);
 			/*for(i=0; i<8; i++)
 				s[15+i] = usb_id[i];*/
 			OsdWrite(2, s, 0,0);
@@ -1312,8 +1308,8 @@ void HandleUI(void)
 			assign_ps2_modifier( m, 0x40, 0xE011, keys_ps2); // RALT
 			assign_ps2_modifier( m, 0x80, 0xE027, keys_ps2); // RGUI
 			siprintf(s, "   %4x %4x %4x %4x ", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3]);// keys_ps2[4], keys_ps2[5]);
-			OsdWrite(5, s, 0, 0);
-									
+			//OsdWrite(5, s, 0, 0);
+			OsdWrite(5, "", 0, 0);					
 			// allow allow exit when hitting space and ESC
 			for(i=0; i<6; i++) {
 				if(keys[i]==0x29) { //ESC
@@ -1448,8 +1444,8 @@ void HandleUI(void)
 			OsdSetTitle("Turbo", 0);
 			menustate = MENU_8BIT_TURBO2;
 			parentstate=MENU_8BIT_TURBO1;
-			joy0 = mist_joy[0];//StateJoyGet(0);
-			joy1 = mist_joy[1];//StateJoyGet(1);
+			StateJoyState(0, &mist_joy[0]);
+			StateJoyState(1, &mist_joy[1]);
 			OsdWrite(0, "    Button Configuration", 1, 0);
 			OsdWrite(1, "", 0, 0);
 			strcpy(s,   "    Joy 1 Turbo     : ");
@@ -1469,8 +1465,8 @@ void HandleUI(void)
 			break;
 			
 		case MENU_8BIT_TURBO2:
-			joy0 = mist_joy[0];//StateJoyGet(0);
-			joy1 = mist_joy[1];//StateJoyGet(1);
+			StateJoyState(0, &mist_joy[0]);
+			StateJoyState(1, &mist_joy[1]);
 			strcpy(s,   "    Joy 1 Turbo     : ");
 			strcat(s, config_button_turbo_msg[(int)joy0.turbo/OSD_TURBO_STEP]);
 			OsdWrite(2, s, menusub==0, 0);

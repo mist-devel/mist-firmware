@@ -316,7 +316,7 @@ void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
 }
 
 void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
-		
+	uint8_t state = map;
 	// "only" 6 joysticks are supported
   if(joystick >= 6)
     return;
@@ -329,7 +329,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 		// becomes joystick 1 and only the second one becomes joystick 0
 		// (mouse port)
 		
-	StateJoySet(map, joystick);
+	StateJoySet(state, joystick==0?1:0);
 	if (joystick==1) {
 		//OsdTurboUpdate(0);
 		//map = (unsigned char)OsdJoyState(0); //apply turbo

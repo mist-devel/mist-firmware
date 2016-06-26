@@ -48,9 +48,10 @@ uint8_t StateJoyGetExtra(uint8_t joy_num);
 uint8_t StateNumJoysticks();
 void StateNumJoysticksSet(uint8_t num);
 
- /*
-uint8_t StateJoyState ( uint8_t joy_num );		// directions and 4 buttons, reflecting turbo settings
+ // to get data
+void  StateJoyState( uint8_t joy_num, mist_joystick_t* joy );		// directions and 4 buttons, reflecting turbo settings
 
+/*
 // turbo function
 void StateTurboUpdate(uint8_t joy_num);
 void StateTurboReset(uint8_t joy_num);

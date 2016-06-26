@@ -39,7 +39,7 @@ void joy_reset ( mist_joystick_t joy ) {
 	joy.state_extra=0;
 	joy.usb_state=0;
 	joy.usb_state_extra=0;
-	joy.turbo=50;
+	joy.turbo=0;
 	joy.turbo_counter=0;
 	joy.turbo_mask=0x30;	 // A and B buttons		
 	joy.turbo_state=0xFF;  // flip state (0 or 1)
@@ -69,21 +69,6 @@ uint8_t StateJoyGet(uint8_t joy_num) {
 }
 uint8_t StateJoyGetExtra(uint8_t joy_num) {
   return joy_num==0?osd_joy_extra:osd_joy_extra2;
-}
-/* latest joystick state */
-
-void OsdJoySet2(unsigned char c) {
-  //iprintf("OSD joy 2: %x\n", c);
-  osd_joy2 = c;
-}
-void OsdJoySetExtra2(unsigned char c) {
-  osd_joy_extra2 = c;
-}
-unsigned char OsdJoyGet2() {
-  return osd_joy2;
-}
-unsigned char OsdJoyGetExtra2() {
-  return osd_joy_extra2;
 }
 
 static uint8_t raw_usb_joy;	      // four directions and 4 buttons
@@ -133,6 +118,34 @@ uint16_t StateUsbPidGet(uint8_t joy_num) {
 uint8_t StateUsbGetNumButtons(uint8_t joy_num) {
 	return (joy_num==0)?num_buttons:num_buttons_b;
 }
+
+void  StateJoyState( uint8_t joy_num, mist_joystick_t* joy ) {
+	if (joy_num>1) return;
+	if(!joy) return;
+	joy->vid = StateUsbVidGet(joy_num);
+	joy->pid = StateUsbPidGet(joy_num);
+	//joy.num_buttons=1; // DB9 has 1 button
+	joy->state=StateUsbPidGet(joy_num);
+	joy->state_extra=StateJoyGetExtra(joy_num);
+	joy->usb_state=StateUsbJoyGet(joy_num);
+	joy->usb_state_extra=(joy_num);
+	/*
+	joy.turbo=50;
+	joy.turbo_counter=0;
+	joy.turbo_mask=0x30;	 // A and B buttons		
+	joy.turbo_state=0xFF;  // flip state (0 or 1)
+	*/
+	
+	/* return Joy state including turbo settings */
+	/*
+	uint8_t result = mist_joy[joy_num].state;
+	result &=  mist_joy[joy_num].turbo_state;
+	return result;
+	}*/
+
+}
+
+
 
 // Keep track of connected sticks
 uint8_t joysticks=0;
