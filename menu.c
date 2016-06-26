@@ -1444,8 +1444,10 @@ void HandleUI(void)
 			OsdSetTitle("Turbo", 0);
 			menustate = MENU_8BIT_TURBO2;
 			parentstate=MENU_8BIT_TURBO1;
-			StateJoyState(0, &mist_joy[0]);
-			StateJoyState(1, &mist_joy[1]);
+			//StateJoyState(0, &mist_joy[0]);
+			joy0 = mist_joy[0];//StateJoyGet(0);
+			//StateJoyState(1, &mist_joy[1]);
+			joy1 = mist_joy[1];//StateJoyGet(1);
 			OsdWrite(0, "    Button Configuration", 1, 0);
 			OsdWrite(1, "", 0, 0);
 			strcpy(s,   "    Joy 1 Turbo     : ");
@@ -1465,8 +1467,10 @@ void HandleUI(void)
 			break;
 			
 		case MENU_8BIT_TURBO2:
-			StateJoyState(0, &mist_joy[0]);
-			StateJoyState(1, &mist_joy[1]);
+			//StateJoyState(0, &mist_joy[0]);
+			//StateJoyState(1, &mist_joy[1]);
+			joy0 = mist_joy[0];//StateJoyGet(0);
+			joy1 = mist_joy[1];//StateJoyGet(1);
 			strcpy(s,   "    Joy 1 Turbo     : ");
 			strcat(s, config_button_turbo_msg[(int)joy0.turbo/OSD_TURBO_STEP]);
 			OsdWrite(2, s, menusub==0, 0);

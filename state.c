@@ -62,7 +62,7 @@ void StateJoySetExtra(uint8_t c, uint8_t joy_num) {
 		if(joy_num==0) 
 		osd_joy_extra = c;
 	else
-		osd_joy_extra = c;
+		osd_joy_extra2 = c;
 }
 uint8_t StateJoyGet(uint8_t joy_num) {
   return joy_num==0?osd_joy:osd_joy2;
