@@ -908,6 +908,14 @@ void HandleUI(void)
 					// get currently active option
 					substrcpy(s, p, 2+x);
 					char l = strlen(s);
+					if(!l) {
+						// option's index is outside of available values.
+						// reset to 0.
+						x = 0;
+						user_io_8bit_set_status(setStatus(p, status, x), 0xffffffff);
+						substrcpy(s, p, 2+x);
+						l = strlen(s);
+					}
 
 					s[0] = ' ';
 					substrcpy(s+1, p, 1);
