@@ -1285,8 +1285,8 @@ void HandleUI(void)
 			/*for(i=0; i<8; i++)
 				s[15+i] = usb_id[i];*/
 			OsdWrite(2, s, 0,0);
-			//StateKeyboardPressedPS2(keys_ps2);
 			uint16_t keys_ps2[6]={0,0,0,0,0,0};
+			StateKeyboardPressedPS2(keys_ps2);
 			assign_ps2_modifier( m, 0x1,  0x14, keys_ps2);   // LCTRL
 			assign_ps2_modifier( m, 0x2,  0x12, keys_ps2);   // LSHIFT
 			assign_ps2_modifier( m, 0x4,  0x11, keys_ps2);   // LALT
@@ -1296,8 +1296,7 @@ void HandleUI(void)
 			assign_ps2_modifier( m, 0x40, 0xE011, keys_ps2); // RALT
 			assign_ps2_modifier( m, 0x80, 0xE027, keys_ps2); // RGUI
 			siprintf(s, "   %4x %4x %4x %4x ", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3]);// keys_ps2[4], keys_ps2[5]);
-			//OsdWrite(5, s, 0, 0);
-			OsdWrite(5, "", 0, 0);					
+			OsdWrite(5, s, 0, 0);
 			// allow allow exit when hitting space and ESC
 			for(i=0; i<6; i++) {
 				if(keys[i]==0x29) { //ESC

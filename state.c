@@ -308,17 +308,17 @@ void StateKeyboardSet( uint8_t modifier, uint8_t* keycodes, uint16_t* keycodes_p
 				//iprintf("PS2 keycode: %x\n", keycodes_ps2[i]);
 				// translate EXT into 0E
 				if(0x1000 & keycodes_ps2[i]) {
-					//key_ps2[i] = keycodes_ps2[i]&0xFF | 0xE000;
+					keys_ps2[i] = keycodes_ps2[i]&0xFF | 0xE000;
 				} else {
-					//key_ps2[i] = keycodes_ps2[i]&0xFF;
+					keys_ps2[i] = keycodes_ps2[i]&0xFF;
 				}
 			} else {
-				//key_ps2[i]=0;
+				keys_ps2[i]=0;
 			}
 		}
 		else {
 			key_pressed[i]=0;
-			//key_ps2[i]=0;
+			keys_ps2[i]=0;
 		}
 	}	
 }
@@ -349,7 +349,7 @@ void StateReset() {
 	key_modifier = 0;
 	for(int i=0; i<6; i++) {
 		key_pressed[i]=0;
-		//key_ps2[i]=0;
+		keys_ps2[i]=0;
 	}
   //joy_reset(mist_joy[0]);
   //joy_reset(mist_joy[1]);
