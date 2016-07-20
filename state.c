@@ -299,29 +299,31 @@ void StateKeyboardPressedPS2(uint16_t *keycodes) {
 	}
 }
 void StateKeyboardSet( uint8_t modifier, uint8_t* keycodes, uint16_t* keycodes_ps2) {
-	unsigned i=0;
+	unsigned i=0,j=0;
 	key_modifier = modifier;
 	for(i=0; i<6; i++) {
-		if((keycodes[i]&0xFF) != 0xFF ) {
-			key_pressed[i]=keycodes[i];
+		//iprintf("Key N=%d, USB=%x, PS2=%x\n", i, keycodes[i], keycodes_ps2[i]);
+		if(((keycodes[i]&0xFF) != 0xFF) && (keycodes[i]&0xFF)) {
+			key_pressed[j]=keycodes[i];
 			if((keycodes_ps2[i]&0xFF) != 0xFF ) {
-				//iprintf("PS2 keycode: %x\n", keycodes_ps2[i]);
 				// translate EXT into 0E
 				if(0x1000 & keycodes_ps2[i]) {
-					keys_ps2[i] = keycodes_ps2[i]&0xFF | 0xE000;
+					keys_ps2[j++] = (keycodes_ps2[i]&0xFF) | 0xE000;
 				} else {
-					keys_ps2[i] = keycodes_ps2[i]&0xFF;
+					keys_ps2[j++] = keycodes_ps2[i]&0xFF;
 				}
 			} else {
-				keys_ps2[i]=0;
+				keys_ps2[j++] = 0;
 			}
 		}
-		else {
-			key_pressed[i]=0;
-			keys_ps2[i]=0;
-		}
-	}	
+	}
+
+	while(j<6) {
+		key_pressed[j]=0;
+		keys_ps2[j++]=0;
+	}
 }
+
 uint8_t StateKeyboardModifiers() {
 	return key_modifier;
 }
