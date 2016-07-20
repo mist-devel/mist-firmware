@@ -331,12 +331,12 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 		
 	StateJoySet(state, joystick==0?1:0);
 	if (joystick==1) {
-		//OsdTurboUpdate(0);
-		//map = (unsigned char)OsdJoyState(0); //apply turbo
+		//StateJoyUpdateTurboStructure(0);
+		//map = (unsigned char) StateJoyStructureState(0) & 0xFF;
 	}
 	else if (joystick==0) {// WARNING: 0 is the second joystick, either USB or DB9
-		//OsdTurboUpdate(1);
-		//map = (unsigned char)OsdJoyState(1); //apply turbo
+		//StateJoyUpdateTurboStructure(1);
+		//map = (unsigned char) StateJoyStructureState(1) & 0xFF;
 	}	
 		
   // if osd is open control it via joystick
