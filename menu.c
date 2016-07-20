@@ -122,36 +122,6 @@ void NumJoysticksSet(unsigned char num) {
 }
 
 
-/* handle button's turbo timers */
-void StateTurboUpdate(uint8_t joy_num) {
-	if(joy_num>1) return;
-	mist_joy[joy_num].turbo_counter += 1;
-	if(mist_joy[joy_num].turbo_counter > mist_joy[joy_num].turbo) {
-		mist_joy[joy_num].turbo_counter = 0;
-		mist_joy[joy_num].turbo_state ^= mist_joy[joy_num].turbo_mask;
-	}
-}
-/* reset all turbo timers and state */
-void StateTurboReset(uint8_t joy_num) {
-	if(joy_num>1) return;
-	mist_joy[joy_num].turbo_counter = 0;
-	mist_joy[joy_num].turbo_state = 0xFF;
-}
-/* set a specific turbo mask and timeout */
-void StateTurboSet ( uint16_t turbo, uint16_t mask, uint8_t joy_num ) {
-	if(joy_num>1) return;
-	StateTurboReset(joy_num);
-	mist_joy[joy_num].turbo = turbo;
-	mist_joy[joy_num].turbo_mask = mask;
-}
-
-/*
-void StateJoySet(unsigned char c, uint8_t joy_num) {
-  if(joy_num>1) return;
-	mist_joy[joy_num].state = c;
-	if(c==0) StateTurboReset(joy_num); //clear turbo if no button pressed
-}*/
-
 // other constants
 #define DIRSIZE 8 // number of items in directory display window
 
@@ -1110,10 +1080,10 @@ void HandleUI(void)
 							user_io_create_config_name(s);
 							iprintf("Saving config to %s\n", s);
 							if(FileNew(&file, s, 4)) {
-								// finally write data
-								((unsigned long*)sector_buffer)[0] = user_io_8bit_set_status(0,0);
-								FileWrite(&file, sector_buffer); 
-								iprintf("Settings for %s written\n", s);
+							 // finally write data
+							 ((unsigned long*)sector_buffer)[0] = user_io_8bit_set_status(0,0);
+							 FileWrite(&file, sector_buffer); 
+							 iprintf("Settings for %s written\n", s);
 							}
 							menustate = MENU_8BIT_MAIN1;
 							menusub = 0;
@@ -1217,6 +1187,7 @@ void HandleUI(void)
 			menustate = MENU_8BIT_CONTROLLERS2;
 			parentstate=MENU_8BIT_CONTROLLERS1;
 			OsdWrite(0, " Turbo Settings (disabled)  ", menusub==0, 1);
+			//OsdWrite(0, " Turbo Settings            \x16", menusub==0, 0);
 			OsdWrite(1, " Joystick 1 Test           \x16", menusub==1, 0);	
 			OsdWrite(2, " Joystick 2 Test           \x16", menusub==2, 0);
 			OsdWrite(3, " Keyboard Test             \x16", menusub==3, 0);
@@ -1462,7 +1433,9 @@ void HandleUI(void)
 			menustate = MENU_8BIT_TURBO2;
 			parentstate=MENU_8BIT_TURBO1;
 			//StateJoyState(0, &mist_joy[0]);
-			joy0 = mist_joy[0];//StateJoyGet(0);
+			//joy0 = mist_joy[0];//StateJoyGet(0);
+			StateJoyState(0, &mist_joy[0]);
+			joy0 = mist_joy[0];
 			//StateJoyState(1, &mist_joy[1]);
 			joy1 = mist_joy[1];//StateJoyGet(1);
 			OsdWrite(0, "    Button Configuration", 1, 0);
@@ -1484,21 +1457,22 @@ void HandleUI(void)
 			break;
 			
 		case MENU_8BIT_TURBO2:
-			//StateJoyState(0, &mist_joy[0]);
+			StateJoyState(0, &mist_joy[0]);
+			joy0 = mist_joy[0];
 			//StateJoyState(1, &mist_joy[1]);
-			joy0 = mist_joy[0];//StateJoyGet(0);
+			//joy0 = mist_joy[0];//StateJoyGet(0);
 			joy1 = mist_joy[1];//StateJoyGet(1);
 			strcpy(s,   "    Joy 1 Turbo     : ");
-			strcat(s, config_button_turbo_msg[(int)joy0.turbo/OSD_TURBO_STEP]);
+			strcat(s, config_button_turbo_msg[(int)(mist_joy[0].turbo/OSD_TURBO_STEP)&0xFF]);
 			OsdWrite(2, s, menusub==0, 0);
 			strcpy(s,   "          Buttons   : ");
-			strcat(s, config_button_turbo_choice_msg[(int)joy0.turbo_mask/16-1]);
+			strcat(s, config_button_turbo_choice_msg[(int)(mist_joy[0].turbo_mask/16-1)&0xFF]);
 			OsdWrite(3, s, menusub==1, 0);
 			strcpy(s,   "    Joy 2 Turbo     : ");
-			strcat(s, config_button_turbo_msg[(int)joy1.turbo/OSD_TURBO_STEP]);
+			strcat(s, config_button_turbo_msg[(int)(mist_joy[1].turbo/OSD_TURBO_STEP)&0xFF]);
 			OsdWrite(4, s, menusub==2, 0);
 			strcpy(s,   "          Buttons   : ");
-			strcat(s, config_button_turbo_choice_msg[(int)joy1.turbo_mask/16-1]);
+			strcat(s, config_button_turbo_choice_msg[(int)(mist_joy[1].turbo_mask/16-1)&0xFF]);
 			OsdWrite(5, s, menusub==3, 0);
 			// menu key goes back to previous menu
 			if (menu) {
@@ -1507,24 +1481,20 @@ void HandleUI(void)
 			}	
 			if(select) {
 				if(menusub==0) {
-					joy0.turbo += OSD_TURBO_STEP;
-					if(joy0.turbo>OSD_TURBO_STEP*3) joy0.turbo=0;
-					StateTurboSet(joy0.turbo, joy0.turbo_mask, 0); // set central state
+					mist_joy[0].turbo += OSD_TURBO_STEP;
+					if(mist_joy[0].turbo>OSD_TURBO_STEP*3) mist_joy[0].turbo=0;
 				}
 				if(menusub==1) {
-					joy0.turbo_mask += 16;
-					if(joy0.turbo_mask>16*3) joy0.turbo_mask=16;
-					StateTurboSet(joy0.turbo, joy0.turbo_mask, 0); // set central state
+					mist_joy[0].turbo_mask += 16;
+					if(mist_joy[0].turbo_mask>16*3) mist_joy[0].turbo_mask=16;
 				}
 				if(menusub==2) {
-					joy1.turbo += OSD_TURBO_STEP;
-					if(joy1.turbo>OSD_TURBO_STEP*3) joy1.turbo=0;
-					StateTurboSet(joy1.turbo, joy1.turbo_mask, 1); // set central state
+					mist_joy[1].turbo += OSD_TURBO_STEP;
+					if(mist_joy[1].turbo>OSD_TURBO_STEP*3) mist_joy[1].turbo=0;
 				}
 				if(menusub==3) {
-					joy1.turbo_mask += 16;
-					if(joy1.turbo_mask>16*3) joy1.turbo_mask=16;
-					StateTurboSet(joy1.turbo, joy1.turbo_mask, 1); // set central state
+					mist_joy[1].turbo_mask += 16;
+					if(mist_joy[1].turbo_mask>16*3) mist_joy[1].turbo_mask=16;
 				}
 				if(menusub==4) {
 					menustate = MENU_8BIT_CONTROLLERS1;
