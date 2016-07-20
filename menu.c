@@ -908,6 +908,14 @@ void HandleUI(void)
 					// get currently active option
 					substrcpy(s, p, 2+x);
 					char l = strlen(s);
+					if(!l) {
+						// option's index is outside of available values.
+						// reset to 0.
+						x = 0;
+						user_io_8bit_set_status(setStatus(p, status, x), 0xffffffff);
+						substrcpy(s, p, 2+x);
+						l = strlen(s);
+					}
 
 					s[0] = ' ';
 					substrcpy(s+1, p, 1);
@@ -1053,21 +1061,21 @@ void HandleUI(void)
 			m = 0;
 			if (user_io_core_type()==CORE_TYPE_MINIMIG || user_io_core_type()==CORE_TYPE_MINIMIG2)
 				m = 1;
-			menumask=0x1f; // 5 selections + Exit
+			menumask = m ? 0x1f : 0x3f; // 5 selections + Exit
 			OsdSetTitle("System", OSD_ARROW_LEFT); 
 			menustate = MENU_8BIT_SYSTEM2;
 			parentstate = MENU_8BIT_SYSTEM1;
 			OsdWrite(0, "", 0, 0);
 			OsdWrite(1, " Firmware & Core           \x16", menusub == 0,0);
 			OsdWrite(2, " Input Devices             \x16", menusub == 1,0);
-			if (m)
-				OsdWrite(3, " Reset", menusub == 2,0); // reset only works for minimig
+			OsdWrite(3, m ? " Reset" : " Reset settings", menusub == 2,0);
+			if(m)
+				OsdWrite(4, "", 0,0);
 			else
-				OsdWrite(3, " Save settings", menusub == 2,0); // Minimig saves settings elsewhere
-			OsdWrite(4, "", 0,0);
-			OsdWrite(5, " About", menusub  == 3,0);
+				OsdWrite(4, " Save settings", menusub == 3, 0); // Minimig saves settings elsewhere
+			OsdWrite(5, " About", menusub == (4-m),0);
 			OsdWrite(6, "", 0,0);
-			OsdWrite(7, STD_EXIT, menusub == 4,0);
+			OsdWrite(7, STD_EXIT, menusub == (5-m),0);
 			break;
 
 		case MENU_8BIT_SYSTEM2 :
@@ -1090,33 +1098,42 @@ void HandleUI(void)
 						menusub = 0;
 						break;
 					case 2:
-						if (m) {
-								// reset for minimig
-							menustate = MENU_RESET1; 
-							menusub = 1;
+						menustate = MENU_RESET1; 
+						menusub = 1;
+						break;
+					case 3:
+						if(m) {
+							menustate = MENU_8BIT_ABOUT1; 
+							menusub = 0;
 						} else {
 							// Save settings
 							user_io_create_config_name(s);
 							iprintf("Saving config to %s\n", s);
 							if(FileNew(&file, s, 4)) {
-							 // finally write data
-							 ((unsigned long*)sector_buffer)[0] = user_io_8bit_set_status(0,0);
-							 FileWrite(&file, sector_buffer); 
-							 iprintf("Settings for %s written\n", s);
+								// finally write data
+								((unsigned long*)sector_buffer)[0] = user_io_8bit_set_status(0,0);
+								FileWrite(&file, sector_buffer); 
+								iprintf("Settings for %s written\n", s);
 							}
+							menustate = MENU_8BIT_MAIN1;
+							menusub = 0;
 						}
 						break;
-					case 3:
-						// About logo
-						menustate = MENU_8BIT_ABOUT1; 
-						menusub = 0;
-						break;
 					case 4:
+						if(m) {
+							menustate=MENU_NONE1;
+							menusub = 0;
+						} else {
+							// About logo
+							menustate = MENU_8BIT_ABOUT1; 
+							menusub = 0;
+						}
+						break;
+					case 5:
 						// Exit
 						menustate=MENU_NONE1;
 						menusub = 0;
 						break;
-					
 				}
 			} else { 
 				if (left) {
@@ -2418,16 +2435,19 @@ void HandleUI(void)
 		/* reset menu                                                     */
 		/******************************************************************/
 		case MENU_RESET1 :
+			m = 0;
+			if (user_io_core_type()==CORE_TYPE_MINIMIG || user_io_core_type()==CORE_TYPE_MINIMIG2)
+				m = 1;
 			helptext=helptexts[HELPTEXT_NONE];
 			OsdSetTitle("Reset",0);
 			menumask=0x03;	// Yes / No
 			parentstate=menustate;
 
 			OsdWrite(0, "", 0,0);
-			OsdWrite(1, "         Reset MiST?", 0,0);
+			OsdWrite(1, m ? "         Reset MiST?" : "       Reset settings?", 0,0);
 			OsdWrite(2, "", 0,0);
-			OsdWrite(3, "               yes", menusub == 0,0);
-			OsdWrite(4, "               no", menusub == 1,0);
+			OsdWrite(3, "             yes", menusub == 0,0);
+			OsdWrite(4, "             no", menusub == 1,0);
 			OsdWrite(5, "", 0,0);
 			OsdWrite(6, "", 0,0);
 			OsdWrite(7, "", 0,0);
@@ -2437,10 +2457,27 @@ void HandleUI(void)
 
 	case MENU_RESET2 :
 
+			m = 0;
+			if (user_io_core_type()==CORE_TYPE_MINIMIG || user_io_core_type()==CORE_TYPE_MINIMIG2)
+				m = 1;
+
 			if (select && menusub == 0)
 			{
+				if(m) {
 					menustate = MENU_NONE1;
 					OsdReset(RESET_NORMAL);
+				} else {
+					user_io_create_config_name(s);
+					iprintf("Saving config to %s\n", s);
+					if(FileNew(&file, s, 4)) {
+						 // finally write data
+						((unsigned long*)sector_buffer)[0] = user_io_8bit_set_status(0,0xffffffff);
+						FileWrite(&file, sector_buffer); 
+						iprintf("Settings for %s written\n", s);
+					}
+					menustate = MENU_8BIT_MAIN1;
+					menusub = 0;
+				}
 			}
 
 			if (menu || (select && (menusub == 1))) // exit menu
