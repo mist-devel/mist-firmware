@@ -43,6 +43,15 @@ void StateJoySetExtra(uint8_t c, uint8_t joy_num);
 uint8_t StateJoyGet(uint8_t joy_num);
 uint8_t StateJoyGetExtra(uint8_t joy_num);
 
+// turbo button functions
+void StateTurboUpdate(mist_joystick_t* joy);
+void StateTurboReset(mist_joystick_t* joy);
+void StateTurboSet ( mist_joystick_t* joy, uint16_t turbo, uint16_t mask );
+mist_joystick_t StateJoyUpdateTurboStructure (uint8_t num_joy);
+void StateJoyRead ( uint8_t num_joy, mist_joystick_t* joy );
+void StateJoyCopy ( uint8_t num_joy, mist_joystick_t* joy );
+uint8_t StateJoyStructureState ( uint8_t num_joy);
+
 
 // Keep track of connected sticks
 uint8_t StateNumJoysticks();
