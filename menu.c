@@ -1263,8 +1263,7 @@ void HandleUI(void)
 				s[15+i] = usb_id[i];
 			OsdWrite(2, s, 0,0);
 			OsdWrite(3, "", 0, 0);
-			OsdWrite(4, "", 0, 0);
-			//OsdWrite(4, "       PS/2 scancodes", 0, 0);
+			OsdWrite(4, "       PS/2 scancodes", 0, 0);
 			//StateKeyboardPressedPS2(keys_ps2);
 			uint16_t keys_ps2b[6]={0,0,0,0,0,0};
 			siprintf(s, "   %4x %4x %4x %4x", keys_ps2b[0], keys_ps2b[1], keys_ps2b[2], keys_ps2b[3]); // keys_ps2[4], keys_ps2[5]);
