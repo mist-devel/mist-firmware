@@ -274,7 +274,7 @@ uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_inpu
 	}
 	
 	//mapping for 8bitdo SFC30
-	if(vid==0x1235 && pid==0xab21) {
+	if(vid==0x1235 && (pid==0xab11 || pid==0xab21)) {
 		mapping[btn_off+1] = JOY_A;
 	  mapping[btn_off+2] = JOY_B;
 	  //mapping[btn_off+3] // physical button #3 not used
