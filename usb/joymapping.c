@@ -154,8 +154,11 @@ char* get_joystick_alias( uint16_t vid, uint16_t pid ) {
 	if(vid==0x1345 && pid==0x1030)
 		return JOYSTICK_ALIAS_RETRO_FREAK;
 	
-	if(vid==0x1235 && pid==0xab21)
+	if(vid==0x1235 &&  (pid==0xab11 || pid==0xab21))
 		return JOYSTICK_ALIAS_8BITDO_SFC30;
+	
+	if(vid==0x1002 &&  pid==0x9000)
+		return JOYSTICK_ALIAS_8BITDO_FC30;
 	
 	if(vid==0x040b && pid==0x6533)
 		return JOYSTICK_ALIAS_SPEEDLINK_COMP;
@@ -284,6 +287,23 @@ uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_inpu
 		mapping[btn_off+7] = JOY_L | JOY_L2; // also bind to buttons for flippers
 	  mapping[btn_off+8] = JOY_R | JOY_R2; // also bind to buttons for flippers
 	  //9 and 10 not used
+		mapping[btn_off+11] = JOY_SELECT;
+		mapping[btn_off+12] = JOY_START;
+		use_default=0;
+	}
+	
+		//mapping for 8bitdo FC30
+	if(vid==0x1002 && pid==0x9000) {
+		mapping[btn_off+1] = JOY_A;
+	  mapping[btn_off+2] = JOY_B;
+	  //mapping[btn_off+3] // physical button #3 not used
+		mapping[btn_off+4] = JOY_X;
+		mapping[btn_off+5] = JOY_Y;
+	  //mapping[btn_off+6] // physical button #6 not used
+		mapping[btn_off+7] = JOY_L | JOY_L2; // also bind to buttons for flippers
+	  mapping[btn_off+8] = JOY_R | JOY_R2; // also bind to buttons for flippers
+		mapping[btn_off+9] = JOY_L | JOY_L2; // also bind to buttons for flippers
+	  mapping[btn_off+10] = JOY_R | JOY_R2; // also bind to buttons for flippers		
 		mapping[btn_off+11] = JOY_SELECT;
 		mapping[btn_off+12] = JOY_START;
 		use_default=0;

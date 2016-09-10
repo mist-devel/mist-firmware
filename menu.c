@@ -342,6 +342,7 @@ void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) 
 	vjoy = StateJoyGet(joy_num);
 	vjoy |=  StateJoyGetExtra(joy_num) << 8;
 	if (vjoy==0) {
+		strcpy(joy_string2, "                             ");
 		memset(joy_string2, ' ', 8);
 		memset(joy_string2+8, '\x14', 1);
 		memset(joy_string2+9, ' ', 1);
@@ -1063,7 +1064,7 @@ void HandleUI(void)
 						menusub = 1;
 						break;
 					case 1:
-						// Joystick1 test
+						// Input tests and settings
 						menustate = MENU_8BIT_CONTROLLERS1;
 						menusub = 0;
 						break;
