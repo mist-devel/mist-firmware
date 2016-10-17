@@ -155,7 +155,7 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
 
     if(!name)
     //  name = "CORE    BIN";
-		name = "XESM38  BIN";
+		name = "X7A102T BIN";
 
     // open bitstream file
     if (FileOpen(&file, name) == 0)
@@ -209,8 +209,8 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
     }
     while (t < n);
 
-    // disable outputs
-    *AT91C_PIOA_ODR = XILINX_CCLK | XILINX_DIN | XILINX_PROG_B;
+    // return outputs to a state suitable for user_io.c
+    *AT91C_PIOA_SODR = XILINX_CCLK | XILINX_DIN | XILINX_PROG_B;
 
     iprintf("]\r");
     iprintf("FPGA bitstream loaded\r");
