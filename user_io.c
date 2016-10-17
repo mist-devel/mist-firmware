@@ -195,19 +195,40 @@ static void user_io_read_core_name() {
 
 void user_io_detect_core_type() {
   core_name[0] = 0;
+  int retry = 0;
 
-  EnableIO();
-  core_type = SPI(0xff);
-  DisableIO();
+  // make sure to have SPI initialized
+  // and cycle enable/disable all other
+  // SPI devices which could be possibly left enabled
+  // and cause the contention of the shared SPI bus
+  spi_init();
+  EnableCard();
+  DisableCard();
+  EnableFpga();
+  DisableFpga();
+  EnableOsd();
+  DisableOsd();
+  EnableDMode();
+  DisableDMode();
 
-  if((core_type != CORE_TYPE_DUMB) &&
-     (core_type != CORE_TYPE_MINIMIG) &&
-     (core_type != CORE_TYPE_MINIMIG2) &&
-     (core_type != CORE_TYPE_PACE) &&
-     (core_type != CORE_TYPE_MIST) &&
-     (core_type != CORE_TYPE_ARCHIE) &&
-     (core_type != CORE_TYPE_8BIT))
-    core_type = CORE_TYPE_UNKNOWN;
+  core_type = CORE_TYPE_UNKNOWN;
+  while(retry++ < 15 && core_type == CORE_TYPE_UNKNOWN)
+  {
+    TIMER_wait(100);
+    EnableIO();
+    core_type = SPI(0xff);
+    DisableIO();
+    iprintf("Detecting core type (0x%02x), retry %d\n", core_type, retry);
+
+    if((core_type != CORE_TYPE_DUMB) &&
+       (core_type != CORE_TYPE_MINIMIG) &&
+       (core_type != CORE_TYPE_MINIMIG2) &&
+       (core_type != CORE_TYPE_PACE) &&
+       (core_type != CORE_TYPE_MIST) &&
+       (core_type != CORE_TYPE_ARCHIE) &&
+       (core_type != CORE_TYPE_8BIT))
+      core_type = CORE_TYPE_UNKNOWN;
+  }
 
   switch(core_type) {
   case CORE_TYPE_UNKNOWN:
