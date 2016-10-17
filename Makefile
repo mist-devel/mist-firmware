@@ -1,4 +1,6 @@
-BASE ?= /opt/arm-none-eabi/bin/arm-none-eabi
+#BASE ?= /opt/arm-none-eabi/bin/arm-none-eabi
+BASE ?= arm-none-eabi
+
 CC      = $(BASE)-gcc
 LD      = $(BASE)-gcc
 AS      = $(BASE)-as
@@ -20,8 +22,9 @@ LINKMAP  = AT91SAM7S256-ROM.ld
 LIBDIR   = 
 
 # Commandline options for each tool.
+# for ESA11 add -DEMIST
 DFLAGS  = -I. -Iusb -DMIST
-CFLAGS  = $(DFLAGS) -c -fno-common -O2 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
+CFLAGS  = $(DFLAGS) -c -fno-common -O2 --std=gnu99 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
 AFLAGS  = -ahls -mapcs-32
 LFLAGS  = -nostartfiles -Wl,-Map,$(PRJ).map -T$(LINKMAP) $(LIBDIR)
 CPFLAGS = --output-target=ihex
@@ -37,18 +40,19 @@ all: $(PRJ).hex $(PRJ).upg
 clean:
 	rm -f *.d *.o *.hex *.elf *.map *.lst core *~ */*.d */*.o $(MKUPG) *.bin *.upg *.exe
 
-INTERFACE=olimex-arm-usb-tiny-h
-#INTERFACE=busblaster
+INTERFACE=interface/olimex-arm-usb-tiny-h.cfg
+#INTERFACE=interface/busblaster.cfg
+#INTERFACE=openocd/interface/esa11-ft4232-generic.cfg
 ADAPTER_KHZ=10000
 
 reset:
-	openocd -f interface/$(INTERFACE).cfg -f target/at91sam7sx.cfg --command "adapter_khz $(ADAPTER_KHZ); init; reset init; resume; shutdown"
+	openocd -f $(INTERFACE) -f target/at91sam7sx.cfg --command "adapter_khz $(ADAPTER_KHZ); init; reset init; resume; shutdown"
 
 $(MKUPG): $(MKUPG).c
 	gcc  -o $@ $<
 
 flash: $(PRJ).hex $(PRJ).upg $(PRJ).bin
-	openocd -f interface/$(INTERFACE).cfg -f target/at91sam7sx.cfg --command "adapter_khz $(ADAPTER_KHZ); init; reset init;  flash protect 0 0 7 off; sleep 1; arm7_9 fast_memory_access enable; flash write_bank 0 $(PRJ).bin 0x0; resume; shutdown"
+	openocd -f $(INTERFACE) -f target/at91sam7sx.cfg --command "adapter_khz $(ADAPTER_KHZ); init; reset init;  flash protect 0 0 7 off; sleep 1; arm7_9 fast_memory_access enable; flash write_bank 0 $(PRJ).bin 0x0; resume; shutdown"
 
 flash_sam: $(PRJ).hex
 	Sam_I_Am -x flash_sam_i_am
