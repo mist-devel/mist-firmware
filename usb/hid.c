@@ -327,6 +327,9 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
   // process all supported interfaces
   for(i=0; i<info->bNumIfaces; i++) {
 	
+    info->iface[i].conf.pid = pid;
+    info->iface[i].conf.vid = vid;
+
     // no boot mode, try to parse HID report descriptor
     // when running archie core force the usage of the HID descriptor as 
     // boot mode only supports two buttons and the archie wants three
@@ -349,9 +352,6 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 		info->iface[i].conf.report_id,
 		info->iface[i].conf.report_size);
 	
-  info->iface[i].conf.joystick_mouse.pid = pid;
-  info->iface[i].conf.joystick_mouse.vid = vid;
-    
 	for(k=0;k<2;k++)
 	  iprintf("Axis%d: %d@%d %d->%d\n", k, 
 		  info->iface[i].conf.joystick_mouse.axis[k].size,
@@ -738,13 +738,13 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				jmap |= btn << JOY_BTN_SHIFT;      // add buttons
 				
 				// report joystick 1 to OSD
-				StateUsbIdSet( conf->joystick_mouse.vid, conf->joystick_mouse.pid, conf->joystick_mouse.button_count, iface->jindex);
+				StateUsbIdSet( conf->vid, conf->pid, conf->joystick_mouse.button_count, iface->jindex);
 				StateUsbJoySet( jmap, btn_extra, iface->jindex);
 				
 				// map virtual joypad
 				uint16_t vjoy = jmap;
 				vjoy |= btn_extra << 8;
-				vjoy = virtual_joystick_mapping( conf->joystick_mouse.vid, conf->joystick_mouse.pid, vjoy );
+				vjoy = virtual_joystick_mapping( conf->vid, conf->pid, vjoy );
 				
 				//iprintf("VIRTUAL JOY:%d\n", vjoy);
 				//if (jmap != 0) iprintf("JMAP pre map:%d\n", jmap);
