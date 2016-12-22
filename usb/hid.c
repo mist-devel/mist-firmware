@@ -654,7 +654,15 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 			// boot kbd needs at least eight bytes
 			if(read >= 8) {
 				//Keyrah v2: USB\VID_18D8&PID_0002\A600/A1200_MULTIMEDIA_EXTENSION_VERSION
-				if((iface->conf.vid == 0x18D8) && (iface->conf.pid == 0x0002)) keyrah_trans(buf, buf+2);
+				if((iface->conf.vid == 0x18D8) && (iface->conf.pid == 0x0002))
+				{
+					keyrah_trans(buf, buf+2);
+					check_reset(buf[0], 0);
+				}
+				else
+				{
+					check_reset(buf[0], 1);
+				}
 				user_io_kbd(buf[0], buf+2, UIO_PRIORITY_KEYBOARD);
 			}
 		}

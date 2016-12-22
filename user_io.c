@@ -1379,10 +1379,10 @@ unsigned short keycode(unsigned char in) {
   return MISS;
 }
 
-void check_reset(unsigned char modifiers) {
+void check_reset(unsigned char modifiers, char useAlt) {
   if((core_type == CORE_TYPE_MINIMIG) ||
      (core_type == CORE_TYPE_MINIMIG2)) {
-    if(modifiers == 0x45) // ctrl - alt - alt
+    if(modifiers == (useAlt ? 0x45 : 0x89)) // ctrl - alt - alt / ctrl - amiga - amiga
       OsdReset(RESET_NORMAL);
   }
 }
@@ -1533,9 +1533,6 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
       for(i=0;i<8;i++) {
 	// Do we have a downstroke on a modifier key?
 	if((m & (1<<i)) && !(modifier & (1<<i))) {
-	  // check for special events in modifier presses
-	  check_reset(m);
-
 	  // shift keys are used for mouse joystick emulation in emu mode
 	  if(((i != EMU_BTN1) && (i != EMU_BTN2) &&
 	      (i != EMU_BTN3) && (i != EMU_BTN4)) || (emu_mode == EMU_NONE))
