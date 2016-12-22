@@ -618,6 +618,12 @@ static void keyrah_trans(unsigned char *m, unsigned char *k)
 	
 	if(fn)
 	{
+		if(*m == 0x89)
+		{
+			*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST; // reset
+			for(;;); 
+		}
+
 		for(i=0; i<6; i++)
 		{
 			for(int n = 0; n<(sizeof(kr_fn_table)/(2*sizeof(kr_fn_table[0]))); n++)
