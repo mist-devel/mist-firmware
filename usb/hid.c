@@ -529,7 +529,7 @@ static void handle_5200daptor(usb_hid_iface_info_t *iface, uint8_t *buf) {
     //    iprintf("5200: %d %d %d %d %d %d\n", buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
 
     // generate key events
-    user_io_kbd(0x00, buf, UIO_PRIORITY_GAMEPAD); 
+    user_io_kbd(0x00, buf, UIO_PRIORITY_GAMEPAD, iface->conf.vid, iface->conf.pid); 
 
     // save current state of keys
     iface->key_state = keys;
@@ -584,58 +584,6 @@ static uint16_t collect_bits(uint8_t *p, uint16_t offset, uint8_t size, bool is_
   return rval;
 }
 
-static char kr_fn_table[] =
-{
-	0x54, 0x48, // pause/break
-	0x55, 0x46, // prnscr
-	0x50, 0x4a, // home
-	0x4f, 0x4d, // end
-	0x52, 0x4b, // pgup
-	0x51, 0x4e, // pgdown
-	0x3a, 0x44, // f11
-	0x3b, 0x45  // f12
-};
-
-static void keyrah_trans(unsigned char *m, unsigned char *k)
-{
-	char fn = 0;
-	char rctrl = 0;
-	int i = 0;
-	while(i<6)
-	{
-		if((k[i] == 0x64) || (k[i] == 0x32))
-		{
-			if(k[i] == 0x64) fn = 1;
-			if(k[i] == 0x32) rctrl = 1;
-			for(int n = i; n<5; n++) k[n] = k[n+1];
-			k[5] = 0;
-		}
-		else
-		{
-			i++;
-		}
-	}
-	
-	if(fn)
-	{
-		if(*m == 0x89)
-		{
-			*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST; // reset
-			for(;;); 
-		}
-
-		for(i=0; i<6; i++)
-		{
-			for(int n = 0; n<(sizeof(kr_fn_table)/(2*sizeof(kr_fn_table[0]))); n++)
-			{
-				if(k[i] == kr_fn_table[n*2]) k[i] = kr_fn_table[(n*2)+1];
-			}
-		}
-	}
-
-	*m = rctrl ? (*m) | 0x10 : (*m) & ~0x10;
-}
-
 /* processes a single USB interface */
 static void usb_process_iface (usb_hid_iface_info_t *iface, 
 							   uint16_t read, 
@@ -653,17 +601,7 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 		if(iface->device_type == HID_DEVICE_KEYBOARD) {
 			// boot kbd needs at least eight bytes
 			if(read >= 8) {
-				//Keyrah v2: USB\VID_18D8&PID_0002\A600/A1200_MULTIMEDIA_EXTENSION_VERSION
-				if((iface->conf.vid == 0x18D8) && (iface->conf.pid == 0x0002))
-				{
-					keyrah_trans(buf, buf+2);
-					check_reset(buf[0], 0);
-				}
-				else
-				{
-					check_reset(buf[0], 1);
-				}
-				user_io_kbd(buf[0], buf+2, UIO_PRIORITY_KEYBOARD);
+				user_io_kbd(buf[0], buf+2, UIO_PRIORITY_KEYBOARD, iface->conf.vid, iface->conf.pid);
 			}
 		}
   }

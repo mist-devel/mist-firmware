@@ -1338,27 +1338,42 @@ void user_io_mouse(unsigned char b, char x, char y) {
 
 // check if this is a key that's supposed to be suppressed
 // when emulation is active
-static unsigned char is_emu_key(unsigned char c) {
-  static const unsigned char m[] = { JOY_RIGHT, JOY_LEFT, JOY_DOWN, JOY_UP };
+static unsigned char is_emu_key(unsigned char c, unsigned alt) {
+	static const unsigned char m[] = { JOY_RIGHT, JOY_LEFT, JOY_DOWN, JOY_UP };
+	static const unsigned char m2[] = 
+	{
+		0x5A, JOY_DOWN,
+		0x5C, JOY_LEFT,
+		0x5D, JOY_DOWN,
+		0x5E, JOY_RIGHT,
+		0x60, JOY_UP,
+		0x5F, JOY_BTN1,
+		0x61, JOY_BTN2
+	};
 
-  if(emu_mode == EMU_NONE)
-    return 0;
+	if(emu_mode == EMU_NONE) return 0;
 
-  // direction keys R/L/D/U
-  if(c >= 0x4f && c <= 0x52)
-    return m[c-0x4f];
+	if(alt)
+	{
+		for(int i=0; i<(sizeof(m2)/sizeof(m2[0])); i +=2) if(c == m2[i]) return m2[i+1];
+	}
+	else
+	{
+		// direction keys R/L/D/U
+		if(c >= 0x4f && c <= 0x52) return m[c-0x4f];
+	}
 
-  return 0;
+	return 0;
 }  
 
 /* usb modifer bits: 
       0     1     2    3    4     5     6    7
    LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
 */
-#define EMU_BTN1  0  // left control
-#define EMU_BTN2  1  // left shift
-#define EMU_BTN3  2  // left alt
-#define EMU_BTN4  3  // left gui (usually windows key)
+#define EMU_BTN1  (0+(keyrah*4))  // left control
+#define EMU_BTN2  (1+(keyrah*4))  // left shift
+#define EMU_BTN3  (2+(keyrah*4))  // left alt
+#define EMU_BTN4  (3+(keyrah*4))  // left gui (usually windows key)
 
 unsigned short keycode(unsigned char in) {
   if((core_type == CORE_TYPE_MINIMIG) ||
@@ -1441,239 +1456,344 @@ static char key_used_by_osd(unsigned short s) {
 	 (core_type == CORE_TYPE_8BIT));
 }
 
-void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority) {
+static char kr_fn_table[] =
+{
+	0x54, 0x48, // pause/break
+	0x55, 0x46, // prnscr
+	0x50, 0x4a, // home
+	0x4f, 0x4d, // end
+	0x52, 0x4b, // pgup
+	0x51, 0x4e, // pgdown
+	0x3a, 0x44, // f11
+	0x3b, 0x45  // f12
+};
+
+static void keyrah_trans(unsigned char *m, unsigned char *k)
+{
+	char fn = 0;
+	char rctrl = 0;
+	int i = 0;
+	while(i<6)
+	{
+		if((k[i] == 0x64) || (k[i] == 0x32))
+		{
+			if(k[i] == 0x64) fn = 1;
+			if(k[i] == 0x32) rctrl = 1;
+			for(int n = i; n<5; n++) k[n] = k[n+1];
+			k[5] = 0;
+		}
+		else
+		{
+			i++;
+		}
+	}
 	
+	if(fn)
+	{
+		if(*m == 0x89)
+		{
+			*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST; // reset
+			for(;;); 
+		}
+
+		for(i=0; i<6; i++)
+		{
+			for(int n = 0; n<(sizeof(kr_fn_table)/(2*sizeof(kr_fn_table[0]))); n++)
+			{
+				if(k[i] == kr_fn_table[n*2]) k[i] = kr_fn_table[(n*2)+1];
+			}
+		}
+	}
+	else
+	{
+		// free these keys for core usage
+		for(i=0; i<6; i++)
+		{
+			if(k[i] == 0x53) k[i] = 0x68;
+			if(k[i] == 0x47) k[i] = 0x69;
+		}
+	}
+
+	*m = rctrl ? (*m) | 0x10 : (*m) & ~0x10;
+}
+
+void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned short vid, unsigned short pid)
+{
 	// ignore lower priority clears if higher priority key was pressed
-	if (m==0 && (k[0] + k[1] + k[2] + k[3] + k[4] + k[5])==0) {
-			if (priority > latest_keyb_priority)  // lower number = higher priority
-				return;
+	if(m==0 && (k[0] + k[1] + k[2] + k[3] + k[4] + k[5])==0)
+	{
+		if (priority > latest_keyb_priority) return;  // lower number = higher priority
 	}
 	latest_keyb_priority = priority; // set for next call
-	
-  if((core_type == CORE_TYPE_MINIMIG) ||
-     (core_type == CORE_TYPE_MINIMIG2) ||
-     (core_type == CORE_TYPE_MIST) ||
-     (core_type == CORE_TYPE_ARCHIE) ||
-     (core_type == CORE_TYPE_8BIT)) {
 
-		
-//    iprintf("KBD: %d\n", m);
-//    hexdump(k, 6, 0);
+	//Keyrah v2: USB\VID_18D8&PID_0002\A600/A1200_MULTIMEDIA_EXTENSION_VERSION
+	char keyrah = ((vid == 0x18D8) && (pid == 0x0002)) ? 1 : 0;
+	if(emu_mode == EMU_MOUSE) keyrah <<= 1;
 
-    static unsigned char modifier = 0, pressed[6] = { 0,0,0,0,0,0 };
+	if(keyrah) keyrah_trans(&m, k);
+	check_reset(m, !keyrah);
+
+	if( (core_type == CORE_TYPE_MINIMIG) ||
+		(core_type == CORE_TYPE_MINIMIG2) ||
+		(core_type == CORE_TYPE_MIST) ||
+		(core_type == CORE_TYPE_ARCHIE) ||
+		(core_type == CORE_TYPE_8BIT))
+	{
+		//iprintf("KBD: %d\n", m);
+		//hexdump(k, 6, 0);
+
+		static unsigned char modifier = 0, pressed[6] = { 0,0,0,0,0,0 };
 		char keycodes[6] = { 0,0,0,0,0,0 };
 		uint16_t keycodes_ps2[6] = { 0,0,0,0,0,0 };
-    char i, j;
-    		
-    // remap keycodes if requested
-    for(i=0;(i<6) && k[i];i++) {
-      for(j=0;j<MAX_REMAP;j++) {
-		if(key_remap_table[j][0] == k[i]) {
-			k[i] = key_remap_table[j][1];
-			break;
+		char i, j;
+
+		// remap keycodes if requested
+		for(i=0;(i<6) && k[i];i++)
+		{
+			for(j=0;j<MAX_REMAP;j++)
+			{
+				if(key_remap_table[j][0] == k[i])
+				{
+					k[i] = key_remap_table[j][1];
+					break;
+				}
+			}
 		}
-      }
-    }
+
 		// remap modifiers to each other if requested
 		//  bit  0     1      2    3    4     5      6    7
-    //  key  LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
-    if (false) { // (disabled until we configure it via INI)
-			uint8_t default_mod_mapping [8] = {
-					0x1,
-					0x2,
-					0x4,
-					0x8,
-					0x10,
-					0x20,
-					0x40,
-					0x80
+		//  key  LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
+		if(false)
+		{ // (disabled until we configure it via INI)
+			uint8_t default_mod_mapping [8] =
+			{
+				0x1,
+				0x2,
+				0x4,
+				0x8,
+				0x10,
+				0x20,
+				0x40,
+				0x80
 			};
 			uint8_t modifiers = 0;
-			for(i=0; i<8; i++) 
-				if (m & (0x01<<i))  modifiers |= default_mod_mapping[i];
+			for(i=0; i<8; i++) if (m & (0x01<<i))  modifiers |= default_mod_mapping[i];
 			m = modifiers;
-	  }
-	
-    // modifier keys are used as buttons in emu mode
-    if(emu_mode != EMU_NONE) {
-      char last_btn = emu_state & (JOY_BTN1 | JOY_BTN2 | JOY_BTN3 | JOY_BTN4);
-      if(m & (1<<EMU_BTN1)) emu_state |=  JOY_BTN1;
-      else                  emu_state &= ~JOY_BTN1;
-      if(m & (1<<EMU_BTN2)) emu_state |=  JOY_BTN2;
-      else                  emu_state &= ~JOY_BTN2;
-      if(m & (1<<EMU_BTN3)) emu_state |=  JOY_BTN3;
-      else                  emu_state &= ~JOY_BTN3;
-      if(m & (1<<EMU_BTN4)) emu_state |=  JOY_BTN4;
-      else                  emu_state &= ~JOY_BTN4;
-      
-      // check if state of mouse buttons has changed
-      // (on a mouse only two buttons are supported)
-      if((last_btn  & (JOY_BTN1 | JOY_BTN2)) != 
-				(emu_state & (JOY_BTN1 | JOY_BTN2))) {
-				if(emu_mode == EMU_MOUSE) {
+		}
+
+		// modifier keys are used as buttons in emu mode
+		if(emu_mode != EMU_NONE)
+		{
+			char last_btn = emu_state & (JOY_BTN1 | JOY_BTN2 | JOY_BTN3 | JOY_BTN4);
+			if(keyrah!=2)
+			{
+				if(m & (1<<EMU_BTN1)) emu_state |=  JOY_BTN1;
+				else                  emu_state &= ~JOY_BTN1;
+				if(m & (1<<EMU_BTN2)) emu_state |=  JOY_BTN2;
+				else                  emu_state &= ~JOY_BTN2;
+			}
+			if(m & (1<<EMU_BTN3)) emu_state |=  JOY_BTN3;
+			else                  emu_state &= ~JOY_BTN3;
+			if(m & (1<<EMU_BTN4)) emu_state |=  JOY_BTN4;
+			else                  emu_state &= ~JOY_BTN4;
+
+			// check if state of mouse buttons has changed
+			// (on a mouse only two buttons are supported)
+			if((last_btn  & (JOY_BTN1 | JOY_BTN2)) != (emu_state & (JOY_BTN1 | JOY_BTN2)))
+			{
+				if(emu_mode == EMU_MOUSE)
+				{
 					unsigned char b;
 					if(emu_state & JOY_BTN1) b |= 1;
 					if(emu_state & JOY_BTN2) b |= 2;
 					user_io_mouse(b, 0, 0);
 				}
-      }
-	
-      // check if state of joystick buttons has changed
-      if(last_btn != (emu_state & (JOY_BTN1|JOY_BTN2|JOY_BTN3|JOY_BTN4))) {
-	if(emu_mode == EMU_JOY0) 
-	  user_io_joystick(joystick_renumber(0), emu_state);
-	
-	if(emu_mode == EMU_JOY1) 
-	  user_io_joystick(joystick_renumber(1), emu_state);
-      }
-    }
-    
-    // handle modifier keys
-    if(m != modifier) {
-      for(i=0;i<8;i++) {
-	// Do we have a downstroke on a modifier key?
-	if((m & (1<<i)) && !(modifier & (1<<i))) {
-	  // shift keys are used for mouse joystick emulation in emu mode
-	  if(((i != EMU_BTN1) && (i != EMU_BTN2) &&
-	      (i != EMU_BTN3) && (i != EMU_BTN4)) || (emu_mode == EMU_NONE))
-	    if(modifier_keycode(i) != MISS)
-	      send_keycode(modifier_keycode(i));
-	}
-	if(!(m & (1<<i)) && (modifier & (1<<i)))
-	  if(((i != EMU_BTN1) && (i != EMU_BTN2) &&
-	      (i != EMU_BTN3) && (i != EMU_BTN4)) || (emu_mode == EMU_NONE))
-	    if(modifier_keycode(i) != MISS)
-	      send_keycode(BREAK | modifier_keycode(i));
-      }
-      
-      modifier = m;
-    }
-    
-    // check if there are keys in the pressed list which aren't 
-    // reported anymore
-    for(i=0;i<6;i++) {
-      unsigned short code = keycode(pressed[i]);
-      
-      if(pressed[i] && code != MISS) {
-	for(j=0;j<6 && pressed[i] != k[j];j++);
-	
-	// don't send break for caps lock
-	if(j == 6) {
-	  // If OSD is visible, then all keys are sent into the OSD
-	  // using Amiga key codes since the OSD itself uses Amiga key codes
-	  // for historical reasons. If the OSD is invisble then only
-	  // those keys marked for OSD in the core specific table are
-	  // sent for OSD handling.
-	  if(code & OSD_OPEN) 
-	    OsdKeySet(0x80 | KEY_MENU);
-	  else {
-	    // special OSD key handled internally 
-	    if(osd_is_visible)
-	      OsdKeySet(0x80 | usb2amiga(pressed[i]));
-	  }
+			}
 
-	  if(!key_used_by_osd(code)) {
-	    //	    iprintf("Key is not used by OSD\n");
+			// check if state of joystick buttons has changed
+			if(last_btn != (emu_state & (JOY_BTN1|JOY_BTN2|JOY_BTN3|JOY_BTN4))) {
+				if(emu_mode == EMU_JOY0) user_io_joystick(joystick_renumber(0), emu_state);
+				if(emu_mode == EMU_JOY1) user_io_joystick(joystick_renumber(1), emu_state);
+			}
+		}
 
-	    if(is_emu_key(pressed[i])) {
-	      emu_state &= ~is_emu_key(pressed[i]);
-	    
-	      if(emu_mode == EMU_JOY0) 
-		user_io_joystick(joystick_renumber(0), emu_state);
-	      
-	      if(emu_mode == EMU_JOY1) 
-		user_io_joystick(joystick_renumber(1), emu_state);
+		// handle modifier keys
+		if(m != modifier)
+		{
+			for(i=0;i<8;i++)
+			{
+				// Do we have a downstroke on a modifier key?
+				if((m & (1<<i)) && !(modifier & (1<<i)))
+				{
+					// shift keys are used for mouse joystick emulation in emu mode
+					if(((i != EMU_BTN1) && (i != EMU_BTN2) && (i != EMU_BTN3) && (i != EMU_BTN4)) || (emu_mode == EMU_NONE))
+					{
+						if(modifier_keycode(i) != MISS) send_keycode(modifier_keycode(i));
+					}
+				}
 
-	    } else if(!(code & CAPS_LOCK_TOGGLE) &&
-		      !(code & NUM_LOCK_TOGGLE))
-	      send_keycode(BREAK | code);	
-	  }
-	}
-      }  
-    }
-    
-    for(i=0;i<6;i++) {
-      unsigned short code = keycode(k[i]);
+				if(!(m & (1<<i)) && (modifier & (1<<i)))
+				{
+					if(((i != EMU_BTN1) && (i != EMU_BTN2) && (i != EMU_BTN3) && (i != EMU_BTN4)) || (emu_mode == EMU_NONE))
+					{
+						if(modifier_keycode(i) != MISS) send_keycode(BREAK | modifier_keycode(i));
+					}
+				}
+			}
 
-      if(k[i] && (k[i] <= KEYCODE_MAX) && code != MISS) {
-	// check if this key is already in the list of pressed keys
-	for(j=0;j<6 && k[i] != pressed[j];j++);
+			modifier = m;
+		}
 
-	if(j == 6) {
-	  // If OSD is visible, then all keys are sent into the OSD
-	  // using Amiga key codes since the OSD itself uses Amiga key codes
-	  // for historical reasons. If the OSD is invisble then only
-	  // those keys marked for OSD in the core specific table are
-	  // sent for OSD handling.
-	  if(code & OSD_OPEN) 
-	    OsdKeySet(KEY_MENU);
-	  else {
-	    // special OSD key handled internally 
-	    if(osd_is_visible)
-	      OsdKeySet(usb2amiga(k[i]));
-	  }
+		// check if there are keys in the pressed list which aren't 
+		// reported anymore
+		for(i=0;i<6;i++)
+		{
+			unsigned short code = keycode(pressed[i]);
 
-	  // no further processing of any key that is currently 
-	  // redirected to the OSD
-	  if(!key_used_by_osd(code)) {
-	    //	    iprintf("Key is not used by OSD\n");
+			if(pressed[i] && code != MISS)
+			{
+				iprintf("key 0x%X break: 0x%X\n", pressed[i], code);
 
-	    if (is_emu_key(k[i])) {
-	      emu_state |= is_emu_key(k[i]);
+				for(j=0;j<6 && pressed[i] != k[j];j++);
 
-	      // joystick emulation is also affected by the presence of
-	      // usb joysticks
-	      if(emu_mode == EMU_JOY0) 
-		user_io_joystick(joystick_renumber(0), emu_state);
-	      
-	      if(emu_mode == EMU_JOY1) 
-		user_io_joystick(joystick_renumber(1), emu_state);
+				// don't send break for caps lock
+				if(j == 6)
+				{
+					// If OSD is visible, then all keys are sent into the OSD
+					// using Amiga key codes since the OSD itself uses Amiga key codes
+					// for historical reasons. If the OSD is invisble then only
+					// those keys marked for OSD in the core specific table are
+					// sent for OSD handling.
+					if(code & OSD_OPEN)
+					{
+						OsdKeySet(0x80 | KEY_MENU);
+					}
+					else
+					{
+						// special OSD key handled internally 
+						if(osd_is_visible) OsdKeySet(0x80 | usb2amiga(pressed[i]));
+					}
 
-	    } else if(!(code & CAPS_LOCK_TOGGLE)&&
-		      !(code & NUM_LOCK_TOGGLE)) 
-	      send_keycode(code);
-	    else {
-	      if(code & CAPS_LOCK_TOGGLE) {
-		// send alternating make and break codes for caps lock
-		send_keycode((code & 0xff) | (caps_lock_toggle?BREAK:0));
-		caps_lock_toggle = !caps_lock_toggle;
+					if(!key_used_by_osd(code))
+					{
+						// iprintf("Key is not used by OSD\n");
+						if(is_emu_key(pressed[i], keyrah))
+						{
+							emu_state &= ~is_emu_key(pressed[i], keyrah);
+							if(emu_mode == EMU_JOY0) user_io_joystick(joystick_renumber(0), emu_state);
+							if(emu_mode == EMU_JOY1) user_io_joystick(joystick_renumber(1), emu_state);
+							if(keyrah == 2) 
+							{
+								unsigned char b;
+								if(emu_state & JOY_BTN1) b |= 1;
+								if(emu_state & JOY_BTN2) b |= 2;
+								user_io_mouse(b, 0, 0);
+							}
+						}
+						else if(!(code & CAPS_LOCK_TOGGLE) && !(code & NUM_LOCK_TOGGLE))
+						{
+							send_keycode(BREAK | code);	
+						}
+					}
+				}
+			}  
+		}
+
+		for(i=0;i<6;i++)
+		{
+			unsigned short code = keycode(k[i]);
+
+			if(k[i] && (k[i] <= KEYCODE_MAX) && code != MISS)
+			{
+				// check if this key is already in the list of pressed keys
+				for(j=0;j<6 && k[i] != pressed[j];j++);
+
+				if(j == 6)
+				{
+					iprintf("key 0x%X make: 0x%X\n", k[i], code);
+
+					// If OSD is visible, then all keys are sent into the OSD
+					// using Amiga key codes since the OSD itself uses Amiga key codes
+					// for historical reasons. If the OSD is invisble then only
+					// those keys marked for OSD in the core specific table are
+					// sent for OSD handling.
+					if(code & OSD_OPEN) 
+					{
+						OsdKeySet(KEY_MENU);
+					}
+					else
+					{
+						// special OSD key handled internally 
+						if(osd_is_visible) OsdKeySet(usb2amiga(k[i]));
+					}
+
+					// no further processing of any key that is currently 
+					// redirected to the OSD
+					if(!key_used_by_osd(code))
+					{
+						// iprintf("Key is not used by OSD\n");
+						if(is_emu_key(k[i], keyrah))
+						{
+							emu_state |= is_emu_key(k[i], keyrah);
+
+							// joystick emulation is also affected by the presence of
+							// usb joysticks
+							if(emu_mode == EMU_JOY0) user_io_joystick(joystick_renumber(0), emu_state);
+							if(emu_mode == EMU_JOY1) user_io_joystick(joystick_renumber(1), emu_state);
+							if(keyrah == 2) 
+							{
+								unsigned char b;
+								if(emu_state & JOY_BTN1) b |= 1;
+								if(emu_state & JOY_BTN2) b |= 2;
+								user_io_mouse(b, 0, 0);
+							}
+						}
+						else if(!(code & CAPS_LOCK_TOGGLE)&& !(code & NUM_LOCK_TOGGLE))
+						{
+							send_keycode(code);
+						}
+						else
+						{
+							if(code & CAPS_LOCK_TOGGLE)
+							{
+								// send alternating make and break codes for caps lock
+								send_keycode((code & 0xff) | (caps_lock_toggle?BREAK:0));
+								caps_lock_toggle = !caps_lock_toggle;
+
+								hid_set_kbd_led(HID_LED_CAPS_LOCK, caps_lock_toggle);
+							}
+
+							if(code & NUM_LOCK_TOGGLE)
+							{
+								// num lock has four states indicated by leds:
+								// all off: normal
+								// num lock on, scroll lock on: mouse emu
+								// num lock on, scroll lock off: joy0 emu
+								// num lock off, scroll lock on: joy1 emu
+
+								if(emu_mode == EMU_MOUSE) emu_timer = GetTimer(EMU_MOUSE_FREQ);
+
+								emu_mode = (emu_mode+1)&3;
+								if(emu_mode == EMU_MOUSE || emu_mode == EMU_JOY0) hid_set_kbd_led(HID_LED_NUM_LOCK, true);
+									else hid_set_kbd_led(HID_LED_NUM_LOCK, false);
+
+								if(emu_mode == EMU_MOUSE || emu_mode == EMU_JOY1) hid_set_kbd_led(HID_LED_SCROLL_LOCK, true);
+									else hid_set_kbd_led(HID_LED_SCROLL_LOCK, false);
+							}
+						}
+					}
+				}
+			}
+		}
 		
-		hid_set_kbd_led(HID_LED_CAPS_LOCK, caps_lock_toggle);
-	      }
-	      if(code & NUM_LOCK_TOGGLE) {
-		// num lock has four states indicated by leds:
-		// all off: normal
-		// num lock on, scroll lock on: mouse emu
-		// num lock on, scroll lock off: joy0 emu
-		// num lock off, scroll lock on: joy1 emu
-		
-		if(emu_mode == EMU_MOUSE)
-		  emu_timer = GetTimer(EMU_MOUSE_FREQ);
-		
-		emu_mode = (emu_mode+1)&3;
-		if(emu_mode == EMU_MOUSE || emu_mode == EMU_JOY0) 
-		  hid_set_kbd_led(HID_LED_NUM_LOCK, true);
-		else
-		  hid_set_kbd_led(HID_LED_NUM_LOCK, false);
-		
-		if(emu_mode == EMU_MOUSE || emu_mode == EMU_JOY1) 
-		  hid_set_kbd_led(HID_LED_SCROLL_LOCK, true);
-		else
-		  hid_set_kbd_led(HID_LED_SCROLL_LOCK, false);
-	      }
-	    }
-	  }
-	}
-      }
-    }
-    
-		for(i=0;i<6;i++) {
+		for(i=0;i<6;i++)
+		{
 			pressed[i] = k[i];
 			keycodes[i] = pressed[i]; // send raw USB code, not amiga - keycode(pressed[i]);
 			keycodes_ps2[i] = keycode(pressed[i]);
 		}
 		StateKeyboardSet(m, keycodes, keycodes_ps2);
-  }
+	}
 }
 
 void user_io_key_remap(char *s) {

@@ -501,8 +501,8 @@ void virtual_joystick_keyboard ( uint16_t vjoy ) {
 	}
 	// generate key events but only if no other keys were pressed
 	if (has_mapping && mapped_hit) {
-		user_io_kbd(modifier, buf, UIO_PRIORITY_GAMEPAD); 
+		user_io_kbd(modifier, buf, UIO_PRIORITY_GAMEPAD, 0, 0); 
 	} else {
-		user_io_kbd(0x00, buf, UIO_PRIORITY_GAMEPAD); 
+		user_io_kbd(0x00, buf, UIO_PRIORITY_GAMEPAD, 0, 0); 
 	}
 }
