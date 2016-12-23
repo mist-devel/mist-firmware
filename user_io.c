@@ -288,7 +288,7 @@ void user_io_detect_core_type() {
   }
 }
 
-unsigned char usb2amiga( unsigned  char k ) {
+unsigned short usb2amiga( unsigned  char k ) {
 	//  replace MENU key by RGUI to allow using Right Amiga on reduced keyboards
 	// (it also disables the use of Menu for OSD)
 	if (mist_cfg.key_menu_as_rgui && k==0x65) {
