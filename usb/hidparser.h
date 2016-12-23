@@ -12,6 +12,10 @@ typedef struct {
   uint8_t report_id;
   uint8_t report_size;
 
+  // for downstream mapping
+  uint16_t vid;            
+  uint16_t pid;
+
   union {
     struct {
       struct {
@@ -33,9 +37,6 @@ typedef struct {
 				uint8_t size;
       } hat;                   // 1 hat (joystick only)
 
-      // for downstream mapping
-      uint16_t vid;            
-      uint16_t pid;
 			uint8_t button_count;
       
     } joystick_mouse;
