@@ -705,6 +705,8 @@ unsigned long user_io_8bit_set_status(unsigned long new_status, unsigned long ma
   return status;
 }
 
+char kbd_reset = 0;
+
 void user_io_send_buttons(char force) {
   static unsigned char key_map = 0;
 
@@ -718,6 +720,7 @@ void user_io_send_buttons(char force) {
 
   if(adc_state & 4) map |= BUTTON1;
   if(adc_state & 8) map |= BUTTON2;
+  if(kbd_reset)     map |= BUTTON2;
 
   // TODO adding conf here
   if (mist_cfg.scandoubler_disable) 
@@ -1394,12 +1397,26 @@ unsigned short keycode(unsigned char in) {
   return MISS;
 }
 
-void check_reset(unsigned char modifiers, char useAlt) {
-  if((core_type == CORE_TYPE_MINIMIG) ||
-     (core_type == CORE_TYPE_MINIMIG2)) {
-    if(modifiers == (useAlt ? 0x45 : 0x89)) // ctrl - alt - alt / ctrl - amiga - amiga
-      OsdReset(RESET_NORMAL);
-  }
+void check_reset(unsigned char modifiers, char useAlt)
+{
+	if(modifiers == (useAlt ? 0x45 : 0x89)) // ctrl - alt - alt / ctrl - amiga - amiga
+	{
+		switch(core_type)
+		{
+			case CORE_TYPE_MINIMIG:
+			case CORE_TYPE_MINIMIG2:
+				OsdReset(RESET_NORMAL);
+				break;
+
+			case CORE_TYPE_8BIT:
+				kbd_reset = 1;
+				break;
+		}
+	}
+	else
+	{
+		kbd_reset = 0;
+	}
 }
 
 unsigned short modifier_keycode(unsigned char index) {
