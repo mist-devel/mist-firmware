@@ -78,6 +78,7 @@ void FatalError(unsigned long error) {
       WaitTimer(250);
     }
     WaitTimer(1000);
+	*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST; // reset
   }
 }
 
