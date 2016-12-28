@@ -721,7 +721,7 @@ void HandleUI(void)
 				else {
 					// the "menu" core is special in jumps directly to the core selection menu
 					if(!strcmp(user_io_get_core_name(), "MENU"))
-						SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_NONE1, 0);
+						SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
 					else
 						menustate = MENU_8BIT_MAIN1;
 				}
@@ -3332,7 +3332,7 @@ void HandleUI(void)
 					break;
 				default:
 					menusub = 0;
-					menustate = MENU_8BIT_SYSTEM1;
+					menustate = (!strcmp(user_io_get_core_name(), "MENU")) ? MENU_NONE1 : MENU_8BIT_SYSTEM1;
 					break;
 				}
 			}
@@ -3360,7 +3360,7 @@ void HandleUI(void)
 						break;
 					default:
 						menusub = 0;
-						menustate = MENU_8BIT_SYSTEM1;
+						menustate = (!strcmp(user_io_get_core_name(), "MENU")) ? MENU_NONE1 : MENU_8BIT_SYSTEM1;
 						break;
 					}
 				}
