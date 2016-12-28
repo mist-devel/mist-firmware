@@ -1399,7 +1399,11 @@ unsigned short keycode(unsigned char in) {
 
 void check_reset(unsigned char modifiers, char useAlt)
 {
-	if(modifiers == (useAlt ? 0x45 : 0x89)) // ctrl - alt - alt / ctrl - amiga - amiga
+	if(useAlt && (modifiers == 0x47)) // lshift - lctrl - lalt - ralt
+	{
+		*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST; // reset
+	}
+	else if(modifiers == (useAlt ? 0x45 : 0x89)) // lctrl - lalt - ralt / lctrl - lamiga - ramiga
 	{
 		switch(core_type)
 		{
