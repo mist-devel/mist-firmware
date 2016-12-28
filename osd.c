@@ -636,7 +636,7 @@ unsigned char OsdGetCtrl(void)
         if (repeat2 == 2)
         {
             repeat2 = 0;
-            if (c1 == KEY_PGUP || c1 == KEY_PGDN || GetASCIIKey(c1))
+            if (c1 == KEY_PGUP || c1 == KEY_PGDN || c1 == KEY_LEFT || c1 == KEY_RIGHT || GetASCIIKey(c1))
                 c = c1;
         }
     }
