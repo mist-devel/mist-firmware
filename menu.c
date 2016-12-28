@@ -608,6 +608,7 @@ void HandleUI(void)
 			
 		case KEY_MENU:
 			menu = true;
+			OsdKeySet(KEY_MENU | KEY_UPSTROKE);
 			break;
 
 		// Within the menu the esc key acts as the menu key. problem:

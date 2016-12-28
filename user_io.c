@@ -1510,7 +1510,9 @@ static char kr_fn_table[] =
 
 static void keyrah_trans(unsigned char *m, unsigned char *k)
 {
+	static char keyrah_fn_state = 0;
 	char fn = 0;
+	char empty = 1;
 	char rctrl = 0;
 	int i = 0;
 	while(i<6)
@@ -1524,6 +1526,7 @@ static void keyrah_trans(unsigned char *m, unsigned char *k)
 		}
 		else
 		{
+			if(k[i]) empty = 0;
 			i++;
 		}
 	}
@@ -1555,6 +1558,19 @@ static void keyrah_trans(unsigned char *m, unsigned char *k)
 	}
 
 	*m = rctrl ? (*m) | 0x10 : (*m) & ~0x10;
+	if(fn)
+	{
+		keyrah_fn_state |= 1;
+		if(*m || !empty) keyrah_fn_state |= 2;
+	}
+	else
+	{
+		if(keyrah_fn_state == 1)
+		{
+			OsdKeySet(KEY_MENU);
+		}
+		keyrah_fn_state = 0;
+	}
 }
 
 void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned short vid, unsigned short pid)
