@@ -1625,7 +1625,16 @@ static void keyrah_trans(unsigned char *m, unsigned char *k)
 	{
 		if(keyrah_fn_state == 1)
 		{
-			OsdKeySet(KEY_MENU);
+			if((core_type == CORE_TYPE_MINIMIG) ||
+				(core_type == CORE_TYPE_MINIMIG2))
+			{
+				send_keycode(KEY_MENU);
+				send_keycode(BREAK | KEY_MENU);
+			}
+			else
+			{
+				OsdKeySet(KEY_MENU);
+			}
 		}
 		keyrah_fn_state = 0;
 	}
