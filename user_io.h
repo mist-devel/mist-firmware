@@ -51,6 +51,7 @@
 #define UIO_SET_SDSTAT  0x1c  // set sd card status 
 #define UIO_SET_SDINFO  0x1d  // send info about mounted image
 #define UIO_SET_STATUS2 0x1e  // 32bit status
+#define UIO_GET_KBD_LED 0x1f  // keyboard LEDs control
 
 // codes as used by 8bit (atari 800, zx81) via SS2
 #define UIO_GET_STATUS  0x50
@@ -90,6 +91,19 @@
 #define JOY_R2     0x2000
 #define JOY_L3     0x4000
 #define JOY_R3     0x8000
+
+// keyboard LEDs control 
+#define KBD_LED_CAPS_CONTROL  0x01
+#define KBD_LED_CAPS_STATUS   0x02
+#define KBD_LED_CAPS_MASK     (KBD_LED_CAPS_CONTROL | KBD_LED_CAPS_STATUS)
+#define KBD_LED_NUM_CONTROL   0x04
+#define KBD_LED_NUM_STATUS    0x08
+#define KBD_LED_NUM_MASK      (KBD_LED_NUM_CONTROL | KBD_LED_NUM_STATUS)
+#define KBD_LED_SCRL_CONTROL  0x10
+#define KBD_LED_SCRL_STATUS   0x20
+#define KBD_LED_SCRL_MASK     (KBD_LED_SCRL_CONTROL | KBD_LED_SCRL_STATUS)
+#define KBD_LED_FLAG_MASK     0xC0
+#define KBD_LED_FLAG_STATUS   0x40
 
 #define CONF_SCANDOUBLER_DISABLE 0x10
 

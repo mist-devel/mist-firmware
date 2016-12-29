@@ -66,6 +66,14 @@ static int16_t mouse_pos[2] = { 0, 0};
 static uint8_t mouse_flags = 0;
 static unsigned long mouse_timer;
 
+#define LED_FREQ 100   // 100 ms
+static unsigned long led_timer;
+char keyboard_leds = 0;
+bool caps_status = 0;
+bool num_status = 0;
+bool scrl_status = 0;
+
+
 // set by OSD code to suppress forwarding of those keys to the core which
 // may be in use by an active OSD
 static char osd_is_visible = false;
@@ -460,6 +468,17 @@ uint8_t user_io_sd_get_status(uint32_t *lba) {
   return c;
 }
 
+// read 8 bit keyboard LEDs status from FPGA
+uint8_t user_io_kbdled_get_status(void) {
+  uint8_t c; 
+
+  spi_uio_cmd_cont(UIO_GET_KBD_LED);
+  c = spi_in();
+  DisableIO();
+
+  return c;
+}
+
 // read 32 bit ethernet status word from FPGA
 uint32_t user_io_eth_get_status(void) {
   uint32_t s;
@@ -731,6 +750,27 @@ void user_io_send_buttons(char force) {
     spi_uio_cmd8(UIO_BUT_SW, map);
     iprintf("sending keymap\n");
   }
+}
+
+void set_kbd_led(unsigned char led, bool on)
+{
+	if(led & HID_LED_CAPS_LOCK)
+	{
+		if(!(keyboard_leds & KBD_LED_CAPS_CONTROL)) hid_set_kbd_led(led, on);
+		caps_status = on;
+	}
+
+	if(led & HID_LED_NUM_LOCK)
+	{
+		if(!(keyboard_leds & KBD_LED_NUM_CONTROL)) hid_set_kbd_led(led, on);
+		num_status = on;
+	}
+
+	if(led & HID_LED_SCROLL_LOCK)
+	{
+		if(!(keyboard_leds & KBD_LED_SCRL_CONTROL)) hid_set_kbd_led(led, on);
+		scrl_status = on;
+	}
 }
 
 void user_io_poll() {
@@ -1237,6 +1277,24 @@ void user_io_poll() {
 
   if(core_type == CORE_TYPE_ARCHIE) 
     archie_poll();
+
+    if(CheckTimer(led_timer))
+	{
+		led_timer = GetTimer(LED_FREQ);
+		uint8_t leds = user_io_kbdled_get_status();
+		if((leds & KBD_LED_FLAG_MASK) != KBD_LED_FLAG_STATUS) leds = 0;
+
+		if((keyboard_leds & KBD_LED_CAPS_MASK) != (leds & KBD_LED_CAPS_MASK))
+			hid_set_kbd_led(HID_LED_CAPS_LOCK, (leds & KBD_LED_CAPS_CONTROL) ? leds & KBD_LED_CAPS_STATUS : caps_status);
+			
+		if((keyboard_leds & KBD_LED_NUM_MASK) != (leds & KBD_LED_NUM_MASK))
+			hid_set_kbd_led(HID_LED_NUM_LOCK, (leds & KBD_LED_NUM_CONTROL) ? leds & KBD_LED_NUM_STATUS : num_status);
+
+		if((keyboard_leds & KBD_LED_SCRL_MASK) != (leds & KBD_LED_SCRL_MASK))
+			hid_set_kbd_led(HID_LED_SCROLL_LOCK, (leds & KBD_LED_SCRL_CONTROL) ? leds & KBD_LED_SCRL_STATUS : scrl_status);
+
+		keyboard_leds = leds;
+    }
 }
 
 char user_io_dip_switch1() {
@@ -1816,7 +1874,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 								send_keycode((code & 0xff) | (caps_lock_toggle?BREAK:0));
 								caps_lock_toggle = !caps_lock_toggle;
 
-								hid_set_kbd_led(HID_LED_CAPS_LOCK, caps_lock_toggle);
+								set_kbd_led(HID_LED_CAPS_LOCK, caps_lock_toggle);
 							}
 
 							if(code & NUM_LOCK_TOGGLE)
@@ -1830,11 +1888,11 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 								if(emu_mode == EMU_MOUSE) emu_timer = GetTimer(EMU_MOUSE_FREQ);
 
 								emu_mode = (emu_mode+1)&3;
-								if(emu_mode == EMU_MOUSE || emu_mode == EMU_JOY0) hid_set_kbd_led(HID_LED_NUM_LOCK, true);
-									else hid_set_kbd_led(HID_LED_NUM_LOCK, false);
+								if(emu_mode == EMU_MOUSE || emu_mode == EMU_JOY0) set_kbd_led(HID_LED_NUM_LOCK, true);
+									else set_kbd_led(HID_LED_NUM_LOCK, false);
 
-								if(emu_mode == EMU_MOUSE || emu_mode == EMU_JOY1) hid_set_kbd_led(HID_LED_SCROLL_LOCK, true);
-									else hid_set_kbd_led(HID_LED_SCROLL_LOCK, false);
+								if(emu_mode == EMU_MOUSE || emu_mode == EMU_JOY1) set_kbd_led(HID_LED_SCROLL_LOCK, true);
+									else set_kbd_led(HID_LED_SCROLL_LOCK, false);
 							}
 						}
 					}
