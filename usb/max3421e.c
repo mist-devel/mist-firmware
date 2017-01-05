@@ -150,15 +150,27 @@ void max3421e_init() {
 uint8_t max3421e_poll() {
   uint8_t hirq = max3421e_read_u08( MAX3421E_HIRQ );
 
-#if 0
   static msec_t next = 0;
   if(timer_get_msec() > next) {
-    iprintf("irq src=%x, bus state %x\n", hirq, vbusState);
-    iprintf("host result %x\n", max3421e_read_u08( MAX3421E_HRSL));
+    static uint8_t led_pattern = 0x01;
+    
+    // iprintf("irq src=%x, bus state %x\n", hirq, vbusState);
+    // iprintf("host result %x\n", max3421e_read_u08( MAX3421E_HRSL));
 
-    next = timer_get_msec() + 10000;
+    max3421e_write_u08(MAX3421E_IOPINS2, ~(led_pattern & 0x0f));
+    
+    if(!(led_pattern & 0x10)) {
+      // knight rider left
+      led_pattern <<= 1;
+      if(!(led_pattern & 0x0f)) led_pattern = 0x18;
+    } else {
+      // knight rider right      
+      led_pattern = ((led_pattern & 0x0f) >> 1) | 0x10;
+      if(!(led_pattern & 0x0f)) led_pattern = 0x01;
+    }
+      
+    next = timer_get_msec() + 100;
   }
-#endif
 
   if( hirq & MAX3421E_CONDETIRQ ) {
     iprintf("=> CONDETIRQ\n");
