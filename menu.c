@@ -309,9 +309,6 @@ static void substrcpy(char *d, char *s, char idx) {
 #define STD_SPACE_EXIT "        SPACE to exit"
 #define STD_COMBO_EXIT " Hold ESC then SPACE to exit"
 
-#define JOY_VID 		 "VID:"
-#define JOY_PID 	   "PID:"
-
 #define HELPTEXT_DELAY 10000
 #define FRAME_DELAY 150
 
@@ -410,33 +407,7 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 }
 			
 void append_joystick_usbid ( char *usb_id, unsigned int usb_vid, unsigned int usb_pid ) {
-	/*
-	appends a string with VID and PID numbers. 
-	Make sure to provide long enough string in usb_id
-	*/
-	unsigned short i;
-	char vid[5] = "    ";
-	char pid[5] = "    ";
-	itoa(usb_vid, vid, 16);
-	itoa(usb_pid, pid, 16);
-	if(strlen(vid)<4) {
-		for(i=5;i>0;i--) {
-			vid[i]=vid[i-1];
-		}
-		vid[0]='0';
-	}
-	if(strlen(pid)<4) {
-		for(i=5;i>0;i--) {
-			pid[i]=pid[i-1];
-		}
-		pid[0]='0';
-	}
-	strcat( usb_id, JOY_VID);
-	strcat( usb_id, vid);
-	strcat( usb_id, " ");
-	strcat( usb_id, JOY_PID);
-	strcat( usb_id, pid);
-	return;
+	siprintf(usb_id, "VID:%04X PID:%04X", usb_vid, usb_pid);
 }		
 		
 void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {

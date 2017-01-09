@@ -883,9 +883,10 @@ void fpga_init(char *name) {
     if(minimig_v2()) {
       EnableOsd();
       SPI(OSD_CMD_VERSION);
-      char ver_beta  = SPI(0xff);
-      char ver_major = SPI(0xff);
-      char ver_minor = SPI(0xff);
+      char ver_beta   = SPI(0xff);
+      char ver_major  = SPI(0xff);
+      char ver_minor  = SPI(0xff);
+      char ver_minion = SPI(0xff);
       DisableOsd();
       SPIN(); SPIN(); SPIN(); SPIN();
       SPI(OSD_CMD_RST);
@@ -903,7 +904,7 @@ void fpga_init(char *name) {
       BootInit();
       WaitTimer(500);
       char rtl_ver[45];
-      siprintf(rtl_ver, "**** MINIMIG-AGA v%d.%d%s for MiST ****", ver_major, ver_minor, ver_beta ? " BETA" : "");
+      siprintf(rtl_ver, "**** MINIMIG-AGA%s v%d.%d.%d for MiST ****", ver_beta ? " BETA" : "", ver_major, ver_minor, ver_minion);
       BootPrintEx(rtl_ver);
       BootPrintEx(" ");
       BootPrintEx("MINIMIG-AGA for MiST by Rok Krajnc (rok.krajnc@gmail.com)");
