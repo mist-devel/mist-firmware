@@ -18,7 +18,8 @@ typedef struct {
   uint8_t joystick_ignore_hat;
   uint8_t joystick_ignore_osd;
   uint8_t joystick_disable_shortcuts;
-	uint8_t key_menu_as_rgui;
+  uint8_t key_menu_as_rgui;
+  uint8_t ypbpr;
 } mist_cfg_t;
 
 

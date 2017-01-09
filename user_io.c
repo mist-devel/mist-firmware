@@ -745,6 +745,9 @@ void user_io_send_buttons(char force) {
   if (mist_cfg.scandoubler_disable) 
     map |= CONF_SCANDOUBLER_DISABLE;
 
+  if (mist_cfg.ypbpr) 
+    map |= CONF_YPBPR;
+
   if((map != key_map) || force) {
     key_map = map;
     spi_uio_cmd8(UIO_BUT_SW, map);
