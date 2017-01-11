@@ -1195,23 +1195,6 @@ void user_io_poll() {
       }
     }
     
-    // check for long press > 1 sec on menu button
-    // and toggle scandoubler on/off then
-    static unsigned long timer = 1;
-    if(user_io_menu_button()) {
-      if(timer == 1) 
-	timer = GetTimer(1000);
-      else if(timer != 2) {
-	if(CheckTimer(timer)) {
-	  // toggle video mode bit
-	  mist_cfg.scandoubler_disable = !mist_cfg.scandoubler_disable;
-	  user_io_send_buttons(1);
-	  timer = 2;
-	}
-      }
-    } else
-      timer = 1;
-  
     // --------------- THE FOLLOWING IS DEPRECATED AND WILL BE REMOVED ------------
     // ------------------------ USE SD CARD EMULATION INSTEAD ---------------------
 
@@ -1298,6 +1281,29 @@ void user_io_poll() {
 
 		keyboard_leds = leds;
     }
+
+    // check for long press > 1 sec on menu button
+    // and toggle scandoubler on/off then
+    static unsigned long timer = 1;
+    if(user_io_menu_button())
+	{
+		if(timer == 1) 
+			timer = GetTimer(1000);
+		else if(timer != 2)
+		{
+			if(CheckTimer(timer))
+			{
+				// toggle video mode bit
+				mist_cfg.scandoubler_disable = !mist_cfg.scandoubler_disable;
+				user_io_send_buttons(1);
+				timer = 2;
+			}
+		}
+    }
+	else
+	{
+		timer = 1;
+	}
 }
 
 char user_io_dip_switch1() {
