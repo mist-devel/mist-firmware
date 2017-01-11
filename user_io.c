@@ -1549,6 +1549,11 @@ static char kr_fn_table[] =
 	0x3a, 0x44, // f11
 	0x3b, 0x45, // f12
 
+	0x3c, 0x6c, // EMU_MOUSE
+	0x3d, 0x6d, // EMU_JOY0
+	0x3e, 0x6e, // EMU_JOY1
+	0x3f, 0x6f, // EMU_NONE
+
 	//Emulate keypad for A600 
 	0x1E, 0x59, //KP1
 	0x1F, 0x5A, //KP2
@@ -1899,7 +1904,29 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 
 								if(emu_mode == EMU_MOUSE) emu_timer = GetTimer(EMU_MOUSE_FREQ);
 
-								emu_mode = (emu_mode+1)&3;
+								switch(code ^ NUM_LOCK_TOGGLE)
+								{
+									case 1:
+										emu_mode = EMU_MOUSE;
+										break;
+
+									case 2:
+										emu_mode = EMU_JOY0;
+										break;
+
+									case 3:
+										emu_mode = EMU_JOY1;
+										break;
+
+									case 4:
+										emu_mode = EMU_NONE;
+										break;
+
+									default:
+										emu_mode = (emu_mode+1)&3;
+										break;
+								}
+
 								if(emu_mode == EMU_MOUSE || emu_mode == EMU_JOY0) set_kbd_led(HID_LED_NUM_LOCK, true);
 									else set_kbd_led(HID_LED_NUM_LOCK, false);
 

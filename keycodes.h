@@ -21,8 +21,8 @@
 #define EXT               0x1000     // extended PS/2 keycode
 
 // amiga unmapped: 
-// 0x5a KP-(
-// 0x5b KP-)
+// 0x5a KP-( (mapped on Keyrah)
+// 0x5b KP-) (mapped on Keyrah)
 // codes >= 0x69 are for OSD only and are not sent to the amiga itself
 
 // keycode translation table
@@ -135,10 +135,10 @@ const unsigned short usb2ami[] = {
   0x5b,  // 69: KP )
   MISS,  // 6a: F15
   MISS,  // 6b: F16
-  MISS,  // 6c: F17
-  MISS,  // 6d: F18
-  MISS,  // 6e: F19
-  MISS   // 6f: F20
+  NUM_LOCK_TOGGLE | 1,  // 6c: F17
+  NUM_LOCK_TOGGLE | 2,  // 6d: F18
+  NUM_LOCK_TOGGLE | 3,  // 6e: F19
+  NUM_LOCK_TOGGLE | 4   // 6f: F20
 };
 
 // unmapped atari keys:
@@ -255,10 +255,10 @@ const unsigned short usb2atari[] = {
   MISS,  // 69: F14
   MISS,  // 6a: F15
   MISS,  // 6b: F16
-  MISS,  // 6c: F17
-  MISS,  // 6d: F18
-  MISS,  // 6e: F19
-  MISS   // 6f: F20
+  NUM_LOCK_TOGGLE | 1,  // 6c: F17
+  NUM_LOCK_TOGGLE | 2,  // 6d: F18
+  NUM_LOCK_TOGGLE | 3,  // 6e: F19
+  NUM_LOCK_TOGGLE | 4   // 6f: F20
 };
 
 // keycode translation table for ps2 emulation
@@ -371,10 +371,10 @@ const unsigned short usb2ps2[] = {
   0x7e,  // 69: Scroll Lock
   0x18,  // 6a: F15
   0x20,  // 6b: F16
-  0x28,  // 6c: F17
-  0x30,  // 6d: F18
-  0x38,  // 6e: F19
-  0x40   // 6f: F20
+  NUM_LOCK_TOGGLE | 1,  // 6c: F17
+  NUM_LOCK_TOGGLE | 2,  // 6d: F18
+  NUM_LOCK_TOGGLE | 3,  // 6e: F19
+  NUM_LOCK_TOGGLE | 4   // 6f: F20
 };
 
 // Archimedes unmapped keys
