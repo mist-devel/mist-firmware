@@ -166,9 +166,6 @@ int main(void)
     // tos config also contains cdc redirect settings used by minimig
     tos_config_init();
 
-    // parse mist.ini
-    mist_ini_parse();
-
     fpga_init(NULL);
 
     cdc_control_open();

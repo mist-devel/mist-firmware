@@ -3,6 +3,7 @@
 
 
 //// includes ////
+#include <string.h>
 #include "ini_parser.h"
 #include "mist_cfg.h"
 #include "user_io.h"
@@ -16,6 +17,7 @@ void mist_ini_parse()
   hid_joystick_button_remap_init();
   virtual_joystick_remap_init();
   joy_key_map_init();
+  memset(&mist_cfg, 0, sizeof(mist_cfg));
   ini_parse(&mist_ini_cfg);
 }
 

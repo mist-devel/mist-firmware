@@ -15,7 +15,7 @@
 #include "debug.h"
 #include "rafile.h"
 #endif
-
+#include "user_io.h"
 
 //// defines ////
 #define INI_EOT                 4 // End-Of-Transmission
@@ -59,12 +59,11 @@ int   ini_size=0;
 RAFile ini_file;
 #endif
 
+int ini_pt = 0;
 
 //// ini_getch() ////
 char ini_getch()
 {
-  static int ini_pt = 0;
-
   if ((ini_pt&0x3ff) == 0x200) {
     // reload buffer
     #ifdef INI_PARSER_TEST
@@ -147,6 +146,29 @@ int ini_putline(char* line)
   return ini_pt;
 }
 
+char *get_core_name()
+{
+  switch(user_io_core_type())
+  {
+	case CORE_TYPE_MINIMIG:
+	case CORE_TYPE_MINIMIG2:
+		return "MINIMIG";
+
+	case CORE_TYPE_PACE:
+		return "PACE";
+
+	case CORE_TYPE_MIST:
+		return "ST";
+
+	case CORE_TYPE_ARCHIE:
+		return "ARCHIE";
+
+	case CORE_TYPE_8BIT:
+		return user_io_get_core_name();
+  }
+
+  return "";
+}
 
 //// ini_get_section() ////
 int ini_get_section(const ini_cfg_t* cfg, char* buf)
@@ -184,6 +206,8 @@ int ini_get_section(const ini_cfg_t* cfg, char* buf)
     }  
   }
 
+  if(!strcmp(buf, get_core_name())) return cfg->sections[0].id;
+  
   return INI_SECTION_INVALID_ID;
 }
 
@@ -277,10 +301,13 @@ void ini_parse(const ini_cfg_t* cfg)
   int section = INI_SECTION_INVALID_ID;
   int line_status;
 
+  ini_parser_debugf("Start INI parser for core \"%s\".", get_core_name());
+
   // open ini file
   #ifdef INI_PARSER_TEST
   if ((ini_fp = fopen(cfg->filename, "rb")) == NULL) { 
   #else
+  memset(&ini_file, 0, sizeof(ini_file));
   if (!RAOpen(&ini_file, cfg->filename)) {
   #endif
     ini_parser_debugf("Can't open file %s !", cfg->filename);
@@ -300,6 +327,8 @@ void ini_parse(const ini_cfg_t* cfg)
   ini_parser_debugf("Opened file %s with size %d bytes.", cfg->filename, ini_file.file.size);
   #endif
 
+  ini_pt = 0;
+
   // preload buffer
   #ifdef INI_PARSER_TEST
   fread(sector_buffer, sizeof(char), INI_BUF_SIZE, ini_fp);
@@ -311,6 +340,7 @@ void ini_parse(const ini_cfg_t* cfg)
   while (1) {
     // get line
     line_status = ini_getline(line);
+    ini_parser_debugf("line(%d): \"%s\".", line_status, line);
     // if valid line
     if (line_status != 1) {
       if (line[0] == INI_SECTION_START) {

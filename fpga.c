@@ -39,6 +39,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "osd.h"
 #include "fpga.h"
 #include "tos.h"
+#include "mist_cfg.h"
 
 #define CMD_HDRID 0xAACA
 
@@ -875,6 +876,7 @@ void fpga_init(char *name) {
   }
 
   user_io_detect_core_type();
+  mist_ini_parse();
 
   if((user_io_core_type() == CORE_TYPE_MINIMIG)||
      (user_io_core_type() == CORE_TYPE_MINIMIG2)) {
