@@ -3355,9 +3355,6 @@ void HandleUI(void)
 			// reset fpga with core
 			fpga_init(file.name);
 
-			// make sure new config gets current button/dip status
-			user_io_send_buttons(1);
-			
 			menustate = MENU_NONE1;
 			break;
 

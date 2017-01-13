@@ -877,6 +877,7 @@ void fpga_init(char *name) {
 
   user_io_detect_core_type();
   mist_ini_parse();
+  user_io_send_buttons(1);
 
   if((user_io_core_type() == CORE_TYPE_MINIMIG)||
      (user_io_core_type() == CORE_TYPE_MINIMIG2)) {
