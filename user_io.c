@@ -1756,7 +1756,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 		}
 
 		// handle modifier keys
-		if(m != modifier)
+		if(m != modifier && !osd_is_visible)
 		{
 			for(i=0;i<8;i++)
 			{
@@ -1953,6 +1953,35 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 			keycodes_ps2[i] = keycode(pressed[i]);
 		}
 		StateKeyboardSet(m, keycodes, keycodes_ps2);
+	}
+}
+
+/* translates a USB modifiers into scancodes */
+void add_modifiers(uint8_t mod, uint16_t* keys_ps2)
+{
+	uint8_t i;
+	uint8_t offset = 1;
+	uint8_t index = 0;
+	while(offset)
+	{
+		if(mod&offset)
+		{
+			uint16_t ps2_value = modifier_keycode(index);
+			if(ps2_value != MISS)
+			{
+				if(ps2_value & EXT) ps2_value = (0xE000 | (ps2_value & 0xFF));
+				for(i=0; i<4; i++)
+				{
+					if(keys_ps2[i]==0)
+					{
+						keys_ps2[i] = ps2_value;
+						break;
+					}
+				}
+			}
+		}
+		offset <<= 1;
+		index++;
 	}
 }
 

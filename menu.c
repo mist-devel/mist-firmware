@@ -454,19 +454,6 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 }
 
 
-/* translates a USB modifier bit into a PS2 scancode */
-void assign_ps2_modifier ( uint8_t mod, uint8_t offset, uint16_t ps2_value, uint16_t* keys_ps2) {
-	uint8_t i;
-	if(mod&offset) {
-		for(i=0; i<4; i++) {
-			if(keys_ps2[i]==0) {
-				keys_ps2[i] = ps2_value;
-				return;
-			}
-		}
-	}
-}
-
 unsigned char getIdx(char *opt) {
 	if((opt[1]>='0') && (opt[1]<='9')) return opt[1]-'0';
 	if((opt[1]>='A') && (opt[1]<='V')) return opt[1]-'A'+10;
@@ -507,6 +494,24 @@ unsigned long getStatusMask(char *opt) {
 	//iprintf("grtStatusMask %d %d %x\n", idx1, idx2, x);
 
 	return x << idx1;
+}
+
+char* get_keycode_table()
+{
+	switch(user_io_core_type())
+	{
+		case CORE_TYPE_MINIMIG:
+		case CORE_TYPE_MINIMIG2:
+			return "Amiga";
+  
+		case CORE_TYPE_MIST:
+			return "  ST";
+
+		case CORE_TYPE_ARCHIE:
+			return "Archie";
+	}
+
+	return   " PS/2";
 }
 
 void HandleUI(void)
@@ -1236,7 +1241,8 @@ void HandleUI(void)
 				s[15+i] = usb_id[i];
 			OsdWrite(2, s, 0,0);
 			OsdWrite(3, "", 0, 0);
-			OsdWrite(4, "       PS/2 scancodes", 0, 0);
+			siprintf(s, "      %s scancodes", get_keycode_table());
+			OsdWrite(4, s, 0,0);
 			//StateKeyboardPressedPS2(keys_ps2);
 			uint16_t keys_ps2b[6]={0,0,0,0,0,0};
 			siprintf(s, "   %4x %4x %4x %4x", keys_ps2b[0], keys_ps2b[1], keys_ps2b[2], keys_ps2b[3]); // keys_ps2[4], keys_ps2[5]);
@@ -1259,14 +1265,7 @@ void HandleUI(void)
 			OsdWrite(2, s, 0,0);
 			uint16_t keys_ps2[6]={0,0,0,0,0,0};
 			StateKeyboardPressedPS2(keys_ps2);
-			assign_ps2_modifier( mod, 0x1,  0x14, keys_ps2);   // LCTRL
-			assign_ps2_modifier( mod, 0x2,  0x12, keys_ps2);   // LSHIFT
-			assign_ps2_modifier( mod, 0x4,  0x11, keys_ps2);   // LALT
-			assign_ps2_modifier( mod, 0x8,  0xE01F, keys_ps2); // LGUI
-			assign_ps2_modifier( mod, 0x10, 0xE014, keys_ps2); // RCTRL
-			assign_ps2_modifier( mod, 0x20, 0x59, keys_ps2);   // RSHIFT
-			assign_ps2_modifier( mod, 0x40, 0xE011, keys_ps2); // RALT
-			assign_ps2_modifier( mod, 0x80, 0xE027, keys_ps2); // RGUI
+			add_modifiers(mod, keys_ps2);
 			siprintf(s, "   %4x %4x %4x %4x ", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3]);// keys_ps2[4], keys_ps2[5]);
 			OsdWrite(5, s, 0, 0);
 			//OsdWrite(5, "", 0, 0);					
