@@ -100,7 +100,7 @@ const unsigned short usb2ami[] = {
   0x6e | OSD,  // 46: Print Screen (OSD)
   NUM_LOCK_TOGGLE,  // 47: Scroll Lock (OSD)
   0x6f | OSD,  // 48: Pause
-  0x5f,  // 49: Help
+  0x0d,  // 49: backslash to avoid panic in Germany ;)
   0x6a,  // 4a: Home
   0x6c | OSD,  // 4b: Page Up (OSD)
   0x46,  // 4c: Delete
@@ -134,7 +134,7 @@ const unsigned short usb2ami[] = {
   0x5a,  // 68: KP (
   0x5b,  // 69: KP )
   MISS,  // 6a: F15
-  MISS,  // 6b: F16
+  0x5f,  // 6b: help (for keyrah)
   NUM_LOCK_TOGGLE | 1,  // 6c: F17
   NUM_LOCK_TOGGLE | 2,  // 6d: F18
   NUM_LOCK_TOGGLE | 3,  // 6e: F19
@@ -254,7 +254,7 @@ const unsigned short usb2atari[] = {
   MISS,  // 68: F13
   MISS,  // 69: F14
   MISS,  // 6a: F15
-  MISS,  // 6b: F16
+  0x52,  // 6b: insert (for keyrah)
   NUM_LOCK_TOGGLE | 1,  // 6c: F17
   NUM_LOCK_TOGGLE | 2,  // 6d: F18
   NUM_LOCK_TOGGLE | 3,  // 6e: F19
@@ -370,7 +370,7 @@ const unsigned short usb2ps2[] = {
   0x77,  // 68: Num Lock
   0x7e,  // 69: Scroll Lock
   0x18,  // 6a: F15
-  0x20,  // 6b: F16
+  EXT | 0x70,  // 6b: insert (for keyrah)
   NUM_LOCK_TOGGLE | 1,  // 6c: F17
   NUM_LOCK_TOGGLE | 2,  // 6d: F18
   NUM_LOCK_TOGGLE | 3,  // 6e: F19
@@ -496,7 +496,7 @@ const unsigned short usb2archie[] = {
   MISS, //  68: F13
   MISS, //  69: F14
   MISS, //  6a: F15
-  MISS, //  6b: F16
+  0x1f, //  6b: insert (for keyrah)
   MISS, //  6c: F17
   MISS, //  6d: F18
   MISS, //  6e: F19

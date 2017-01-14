@@ -1626,6 +1626,7 @@ static void keyrah_trans(unsigned char *m, unsigned char *k)
 		{
 			if(k[i] == 0x53) k[i] = 0x68;
 			if(k[i] == 0x47) k[i] = 0x69;
+			if(k[i] == 0x49) k[i] = 0x6b; // workaround!
 		}
 	}
 
