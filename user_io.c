@@ -1464,14 +1464,23 @@ unsigned short keycode(unsigned char in) {
   return MISS;
 }
 
-void check_reset(unsigned char modifiers, char useAlt)
+void check_reset(unsigned short modifiers, char useKeys)
 {
-	if(useAlt && (modifiers == 0x47)) // lshift - lctrl - lalt - ralt
+	unsigned short combo[] =
 	{
-		*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST; // reset
-	}
-	else if(modifiers == (useAlt ? 0x45 : 0x89)) // lctrl - lalt - ralt / lctrl - lamiga - ramiga
+		0x45,  // lctrl+lalt+ralt
+		0x89,  // lctrl+lgui+rgui
+		0x105, // lctrl+lalt+del
+	};
+
+	if((modifiers & ~2)==combo[useKeys])
 	{
+		if(modifiers & 2) // with lshift - MiST reset
+		{
+			*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST; // HW reset
+			for(;;);
+		}
+
 		switch(core_type)
 		{
 			case CORE_TYPE_MINIMIG:
@@ -1605,12 +1614,6 @@ static void keyrah_trans(unsigned char *m, unsigned char *k)
 	
 	if(fn)
 	{
-		if(*m == 0x89)
-		{
-			*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST; // reset
-			for(;;); 
-		}
-
 		for(i=0; i<6; i++)
 		{
 			for(int n = 0; n<(sizeof(kr_fn_table)/(2*sizeof(kr_fn_table[0]))); n++)
@@ -1655,6 +1658,9 @@ static void keyrah_trans(unsigned char *m, unsigned char *k)
 	}
 }
 
+//Keyrah v2: USB\VID_18D8&PID_0002\A600/A1200_MULTIMEDIA_EXTENSION_VERSION
+#define KEYRAH_ID ((vid == 0x18D8) && (pid == 0x0002))
+
 void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned short vid, unsigned short pid)
 {
 	// ignore lower priority clears if higher priority key was pressed
@@ -1664,12 +1670,14 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 	}
 	latest_keyb_priority = priority; // set for next call
 
-	//Keyrah v2: USB\VID_18D8&PID_0002\A600/A1200_MULTIMEDIA_EXTENSION_VERSION
-	char keyrah = ((vid == 0x18D8) && (pid == 0x0002)) ? 1 : 0;
+	char keyrah = (KEYRAH_ID && !mist_cfg.keyrah_mode) ? 1 : 0;
 	if(emu_mode == EMU_MOUSE) keyrah <<= 1;
 
 	if(keyrah) keyrah_trans(&m, k);
-	check_reset(m, !keyrah);
+
+	unsigned short reset_m = m;
+	for(char i=0;i<6;i++) if(k[i] == 0x4c) reset_m |= 0x100;
+	check_reset(reset_m, KEYRAH_ID ? 1 : mist_cfg.reset_combo);
 
 	if( (core_type == CORE_TYPE_MINIMIG) ||
 		(core_type == CORE_TYPE_MINIMIG2) ||
