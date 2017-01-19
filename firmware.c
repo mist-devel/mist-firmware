@@ -220,7 +220,8 @@ RAMFUNC void WriteFirmware(fileTYPE *file, char *name)
         k = 2;
         while (k--)
         {
- 		DISKLED_ON;
+			if(size & 2048) DISKLED_ON
+				else DISKLED_OFF;
 
 #ifndef GCC_OPTIMZES_TOO_MUCH  // the latest gcc 4.8.0 calls memcpy for this
 		i = 256 / 4;
@@ -256,8 +257,6 @@ RAMFUNC void WriteFirmware(fileTYPE *file, char *name)
 #endif
 #endif
 
-		DISKLED_OFF;
-
                 while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
                 *AT91C_MC_FCR = 0x5A << 24 | page << 8 | AT91C_MC_FCMD_START_PROG; // key: 0x5A
                 while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
@@ -267,6 +266,7 @@ RAMFUNC void WriteFirmware(fileTYPE *file, char *name)
         size -= read_size;
     }
 
+	DISKLED_OFF;
     *AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
     for(;;);
 }
