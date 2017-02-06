@@ -121,6 +121,7 @@ void ConfigFloppy(unsigned char drives, unsigned char speed);
 void ConfigIDE(unsigned char gayle, unsigned char master, unsigned char slave);
 void ConfigAutofire(unsigned char autofire);
 unsigned char OsdGetCtrl(void);
+void OsdDisableMenuButton(unsigned char disable);
 unsigned char GetASCIIKey(unsigned char c);
 void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned long width, unsigned long offset, unsigned char invert);
 void OsdWriteDoubleSize(unsigned char n, char *s, unsigned char pass);

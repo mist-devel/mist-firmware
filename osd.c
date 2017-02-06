@@ -580,6 +580,8 @@ void ConfigAutofire(unsigned char autofire)
       spi_osd_cmd8(OSD_CMD_JOY, autofire & 0x07);
 }
 
+static unsigned char disable_menu = 0;
+
 // get key status
 unsigned char OsdGetCtrl(void)
 {
@@ -644,13 +646,24 @@ unsigned char OsdGetCtrl(void)
     // currently no key pressed
     if(!c) {
       static unsigned char last_but = 0;
-      unsigned char but = CheckButton();
-      if(but && !last_but) c = KEY_MENU;
-      if(!but && last_but) c = KEY_MENU | KEY_UPSTROKE;
-      last_but = but;
+	  if(!disable_menu)
+	  {
+		unsigned char but = CheckButton();
+		if(!but && last_but) c = KEY_MENU;
+		last_but = but;
+      }
+	  else
+	  {
+		last_but = 0;
+	  }
     }
 
     return(c);
+}
+
+void OsdDisableMenuButton(unsigned char disable)
+{
+	disable_menu = disable;
 }
 
 unsigned char GetASCIIKey(unsigned char keycode)

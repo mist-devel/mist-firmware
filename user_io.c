@@ -1297,12 +1297,14 @@ void user_io_poll() {
 				mist_cfg.scandoubler_disable = !mist_cfg.scandoubler_disable;
 				user_io_send_buttons(1);
 				timer = 2;
+				OsdDisableMenuButton(1);
 			}
 		}
     }
 	else
 	{
 		timer = 1;
+		OsdDisableMenuButton(0);
 	}
 }
 
