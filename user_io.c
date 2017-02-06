@@ -73,6 +73,9 @@ bool caps_status = 0;
 bool num_status = 0;
 bool scrl_status = 0;
 
+uint8_t video_altered = 0;
+uint8_t scandoubler_disable;
+uint8_t ypbpr;
 
 // set by OSD code to suppress forwarding of those keys to the core which
 // may be in use by an active OSD
@@ -144,6 +147,8 @@ void user_io_init() {
   // no sd card image selected, SD card accesses will go directly
   // to the card
   sd_image.file.size = 0;
+
+  video_altered = 0;
 
   // mark remap table as unused
   memset(key_remap_table, 0, sizeof(key_remap_table));
@@ -741,12 +746,25 @@ void user_io_send_buttons(char force) {
   else if(adc_state & 8) map |= BUTTON2;
   if(kbd_reset)     map |= BUTTON2;
 
-  // TODO adding conf here
-  if (mist_cfg.scandoubler_disable) 
-    map |= CONF_SCANDOUBLER_DISABLE;
+  if(!mist_cfg.keep_video_mode) video_altered = 0;
 
-  if (mist_cfg.ypbpr) 
-    map |= CONF_YPBPR;
+  if(video_altered & 1)
+  {
+	if(scandoubler_disable) map |= CONF_SCANDOUBLER_DISABLE;
+  }
+  else
+  {
+	if(mist_cfg.scandoubler_disable) map |= CONF_SCANDOUBLER_DISABLE;
+  }
+
+  if(video_altered & 2)
+  {
+	if(ypbpr) map |= CONF_YPBPR;
+  }
+  else
+  {
+	if(mist_cfg.ypbpr) map |= CONF_YPBPR;
+  }
 
   if((map != key_map) || force) {
     key_map = map;
@@ -1296,9 +1314,12 @@ void user_io_poll() {
 			{
 				// toggle video mode bit
 				mist_cfg.scandoubler_disable = !mist_cfg.scandoubler_disable;
-				user_io_send_buttons(1);
 				timer = 2;
+	
+				user_io_send_buttons(1);
 				OsdDisableMenuButton(1);
+				video_altered |= 1;
+				scandoubler_disable = mist_cfg.scandoubler_disable;
 			}
 		}
 
@@ -1306,13 +1327,15 @@ void user_io_poll() {
 		{
 			if(!ypbpr_toggle)
 			{
-				ypbpr_toggle = 1;
-
 				// toggle video mode bit
 				mist_cfg.ypbpr = !mist_cfg.ypbpr;
-				user_io_send_buttons(1);
 				timer = 2;
+				ypbpr_toggle = 1;
+
+				user_io_send_buttons(1);
 				OsdDisableMenuButton(1);
+				video_altered |= 2;
+				ypbpr = mist_cfg.ypbpr;
 			}
 		}
 		else

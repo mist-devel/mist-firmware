@@ -22,6 +22,7 @@ typedef struct {
   uint8_t keyrah_mode;
   uint8_t reset_combo;
   uint8_t ypbpr;
+  uint8_t keep_video_mode;
 } mist_cfg_t;
 
 
