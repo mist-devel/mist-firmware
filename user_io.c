@@ -738,7 +738,7 @@ void user_io_send_buttons(char force) {
   if(adc_state & 2) map |= SWITCH1;
 
   if(adc_state & 4) map |= BUTTON1;
-  if(adc_state & 8) map |= BUTTON2;
+  else if(adc_state & 8) map |= BUTTON2;
   if(kbd_reset)     map |= BUTTON2;
 
   // TODO adding conf here
@@ -1285,6 +1285,7 @@ void user_io_poll() {
     // check for long press > 1 sec on menu button
     // and toggle scandoubler on/off then
     static unsigned long timer = 1;
+	static unsigned char ypbpr_toggle = 0;
     if(user_io_menu_button())
 	{
 		if(timer == 1) 
@@ -1300,11 +1301,31 @@ void user_io_poll() {
 				OsdDisableMenuButton(1);
 			}
 		}
+
+		if(adc_state & 8)
+		{
+			if(!ypbpr_toggle)
+			{
+				ypbpr_toggle = 1;
+
+				// toggle video mode bit
+				mist_cfg.ypbpr = !mist_cfg.ypbpr;
+				user_io_send_buttons(1);
+				timer = 2;
+				OsdDisableMenuButton(1);
+			}
+		}
+		else
+		{
+			ypbpr_toggle = 0;
+		}
+
     }
 	else
 	{
 		timer = 1;
 		OsdDisableMenuButton(0);
+		ypbpr_toggle = 0;
 	}
 }
 
@@ -1317,7 +1338,7 @@ char user_io_menu_button() {
 }
 
 char user_io_user_button() {
-  return((adc_state & 8)?1:0);
+  return((!user_io_menu_button() && (adc_state & 8))?1:0);
 }
 
 static void send_keycode(unsigned short code) {
