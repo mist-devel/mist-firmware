@@ -1705,7 +1705,7 @@ static void keyrah_trans(unsigned char *m, unsigned char *k)
 }
 
 //Keyrah v2: USB\VID_18D8&PID_0002\A600/A1200_MULTIMEDIA_EXTENSION_VERSION
-#define KEYRAH_ID ((vid == 0x18D8) && (pid == 0x0002))
+#define KEYRAH_ID (mist_cfg.keyrah_mode && (((((uint32_t)vid)<<16) | pid) == mist_cfg.keyrah_mode))
 
 void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned short vid, unsigned short pid)
 {
@@ -1716,7 +1716,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 	}
 	latest_keyb_priority = priority; // set for next call
 
-	char keyrah = (KEYRAH_ID && !mist_cfg.keyrah_mode) ? 1 : 0;
+	char keyrah = KEYRAH_ID ? 1 : 0;
 	if(emu_mode == EMU_MOUSE) keyrah <<= 1;
 
 	if(keyrah) keyrah_trans(&m, k);
