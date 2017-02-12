@@ -254,7 +254,7 @@ void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
         if (*(int8_t*)(cfg->vars[var_id].var) < cfg->vars[var_id].min) *(int8_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
         break;
       case UINT16:
-        *(uint8_t*)(cfg->vars[var_id].var) = strtoul(&(buf[i]), NULL, 0);
+        *(uint16_t*)(cfg->vars[var_id].var) = strtoul(&(buf[i]), NULL, 0);
         if (*(uint16_t*)(cfg->vars[var_id].var) > cfg->vars[var_id].max) *(uint16_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
         if (*(uint16_t*)(cfg->vars[var_id].var) < cfg->vars[var_id].min) *(uint16_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
         break;
@@ -264,9 +264,9 @@ void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
         if (*(int16_t*)(cfg->vars[var_id].var) < cfg->vars[var_id].min) *(int16_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
         break;
       case UINT32:
-        *(uint8_t*)(cfg->vars[var_id].var) = strtoul(&(buf[i]), NULL, 0);
-        if (*(uint32_t*)(cfg->vars[var_id].var) > cfg->vars[var_id].max) *(uint32_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
-        if (*(uint32_t*)(cfg->vars[var_id].var) < cfg->vars[var_id].min) *(uint32_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
+        *(uint32_t*)(cfg->vars[var_id].var) = strtoul(&(buf[i]), NULL, 0);
+        if (*(uint32_t*)(cfg->vars[var_id].var) > (uint32_t)cfg->vars[var_id].max) *(uint32_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
+        if (*(uint32_t*)(cfg->vars[var_id].var) < (uint32_t)cfg->vars[var_id].min) *(uint32_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
         break;
       case INT32:
         *(int32_t*)(cfg->vars[var_id].var) = strtol(&(buf[i]), NULL, 0);
