@@ -73,9 +73,11 @@ bool caps_status = 0;
 bool num_status = 0;
 bool scrl_status = 0;
 
-uint8_t video_altered = 0;
-uint8_t scandoubler_disable;
-uint8_t ypbpr;
+#define VIDEO_KEEP_VALUE  0x87654321
+#define video_keep        (*(int*)0x0020FF10)
+#define video_altered     (*(uint8_t*)0x0020FF14)
+#define video_sd_disable  (*(uint8_t*)0x0020FF15)
+#define video_ypbpr       (*(uint8_t*)0x0020FF16)
 
 // set by OSD code to suppress forwarding of those keys to the core which
 // may be in use by an active OSD
@@ -148,7 +150,8 @@ void user_io_init() {
   // to the card
   sd_image.file.size = 0;
 
-  video_altered = 0;
+  if(video_keep != VIDEO_KEEP_VALUE) video_altered = 0;
+  video_keep = 0;
 
   // mark remap table as unused
   memset(key_remap_table, 0, sizeof(key_remap_table));
@@ -750,7 +753,7 @@ void user_io_send_buttons(char force) {
 
   if(video_altered & 1)
   {
-	if(scandoubler_disable) map |= CONF_SCANDOUBLER_DISABLE;
+	if(video_sd_disable) map |= CONF_SCANDOUBLER_DISABLE;
   }
   else
   {
@@ -759,7 +762,7 @@ void user_io_send_buttons(char force) {
 
   if(video_altered & 2)
   {
-	if(ypbpr) map |= CONF_YPBPR;
+	if(video_ypbpr) map |= CONF_YPBPR;
   }
   else
   {
@@ -1319,7 +1322,7 @@ void user_io_poll() {
 				user_io_send_buttons(1);
 				OsdDisableMenuButton(1);
 				video_altered |= 1;
-				scandoubler_disable = mist_cfg.scandoubler_disable;
+				video_sd_disable = mist_cfg.scandoubler_disable;
 			}
 		}
 
@@ -1335,7 +1338,7 @@ void user_io_poll() {
 				user_io_send_buttons(1);
 				OsdDisableMenuButton(1);
 				video_altered |= 2;
-				ypbpr = mist_cfg.ypbpr;
+				video_ypbpr = mist_cfg.ypbpr;
 			}
 		}
 		else
@@ -1523,6 +1526,7 @@ void check_reset(unsigned short modifiers, char useKeys)
 	{
 		if(modifiers & 2) // with lshift - MiST reset
 		{
+			if(mist_cfg.keep_video_mode) video_keep = VIDEO_KEEP_VALUE;
 			*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST; // HW reset
 			for(;;);
 		}
