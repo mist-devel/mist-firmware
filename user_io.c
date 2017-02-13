@@ -1778,7 +1778,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 		}
 
 		// modifier keys are used as buttons in emu mode
-		if(emu_mode != EMU_NONE)
+		if(emu_mode != EMU_NONE && !osd_is_visible)
 		{
 			char last_btn = emu_state & (JOY_BTN1 | JOY_BTN2 | JOY_BTN3 | JOY_BTN4);
 			if(keyrah!=2)
@@ -1873,7 +1873,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 					if(!key_used_by_osd(code))
 					{
 						// iprintf("Key is not used by OSD\n");
-						if(is_emu_key(pressed[i], keyrah))
+						if(is_emu_key(pressed[i], keyrah) && !osd_is_visible)
 						{
 							emu_state &= ~is_emu_key(pressed[i], keyrah);
 							if(emu_mode == EMU_JOY0) user_io_joystick(joystick_renumber(0), emu_state);
@@ -1928,7 +1928,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 					if(!key_used_by_osd(code))
 					{
 						// iprintf("Key is not used by OSD\n");
-						if(is_emu_key(k[i], keyrah))
+						if(is_emu_key(k[i], keyrah) && !osd_is_visible)
 						{
 							emu_state |= is_emu_key(k[i], keyrah);
 
