@@ -3,6 +3,7 @@
 #include "max3421e.h"
 #include "timer.h"
 #include "spi.h"
+#include "mist_cfg.h"
 
 void max3421e_write_u08(uint8_t reg, uint8_t data) {
   //  iprintf("write %x %x\n", reg, data);
@@ -150,26 +151,30 @@ void max3421e_init() {
 uint8_t max3421e_poll() {
   uint8_t hirq = max3421e_read_u08( MAX3421E_HIRQ );
 
-  static msec_t next = 0;
-  if(timer_get_msec() > next) {
-    static uint8_t led_pattern = 0x01;
-    
-    // iprintf("irq src=%x, bus state %x\n", hirq, vbusState);
-    // iprintf("host result %x\n", max3421e_read_u08( MAX3421E_HRSL));
+  // do LED animation on V1.3+ boards if enabled via cfg file
+  if(mist_cfg.led_animation) {
+    static msec_t next = 0;
 
-    max3421e_write_u08(MAX3421E_IOPINS2, ~(led_pattern & 0x0f));
+    if(timer_get_msec() > next) {
+      static uint8_t led_pattern = 0x01;
     
-    if(!(led_pattern & 0x10)) {
-      // knight rider left
-      led_pattern <<= 1;
-      if(!(led_pattern & 0x0f)) led_pattern = 0x18;
-    } else {
-      // knight rider right      
-      led_pattern = ((led_pattern & 0x0f) >> 1) | 0x10;
-      if(!(led_pattern & 0x0f)) led_pattern = 0x01;
-    }
+      // iprintf("irq src=%x, bus state %x\n", hirq, vbusState);
+      // iprintf("host result %x\n", max3421e_read_u08( MAX3421E_HRSL));
+
+      max3421e_write_u08(MAX3421E_IOPINS2, ~(led_pattern & 0x0f));
+    
+      if(!(led_pattern & 0x10)) {
+	// knight rider left
+	led_pattern <<= 1;
+	if(!(led_pattern & 0x0f)) led_pattern = 0x18;
+      } else {
+	// knight rider right      
+	led_pattern = ((led_pattern & 0x0f) >> 1) | 0x10;
+	if(!(led_pattern & 0x0f)) led_pattern = 0x01;
+      }
       
-    next = timer_get_msec() + 100;
+      next = timer_get_msec() + 100;
+    }
   }
 
   if( hirq & MAX3421E_CONDETIRQ ) {

@@ -34,7 +34,8 @@ mist_cfg_t mist_cfg = {
   .keyrah_mode = 0,
   .reset_combo = 0,
   .ypbpr = 0,
-  .keep_video_mode = 0
+  .keep_video_mode = 0,
+  .led_animation = 0
 };
 
 // mist ini sections
@@ -44,6 +45,7 @@ const ini_section_t mist_ini_sections[] = {
 
 // mist ini vars
 const ini_var_t mist_ini_vars[] = {
+  {"LED_ANIMATION", (void*)(&(mist_cfg.led_animation)), UINT8, 0, 1, 1},
   {"YPBPR", (void*)(&(mist_cfg.ypbpr)), UINT8, 0, 1, 1},
   {"KEEP_VIDEO_MODE", (void*)(&(mist_cfg.keep_video_mode)), UINT8, 0, 1, 1},
   {"KEYRAH_MODE", (void*)(&(mist_cfg.keyrah_mode)), UINT32, 0, 0xFFFFFFFF, 1},
