@@ -143,6 +143,10 @@ void max3421e_init() {
 
   // enable interrupts
   max3421e_write_u08( MAX3421E_CPUCTL, MAX3421E_IE );
+
+  // switch off leds
+  max3421e_write_u08(MAX3421E_IOPINS2, 0xff);
+      
   return;
 }
 
