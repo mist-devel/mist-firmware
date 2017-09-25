@@ -764,6 +764,9 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				if(idx == 0)      idx = 1;
 				else if(idx == 1) idx = 0;
 				//StateJoySetExtra( btn_extra, idx); 
+
+        // if real DB9 mouse is preffered, switch the id back to 1
+        idx = (idx == 0) && mist_cfg.joystick0_prefer_db9 ? 1 : idx;
 				
 				// run even if not changed
 				user_io_digital_joystick(idx, jmap);
