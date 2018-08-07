@@ -132,6 +132,7 @@ void NumJoysticksSet(unsigned char num) {
                               "mov r0, r0");
 
 unsigned char menustate = MENU_NONE1;
+unsigned char first_displayed_8bit = 0;
 unsigned char parentstate;
 unsigned char menusub = 0;
 unsigned char menusub_last = 0; //for when we allocate it dynamically and need to know last row
@@ -705,6 +706,7 @@ void HandleUI(void)
 				menusub = 0;
 				OsdClear();
 				OsdEnable(DISABLE_KEYBOARD);
+				first_displayed_8bit = 0;
 			}
 			break;
 
@@ -797,24 +799,28 @@ void HandleUI(void)
 			if(!p[0]) OsdCoreNameSet("8BIT");
 			else      OsdCoreNameSet(p);
 
-			// check if there's a file type supported
-			p = user_io_8bit_get_string(1);
-			if(p && strlen(p)) {
-				entry = 1;
-				menumask = 3; //allow to choose "exit" at tht end
-				strcpy(s, " Load *.");
-				strcat(s, GetExt(p));
-				OsdWrite(0, s, menusub==0, 0);
-			}
-
 			// add options as requested by core
-			i = 2;
+			i = first_displayed_8bit + 1;
 			do {
 				char* pos;
 				unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
-							
+
 				p = user_io_8bit_get_string(i);
-				//	  iprintf("Option %d: %s\n", i-1, p);
+				// iprintf("Option %d: %s\n", i-1, p);
+				// check if there's a file type supported
+				if(i == 1) {
+					if (p && strlen(p)) {
+						menumask = 3; //allow to choose "exit" at the end
+						strcpy(s, " Load *.");
+						strcat(s, GetExt(p));
+						OsdWrite(entry, s, menusub==entry, 0);
+						entry++;
+					} else {
+					    i++;
+					    first_displayed_8bit = 1;
+					    p = user_io_8bit_get_string(i);
+					}
+				}
 
 				// check for 'F'ile or 'S'D image strings
 				if(p && ((p[0] == 'F') || (p[0] == 'S'))) {
@@ -893,7 +899,7 @@ void HandleUI(void)
 					OsdCoreNameSet(s);
 				}
 				i++;
-			} while(p);
+			} while(p && entry<7);
 
 			// exit row
 			OsdWrite(7, STD_EXIT, menusub == entry, 0);
@@ -923,22 +929,17 @@ void HandleUI(void)
 				if (menusub==menusub_last) {
 					menustate = MENU_NONE1;
 				} else {
-				
-					char fs_present;
-					p = user_io_8bit_get_string(1);
-					fs_present = p && strlen(p);
-
 					// entry 0 = file selector
-					if(!menusub && fs_present) {
+					if(!(menusub + first_displayed_8bit)) {
 						p = user_io_8bit_get_string(1);
 
-					// use a local copy of "p" since SelectFile will destroy the buffer behind it
-					static char ext[13];
-					strncpy(ext, p, 13);
-					while(strlen(ext) < 3) strcat(ext, " ");
+						// use a local copy of "p" since SelectFile will destroy the buffer behind it
+						static char ext[13];
+						strncpy(ext, p, 13);
+						while(strlen(ext) < 3) strcat(ext, " ");
 						SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1, 1);
 					} else {
-						p = user_io_8bit_get_string(menusub + (fs_present?1:2));
+						p = user_io_8bit_get_string(menusub + first_displayed_8bit + 1);
 
 						if((p[0] == 'F')||(p[0] == 'S')) {
 							static char ext[13];
@@ -986,6 +987,16 @@ void HandleUI(void)
 			else if (right) {
 				menustate = MENU_8BIT_SYSTEM1;
 				menusub = 0;
+			} else if (menusub == 6 && down) {
+				p = user_io_8bit_get_string(menusub_last + first_displayed_8bit + 1);
+				if (p && strlen(p) && p[0] != 'V') {
+					first_displayed_8bit++;
+					menustate = MENU_8BIT_MAIN1;
+				}
+				// iprintf("Next hidden option %s\n", p);
+			} else if (menusub == 0 && up) {
+				if (first_displayed_8bit) first_displayed_8bit--;
+				menustate = MENU_8BIT_MAIN1;
 			}
 			break;
 
