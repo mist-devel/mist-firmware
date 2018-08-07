@@ -810,7 +810,7 @@ void HandleUI(void)
 				// check if there's a file type supported
 				if(i == 1) {
 					if (p && strlen(p)) {
-						menumask = 3; //allow to choose "exit" at the end
+						menumask = 1;
 						strcpy(s, " Load *.");
 						strcat(s, GetExt(p));
 						OsdWrite(entry, s, menusub==entry, 0);
@@ -904,6 +904,10 @@ void HandleUI(void)
 			// exit row
 			OsdWrite(7, STD_EXIT, menusub == entry, 0);
 			menusub_last=entry; //remember final row
+			if (entry<6 || (!(p = user_io_8bit_get_string(i)) || p[0] == 'V')) {
+				// set exit selectable if no option to scroll down
+				menumask = (menumask << 1) | 1;
+			}
 			
 			// clear rest of OSD
 			for(;entry<7;entry++) 
@@ -994,7 +998,7 @@ void HandleUI(void)
 					menustate = MENU_8BIT_MAIN1;
 				}
 				// iprintf("Next hidden option %s\n", p);
-			} else if (menusub == 0 && up) {
+			} else if (!menusub && up) {
 				if (first_displayed_8bit) first_displayed_8bit--;
 				menustate = MENU_8BIT_MAIN1;
 			}
