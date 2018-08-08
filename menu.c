@@ -202,7 +202,7 @@ unsigned char config_autofire = 0;
 
 // file selection menu variables
 char fs_pFileExt[13] = "xxx";
-unsigned char fs_ExtLen = 0;
+unsigned char fs_ShowExt = 0;
 unsigned char fs_Options;
 unsigned char fs_MenuSelect;
 unsigned char fs_MenuCancel;
@@ -280,7 +280,7 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 
   iprintf("pFileExt = %3s\n", pFileExt);
   strcpy(fs_pFileExt, pFileExt);
-  fs_ExtLen = strlen(fs_pFileExt);
+  fs_ShowExt = (strlen(fs_pFileExt)>3 || strchr(fs_pFileExt, '*') || strchr(fs_pFileExt, '?'));
   //  fs_pFileExt = pFileExt;
   fs_Options = Options;
   fs_MenuSelect = MenuSelect;
@@ -2357,7 +2357,7 @@ void HandleUI(void)
 							{
 									file.long_name[0] = 0;
 									len = strlen(DirEntryLFN[sort_table[iSelectedEntry]]);
-									if ((len > 4) && (fs_ExtLen<=3))
+									if ((len > 4) && !fs_ShowExt)
 											if (DirEntryLFN[sort_table[iSelectedEntry]][len-4] == '.')
 													len -= 4; // remove extension
 
@@ -3524,7 +3524,7 @@ void ScrollLongName(void)
 		// FIXME - yuk, we don't want to do this every frame!
         len = strlen(DirEntryLFN[k]); // get name length
 
-        if((len > 4) && (fs_ExtLen<=3))
+        if((len > 4) && !fs_ShowExt)
             if (DirEntryLFN[k][len - 4] == '.')
                 len -= 4; // remove extension
 
@@ -3634,7 +3634,7 @@ void PrintDirectory(void)
 
                 if (!(DirEntry[k].Attributes & ATTR_DIRECTORY)) // if a file
                 {
-                if((len > 4) && (fs_ExtLen<=3))
+                if((len > 4) && !fs_ShowExt)
                     if (lfn[len-4] == '.')
                         len -= 4; // remove extension
 
@@ -3658,7 +3658,7 @@ void PrintDirectory(void)
             else  // no LFN
             {
                 strncpy(s + 1, (const char*)DirEntry[k].Name, 8); // if no LFN then display base name (8 chars)
-                if(((DirEntry[k].Attributes & ATTR_DIRECTORY) || (fs_ExtLen>3)) && DirEntry[k].Extension[0] != ' ')
+                if(((DirEntry[k].Attributes & ATTR_DIRECTORY) || fs_ShowExt) && DirEntry[k].Extension[0] != ' ')
                 {
                     p = (char*)&DirEntry[k].Name[7];
                     j = 8;
