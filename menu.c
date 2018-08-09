@@ -133,6 +133,7 @@ void NumJoysticksSet(unsigned char num) {
 
 unsigned char menustate = MENU_NONE1;
 unsigned char first_displayed_8bit = 0;
+unsigned char selected_drive_slot;
 unsigned char parentstate;
 unsigned char menusub = 0;
 unsigned char menusub_last = 0; //for when we allocate it dynamically and need to know last row
@@ -947,6 +948,8 @@ void HandleUI(void)
 
 						if((p[0] == 'F')||(p[0] == 'S')) {
 							static char ext[13];
+							selected_drive_slot = 0;
+							if (p[1]>='0' && p[1]<='9') selected_drive_slot = p[1]-'0';
 							substrcpy(ext, p, 1);
 							while(strlen(ext) < 3) strcat(ext, " ");
 							SelectFile(ext, SCAN_DIR | SCAN_LFN, 
@@ -1014,7 +1017,7 @@ void HandleUI(void)
 		case MENU_8BIT_MAIN_IMAGE_SELECTED :
 			iprintf("Image selected: %s\n", file.name);
 			user_io_set_index(user_io_ext_idx(&file, fs_pFileExt)<<6 | (menusub+1));
-			user_io_file_mount(&file);
+			user_io_file_mount(&file, selected_drive_slot);
 			// select image for SD card
 			menustate = MENU_NONE1;
 			break;

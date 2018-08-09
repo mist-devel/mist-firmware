@@ -27,7 +27,7 @@ unsigned char key_remap_table[MAX_REMAP][2];
 
 #define BREAK  0x8000
 
-IDXFile sd_image;
+IDXFile sd_image[2];
 
 extern fileTYPE file;
 extern char s[40];
@@ -148,7 +148,8 @@ static void PollAdc() {
 void user_io_init() {
   // no sd card image selected, SD card accesses will go directly
   // to the card
-  sd_image.file.size = 0;
+  sd_image[0].file.size = 0;
+  sd_image[1].file.size = 0;
 
   if(video_keep != VIDEO_KEEP_VALUE) video_altered = 0;
   video_keep = 0;
@@ -293,7 +294,7 @@ void user_io_detect_core_type() {
       // check if there's a <core>.vhd present
       strcpy(s+8, "VHD");
       if (FileOpen(&file, s))
-	user_io_file_mount(&file);
+	user_io_file_mount(&file, 0);
 
     }
     
@@ -458,12 +459,14 @@ void user_io_sd_set_config(void) {
 }
 
 // read 8+32 bit sd card status word from FPGA
-uint8_t user_io_sd_get_status(uint32_t *lba) {
+uint8_t user_io_sd_get_status(uint32_t *lba, uint8_t *drive_index) {
   uint32_t s;
   uint8_t c; 
 
+  *drive_index = 0;
   spi_uio_cmd_cont(UIO_GET_SDSTAT);
   c = spi_in();
+  if ((c & 0xf0) == 0x60) *drive_index = spi_in() & 0x01;
   s = spi_in();
   s = (s<<8) | spi_in();
   s = (s<<8) | spi_in();
@@ -589,13 +592,13 @@ void user_io_set_index(unsigned char index) {
   DisableFpga();
 }
 
-void user_io_file_mount(fileTYPE *file) {
-  iprintf("selected %.12s with %d bytes\n", file->name, file->size);
+void user_io_file_mount(fileTYPE *file, unsigned char index) {
+  iprintf("selected %.12s with %d bytes to slot %d\n", file->name, file->size, index);
 
-  memcpy(&sd_image.file, file, sizeof(fileTYPE));
+  memcpy(&sd_image[index].file, file, sizeof(fileTYPE));
 
   // build index for fast random access
-  IDXIndex(&sd_image);
+  IDXIndex(&sd_image[index]);
   
   // send mounted image size first then notify about mounting
   EnableIO();
@@ -608,7 +611,7 @@ void user_io_file_mount(fileTYPE *file) {
   DisableIO();
 
   // notify core of possible sd image change
-  spi_uio_cmd8(UIO_SET_SDSTAT, 0);
+  spi_uio_cmd8(UIO_SET_SDSTAT, index);
 }
 
 void user_io_file_tx(fileTYPE *file, unsigned char index) {
@@ -1026,11 +1029,12 @@ void user_io_poll() {
       static char buffer[512];
       static uint32_t buffer_lba = 0xffffffff;
       uint32_t lba;
-      uint8_t c = user_io_sd_get_status(&lba);
+      uint8_t drive_index;
+      uint8_t c = user_io_sd_get_status(&lba, &drive_index);
 
-      // valid sd commands start with "5x" to avoid problems with
-      // cores that don't implement this command
-      if((c & 0xf0) == 0x50) {
+      // valid sd commands start with "5x" (old API), or "6x" (new API)
+      // to avoid problems with cores that don't implement this command
+      if((c & 0xf0) == 0x50 || (c & 0xf0) == 0x60) {
 
 #if 0
 	// debug: If the io controller reports and non-sdhc card, then
@@ -1093,9 +1097,9 @@ void user_io_poll() {
 	    DISKLED_ON;
 
 #if 1
-	    if(sd_image.file.size) {
-	      IDXSeek(&sd_image, lba);
-	      IDXWrite(&sd_image, wr_buf);
+	    if(sd_image[drive_index].file.size) {
+	      IDXSeek(&sd_image[drive_index], lba);
+	      IDXWrite(&sd_image[drive_index], wr_buf);
 	    } else
 	      MMC_Write(lba, wr_buf);
 #else
@@ -1115,9 +1119,9 @@ void user_io_poll() {
 	  // (C64 floppy does that ...)
 	  if(buffer_lba != lba) {
 	    DISKLED_ON;
-	    if(sd_image.file.size) {
-	      IDXSeek(&sd_image, lba);
-	      IDXRead(&sd_image, buffer);
+	    if(sd_image[drive_index].file.size) {
+	      IDXSeek(&sd_image[drive_index], lba);
+	      IDXRead(&sd_image[drive_index], buffer);
 	    } else {
 	      // sector read
 	      // read sector from sd card if it is not already present in
@@ -1143,9 +1147,9 @@ void user_io_poll() {
 	  // just load the next sector now, so it may be prefetched
 	  // for the next request already
 	  DISKLED_ON;
-	  if(sd_image.file.size) {
-	    IDXSeek(&sd_image, lba+1);
-	    IDXRead(&sd_image, buffer);
+	  if(sd_image[drive_index].file.size) {
+	    IDXSeek(&sd_image[drive_index], lba+1);
+	    IDXRead(&sd_image[drive_index], buffer);
 	  } else {
 	    // sector read
 	    // read sector from sd card if it is not already present in
