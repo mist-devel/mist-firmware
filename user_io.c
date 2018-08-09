@@ -1028,6 +1028,7 @@ void user_io_poll() {
     {
       static char buffer[512];
       static uint32_t buffer_lba = 0xffffffff;
+      static uint8_t buffer_drive_index = 0;
       uint32_t lba;
       uint8_t drive_index;
       uint8_t c = user_io_sd_get_status(&lba, &drive_index);
@@ -1114,7 +1115,11 @@ void user_io_poll() {
 
 	  if(user_io_dip_switch1())
 	    iprintf("SD RD %d\n", lba);
-	  
+
+	  // invalidate cache if it stores data from another drive
+	  if (drive_index != buffer_drive_index)
+	      buffer_lba = 0xffffffff;
+
 	  // are we using a file as the sd card image?
 	  // (C64 floppy does that ...)
 	  if(buffer_lba != lba) {
@@ -1157,6 +1162,7 @@ void user_io_poll() {
 	    MMC_Read(lba+1, buffer);
 	  }
 	  buffer_lba = lba+1;
+	  buffer_drive_index = drive_index;
 	  DISKLED_OFF;
 	}
       }
