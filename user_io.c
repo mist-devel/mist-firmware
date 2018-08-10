@@ -28,6 +28,8 @@ unsigned char key_remap_table[MAX_REMAP][2];
 #define BREAK  0x8000
 
 static IDXFile sd_image[2];
+static char buffer[512];
+static uint8_t buffer_drive_index = 0;
 static uint32_t buffer_lba = 0xffffffff;
 
 extern fileTYPE file;
@@ -1029,8 +1031,6 @@ void user_io_poll() {
 
     // sd card emulation
     {
-      static char buffer[512];
-      static uint8_t buffer_drive_index = 0;
       uint32_t lba;
       uint8_t drive_index;
       uint8_t c = user_io_sd_get_status(&lba, &drive_index);
@@ -1085,11 +1085,10 @@ void user_io_poll() {
 	      iprintf("SD WR %d\n", lba);
 
 	    // if we write the sector stored in the read buffer, then
-	    // update the read buffer with the new contents
-	    if(buffer_lba == lba) 
-	      memcpy(buffer, wr_buf, 512);
-
-	      buffer_lba = 0xffffffff;
+	    // invalidate the cache
+	    if(buffer_lba == lba && buffer_drive_index == drive_index) {
+		buffer_lba = 0xffffffff;
+	    }
 
 	    // Fetch sector data from FPGA ...
 	    spi_uio_cmd_cont(UIO_SECTOR_WR);
