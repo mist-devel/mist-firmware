@@ -27,7 +27,8 @@ unsigned char key_remap_table[MAX_REMAP][2];
 
 #define BREAK  0x8000
 
-IDXFile sd_image[2];
+static IDXFile sd_image[2];
+static uint32_t buffer_lba = 0xffffffff;
 
 extern fileTYPE file;
 extern char s[40];
@@ -600,6 +601,8 @@ void user_io_file_mount(fileTYPE *file, unsigned char index) {
   // build index for fast random access
   IDXIndex(&sd_image[index]);
   
+  buffer_lba = 0xffffffff;
+  
   // send mounted image size first then notify about mounting
   EnableIO();
   SPI(UIO_SET_SDINFO);
@@ -1027,7 +1030,6 @@ void user_io_poll() {
     // sd card emulation
     {
       static char buffer[512];
-      static uint32_t buffer_lba = 0xffffffff;
       static uint8_t buffer_drive_index = 0;
       uint32_t lba;
       uint8_t drive_index;
