@@ -40,7 +40,7 @@ all: $(PRJ).hex $(PRJ).upg
 clean:
 	rm -f *.d *.o *.hex *.elf *.map *.lst core *~ */*.d */*.o $(MKUPG) *.bin *.upg *.exe
 
-INTERFACE=interface/olimex-arm-usb-tiny-h.cfg
+INTERFACE=interface/ftdi/olimex-arm-usb-tiny-h.cfg
 #INTERFACE=interface/busblaster.cfg
 #INTERFACE=openocd/interface/esa11-ft4232-generic.cfg
 ADAPTER_KHZ=10000
