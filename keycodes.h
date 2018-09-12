@@ -141,10 +141,6 @@ const unsigned short usb2ami[] = {
   NUM_LOCK_TOGGLE | 4   // 6f: F20
 };
 
-// unmapped atari keys:
-// 0x63   KP (
-// 0x64   KP )
-
 // keycode translation table for atari
 const unsigned short usb2atari[] = {
   MISS,  // 00: NoEvent
@@ -217,14 +213,14 @@ const unsigned short usb2atari[] = {
   0x44,  // 43: F10
   MISS,  // 44: F11
   OSD_OPEN,  // 45: F12
-  MISS,  // 46: Print Screen
+  0x63,  // 46: Print Screen -> KP (
   NUM_LOCK_TOGGLE,  // 47: Scroll Lock
   MISS,  // 48: Pause
   0x52,  // 49: Insert
   0x47,  // 4a: Home
   0x62,  // 4b: Page Up
   0x53,  // 4c: Delete
-  MISS,  // 4d: End
+  0x64,  // 4d: End -> KP )
   0x61,  // 4e: Page Down
   0x4d,  // 4f: Right Arrow
   0x4b,  // 50: Left Arrow
