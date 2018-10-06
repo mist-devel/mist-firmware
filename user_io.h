@@ -53,6 +53,14 @@
 #define UIO_SET_STATUS2 0x1e  // 32bit status
 #define UIO_GET_KBD_LED 0x1f  // keyboard LEDs control
 
+// extended joystick control (32 bit value)
+#define UIO_JOYSTICK0_EXT   0x60
+#define UIO_JOYSTICK1_EXT   0x61
+#define UIO_JOYSTICK2_EXT   0x62
+#define UIO_JOYSTICK3_EXT   0x63
+#define UIO_JOYSTICK4_EXT   0x64
+#define UIO_JOYSTICK5_EXT   0x65
+
 // codes as used by 8bit (atari 800, zx81) via SS2
 #define UIO_GET_STATUS  0x50
 #define UIO_SECTOR_SND  0x51
@@ -177,6 +185,7 @@ void user_io_mouse(unsigned char b, char x, char y);
 void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned short vid, unsigned short pid);
 char user_io_create_config_name(char *s);
 void user_io_digital_joystick(unsigned char, unsigned char);
+void user_io_digital_joystick_ext(unsigned char, uint16_t);
 void user_io_analog_joystick(unsigned char, char, char);
 char user_io_osd_is_visible();
 void user_io_send_buttons(char);
