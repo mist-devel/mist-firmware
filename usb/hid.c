@@ -770,6 +770,9 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				
 				// run even if not changed
 				user_io_digital_joystick(idx, jmap);
+
+				// new API with all extra buttons
+				user_io_digital_joystick_ext(idx, vjoy);
 				
 				// also send analog values
 				user_io_analog_joystick(idx, a[0]-128, a[1]-128);

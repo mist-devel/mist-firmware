@@ -338,8 +338,8 @@ void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
 void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 	uint8_t state = map;
 	// "only" 6 joysticks are supported
-  if(joystick >= 6)
-    return;
+	if(joystick > 5)
+		return;
 	
 		// the physical joysticks (db9 ports at the right device side)
 		// as well as the joystick emulation are renumbered if usb joysticks
@@ -372,7 +372,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
     return;
   }
 
-  //  iprintf("j%d: %x\n", joystick, map);
+	//iprintf("j%d: %x\n", joystick, map);
 
 		
 	// atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
@@ -388,6 +388,13 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
     
 }
 
+void user_io_digital_joystick_ext(unsigned char joystick, uint16_t map) {
+	// "only" 6 joysticks are supported
+	if(joystick > 5) return;
+	//iprintf("ext j%d: %x\n", joystick, map);
+	spi_uio_cmd32(UIO_JOYSTICK0_EXT + joystick, 0x0000ffff & map);
+}
+
 static char dig2ana(char min, char max) {
   if(min && !max) return -128;
   if(max && !min) return  127;
@@ -397,6 +404,7 @@ static char dig2ana(char min, char max) {
 void user_io_joystick(unsigned char joystick, unsigned char map) {
   // digital joysticks also send analog signals
   user_io_digital_joystick(joystick, map);
+  user_io_digital_joystick_ext(joystick, map);
   user_io_analog_joystick(joystick, 
 		       dig2ana(map&JOY_LEFT, map&JOY_RIGHT),
 		       dig2ana(map&JOY_UP, map&JOY_DOWN));
