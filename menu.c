@@ -817,10 +817,10 @@ void HandleUI(void)
 						OsdWrite(entry, s, menusub==entry, 0);
 						entry++;
 					} else {
-					    i++;
-					    first_displayed_8bit = 1;
-					    p = user_io_8bit_get_string(i);
+						first_displayed_8bit = 1;
 					}
+					i++;
+					p = user_io_8bit_get_string(i);
 				}
 
 				// check for 'F'ile or 'S'D image strings
