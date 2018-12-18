@@ -4,7 +4,6 @@
 
 // http://balau82.wordpress.com/2011/09/03/using-codesourcery-bare-metal-toolchain-for-cortex-m3/
 
-#include <_ansi.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/fcntl.h>
@@ -21,6 +20,10 @@
 #include "tos.h"
 #include "swi.h"
 #include "cdc_control.h"
+
+#ifndef _PARAMS
+#define _PARAMS(paramlist)		paramlist
+#endif
 
 /* Forward prototypes.  */
 int     _system     _PARAMS ((const char *));
@@ -63,7 +66,7 @@ register char * stack_ptr asm ("sp");
 
 
 /* following is copied from libc/stdio/local.h to check std streams */
-extern void   _EXFUN(__sinit,(struct _reent *));
+extern void   __sinit (struct _reent *);
 #define CHECK_INIT(ptr) \
   do						\
     {						\
