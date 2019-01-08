@@ -1162,15 +1162,19 @@ void user_io_poll() {
 	  // for the next request already
 	  DISKLED_ON;
 	  if(sd_image[drive_index].file.size) {
-	    IDXSeek(&sd_image[drive_index], lba+1);
-	    IDXRead(&sd_image[drive_index], buffer);
+	    // but check if it would overrun on the file
+	    if(((sd_image[drive_index].file.size-1) >> 9) > lba) {
+		IDXSeek(&sd_image[drive_index], lba+1);
+		IDXRead(&sd_image[drive_index], buffer);
+		buffer_lba = lba + 1;
+	    }
 	  } else {
 	    // sector read
 	    // read sector from sd card if it is not already present in
 	    // the buffer
 	    MMC_Read(lba+1, buffer);
+	    buffer_lba = lba+1;
 	  }
-	  buffer_lba = lba+1;
 	  buffer_drive_index = drive_index;
 	  DISKLED_OFF;
 	}
