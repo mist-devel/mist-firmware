@@ -1108,8 +1108,10 @@ void user_io_poll() {
 
 #if 1
 	    if(sd_image[drive_index].file.size) {
-	      IDXSeek(&sd_image[drive_index], lba);
-	      IDXWrite(&sd_image[drive_index], wr_buf);
+		if(((sd_image[drive_index].file.size-1) >> 9) >= lba) {
+		    IDXSeek(&sd_image[drive_index], lba);
+		    IDXWrite(&sd_image[drive_index], wr_buf);
+		}
 	    } else
 	      MMC_Write(lba, wr_buf);
 #else
@@ -1134,8 +1136,10 @@ void user_io_poll() {
 	  if(buffer_lba != lba) {
 	    DISKLED_ON;
 	    if(sd_image[drive_index].file.size) {
-	      IDXSeek(&sd_image[drive_index], lba);
-	      IDXRead(&sd_image[drive_index], buffer);
+		if(((sd_image[drive_index].file.size-1) >> 9) >= lba) {
+			IDXSeek(&sd_image[drive_index], lba);
+			IDXRead(&sd_image[drive_index], buffer);
+		}
 	    } else {
 	      // sector read
 	      // read sector from sd card if it is not already present in
