@@ -39,13 +39,12 @@ JB:
 
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include "mmc.h"
 #include "fat.h"
 #include "swap.h"
 #include "usb.h"
 #include "fpga.h"
-
-int tolower(int c);
 
 #define MAX_FS  2
 
