@@ -62,9 +62,9 @@
 #define UIO_JOYSTICK5_EXT   0x65
 
 // codes as used by 8bit (atari 800, zx81) via SS2
-#define UIO_GET_STATUS  0x50
-#define UIO_SECTOR_SND  0x51
-#define UIO_SECTOR_RCV  0x52
+#define UIO_GET_STATUS  0x50 // removed
+#define UIO_SECTOR_SND  0x51 // removed
+#define UIO_SECTOR_RCV  0x52 // removed
 #define UIO_FILE_TX     0x53
 #define UIO_FILE_TX_DAT 0x54
 #define UIO_FILE_INDEX  0x55
