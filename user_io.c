@@ -20,6 +20,7 @@
 #include "mmc.h"
 #include "tos.h"
 #include "errors.h"
+#include "ini_parser.h"
 
 // up to 16 key can be remapped
 #define MAX_REMAP  16
@@ -627,12 +628,8 @@ void user_io_file_mount(fileTYPE *file, unsigned char index) {
   spi_uio_cmd8(UIO_SET_SDSTAT, index);
 }
 
-void user_io_file_tx(fileTYPE *file, unsigned char index) {
-  unsigned long bytes2send = file->size;
-
-  /* transmit the entire file using one transfer */
-
-  iprintf("Selected file %.11s with %lu bytes to send for index %d\n", file->name, bytes2send, index);
+static void user_io_file_tx_prepare(unsigned char index) {
+  iprintf("Preparing transmission for index %d\n", index);
 
   // set index byte (0=bios rom, 1-n=OSD entry index)
   user_io_set_index(index);
@@ -643,13 +640,18 @@ void user_io_file_tx(fileTYPE *file, unsigned char index) {
   spi_write((void*)(DirEntry+sort_table[iSelectedEntry]), sizeof(DIRENTRY));
   DisableFpga();
 
-  //  hexdump(DirEntry+sort_table[iSelectedEntry], sizeof(DIRENTRY), 0);
-
   // prepare transmission of new file
   EnableFpga();
   SPI(UIO_FILE_TX);
   SPI(0xff);
   DisableFpga();
+}
+
+static void user_io_file_tx_send(fileTYPE *file) {
+  unsigned long bytes2send = file->size;
+  
+  /* transmit the entire file using one transfer */
+  iprintf("Selected file %.11s with %lu bytes to send\n", file->name, file->size);
 
   while(bytes2send) {
     iprintf(".");
@@ -673,7 +675,9 @@ void user_io_file_tx(fileTYPE *file, unsigned char index) {
     if(bytes2send)
       FileNextSector(file);
   }
+}
 
+static void user_io_file_tx_done(void) {
   // signal end of transmission
   EnableFpga();
   SPI(UIO_FILE_TX);
@@ -681,6 +685,12 @@ void user_io_file_tx(fileTYPE *file, unsigned char index) {
   DisableFpga();
 
   iprintf("\n");
+}
+
+void user_io_file_tx(fileTYPE *file, unsigned char index) {
+  user_io_file_tx_prepare(index);
+  user_io_file_tx_send(file);
+  user_io_file_tx_done();
 }
 
 // 8 bit cores have a config string telling the firmware how
@@ -2039,3 +2049,99 @@ unsigned char user_io_ext_idx(fileTYPE *file, char* ext) {
 
 	return 0;
 }
+
+extern unsigned char nDirEntries;
+extern unsigned long iCurrentDirectory;    // cluster number of current directory, 0 for root
+
+// this should be moved into fat.c and be re-used for the menu functions as well
+void change_into_core_dir(void) {
+  char s[13];  // 8+3+'\0'
+  user_io_create_config_name(s);
+  
+  // try to change into subdir named after the core
+  strcpy(s+8, "   ");
+  iprintf("Trying to open work dir \"%s\"\n", s);
+  
+  ScanDirectory(SCAN_INIT, "",  SCAN_DIR | FIND_DIR);
+
+  // no return flag :(, so scan 10 times blindly...
+  for(;;) {
+    int i;
+    char res = 0;
+    unsigned short last_StartCluster = DirEntry[0].StartCluster;
+    
+    for(i=0;i<nDirEntries;i++) {
+      //iprintf("cmp %11s %11s\n", DirEntry[i].Name, s);
+      if(strncasecmp(DirEntry[i].Name, s, 11) == 0) {
+	ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
+	res = 1;
+	break;
+      }
+    }
+    // found directory: stop searching
+    if(res) { iprintf("ok\n"); break; }
+
+    // last search returned less than 8 entries: Stop searching since 
+    // there sure aren't more
+    if(nDirEntries != 8) 
+      break;
+    
+    // get next 8 directory entries
+    iSelectedEntry = MAXDIRENTRIES -1;
+    ScanDirectory(SCAN_NEXT_PAGE, "",  SCAN_DIR | FIND_DIR);
+    
+    // if 8 entries are returned check if the start cluster of the first entry
+    // is the same as the first one in the previous list. If it is, then this
+    // is the same list and we are done
+    if((nDirEntries == 8) && (DirEntry[0].StartCluster == last_StartCluster)) 
+      break;
+  }
+}
+
+void user_io_rom_upload(char *rname, char mode) {
+  fileTYPE f;
+  static char first = 1;
+  char s[13];  // 8+3+'\0'
+
+  // new ini parsing starts, prepare uploads
+  if(mode == 0) {
+    first = 1;
+    return;
+  }
+
+  // ini parsing done
+  if(mode == 2) {
+    // has something been uploaded?
+    // -> then end transfer
+    if(!first) {
+      iprintf("upload ends\n");
+
+      user_io_file_tx_done();
+      user_io_8bit_set_status(0, UIO_STATUS_RESET);
+    }
+    return;
+  }
+    
+    
+  // try to change into core dir. Stay in root if that doesn't exist
+  change_into_core_dir();
+  
+  strcpy(s, "        ROM");
+  strncpy(s, rname, strlen(rname));
+  iprintf("rom upload '%s' %d\n", s, sizeof(f));
+
+  if (FileOpenDir(&f, s, iCurrentDirectory)) {
+    iprintf("file found!\n");
+
+    if(first) {    
+      // set reset
+      user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);
+      user_io_file_tx_prepare(0);
+      first = 0;
+    }
+      
+    //    user_io_file_tx(&f, 0);
+    user_io_file_tx_send(&f);
+  } else
+    iprintf("file not found!\n");
+}	

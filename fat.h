@@ -128,6 +128,7 @@ unsigned long GetFATLink(unsigned long cluster);
 unsigned char FileNextSector(fileTYPE *file) RAMFUNC;
 unsigned char FileNextSectorExpand(fileTYPE *file);
 unsigned char FileOpen(fileTYPE *file, const char *name);
+unsigned char FileOpenDir(fileTYPE *file, const char *name, unsigned long dirCluster);
 unsigned char FileSeek(fileTYPE *file, unsigned long offset, unsigned long origin);
 unsigned char FileRead(fileTYPE *file, unsigned char *pBuffer) RAMFUNC;
 unsigned char FileReadEx(fileTYPE *file, unsigned char *pBuffer, unsigned long nSize);

@@ -305,8 +305,7 @@ unsigned char FindDrive(void) {
   return(1);
 }
 
-unsigned char FileOpen(fileTYPE *file, const char *name) {
-  unsigned long  iDirectory = 0;       // only root directory is supported
+unsigned char FileOpenDir(fileTYPE *file, const char *name, unsigned long  iDirectory) {
   DIRENTRY      *pEntry = NULL;        // pointer to current entry in sector buffer
   unsigned long  iDirectorySector;     // current sector of directory entries table
   unsigned long  iDirectoryCluster;    // start cluster of subdirectory or FAT32 root directory
@@ -375,6 +374,10 @@ unsigned char FileOpen(fileTYPE *file, const char *name) {
     iprintf("file \"%s\" not found\n", name);
     memset(file, 0, sizeof(fileTYPE));
     return(0);
+}
+
+unsigned char FileOpen(fileTYPE *file, const char *name) {
+  return FileOpenDir(file, name, 0);
 }
 
 unsigned char lfn_checksum(unsigned char *pName)

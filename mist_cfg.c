@@ -57,12 +57,12 @@ const ini_var_t mist_ini_vars[] = {
   {"JOYSTICK_DISABLE_SHORTCUTS", (void*)(&(mist_cfg.joystick_disable_shortcuts)), UINT8, 0, 1, 1},
   {"JOYSTICK_IGNORE_OSD", (void*)(&(mist_cfg.joystick_ignore_osd)), UINT8, 0, 1, 1},
   {"JOYSTICK0_PREFER_DB9", (void*)(&(mist_cfg.joystick0_prefer_db9)), UINT8, 0, 1, 1},
-	{"KEY_MENU_AS_RGUI", (void*)(&(mist_cfg.key_menu_as_rgui)), UINT8, 0, 1, 1},
+  {"KEY_MENU_AS_RGUI", (void*)(&(mist_cfg.key_menu_as_rgui)), UINT8, 0, 1, 1},
   {"KEY_REMAP", (void*)user_io_key_remap, CUSTOM_HANDLER, 0, 0, 1},
   {"HID_BUTTON_REMAP", (void*)hid_joystick_button_remap, CUSTOM_HANDLER, 0, 0, 1},
   {"JOYSTICK_REMAP", (void*)virtual_joystick_remap, CUSTOM_HANDLER, 0, 0, 1},
-  {"JOY_KEY_MAP", (void*)joystick_key_map, CUSTOM_HANDLER, 0, 0, 1}
-  
+  {"JOY_KEY_MAP", (void*)joystick_key_map, CUSTOM_HANDLER, 0, 0, 1},
+  {"ROM", (void*)ini_rom_upload, CUSTOM_HANDLER, 0, 0, 1}
 }; 
 
 // mist ini config

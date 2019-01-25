@@ -196,6 +196,10 @@ void add_modifiers(uint8_t mod, uint16_t* keys_ps2);
 void user_io_set_index(unsigned char index);
 unsigned char user_io_ext_idx(fileTYPE *, char*);
 
+// called when a rom entry is found in the mist.ini
+void user_io_rom_upload(char *s, char mode);
+
+#define USB_LOAD_VAR   *(int*)(0x0020FF04)
 #define USB_LOAD_VAR   *(int*)(0x0020FF04)
 #define USB_LOAD_VALUE 12345678
 

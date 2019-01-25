@@ -13,7 +13,7 @@
 #include "ini_parser.h"
 #ifndef INI_PARSER_TEST
 #include "debug.h"
-#include "rafile.h"
+#include "fat.h"
 #endif
 #include "user_io.h"
 
@@ -56,10 +56,21 @@ FILE* ini_fp = NULL;
 char  sector_buffer[INI_BUF_SIZE] = {0};
 int   ini_size=0;
 #else
-RAFile ini_file;
+fileTYPE ini_file;
 #endif
 
 int ini_pt = 0;
+
+// call user_io_rom_upload but reload sector_buffer afterwards since the io
+// operations in user_io_rom_upload may have overwritten the buffer
+// mode = 0: prepare for rom upload, mode = 1: rom upload, mode = 2, end rom upload
+void ini_rom_upload(char *s) {
+#ifndef INI_PARSER_TEST
+  user_io_rom_upload(s, 1);
+
+  FileRead(&ini_file, sector_buffer);
+#endif
+}
 
 //// ini_getch() ////
 char ini_getch()
@@ -69,14 +80,15 @@ char ini_getch()
     #ifdef INI_PARSER_TEST
     fread(sector_buffer, sizeof(char), INI_BUF_SIZE, ini_fp);
     #else
-    RARead(&ini_file, sector_buffer, INI_BUF_SIZE);
+    FileNextSector(&ini_file);
+    FileRead(&ini_file, sector_buffer);
     #endif
   }
 
   #ifdef INI_PARSER_TEST
   if (ini_pt >= ini_size) return 0;
   #else
-  if (ini_pt >= ini_file.file.size) return 0;
+  if (ini_pt >= ini_file.size) return 0;
   #endif
   else return sector_buffer[(ini_pt++)&0x1ff];
 }
@@ -303,12 +315,14 @@ void ini_parse(const ini_cfg_t* cfg)
 
   ini_parser_debugf("Start INI parser for core \"%s\".", get_core_name());
 
+  user_io_rom_upload(NULL, 0);   // prepare upload
+
   // open ini file
   #ifdef INI_PARSER_TEST
   if ((ini_fp = fopen(cfg->filename, "rb")) == NULL) { 
   #else
   memset(&ini_file, 0, sizeof(ini_file));
-  if (!RAOpen(&ini_file, cfg->filename)) {
+  if (!FileOpen(&ini_file, cfg->filename)) {
   #endif
     ini_parser_debugf("Can't open file %s !", cfg->filename);
     return;
@@ -324,7 +338,7 @@ void ini_parse(const ini_cfg_t* cfg)
   #ifdef INI_PARSER_TEST
   ini_parser_debugf("Opened file %s with size %d bytes.", cfg->filename, ini_size);
   #else
-  ini_parser_debugf("Opened file %s with size %d bytes.", cfg->filename, ini_file.file.size);
+  ini_parser_debugf("Opened file %s with size %d bytes.", cfg->filename, ini_file.size);
   #endif
 
   ini_pt = 0;
@@ -333,7 +347,7 @@ void ini_parse(const ini_cfg_t* cfg)
   #ifdef INI_PARSER_TEST
   fread(sector_buffer, sizeof(char), INI_BUF_SIZE, ini_fp);
   #else
-  RARead(&ini_file, sector_buffer, INI_BUF_SIZE);
+  FileRead(&ini_file, sector_buffer);
   #endif
 
   // parse ini
@@ -359,6 +373,8 @@ void ini_parse(const ini_cfg_t* cfg)
   // close file
   fclose(ini_fp);
   #endif
+
+  user_io_rom_upload(NULL, 2);   // upload done
 }
 
 
