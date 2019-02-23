@@ -234,7 +234,7 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
     ChangeDirectory(DIRECTORY_ROOT);
 
     // for 8 bit cores try to 
-    if((user_io_core_type() == CORE_TYPE_8BIT) && chdir) {
+    if(((user_io_core_type() == CORE_TYPE_8BIT) || (user_io_core_type() == CORE_TYPE_ARCHIE)) && chdir) {
       user_io_create_config_name(s);
       // try to change into subdir named after the core
       strcpy(s+8, "   ");
@@ -758,7 +758,7 @@ void HandleUI(void)
 						break;
 						
 					case 2:  // Load ROM
-						SelectFile("ROM", SCAN_LFN, MENU_ARCHIE_MAIN_FILE_SELECTED, MENU_ARCHIE_MAIN1, 1);
+						SelectFile("ROM", SCAN_LFN, MENU_ARCHIE_MAIN_FILE_SELECTED, MENU_ARCHIE_MAIN1, 0);
 						break;
 
 					case 3:  // Firmware submenu

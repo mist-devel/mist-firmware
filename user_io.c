@@ -257,6 +257,7 @@ void user_io_detect_core_type() {
 
   case CORE_TYPE_ARCHIE:
     puts("Identified Archimedes core");
+    strcpy(core_name, "ARCHIE");
     archie_init();
     break;
 
