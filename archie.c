@@ -447,18 +447,20 @@ void archie_handle_kbd(void) {
 
       // arm acks first byte
     case BACK:
-      if(kbd_state != STATE_WAIT4ACK1) 
-	archie_debugf("KBD unexpected BACK");
-
+      if(kbd_state != STATE_WAIT4ACK1) {
+          archie_debugf("KBD unexpected BACK, resetting KBD");
+          kbd_state = STATE_HRST;
+      } else {
 #ifdef HOLD_OFF_TIME
-      // wait some time before sending next byte
-      archie_debugf("KBD starting hold off");
-      kbd_state = STATE_HOLD_OFF;
-      hold_off_timer = GetTimer(10);
+          // wait some time before sending next byte
+          archie_debugf("KBD starting hold off");
+          kbd_state = STATE_HOLD_OFF;
+          hold_off_timer = GetTimer(10);
 #else
-      kbd_state = STATE_IDLE;
-      archie_check_queue();
+          kbd_state = STATE_IDLE;
+          archie_check_queue();
 #endif
+      }
       break;
 
       // arm acks second byte
