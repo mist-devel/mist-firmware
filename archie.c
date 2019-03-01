@@ -4,9 +4,10 @@
 
 #include "menu.h"
 #include "archie.h"
+#include "user_io.h"
 #include "debug.h"
 
-#define MAX_FLOPPY  4
+#define MAX_FLOPPY  2
 
 #define CONFIG_FILENAME  "ARCHIE  CFG"
 
@@ -21,9 +22,6 @@ fileTYPE floppy[MAX_FLOPPY];
 
 #define ARCHIE_FILE_TX         0x53
 #define ARCHIE_FILE_TX_DAT     0x54
-#define ARCHIE_FDC_GET_STATUS  0x55
-#define ARCHIE_FDC_TX_DATA     0x56
-#define ARCHIE_FDC_SET_STATUS  0x57
 
 #define archie_debugf(a, ...) iprintf("\033[1;31mARCHIE: " a "\033[0m\n", ##__VA_ARGS__)
 // #define archie_debugf(a, ...)
@@ -167,20 +165,6 @@ void archie_send_file(unsigned char id, fileTYPE *file) {
   DisableFpga();
 }
 
-void archie_fdc_set_status(void) {
-  int i;
-
-  // send status bytes for all four possible floppies
-  EnableFpga();
-  SPI(ARCHIE_FDC_SET_STATUS);
-  for(i=0;i<MAX_FLOPPY;i++) {
-    unsigned char floppy_status = 0x00;
-    if(floppy[i].size) floppy_status |= 1;
-    SPI(floppy_status);
-  }
-  DisableFpga();
-}
-
 void archie_set_floppy(char i, fileTYPE *file) {
   if(!file) {
     archie_debugf("Floppy %d eject", i);
@@ -189,9 +173,6 @@ void archie_set_floppy(char i, fileTYPE *file) {
     archie_debugf("Floppy %d insert %.11s", i, file->name);
     floppy[i] = *file;
   }
-  
-  // update floppy status in fpga
-  archie_fdc_set_status();
 }
 
 char archie_floppy_is_inserted(char i) {
@@ -286,13 +267,12 @@ void archie_init(void) {
   for(i=0;i<MAX_FLOPPY;i++) {
     char fdc_name[] = "FLOPPY0 ADF";
     fdc_name[6] = '0'+i;
-    if (FileOpen(&floppy[i], fdc_name))  
+    if (FileOpen(&floppy[i], fdc_name)) {
+      user_io_file_mount(&floppy[i], i);
       archie_debugf("Inserted floppy %d with %d bytes", i, floppy[i].size);
-    else
+    } else
       floppy[i].size = 0;
   }
-  // update floppy status in fpga
-  archie_fdc_set_status();
 
   archie_kbd_send(STATE_RAK1, HRST);
   ack_timeout = GetTimer(20);  // give archie 20ms to reply
@@ -504,78 +484,6 @@ void archie_handle_kbd(void) {
     DisableIO();
 }
 
-static unsigned char fdc_buffer[1024];
-
-void archie_handle_fdc(void) {
-  static unsigned char old_status[4] = {0,0,0,0};
-  unsigned char status[4];
-
-  // read status
-  EnableFpga();
-  SPI(ARCHIE_FDC_GET_STATUS);
-  status[0] = SPI(0);
-  status[1] = SPI(0);
-  status[2] = SPI(0);
-  status[3] = SPI(0);
-  DisableFpga();
-
-  if(memcmp(status, old_status, 4) != 0) {
-    archie_x_debugf("status changed to %x %x %x %x", 
-		  status[0], status[1], status[2], status[3]);
-    memcpy(old_status, status, 4);
-
-    // top four bits must be magic marker 1010
-    if(((status[0] & 0xf0) == 0xa0) && (status[0] & 1)) {
-      archie_x_debugf("DIO: BUSY with commmand %lx", status[1]);
-	  
-      // check for read sector command
-      if((status[1] & 0xe0) == 0x80) {	
-	if(status[0] & 2) {
-	  int floppy_map = status[3] >> 4;
-	  int side = (status[2]&0x80)?0:1;
-	  int track = status[2] & 0x7f;
-	  int sector = status[3] & 0x0f;
-	  unsigned long lba = 2 * (10*track + 5*side + sector);
-	  int floppy_index = -1;
-	  
-	  // allow only single floppy drives to be selected
-	  int i;
-	  for(i=0;i<MAX_FLOPPY;i++) 
-	    if(floppy_map == (0x0f^(1<<i)))
-	      floppy_index = i;
-
-	  if(floppy_index < 0)
-	    archie_x_debugf("DIO: unexpected floppy_map %x", floppy_map); 
-	  else {
-	    fileTYPE *f = &floppy[floppy_index];
-
-	    archie_x_debugf("DIO: floppy %d sector read SD%d T%d S%d -> %ld", 
-			    floppy_index, side, track, sector, lba);
-	    
-	    if(!f->size)
-	      archie_x_debugf("DIO: floppy not inserted. Core should not do this!!"); 
-	    else {
-	      DISKLED_ON;
-	      // read two consecutive sectors 
-	      FileSeek(f, lba, SEEK_SET);
-	      FileRead(f, fdc_buffer);
-	      FileNextSector(f);
-	      FileRead(f, fdc_buffer+512);
-	      DISKLED_OFF;
-	      
-	      EnableFpga();
-	      SPI(ARCHIE_FDC_TX_DATA);
-	      spi_write(fdc_buffer, 1024);
-	      DisableFpga();
-	    }
-	  }
-	}
-      }
-    }
-  }
-}
-
 void archie_poll(void) {
   archie_handle_kbd();
-  archie_handle_fdc();
 }
