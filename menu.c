@@ -752,6 +752,7 @@ void HandleUI(void)
 					case 1:  // Floppy 1
 						if(archie_floppy_is_inserted(menusub)) {
 							archie_set_floppy(menusub, NULL);
+							user_io_file_mount(NULL, menusub);
 							menustate = MENU_ARCHIE_MAIN1;
 						} else
 							SelectFile("ADF", SCAN_DIR | SCAN_LFN, MENU_ARCHIE_MAIN_FILE_SELECTED, MENU_ARCHIE_MAIN1, 1);
@@ -779,8 +780,14 @@ void HandleUI(void)
 			break;
 
 		case MENU_ARCHIE_MAIN_FILE_SELECTED : // file successfully selected
-			if(menusub == 0) archie_set_floppy(0, &file);
-			if(menusub == 1) archie_set_floppy(1, &file);
+			if(menusub == 0) {
+			    archie_set_floppy(0, &file);
+			    user_io_file_mount(&file, 0);
+			}
+			if(menusub == 1) {
+			    archie_set_floppy(1, &file);
+			    user_io_file_mount(&file, 1);
+			}
 			if(menusub == 2) archie_set_rom(&file);
 			menustate = MENU_ARCHIE_MAIN1;
 			break;
@@ -1396,8 +1403,8 @@ void HandleUI(void)
 			OsdWrite(5, "", 0, 0);
 			OsdWrite(6, " ", 0, 0);
 			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
+			user_io_file_mount(&file, selected_drive_slot);
 			break;
-			
 		case MENU_8BIT_JOYTEST_B2:
 			get_joystick_state( joy_string, joy_string2, 1 );
 			get_joystick_id( usb_id, 1, 0);

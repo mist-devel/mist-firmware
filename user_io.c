@@ -606,20 +606,24 @@ void user_io_set_index(unsigned char index) {
 }
 
 void user_io_file_mount(fileTYPE *file, unsigned char index) {
-  iprintf("selected %.12s with %d bytes to slot %d\n", file->name, file->size, index);
+  if (file) {
+    iprintf("selected %.12s with %d bytes to slot %d\n", file->name, file->size, index);
 
-  memcpy(&sd_image[index].file, file, sizeof(fileTYPE));
+    memcpy(&sd_image[index].file, file, sizeof(fileTYPE));
 
-  // build index for fast random access
-  IDXIndex(&sd_image[index]);
-  
+    // build index for fast random access
+    IDXIndex(&sd_image[index]);
+  } else {
+    iprintf("unmounting file in slot %d\n", index);
+    sd_image[index].file.size = 0;
+  }
   buffer_lba = 0xffffffff;
-  
+
   // send mounted image size first then notify about mounting
   EnableIO();
   SPI(UIO_SET_SDINFO);
   // use LE version, so following BYTE(s) may be used for size extension in the future.
-  spi32le(file->size);
+  spi32le(file ? file->size : 0);
   spi32le(0); // reserved for future expansion
   spi32le(0); // reserved for future expansion
   spi32le(0); // reserved for future expansion
@@ -1020,7 +1024,8 @@ void user_io_poll() {
     tos_poll();
   }
 
-  if(core_type == CORE_TYPE_8BIT) {
+  if(core_type == CORE_TYPE_8BIT ||
+     core_type == CORE_TYPE_ARCHIE) {
     unsigned char c = 1, f, p=0;
 
     // check for input data on usart
@@ -1195,6 +1200,9 @@ void user_io_poll() {
 	}
       }
     }
+  }
+
+  if(core_type == CORE_TYPE_8BIT) {
 
     // frequently check ps2 mouse for events
     if(CheckTimer(mouse_timer)) {
