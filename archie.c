@@ -20,9 +20,6 @@ static archie_config_t config;
 
 fileTYPE floppy[MAX_FLOPPY];
 
-#define ARCHIE_FILE_TX         0x53
-#define ARCHIE_FILE_TX_DAT     0x54
-
 #define archie_debugf(a, ...) iprintf("\033[1;31mARCHIE: " a "\033[0m\n", ##__VA_ARGS__)
 // #define archie_debugf(a, ...)
 #define archie_x_debugf(a, ...) iprintf("\033[1;32mARCHIE: " a "\033[0m\n", ##__VA_ARGS__)
@@ -122,49 +119,6 @@ void archie_save_config(void) {
   FileWrite(&file, sector_buffer);
 }
 
-void archie_send_file(unsigned char id, fileTYPE *file) {
-  archie_debugf("Sending file with id %d", id);
-
-  // prepare transmission of new file
-  EnableFpga();
-  SPI(ARCHIE_FILE_TX);
-  SPI(id);
-  DisableFpga();
-
-  unsigned long time = GetTimer(0);
-
-  iprintf("[");
-
-  unsigned short i, blocks = file->size/512;
-  for(i=0;i<blocks;i++) {
-    if(!(i & 127)) iprintf("*");
-
-    DISKLED_ON;
-    FileRead(file, sector_buffer);
-    DISKLED_OFF;
-
-    EnableFpga();
-    SPI(ARCHIE_FILE_TX_DAT);
-    spi_block_write(sector_buffer);
-    DisableFpga();
-    
-    // still bytes to send? read next sector
-    if(i != blocks-1)
-      FileNextSector(file);
-  }
-
-  iprintf("]\n");
-
-  time = GetTimer(0) - time;
-  archie_debugf("Uploaded in %lu ms", time >> 20);
-
-  // signal end of transmission
-  EnableFpga();
-  SPI(ARCHIE_FILE_TX);
-  SPI(0x00);
-  DisableFpga();
-}
-
 void archie_set_floppy(char i, fileTYPE *file) {
   if(!file) {
     archie_debugf("Floppy %d eject", i);
@@ -188,7 +142,7 @@ void archie_set_rom(fileTYPE *file) {
   // save file name
   memcpy(config.rom_img, file->name, 11);
 
-  archie_send_file(0x01, file);
+  user_io_file_tx(file, 0x01);
 }
 
 static void archie_kbd_enqueue(unsigned char state, unsigned char byte) {
@@ -259,7 +213,7 @@ void archie_init(void) {
   // upload ext file
   if(FileOpen(&file, "RISCOS  EXT")) {
     archie_debugf("Found RISCOS.EXT, uploading it");
-    archie_send_file(0x02, &file);
+    user_io_file_tx(&file, 0x02);
   } else 
     archie_debugf("RISCOS.EXT no found");
 
