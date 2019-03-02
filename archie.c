@@ -14,6 +14,7 @@
 typedef struct {
   unsigned long system_ctrl;     // system control word
   char rom_img[12];              // rom image file name
+  char cmos_img[12];             // cmos image file name
 } archie_config_t;
 
 static archie_config_t config;
@@ -83,6 +84,11 @@ char *archie_get_rom_name(void) {
   return buffer;
 }
 
+char *archie_get_cmos_name(void) {
+  nice_name(buffer, config.cmos_img);
+  return buffer;
+}
+
 char *archie_get_floppy_name(char i) {
   if(!floppy[i].size) 
     strcpy(buffer, "* no disk *");
@@ -131,6 +137,18 @@ void archie_set_floppy(char i, fileTYPE *file) {
 
 char archie_floppy_is_inserted(char i) {
   return(floppy[i].size != 0);
+}
+
+void archie_set_cmos(fileTYPE *file) {
+  if(!file) return;
+
+  archie_debugf("CMOS file %.11s with %lu bytes to send", 
+		file->name, file->size);
+
+  // save file name
+  memcpy(config.cmos_img, file->name, 11);
+
+  user_io_file_tx(file, 0x03);
 }
 
 void archie_set_rom(fileTYPE *file) {
@@ -192,6 +210,7 @@ void archie_init(void) {
   // set config defaults
   config.system_ctrl = 0;
   strcpy(config.rom_img, "RISCOS  ROM");
+  strcpy(config.cmos_img, "CMOS    RAM");
 
   // try to load config from card
   if(FileOpen(&file, CONFIG_FILENAME)) {
@@ -216,6 +235,12 @@ void archie_init(void) {
     user_io_file_tx(&file, 0x02);
   } else 
     archie_debugf("RISCOS.EXT no found");
+
+  // upload cmos file
+  if(FileOpen(&file, config.cmos_img))
+    archie_set_cmos(&file);
+  else 
+    archie_debugf("CMOS %.11s no found", config.cmos_img);
 
   // try to open default floppies
   for(i=0;i<MAX_FLOPPY;i++) {
