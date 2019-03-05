@@ -46,8 +46,15 @@
 #define HDF_FILETYPE_RDB      2
 #define HDF_FILETYPE_DOS      3
 
-
 // types
+typedef struct
+{
+    unsigned char enabled; // 0: Disabled, 1: Hard file, 2: MMC (entire card), 3-6: Partition 1-4 of MMC card
+    unsigned char present;
+    char name[8];
+    char long_name[16];
+} hardfileTYPE;
+
 typedef struct
 {
   int             type; // are we using a file, the entire SD card or a partition on the SD card?
@@ -65,8 +72,8 @@ typedef struct
 // variables
 extern char debugmsg[40];
 extern char debugmsg2[40];
+extern hardfileTYPE *hardfile[2];
 extern hdfTYPE hdf[2];
-
 
 // functions
 void IdentifyDevice(unsigned short *pBuffer, unsigned char unit);

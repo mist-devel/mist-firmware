@@ -389,6 +389,9 @@ void ApplyConfiguration(char reloadkickstart)
     ConfigFloppy(config.floppy.drives, config.floppy.speed);
   }
 
+  hardfile[0] = &config.hardfile[0];
+  hardfile[1] = &config.hardfile[1];
+
   // Whether or not we uploaded a kickstart image we now need to set various parameters from the config.
   if(OpenHardfile(0)) {
     switch(hdf[0].type) {

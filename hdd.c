@@ -37,12 +37,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "mmc.h"
 #include "menu.h"
 #include "fpga.h"
-#include "config.h"
 #include "debug.h"
 
 
 #define SWAP(a) ((((a)&0x000000ff)<<24)|(((a)&0x0000ff00)<<8)|(((a)&0x00ff0000)>>8)|(((a)&0xff000000)>>24))
 
+hardfileTYPE  *hardfile[2];
 
 // hardfile structure
 hdfTYPE hdf[2];
@@ -179,11 +179,11 @@ void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
       } else {
         memcpy(p, "YAQUBE                                  ", 40); // model name - byte swapped
         p += 8;
-        if (config.hardfile[unit].long_name[0]) {
-          for (i = 0; (x = config.hardfile[unit].long_name[i]) && i < 16; i++) // copy file name as model name
+        if (hardfile[unit]->long_name[0]) {
+          for (i = 0; (x = hardfile[unit]->long_name[i]) && i < 16; i++) // copy file name as model name
             p[i] = x;
         } else {
-          memcpy(p, config.hardfile[unit].name, 8); // copy file name as model name
+          memcpy(p, hardfile[unit]->name, 8); // copy file name as model name
         }
       }
       // SwapBytes((char*)&pBuffer[27], 40); //not for 68000
@@ -842,11 +842,11 @@ unsigned char OpenHardfile(unsigned char unit)
   unsigned long time;
   char filename[12];
 
-  switch(config.hardfile[unit].enabled) {
+  switch(hardfile[unit]->enabled) {
     case HDF_FILE | HDF_SYNTHRDB:
     case HDF_FILE:
-      hdf[unit].type=config.hardfile[unit].enabled;
-      strncpy(filename, config.hardfile[unit].name, 8);
+      hdf[unit].type=hardfile[unit]->enabled;
+      strncpy(filename, hardfile[unit]->name, 8);
       strcpy(&filename[8], "HDF");
       if (filename[0]) {
         if (FileOpen(&hdf[unit].file, filename)) {
@@ -860,19 +860,19 @@ unsigned char OpenHardfile(unsigned char unit)
           BuildHardfileIndex(&hdf[unit]);
           time = GetTimer(0) - time;
           hdd_debugf("Hardfile indexed in %lu ms", time >> 16);
-          if (config.hardfile[unit].enabled & HDF_SYNTHRDB) {
+          if (hardfile[unit]->enabled & HDF_SYNTHRDB) {
             hdf[unit].offset=-(hdf[unit].heads*hdf[unit].sectors);
           } else {
             hdf[unit].offset=0;
           }
-          config.hardfile[unit].present = 1;
+          hardfile[unit]->present = 1;
           return 1;
         }
       }
       break;
     case HDF_CARD:
       hdf[unit].type=HDF_CARD;
-      config.hardfile[unit].present = 1;
+      hardfile[unit]->present = 1;
       hdf[unit].file.size=0;
       hdf[unit].offset=0;
       GetHardfileGeometry(&hdf[unit]);
@@ -882,16 +882,16 @@ unsigned char OpenHardfile(unsigned char unit)
     case HDF_CARDPART1:
     case HDF_CARDPART2:
     case HDF_CARDPART3:
-      hdf[unit].type=config.hardfile[unit].enabled;
+      hdf[unit].type=hardfile[unit]->enabled;
       hdf[unit].partition=hdf[unit].type-HDF_CARDPART0;
-      config.hardfile[unit].present = 1;
+      hardfile[unit]->present = 1;
       hdf[unit].file.size=0;
       hdf[unit].offset=partitions[hdf[unit].partition].startlba;
       GetHardfileGeometry(&hdf[unit]);
       return 1;
       break;
   }
-  config.hardfile[unit].present = 0;
+  hardfile[unit]->present = 0;
   return 0;
 }
 
