@@ -464,6 +464,8 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
 								hid_debugf("decreasing jindex of dev #%d from %d to %d", j, 
 									dev[j].hid_info.iface[k].jindex, dev[j].hid_info.iface[k].jindex-1);
 								dev[j].hid_info.iface[k].jindex--;
+								StateUsbIdSet( dev[j].hid_info.iface[k].conf.vid, dev[j].hid_info.iface[k].conf.pid, dev[j].hid_info.iface[k].conf.joystick_mouse.button_count, dev[j].hid_info.iface[k].jindex);
+
 							}
 						}
 					}
@@ -472,6 +474,10 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
       // one less joystick in the system ...
       joysticks--;
 			StateNumJoysticksSet(joysticks);
+      if (joysticks < 2)
+	      StateUsbIdSet(0, 0, 0, 1);
+      if (joysticks < 1)
+	      StateUsbIdSet(0, 0, 0, 0);
     }
   }
 
