@@ -406,11 +406,11 @@ void joystick_key_map(char *s) {
 
 /*****************************************************************************/
 
-void virtual_joystick_keyboard ( uint16_t vjoy ) {
+bool virtual_joystick_keyboard ( uint16_t vjoy ) {
 	
   // ignore if globally switched off
   if(mist_cfg.joystick_disable_shortcuts)
-	  return;
+	  return false;
 	
 	// use button combinations as shortcut for certain keys
   uint8_t buf[6] = { 0,0,0,0,0,0 };
@@ -505,4 +505,6 @@ void virtual_joystick_keyboard ( uint16_t vjoy ) {
 	} else {
 		user_io_kbd(0x00, buf, UIO_PRIORITY_GAMEPAD, 0, 0); 
 	}
+
+	return (buf[0] ? true : false);
 }
