@@ -590,6 +590,8 @@ static uint16_t collect_bits(uint8_t *p, uint16_t offset, uint8_t size, bool is_
   return rval;
 }
 
+static usb_hid_iface_info_t *virt_joy_kbd_iface = NULL;
+
 /* processes a single USB interface */
 static void usb_process_iface (usb_hid_iface_info_t *iface, 
 							   uint16_t read, 
@@ -788,7 +790,12 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 					handle_5200daptor(iface, buf);
 				
 				// apply keyboard mappings
-				virtual_joystick_keyboard ( vjoy );
+				if ((!virt_joy_kbd_iface) || (virt_joy_kbd_iface == iface)) {
+					bool ret = virtual_joystick_keyboard( vjoy );
+					virt_joy_kbd_iface = NULL;
+					if (ret)
+						virt_joy_kbd_iface = iface;
+				}
 			
 			} // end joystick handling
 		 

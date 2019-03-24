@@ -50,7 +50,7 @@ void joystick_key_map_init(void);
 void joystick_key_map(char *);
 
 // runtime mapping
-void virtual_joystick_keyboard ( uint16_t vjoy );
+bool virtual_joystick_keyboard ( uint16_t vjoy );
 
 /*****************************************************************************/
 
