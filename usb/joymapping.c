@@ -163,6 +163,9 @@ char* get_joystick_alias( uint16_t vid, uint16_t pid ) {
 	if(vid==0x040b && pid==0x6533)
 		return JOYSTICK_ALIAS_SPEEDLINK_COMP;
 	
+	if(vid==0x0738 && pid==0x2217)
+		return JOYSTICK_ALIAS_SPEEDLINK_COMP;
+
 	return JOYSTICK_ALIAS_NONE;
 		
 }
