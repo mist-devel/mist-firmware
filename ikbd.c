@@ -158,6 +158,7 @@ void ikbd_handler_set_relative_mouse_pos(void) {
   ikbd_debugf("Set relative mouse positioning");
   ikbd.state &= ~IKBD_STATE_MOUSE_DISABLED;
   ikbd.state &= ~IKBD_STATE_MOUSE_ABSOLUTE;
+  ikbd.state &= ~IKBD_STATE_PAUSED;
 }
 
 void ikbd_handler_set_abs_mouse_pos(void) {
@@ -236,6 +237,7 @@ void ikbd_handler_disable_mouse(void) {
 }
 
 void ikbd_handler_pause(void) {
+  ikbd_debugf("Pause");
   ikbd.state |= IKBD_STATE_PAUSED;
 }
 
