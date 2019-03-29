@@ -382,9 +382,10 @@ void ikbd_handle_input(unsigned char cmd) {
 	(ikbd_command_handler[c].code != ikbd.buffer.command.code);c++);
   
   // not a valid command? -> flush buffer
-  if(!ikbd_command_handler[c].length)
+  if(!ikbd_command_handler[c].length) {
+    ikbd_debugf("Unhandled command: %02x", ikbd.buffer.command.code);
     ikbd.buffer.size = 0;
-  else {
+  } else {
     // valid command and enough bytes?
     if(ikbd_command_handler[c].length == ikbd.buffer.size) {
       ikbd_command_handler[c].handler();
