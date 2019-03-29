@@ -44,6 +44,7 @@
 #define IKBD_STATE_MOUSE_ABSOLUTE_IN_PROGRESS  0x20
 #define IKBD_STATE_WAIT4RESET                  0x40
 #define IKBD_STATE_PAUSED                      0x80
+#define IKBD_STATE_MOUSE_KEYCODE               0x100
 
 #define IKBD_DEFAULT IKBD_STATE_JOYSTICK_EVENT_REPORTING
 
@@ -55,7 +56,7 @@ static unsigned long ikbd_timer = 0;
 
 /* -------- main structure to keep track of ikbd state -------- */
 static struct {
-  unsigned char state;
+  unsigned short state;
   unsigned long auto_timer;  // auto report timer (50hz/20ms)
 
   // ----- joystick state -------
@@ -157,6 +158,7 @@ void ikbd_handler_mouse_button_action(void) {
 void ikbd_handler_set_relative_mouse_pos(void) {
   ikbd_debugf("Set relative mouse positioning");
   ikbd.state &= ~IKBD_STATE_MOUSE_DISABLED;
+  ikbd.state &= ~IKBD_STATE_MOUSE_KEYCODE;
   ikbd.state &= ~IKBD_STATE_MOUSE_ABSOLUTE;
   ikbd.state &= ~IKBD_STATE_PAUSED;
 }
@@ -169,6 +171,7 @@ void ikbd_handler_set_abs_mouse_pos(void) {
 	      ikbd.mouse.abs.max.x, ikbd.mouse.abs.max.y);
 
   ikbd.state &= ~IKBD_STATE_MOUSE_DISABLED;
+  ikbd.state &= ~IKBD_STATE_MOUSE_KEYCODE;
   ikbd.state |=  IKBD_STATE_MOUSE_ABSOLUTE;
   ikbd.mouse.abs.buttons = 2 | 8;
 }
@@ -177,6 +180,7 @@ void ikbd_handler_set_mouse_keycode_mode(void) {
   ikbd_debugf("Set mouse keycode mode dist %u/%u", 
 	      ikbd.buffer.command.mouse_keycode.dist_x,
 	      ikbd.buffer.command.mouse_keycode.dist_y);
+  ikbd.state |= IKBD_STATE_MOUSE_KEYCODE;
 }
 
 void ikbd_handler_set_mouse_threshold(void) {
@@ -432,10 +436,54 @@ void ikbd_poll(void) {
 	  }
 	}
       }
-      
+
+      /* ----------- keyboard emu mouse ---------- */
+      if( !(ikbd.state & IKBD_STATE_MOUSE_DISABLED) &&
+	   (ikbd.state & IKBD_STATE_MOUSE_KEYCODE)) {
+
+	if (ikbd.mouse.x < -ikbd.buffer.command.mouse_keycode.dist_x) {
+	    ikbd_keyboard(0x4b);
+	    ikbd_keyboard(0x4b);
+	    ikbd_keyboard(0x4b);
+//	    ikbd_keyboard(0x4b); ikbd_keyboard(0x4b | 0x80); // Left
+	    ikbd.mouse.x = 0;
+	}
+	if (ikbd.mouse.x >  ikbd.buffer.command.mouse_keycode.dist_x) {
+	    ikbd_keyboard(0x4d);
+	    ikbd_keyboard(0x4d);
+	    ikbd_keyboard(0x4d);
+//	    ikbd_keyboard(0x4d); ikbd_keyboard(0x4d | 0x80);// Right
+	    ikbd.mouse.x = 0;
+	}
+	if (ikbd.mouse.y < -ikbd.buffer.command.mouse_keycode.dist_y) {
+	    ikbd_keyboard(0x48);
+	    ikbd_keyboard(0x48);
+	    ikbd_keyboard(0x48);
+//	    ikbd_keyboard(0x48); ikbd_keyboard(0x48 | 0x80); // Up
+	    ikbd.mouse.y = 0;
+	}
+	if (ikbd.mouse.y >  ikbd.buffer.command.mouse_keycode.dist_y) {
+	    ikbd_keyboard(0x50); // Down
+	    ikbd_keyboard(0x50); // Down
+	    ikbd_keyboard(0x50); // Down
+//	    ikbd_keyboard(0x50); ikbd_keyboard(0x50 | 0x80); // Down
+	    ikbd.mouse.y = 0;
+	}
+
+	unsigned char b = ikbd.mouse.but;
+	if(b != ikbd.mouse.but_prev) {
+	    // handle left mouse button
+	    if((b ^ ikbd.mouse.but_prev) & 2) ikbd_keyboard(0x74 | ((b&2)?0x00:0x80));
+	    // handle right mouse button
+	    if((b ^ ikbd.mouse.but_prev) & 1) ikbd_keyboard(0x75 | ((b&1)?0x00:0x80));
+	}
+	ikbd.mouse.but_prev = b;
+      }
+
       /* ----------- relative mouse ---------- */
       if( !(ikbd.state & IKBD_STATE_MOUSE_DISABLED) &&
-	  !(ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE)) {
+	  !(ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE) &&
+	  !(ikbd.state & IKBD_STATE_MOUSE_KEYCODE)) {
 	unsigned char b = ikbd.mouse.but;
 	
 	// include joystick buttons into mouse state
@@ -559,7 +607,8 @@ void ikbd_mouse(unsigned char b, char x, char y) {
 
   // save button state for absolute mouse reports
 
-  if(ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE) {
+  if((ikbd.state & IKBD_STATE_MOUSE_ABSOLUTE) &&
+    !(ikbd.state & IKBD_STATE_MOUSE_KEYCODE)) {
     // include joystick buttons into mouse state
     if(ikbd.joy[0].state & 0x80) b |= 2;
     if(ikbd.joy[1].state & 0x80) b |= 1;
