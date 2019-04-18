@@ -95,11 +95,10 @@ void virtual_joystick_remap(char *s) {
       token  = strtok (s, ",");
       while(token!=NULL) {
         //if (count==0) joystick_mappers[i].vid = strtol(token, NULL, 16); -- VID mapping already done
-		value = strtol(token, NULL, 16);
+        value = strtol(token, NULL, 16);
         if (count==1) {
           joystick_mappers[i].pid = value;
-        } 
-        else {
+        } else if (count >= 2) {
             //parse sub-tokens sequentially and assign 16-bit value to them
             joystick_mappers[i].mapping[off+count-2] = value;
             hid_debugf("parsed: %x/%x %d -> %d", 
