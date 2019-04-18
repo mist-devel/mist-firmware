@@ -562,6 +562,14 @@ static uint8_t joystick_renumber(uint8_t j) {
   return j;
 }
 
+void user_io_joystick_emu() {
+	// iprintf("joystick_emu_fixed_index: %d\n", mist_cfg.joystick_emu_fixed_index);
+	// joystick emulation also follows renumbering if requested (default)
+	if(emu_mode == EMU_JOY0) user_io_joystick(mist_cfg.joystick_emu_fixed_index ? 0 : joystick_renumber(0), emu_state);
+	if(emu_mode == EMU_JOY1) user_io_joystick(mist_cfg.joystick_emu_fixed_index ? 1 : joystick_renumber(1), emu_state);
+}
+
+
 // 16 byte fifo for amiga key codes to limit max key rate sent into the core
 #define KBD_FIFO_SIZE  16   // must be power of 2
 static unsigned short kbd_fifo[KBD_FIFO_SIZE];
@@ -1790,8 +1798,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 
 			// check if state of joystick buttons has changed
 			if(last_btn != (emu_state & (JOY_BTN1|JOY_BTN2|JOY_BTN3|JOY_BTN4))) {
-				if(emu_mode == EMU_JOY0) user_io_joystick(joystick_renumber(0), emu_state);
-				if(emu_mode == EMU_JOY1) user_io_joystick(joystick_renumber(1), emu_state);
+				user_io_joystick_emu();
 			}
 		}
 
@@ -1858,8 +1865,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 						if(is_emu_key(pressed[i], keyrah) && !osd_is_visible)
 						{
 							emu_state &= ~is_emu_key(pressed[i], keyrah);
-							if(emu_mode == EMU_JOY0) user_io_joystick(joystick_renumber(0), emu_state);
-							if(emu_mode == EMU_JOY1) user_io_joystick(joystick_renumber(1), emu_state);
+							user_io_joystick_emu();
 							if(keyrah == 2) 
 							{
 								unsigned char b;
@@ -1913,11 +1919,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 						if(is_emu_key(k[i], keyrah) && !osd_is_visible)
 						{
 							emu_state |= is_emu_key(k[i], keyrah);
-
-							// joystick emulation is also affected by the presence of
-							// usb joysticks
-							if(emu_mode == EMU_JOY0) user_io_joystick(joystick_renumber(0), emu_state);
-							if(emu_mode == EMU_JOY1) user_io_joystick(joystick_renumber(1), emu_state);
+							user_io_joystick_emu();
 							if(keyrah == 2) 
 							{
 								unsigned char b;

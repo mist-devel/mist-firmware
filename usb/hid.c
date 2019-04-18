@@ -776,12 +776,15 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
         // if real DB9 mouse is preffered, switch the id back to 1
         idx = (idx == 0) && mist_cfg.joystick0_prefer_db9 ? 1 : idx;
 				
-				// run even if not changed
-				user_io_digital_joystick(idx, jmap);
+				// don't run if not changed
+				if (vjoy != iface->jmap) {
+					user_io_digital_joystick(idx, jmap);
+					// new API with all extra buttons
+					user_io_digital_joystick_ext(idx, vjoy);
+				}
 
-				// new API with all extra buttons
-				user_io_digital_joystick_ext(idx, vjoy);
-				
+				iface->jmap = vjoy;
+
 				// also send analog values
 				user_io_analog_joystick(idx, a[0]-128, a[1]-128);
 
