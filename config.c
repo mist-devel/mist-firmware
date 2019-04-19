@@ -482,6 +482,7 @@ void ApplyConfiguration(char reloadkickstart)
 
   ConfigMemory(config.memory);
   ConfigCPU(config.cpu);
+  ConfigAutofire(config.autofire);
 
   if(minimig_v1()) {
     MM1_ConfigFilter(config.filter.lores, config.filter.hires);

@@ -199,8 +199,6 @@ const char* scanlines[]={"Off","25%","50%","75%"};
 const char* stereo[]={"Mono","Stereo"};
 const char* atari_chipset[]={"ST","STE","MegaSTE","STEroids"};
 
-unsigned char config_autofire = 0;
-
 // file selection menu variables
 char fs_pFileExt[13] = "xxx";
 unsigned char fs_ShowExt = 0;
@@ -571,15 +569,17 @@ void HandleUI(void)
 			lalt = false;
 			break;
 		case KEY_KP0 :
+			// Only sent by Minimig
 			if (ctrl && lalt)
 			{
 				if (menustate == MENU_NONE2 || menustate == MENU_INFO)
 				{
-					config_autofire++;
-					config_autofire &= 3;
-					ConfigAutofire(config_autofire);
+					char autofire_tmp = config.autofire & 3;
+					autofire_tmp++;
+					config.autofire=(config.autofire & 4) | (autofire_tmp & 3);
+					ConfigAutofire(config.autofire);
 					if (menustate == MENU_NONE2 || menustate == MENU_INFO)
-							InfoMessage(config_autofire_msg[config_autofire]);
+						InfoMessage(config_autofire_msg[config.autofire & 3]);
 				}
 			}
 			break;
