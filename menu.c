@@ -1410,7 +1410,6 @@ void HandleUI(void)
 			OsdWrite(5, "", 0, 0);
 			OsdWrite(6, " ", 0, 0);
 			OsdWrite(7, STD_SPACE_EXIT, menusub==0, 0);
-			user_io_file_mount(&file, selected_drive_slot);
 			break;
 		case MENU_8BIT_JOYTEST_B2:
 			get_joystick_state( joy_string, joy_string2, 1 );
