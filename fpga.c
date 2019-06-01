@@ -115,7 +115,7 @@ void ShiftFpga(unsigned char data)
 
 // Xilinx FPGA configuration
 // was before unsigned char ConfigureFpga(void)
-RAMFUNC unsigned char ConfigureFpga(char *name)
+RAMFUNC unsigned char ConfigureFpga(char *name, unsigned long currentdirectory)
 {
     unsigned long  t;
     unsigned long  n;
@@ -159,7 +159,7 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
 		name = "X7A102T BIN";
 
     // open bitstream file
-    if (FileOpen(&file, name) == 0)
+    if (FileOpenDir(&file, name, currentdirectory) == 0)
     {
         iprintf("No FPGA configuration file found!\r");
         FatalError(4);
@@ -242,7 +242,7 @@ static inline void ShiftFpga(unsigned char data)
 }
 
 // Altera FPGA configuration
-RAMFUNC unsigned char ConfigureFpga(char *name)
+RAMFUNC unsigned char ConfigureFpga(char *name, unsigned long currentdirectory)
 {
     unsigned long i;
     unsigned char *ptr;
@@ -256,7 +256,7 @@ RAMFUNC unsigned char ConfigureFpga(char *name)
       name = "CORE    RBF";
 
     // open bitstream file
-    if (FileOpen(&file, name) == 0)
+    if (FileOpenDir(&file, name, currentdirectory) == 0)
     {
         iprintf("No FPGA configuration file found!\r");
         FatalError(4);
@@ -845,7 +845,7 @@ unsigned char GetFPGAStatus(void)
     return status;
 }
 
-void fpga_init(char *name) {
+void fpga_init(char *name, unsigned long currentdirectory) {
   unsigned long time = GetTimer(0);
   int loaded_from_usb = USB_LOAD_VAR;
 
@@ -855,7 +855,7 @@ void fpga_init(char *name) {
   if((loaded_from_usb != USB_LOAD_VALUE) && !user_io_dip_switch1()) {
     unsigned char ct;
 
-    if (ConfigureFpga(name)) {
+    if (ConfigureFpga(name, currentdirectory)) {
       time = GetTimer(0) - time;
       iprintf("FPGA configured in %lu ms\r", time >> 20);
     } else {

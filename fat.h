@@ -116,10 +116,11 @@ extern unsigned char fat32;
 #define SCAN_INIT_NEXT   4 // search for entries higher than the first one
 
 // options flags
-#define SCAN_DIR   1 // include subdirectories
-#define SCAN_LFN   2 // include long file names
-#define FIND_DIR   4 // find first directory beginning with given charater
-#define FIND_FILE  8 // find first file entry beginning with given charater
+#define SCAN_DIR     1 // include subdirectories
+#define SCAN_LFN     2 // include long file names
+#define FIND_DIR     4 // find first directory beginning with given charater
+#define FIND_FILE    8 // find first file entry beginning with given charater
+#define SCAN_SYSDIR 16 // include subdirectories with system attribute
 
 
 // functions

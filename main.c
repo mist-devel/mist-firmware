@@ -166,7 +166,7 @@ int main(void)
     // tos config also contains cdc redirect settings used by minimig
     tos_config_init();
 
-    fpga_init(NULL);
+    fpga_init(NULL, 0);
 
     cdc_control_open();
 

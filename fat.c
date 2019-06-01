@@ -639,8 +639,9 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
                     if (!(pEntry->Attributes & (ATTR_VOLUME | ATTR_HIDDEN)) && (pEntry->Name[0] != '.' || pEntry->Name[1] != ' ')) // if not VOLUME label (also filter current directory entry)
                     {
                         if ((extension[0] == '*')
-						|| compareExt(&pEntry->Name[8], extension)
-						|| (options & SCAN_DIR && pEntry->Attributes & ATTR_DIRECTORY))
+                            || compareExt(&pEntry->Name[8], extension)
+                            || (options & SCAN_DIR && pEntry->Attributes & ATTR_DIRECTORY)
+                            || (options & SCAN_SYSDIR && pEntry->Attributes & ATTR_DIRECTORY && ((pEntry->Name[0] == '.' && pEntry->Name[1] == '.') || pEntry->Attributes & ATTR_SYSTEM)))
                         {
                             if (mode == SCAN_INIT)
                             { // scan the directory table and return first MAXDIRENTRIES alphabetically sorted entries

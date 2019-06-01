@@ -700,7 +700,7 @@ void HandleUI(void)
 				else {
 					// the "menu" core is special in jumps directly to the core selection menu
 					if(!strcmp(user_io_get_core_name(), "MENU"))
-						SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
+						SelectFile("RBF", SCAN_LFN | SCAN_SYSDIR, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
 					else
 						menustate = MENU_8BIT_MAIN1;
 				}
@@ -3352,7 +3352,7 @@ void HandleUI(void)
 					OsdClear();
 				}
 				else if (menusub == fat_uses_mmc()?1:0) {
-					SelectFile("RBF", SCAN_LFN, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
+					SelectFile("RBF", SCAN_LFN | SCAN_SYSDIR, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
 				}
 				else if (menusub == fat_uses_mmc()?2:1) {
 					switch(user_io_core_type()) {
@@ -3387,7 +3387,7 @@ void HandleUI(void)
 				OsdCoreNameSet(file.name);
 			
 			// reset fpga with core
-			fpga_init(file.name);
+			fpga_init(file.name, iCurrentDirectory);
 
 			menustate = MENU_NONE1;
 			break;
