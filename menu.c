@@ -805,7 +805,8 @@ void HandleUI(void)
 			
 		case MENU_8BIT_MAIN1: {
 			char entry=0;
-						
+			char last=0;
+
 			menumask=0;
 			p = user_io_get_core_name();
 			if(!p[0]) OsdSetTitle("8BIT", OSD_ARROW_RIGHT);
@@ -821,7 +822,7 @@ void HandleUI(void)
 				unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 
 				p = user_io_8bit_get_string(i);
-				// iprintf("Option %d: %s\n", i-1, p);
+				// iprintf("Option %d: %s\n", i, p);
 				// check if there's a file type supported
 				if(i == 1) {
 					if (p && strlen(p)) {
@@ -837,8 +838,23 @@ void HandleUI(void)
 					p = user_io_8bit_get_string(i);
 				}
 
+				// check for 'V'ersion strings
+				if(p && (p[0] == 'V')) {
+
+					// p[1] is not used but kept for future use
+					char x = p[1];
+
+					// get version string
+					strcpy(s, OsdCoreName());
+					strcat(s," ");
+					substrcpy(s+strlen(s), p, 1);
+					OsdCoreNameSet(s);
+				}
+
+				if(entry<7) last = i;
+
 				// check for 'F'ile or 'S'D image strings
-				if(p && ((p[0] == 'F') || (p[0] == 'S'))) {
+				if(entry<7 && p && ((p[0] == 'F') || (p[0] == 'S'))) {
 					substrcpy(s, p, 2);
 					if(strlen(s)) {
 						strcpy(s, " ");
@@ -859,7 +875,7 @@ void HandleUI(void)
 				}
 
 				// check for 'T'oggle strings
-				if(p && (p[0] == 'T')) {
+				if(entry<7 && p && (p[0] == 'T')) {
 
 					s[0] = ' ';
 					substrcpy(s+1, p, 1);
@@ -871,7 +887,7 @@ void HandleUI(void)
 				}
 
 				// check for 'O'ption strings
-				if(p && (p[0] == 'O')) {
+				if(entry<7 && p && (p[0] == 'O')) {
 					unsigned long x = getStatus(p, status);
 
 					// get currently active option
@@ -901,25 +917,13 @@ void HandleUI(void)
 					entry++;
 				}
 				
-				// check for 'V'ersion strings
-				if(p && (p[0] == 'V')) {
-					
-					// p[1] is not used but kept for future use
-					char x = p[1];
-					
-					// get version string
-					strcpy(s, OsdCoreName());
-					strcat(s," ");
-					substrcpy(s+strlen(s), p, 1);
-					OsdCoreNameSet(s);
-				}
 				i++;
-			} while(p && entry<7);
+			} while(p);
 
 			// exit row
 			OsdWrite(7, STD_EXIT, menusub == entry, 0);
 			menusub_last=entry; //remember final row
-			if (entry<6 || (!(p = user_io_8bit_get_string(i)) || p[0] == 'V')) {
+			if (entry<6 || (!(p = user_io_8bit_get_string(last+1)) || p[0] == 'V')) {
 				// set exit selectable if no option to scroll down
 				menumask = (menumask << 1) | 1;
 			}
