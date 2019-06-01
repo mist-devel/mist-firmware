@@ -2155,4 +2155,7 @@ void user_io_rom_upload(char *rname, char mode) {
     user_io_file_tx_send(&f);
   } else
     iprintf("file not found!\n");
-}	
+
+  ChangeDirectory(DIRECTORY_ROOT);
+  ScanDirectory(SCAN_INIT, "RBF",  SCAN_LFN | SCAN_SYSDIR);
+}
