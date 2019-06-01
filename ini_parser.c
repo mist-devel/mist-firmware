@@ -218,8 +218,8 @@ int ini_get_section(const ini_cfg_t* cfg, char* buf)
     }  
   }
 
-  if(!strcmp(buf, get_core_name())) return cfg->sections[0].id;
-  
+  if(!strcasecmp(buf, get_core_name())) return cfg->sections[0].id;
+
   return INI_SECTION_INVALID_ID;
 }
 
