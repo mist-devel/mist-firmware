@@ -82,6 +82,8 @@
 
 unsigned long tos_system_ctrl(void);
 
+void tos_upload_mist1(char *);
+void tos_upload_mist2(char *);
 void tos_upload(char *);
 void tos_poll();
 void tos_update_sysctrl(unsigned long);
@@ -96,6 +98,8 @@ void tos_reset(char cold);
 char *tos_get_image_name();
 char *tos_get_cartridge_name();
 char tos_cartridge_is_inserted();
+void tos_load_cartridge_mist1(char *);
+void tos_load_cartridge_mist2(char *);
 void tos_load_cartridge(char *);
 
 void tos_set_video_adjust(char axis, char value);

@@ -933,7 +933,7 @@ void fpga_init(char *name, unsigned long currentdirectory) {
     
   } // end of minimig setup
   
-  if(user_io_core_type() == CORE_TYPE_MIST) {
+  if((user_io_core_type() == CORE_TYPE_MIST) || (user_io_core_type() == CORE_TYPE_MIST2)) {
     puts("Running mist setup");
     
     tos_upload(NULL);

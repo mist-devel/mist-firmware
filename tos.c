@@ -672,34 +672,30 @@ static void tos_font_load() {
   }
 }
 
-void tos_load_cartridge(char *name) {
+void tos_load_cartridge_mist1(char *name) {
   fileTYPE file;
 
-  if(name)
-    strncpy(config.cart_img, name, 11);
-
-  // upload cartridge 
+  // upload cartridge
   if(config.cart_img[0] && FileOpen(&file, config.cart_img)) {
     int i;
     char buffer[512];
-	
+
     tos_debugf("%s:\n  size = %d", config.cart_img, file.size);
 
     int blocks = file.size / 512;
     tos_debugf("  blocks = %d", blocks);
 
-    
     DISKLED_ON;
     for(i=0;i<blocks;i++) {
       FileRead(&file, buffer);
 
       if(!(i&0x7f))
-	mist_memory_set_address(CART_BASE_ADDRESS+512*i, 128, 0);
-      
+       mist_memory_set_address(CART_BASE_ADDRESS+512*i, 128, 0);
+
       mist_memory_write_block(buffer);
-      
+
       if(i != blocks-1)
-	FileNextSector(&file);
+        FileNextSector(&file);
     }
     DISKLED_OFF;
     
@@ -714,6 +710,35 @@ void tos_load_cartridge(char *name) {
   mist_memory_set(0, 64*1024/2);
   mist_memory_set_address(CART_BASE_ADDRESS+128*512, 128, 0);
   mist_memory_set(0, 64*1024/2);
+
+}
+
+void tos_load_cartridge_mist2(char *name) {
+  fileTYPE file;
+
+  // upload cartridge
+  if(config.cart_img[0] && FileOpen(&file, config.cart_img)) {
+    user_io_file_tx(&file, 0x02);
+    tos_debugf("%s uploaded", config.cart_img);
+    return;
+  }
+  // erase that ram area to remove any previously uploaded
+  // image
+  tos_debugf("Erasing cart memory");
+  user_io_fill_tx(0, 128*1024, 0x02);
+}
+
+void tos_load_cartridge(char *name) {
+
+  if(name)
+    strncpy(config.cart_img, name, 11);
+
+  if(user_io_core_type() == CORE_TYPE_MIST) {
+    tos_load_cartridge_mist1(name);
+  } else {
+    tos_load_cartridge_mist2(name);
+  }
+
 }
 
 char tos_cartridge_is_inserted() {
@@ -721,10 +746,8 @@ char tos_cartridge_is_inserted() {
 }
 
 void tos_upload(char *name) {
-  fileTYPE file;
 
-  // set video offset in fpga
-  tos_set_video_adjust(0, 0);
+  tos_debugf("Uploading TOS");
 
   if(name)
     strncpy(config.tos_img, name, 11);
@@ -732,6 +755,73 @@ void tos_upload(char *name) {
   // put cpu into reset
   config.system_ctrl |= TOS_CONTROL_CPU_RESET;
   mist_set_control(config.system_ctrl);
+  if(user_io_core_type() == CORE_TYPE_MIST) {
+    tos_upload_mist1(name);
+  } else {
+    tos_upload_mist2(name);
+  }
+
+  // let cpu run (release reset)
+  config.system_ctrl &= ~TOS_CONTROL_CPU_RESET;
+  mist_set_control(config.system_ctrl);
+
+}
+
+void tos_upload_mist2(char *name) {
+  fileTYPE file;
+
+  // upload and verify tos image
+  if(FileOpen(&file, config.tos_img)) {
+
+    tos_debugf("TOS.IMG:\n  size = %d", file.size);
+
+    if(file.size >= 256*1024)
+      user_io_file_tx(&file, 0x00);
+    else if(file.size == 192*1024)
+      user_io_file_tx(&file, 0x01);
+    else
+      tos_debugf("WARNING: Unexpected TOS size!");
+  } else {
+    tos_debugf("Unable to find tos.img");
+    return;
+  }
+
+  // This is the initial boot if no name was given. Otherwise the
+  // user reloaded a new os
+  if(!name) {
+    // load
+    tos_load_cartridge(NULL);
+
+    // try to open both floppies
+    int i;
+    for(i=0;i<2;i++) {
+      char name[] = "DISK_A  ST ";
+      fileTYPE file;
+      if(FileOpen(&file, name)) {
+        tos_insert_disk(i, &file);
+      }
+    }
+
+    if(config.sd_direct) {
+      tos_set_direct_hdd(1);
+    } else {
+      // try to open harddisk image
+      for(i=0;i<2;i++) {
+        if(FileOpen(&file, config.acsi_img[i])) {
+          tos_select_hdd_image(i, &file);
+        }
+      }
+    }
+  }
+  ikbd_reset();
+}
+
+void tos_upload_mist1(char *name) {
+  fileTYPE file;
+  int i;
+
+  // set video offset in fpga
+  tos_set_video_adjust(0, 0);
 
   tos_font_load();
   tos_clr();
@@ -739,8 +829,6 @@ void tos_upload(char *name) {
   // do the MiST core handling
   tos_write("\x0e\x0f MIST core \x0e\x0f ");
   tos_write("Uploading TOS ... ");
-
-  tos_debugf("Uploading TOS ...");
 
   DISKLED_ON;
 
@@ -963,9 +1051,6 @@ void tos_upload(char *name) {
 
   ikbd_reset();
 
-  // let cpu run (release reset)
-  config.system_ctrl &= ~TOS_CONTROL_CPU_RESET;
-  mist_set_control(config.system_ctrl);
 }
 
 static unsigned long get_long(char *buffer, int offset) {
@@ -1008,7 +1093,8 @@ void tos_update_sysctrl(unsigned long n) {
   // some of the usb drivers also call this without knowing which
   // core is running. So make sure this only happens if the Atari ST (MIST)
   // core is running
-  if(user_io_core_type() == CORE_TYPE_MIST) {
+  if((user_io_core_type() == CORE_TYPE_MIST) ||
+     (user_io_core_type() == CORE_TYPE_MIST2)) {
     config.system_ctrl = n;
     mist_set_control(config.system_ctrl);
   }

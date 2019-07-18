@@ -226,6 +226,7 @@ void user_io_detect_core_type() {
      (core_type != CORE_TYPE_MINIMIG2) &&
      (core_type != CORE_TYPE_PACE) &&
      (core_type != CORE_TYPE_MIST) &&
+     (core_type != CORE_TYPE_MIST2) &&
      (core_type != CORE_TYPE_ARCHIE) &&
      (core_type != CORE_TYPE_8BIT))
     core_type = CORE_TYPE_UNKNOWN;
@@ -252,6 +253,7 @@ void user_io_detect_core_type() {
     break;
     
   case CORE_TYPE_MIST:
+  case CORE_TYPE_MIST2:
     puts("Identified MiST core");
     break;
 
@@ -379,8 +381,8 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 		
 	// atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
 	// but only for joystick 1 and 2
-	if((core_type == CORE_TYPE_MIST) && (joystick < 2)) {
-    ikbd_joystick(joystick, map);
+	if(((core_type == CORE_TYPE_MIST) || (core_type == CORE_TYPE_MIST2)) && (joystick < 2)) {
+		ikbd_joystick(joystick, map);
 		return;
 	}
 	
@@ -700,9 +702,27 @@ static void user_io_file_tx_done(void) {
   iprintf("\n");
 }
 
+static void user_io_file_tx_fill(unsigned char fill, unsigned int len) {
+
+  EnableFpga();
+  SPI(UIO_FILE_TX_DAT);
+  while(len--) {
+    SPI(fill);
+  }
+  DisableFpga();
+}
+
+
 void user_io_file_tx(fileTYPE *file, unsigned char index) {
   user_io_file_tx_prepare(index);
   user_io_file_tx_send(file);
+  user_io_file_tx_done();
+}
+
+// send 'fill' byte 'len' times
+void user_io_fill_tx(unsigned char fill, unsigned int len, unsigned char index) {
+  user_io_file_tx_prepare(index);
+  user_io_file_tx_fill(fill, len);
   user_io_file_tx_done();
 }
 
@@ -872,12 +892,14 @@ void user_io_poll() {
      (core_type != CORE_TYPE_MINIMIG2) &&
      (core_type != CORE_TYPE_PACE) &&
      (core_type != CORE_TYPE_MIST) &&
+     (core_type != CORE_TYPE_MIST2) &&
      (core_type != CORE_TYPE_ARCHIE) &&
      (core_type != CORE_TYPE_8BIT)) {
     return;  // no user io for the installed core
   }
 
-  if(core_type == CORE_TYPE_MIST) {
+  if((core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_MIST2)) {
     char redirect = tos_get_cdc_control_redirect();
 
     ikbd_poll();
@@ -1027,7 +1049,8 @@ void user_io_poll() {
     }
   }
 
-  if(core_type == CORE_TYPE_MIST) {
+  if((core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_MIST2)) {
     // do some tos specific monitoring here
     tos_poll();
   }
@@ -1370,7 +1393,8 @@ static void send_keycode(unsigned short code) {
       kbd_fifo_enqueue(code);
   }
 
-  if(core_type == CORE_TYPE_MIST) {
+  if((core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_MIST2)) {
     // atari has "break" marker in msb
     if(code & BREAK) code = (code & 0xff) | 0x80;
 
@@ -1438,7 +1462,8 @@ void user_io_mouse(unsigned char b, char x, char y) {
   }
 
   // send mouse data as mist expects it
-  if(core_type == CORE_TYPE_MIST)
+  if((core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_MIST2))
     ikbd_mouse(b, x, y);
 
   if(core_type == CORE_TYPE_ARCHIE) 
@@ -1491,7 +1516,8 @@ unsigned short keycode(unsigned char in) {
   
   // atari st and the 8 bit core (currently only used for atari 800)
   // use the same key codes
-  if(core_type == CORE_TYPE_MIST)
+  if((core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_MIST2))
     return usb2atari[in];
 
   if(core_type == CORE_TYPE_ARCHIE)
@@ -1552,11 +1578,12 @@ unsigned short modifier_keycode(unsigned char index) {
     return amiga_modifier[index];
   }
 
-  if(core_type == CORE_TYPE_MIST) {
+  if((core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_MIST2)) {
     static const unsigned short atari_modifier[] = 
       { 0x1d, 0x2a, 0x38, MISS, 0x1d, 0x36, 0x38, MISS };
     return atari_modifier[index];
-  } 
+  }
 
   if(core_type == CORE_TYPE_8BIT) {
     static const unsigned short ps2_modifier[] = 
@@ -1589,6 +1616,7 @@ static char key_used_by_osd(unsigned short s) {
   // else none as it's up to the core to forward keys
   // to the OSD
   return((core_type == CORE_TYPE_MIST) ||
+	 (core_type == CORE_TYPE_MIST2) ||
 	 (core_type == CORE_TYPE_ARCHIE) ||
 	 (core_type == CORE_TYPE_8BIT));
 }
@@ -1722,6 +1750,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 	if( (core_type == CORE_TYPE_MINIMIG) ||
 		(core_type == CORE_TYPE_MINIMIG2) ||
 		(core_type == CORE_TYPE_MIST) ||
+		(core_type == CORE_TYPE_MIST2) ||
 		(core_type == CORE_TYPE_ARCHIE) ||
 		(core_type == CORE_TYPE_8BIT))
 	{

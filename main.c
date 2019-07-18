@@ -180,7 +180,8 @@ int main(void)
       usb_poll();
 
       // MIST (atari) core supports the same UI as Minimig
-      if(user_io_core_type() == CORE_TYPE_MIST) {
+      if((user_io_core_type() == CORE_TYPE_MIST) ||
+         (user_io_core_type() == CORE_TYPE_MIST2)) {
 	if(!fat_medium_present()) 
 	  tos_eject_all();
 
