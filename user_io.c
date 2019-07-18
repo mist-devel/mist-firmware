@@ -1233,7 +1233,8 @@ void user_io_poll() {
     }
   }
 
-  if(core_type == CORE_TYPE_8BIT) {
+  if((core_type == CORE_TYPE_8BIT) ||
+     (core_type == CORE_TYPE_MIST2)) {
 
     // frequently check ps2 mouse for events
     if(CheckTimer(mouse_timer)) {
@@ -1401,7 +1402,8 @@ static void send_keycode(unsigned short code) {
     ikbd_keyboard(code);
   }
 
-  if(core_type == CORE_TYPE_8BIT) {
+  if((core_type == CORE_TYPE_8BIT) ||
+     (core_type == CORE_TYPE_MIST2)) {
     // send ps2 keycodes for those cores that prefer ps2
     spi_uio_cmd_cont(UIO_KEYBOARD);
 
@@ -1455,7 +1457,8 @@ void user_io_mouse(unsigned char b, char x, char y) {
   }
 
   // 8 bit core expects ps2 like data
-  if(core_type == CORE_TYPE_8BIT) {
+  if((core_type == CORE_TYPE_8BIT) ||
+     (core_type == CORE_TYPE_MIST2)) {
     mouse_pos[X] += x;
     mouse_pos[Y] -= y;  // ps2 y axis is reversed over usb
     mouse_flags |= 0x08 | (b&3); 
