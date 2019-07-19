@@ -796,6 +796,8 @@ void tos_upload_mist2(char *name) {
     int i;
     for(i=0;i<2;i++) {
       char name[] = "DISK_A  ST ";
+      name[5] = 'A'+i;
+
       fileTYPE file;
       if(FileOpen(&file, name)) {
         tos_insert_disk(i, &file);
