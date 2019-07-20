@@ -770,6 +770,10 @@ void tos_upload(char *name) {
 void tos_upload_mist2(char *name) {
   fileTYPE file;
 
+  // clear first 16k
+  tos_debugf("Clear first 16k");
+  user_io_fill_tx(0, 16*1024, 0x03);
+
   // upload and verify tos image
   if(FileOpen(&file, config.tos_img)) {
 
