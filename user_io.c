@@ -381,7 +381,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 		
 	// atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
 	// but only for joystick 1 and 2
-	if(((core_type == CORE_TYPE_MIST) || (core_type == CORE_TYPE_MIST2)) && (joystick < 2)) {
+	if((core_type == CORE_TYPE_MIST) && (joystick < 2)) {
 		ikbd_joystick(joystick, map);
 		return;
 	}
@@ -905,7 +905,7 @@ void user_io_poll() {
      (core_type == CORE_TYPE_MIST2)) {
     char redirect = tos_get_cdc_control_redirect();
 
-    ikbd_poll();
+    if (core_type == CORE_TYPE_MIST) ikbd_poll();
 
     // check for input data on usart
     USART_Poll();
@@ -1401,8 +1401,7 @@ static void send_keycode(unsigned short code) {
       kbd_fifo_enqueue(code);
   }
 
-  if((core_type == CORE_TYPE_MIST) ||
-     (core_type == CORE_TYPE_MIST2)) {
+  if(core_type == CORE_TYPE_MIST) {
 
     // atari has "break" marker in msb
     ikbd_keyboard((code & BREAK) ? ((code & 0xff) | 0x80) : code);
@@ -1471,8 +1470,7 @@ void user_io_mouse(unsigned char b, char x, char y) {
   }
 
   // send mouse data as mist expects it
-  if((core_type == CORE_TYPE_MIST) ||
-     (core_type == CORE_TYPE_MIST2))
+  if(core_type == CORE_TYPE_MIST)
     ikbd_mouse(b, x, y);
 
   if(core_type == CORE_TYPE_ARCHIE) 
@@ -1522,17 +1520,15 @@ unsigned short keycode(unsigned char in) {
   if((core_type == CORE_TYPE_MINIMIG) ||
      (core_type == CORE_TYPE_MINIMIG2)) 
     return usb2amiga(in);
-  
-  // atari st and the 8 bit core (currently only used for atari 800)
-  // use the same key codes
-  if((core_type == CORE_TYPE_MIST) ||
-     (core_type == CORE_TYPE_MIST2))
+
+  if(core_type == CORE_TYPE_MIST)
     return usb2atari[in];
 
   if(core_type == CORE_TYPE_ARCHIE)
     return usb2archie[in];
 
-  if(core_type == CORE_TYPE_8BIT)
+  if((core_type == CORE_TYPE_8BIT) ||
+     (core_type == CORE_TYPE_MIST2))
     return usb2ps2code(in);
 
   return MISS;
