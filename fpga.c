@@ -845,6 +845,8 @@ unsigned char GetFPGAStatus(void)
     return status;
 }
 
+extern unsigned long iCurrentDirectory;
+
 void fpga_init(char *name, unsigned long currentdirectory) {
   unsigned long time = GetTimer(0);
   int loaded_from_usb = USB_LOAD_VAR;
@@ -881,6 +883,8 @@ void fpga_init(char *name, unsigned long currentdirectory) {
 
   if((user_io_core_type() == CORE_TYPE_MINIMIG)||
      (user_io_core_type() == CORE_TYPE_MINIMIG2)) {
+    unsigned long OldDirectory = iCurrentDirectory;
+
     puts("Running minimig setup");
     
     if(minimig_v2()) {
@@ -931,6 +935,7 @@ void fpga_init(char *name, unsigned long currentdirectory) {
     SetConfigurationFilename(0); // Use default config
     LoadConfiguration(0);  // Use slot-based config filename
     
+    ChangeDirectory(OldDirectory);
   } // end of minimig setup
   
   if(user_io_core_type() == CORE_TYPE_MIST) {
