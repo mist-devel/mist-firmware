@@ -17,6 +17,7 @@
 #include "config.h"
 #include "user_io.h"
 #include "usb/usb.h"
+#include "minimig_cfg.h"
 
 configTYPE config;
 fileTYPE file;
@@ -251,7 +252,7 @@ unsigned char ConfigurationExists(char *filename)
 
 
 //// LoadConfiguration() ////
-unsigned char LoadConfiguration(char *filename)
+unsigned char LoadConfiguration(char *filename, int printconfig)
 {
   static const char config_id[] = "MNMGCFG0";
   char updatekickstart=0;
@@ -316,11 +317,11 @@ unsigned char LoadConfiguration(char *filename)
   }
 
   // print config to boot screen
-  if (minimig_v2()) {
-    char cfg_str[41];
+  if (minimig_v2() && printconfig) {
+    char cfg_str[81];
     siprintf(cfg_str, "CPU:     %s", config_cpu_msg[config.cpu & 0x03]); BootPrintEx(cfg_str);
     siprintf(cfg_str, "Chipset: %s", config_chipset_msg [(config.chipset >> 2) & (minimig_v1()?3:7)]); BootPrintEx(cfg_str);
-    siprintf(cfg_str, "Memory:  CHIP: %s  FAST: %s  SLOW: %s", config_memory_chip_msg[(config.memory >> 0) & 0x03], config_memory_fast_msg[(config.memory >> 4) & 0x03], config_memory_slow_msg[(config.memory >> 2) & 0x03]); BootPrintEx(cfg_str);
+    siprintf(cfg_str, "Memory:  CHIP: %s  FAST: %s  SLOW: %s%s", config_memory_chip_msg[(config.memory >> 0) & 0x03], config_memory_fast_msg[(config.memory >> 4) & 0x03], config_memory_slow_msg[(config.memory >> 2) & 0x03], minimig_cfg.kick1x_memory_detection_patch ? "  [Kick 1.x patch enabled]" : ""); BootPrintEx(cfg_str);
   }
 
   // wait up to 3 seconds for keyboard to appear. If it appears wait another

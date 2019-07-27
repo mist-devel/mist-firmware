@@ -483,6 +483,37 @@ void SendFileEncrypted(RAFile *file,unsigned char *key,int keysize)
     iprintf("]\r");
 }
 
+char kick1xfoundstr[] = "Kickstart v1.x found\n";
+const char applymemdetectionpatchstr[] = "Applying Kickstart 1.x memory detection patch\n";
+
+const char *kickfoundstr = NULL, *applypatchstr = NULL;
+
+void PatchKick1xMemoryDetection() {
+  int applypatch = 0;
+
+  if (!strncmp(sector_buffer + 0x18, "exec 33.192 (8 Oct 1986)", 24)) {
+    kick1xfoundstr[13] = '2';
+    kickfoundstr = kick1xfoundstr;
+    goto applypatch;
+  }
+  if (!strncmp(sector_buffer + 0x18, "exec 34.2 (28 Oct 1987)", 23)) {
+    kick1xfoundstr[13] = '3';
+    kickfoundstr = kick1xfoundstr;
+    goto applypatch;
+  }
+
+  goto out;
+
+applypatch:
+  if ((sector_buffer[0x154] == 0x66) && (sector_buffer[0x155] == 0x78)) {
+    applypatchstr = applymemdetectionpatchstr;
+    sector_buffer[0x154] = 0x60;
+  }
+
+out:
+  return;
+}
+
 // SendFileV2 (for minimig_v2)
 void SendFileV2(RAFile* file, unsigned char* key, int keysize, int address, int size)
 {
@@ -504,6 +535,14 @@ void SendFileV2(RAFile* file, unsigned char* key, int keysize, int address, int 
         if(keyidx >= keysize) keyidx -= keysize;
       }
     }
+
+    // patch kickstart 1.x to force memory detection every time the AMIGA is reset
+    if (minimig_cfg.kick1x_memory_detection_patch && (i == 0 || i == 512)) {
+      kickfoundstr = NULL;
+      applypatchstr = NULL;
+      PatchKick1xMemoryDetection();
+    }
+
     EnableOsd();
     unsigned int adr = address + i*512;
     SPI(OSD_CMD_WR);
@@ -525,6 +564,13 @@ void SendFileV2(RAFile* file, unsigned char* key, int keysize, int address, int 
     DisableOsd();
   }
   iprintf("]\r");
+
+  if (kickfoundstr) {
+    iprintf(kickfoundstr);
+  }
+  if (applypatchstr) {
+    iprintf(applypatchstr);
+  }
 }
 
 
@@ -933,8 +979,8 @@ void fpga_init(char *name, unsigned long currentdirectory) {
 
     config.kickstart.name[0]=0;
     SetConfigurationFilename(0); // Use default config
-    LoadConfiguration(0);  // Use slot-based config filename
-    
+    LoadConfiguration(0, 1);  // Use slot-based config filename
+
     ChangeDirectory(OldDirectory);
   } // end of minimig setup
   

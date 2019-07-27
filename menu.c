@@ -2232,7 +2232,7 @@ void HandleUI(void)
 				{
 					OsdDisable();
 					SetConfigurationFilename(menusub);
-					LoadConfiguration(NULL);
+					LoadConfiguration(NULL, 0);
 					//				OsdReset(RESET_NORMAL);
 								menustate = MENU_NONE1;
 				}

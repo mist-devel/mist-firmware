@@ -18,6 +18,8 @@ void mist_ini_parse()
   virtual_joystick_remap_init();
   joy_key_map_init();
   memset(&mist_cfg, 0, sizeof(mist_cfg));
+  memset(&minimig_cfg, 0, sizeof(minimig_cfg));
+  minimig_cfg.kick1x_memory_detection_patch = 1;
   ini_parse(&mist_ini_cfg);
 }
 
@@ -40,13 +42,19 @@ mist_cfg_t mist_cfg = {
   .led_animation = 0
 };
 
+minimig_cfg_t minimig_cfg = {
+  .kick1x_memory_detection_patch = 0
+};
+
 // mist ini sections
 const ini_section_t mist_ini_sections[] = {
-  {1, "MIST"}
+  {1, "MIST"},
+  {2, "MINIMIG_CONFIG"}
 };
 
 // mist ini vars
 const ini_var_t mist_ini_vars[] = {
+  // [MIST] or [<core name>]
   {"LED_ANIMATION", (void*)(&(mist_cfg.led_animation)), UINT8, 0, 1, 1},
   {"YPBPR", (void*)(&(mist_cfg.ypbpr)), UINT8, 0, 1, 1},
   {"KEEP_VIDEO_MODE", (void*)(&(mist_cfg.keep_video_mode)), UINT8, 0, 1, 1},
@@ -64,8 +72,10 @@ const ini_var_t mist_ini_vars[] = {
   {"HID_BUTTON_REMAP", (void*)hid_joystick_button_remap, CUSTOM_HANDLER, 0, 0, 1},
   {"JOYSTICK_REMAP", (void*)virtual_joystick_remap, CUSTOM_HANDLER, 0, 0, 1},
   {"JOY_KEY_MAP", (void*)joystick_key_map, CUSTOM_HANDLER, 0, 0, 1},
-  {"ROM", (void*)ini_rom_upload, CUSTOM_HANDLER, 0, 0, 1}
-}; 
+  {"ROM", (void*)ini_rom_upload, CUSTOM_HANDLER, 0, 0, 1},
+  // [MINIMIG_CONFIG]
+  {"KICK1X_MEMORY_DETECTION_PATCH", (void*)(&(minimig_cfg.kick1x_memory_detection_patch)), UINT8, 0, 1, 2}
+};
 
 // mist ini config
 const ini_cfg_t mist_ini_cfg = {
@@ -75,4 +85,3 @@ const ini_cfg_t mist_ini_cfg = {
   (int)(sizeof(mist_ini_sections) / sizeof(ini_section_t)),
   (int)(sizeof(mist_ini_vars)     / sizeof(ini_var_t))
 };
-

@@ -9,6 +9,7 @@
 //// includes ////
 #include <inttypes.h>
 #include "ini_parser.h"
+#include "minimig_cfg.h"
 
 
 //// type definitions ////
@@ -39,4 +40,3 @@ extern mist_cfg_t mist_cfg;
 
 
 #endif // __MIST_CFG_H__
-
