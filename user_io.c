@@ -416,7 +416,10 @@ void user_io_joystick(unsigned char joystick, unsigned char map) {
 
 // transmit serial/rs232 data into core
 void user_io_serial_tx(char *chr, uint16_t cnt) {
-  spi_uio_cmd_cont(UIO_SERIAL_OUT);
+  if (core_type == CORE_TYPE_MIST)
+    spi_uio_cmd_cont(UIO_SERIAL_OUT);
+  else
+    spi_uio_cmd_cont(UIO_SERIAL_OUT2);
   while(cnt--) spi8(*chr++);
   DisableIO();
 }
@@ -913,7 +916,11 @@ void user_io_poll() {
     // arm rs232 and mixes with debug output. Useful for debugging only of
     // e.g. the diagnostic cartridge    
     if(!pl2303_is_blocked()) {
-      spi_uio_cmd_cont(UIO_SERIAL_IN);
+      if (core_type == CORE_TYPE_MIST)
+        spi_uio_cmd_cont(UIO_SERIAL_IN);
+      else
+        spi_uio_cmd_cont(UIO_SERIAL_IN2);
+
       while(spi_in() && !pl2303_is_blocked()) {
 	c = spi_in();
 	
@@ -1396,10 +1403,9 @@ static void send_keycode(unsigned short code) {
 
   if((core_type == CORE_TYPE_MIST) ||
      (core_type == CORE_TYPE_MIST2)) {
-    // atari has "break" marker in msb
-    if(code & BREAK) code = (code & 0xff) | 0x80;
 
-    ikbd_keyboard(code);
+    // atari has "break" marker in msb
+    ikbd_keyboard((code & BREAK) ? ((code & 0xff) | 0x80) : code);
   }
 
   if((core_type == CORE_TYPE_8BIT) ||
