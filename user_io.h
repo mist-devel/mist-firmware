@@ -23,8 +23,8 @@
 // directions (in/out) are from an io controller view
 #define UIO_IKBD_OUT    0x02
 #define UIO_IKBD_IN     0x03
-#define UIO_SERIAL_OUT  0x04
-#define UIO_SERIAL_IN   0x05
+#define UIO_SERIAL_OUT  0x04  // Warning! same as UIO_MOUSE
+#define UIO_SERIAL_IN   0x05  // Warning! same as UIO_KEYBOARD
 #define UIO_PARALLEL_IN 0x06
 #define UIO_MIDI_OUT    0x07
 #define UIO_MIDI_IN     0x08
@@ -33,6 +33,11 @@
 #define UIO_ETH_FRM_IN  0x0b
 #define UIO_ETH_FRM_OUT 0x0c
 #define UIO_SERIAL_STAT 0x0d
+
+// codes as used by MiST2 (atari)
+// directions (in/out) are from an io controller view
+#define UIO_SERIAL_OUT2  0x24
+#define UIO_SERIAL_IN2   0x25
 
 #define UIO_JOYSTICK2   0x10  // also used by minimig and 8 bit
 #define UIO_JOYSTICK3   0x11  // -"-
