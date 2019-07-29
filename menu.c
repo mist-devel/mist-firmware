@@ -505,6 +505,7 @@ char* get_keycode_table()
 			return "Amiga";
   
 		case CORE_TYPE_MIST:
+		case CORE_TYPE_MIST2:
 			return "  ST";
 
 		case CORE_TYPE_ARCHIE:
@@ -693,7 +694,8 @@ void HandleUI(void)
 				if((user_io_core_type() == CORE_TYPE_MINIMIG) ||
 					 (user_io_core_type() == CORE_TYPE_MINIMIG2))
 					menustate = MENU_MAIN1;
-				else if(user_io_core_type() == CORE_TYPE_MIST)
+				else if((user_io_core_type() == CORE_TYPE_MIST) ||
+				        (user_io_core_type() == CORE_TYPE_MIST2))
 					menustate = MENU_MIST_MAIN1;
 				else if(user_io_core_type() == CORE_TYPE_ARCHIE)
 					menustate = MENU_ARCHIE_MAIN1;
@@ -1129,6 +1131,7 @@ void HandleUI(void)
 							menustate = MENU_MAIN2_1;
 							break;
 						case CORE_TYPE_MIST:
+						case CORE_TYPE_MIST2:
 							menusub = 5;
 							menustate = MENU_MIST_MAIN1;
 							break;
@@ -3329,6 +3332,7 @@ void HandleUI(void)
 			if (menu) {
 				switch(user_io_core_type()) {
 				case CORE_TYPE_MIST:
+				case CORE_TYPE_MIST2:
 					menusub = 5;
 					menustate = MENU_MIST_MAIN1;
 					break;
@@ -3357,6 +3361,7 @@ void HandleUI(void)
 				else if (menusub == fat_uses_mmc()?2:1) {
 					switch(user_io_core_type()) {
 					case CORE_TYPE_MIST:
+					case CORE_TYPE_MIST2:
 						menusub = 5;
 						menustate = MENU_MIST_MAIN1;
 						break;

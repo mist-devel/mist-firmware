@@ -170,6 +170,7 @@ char *get_core_name()
 		return "PACE";
 
 	case CORE_TYPE_MIST:
+	case CORE_TYPE_MIST2:
 		return "ST";
 
 	case CORE_TYPE_ARCHIE:

@@ -609,6 +609,7 @@ unsigned char OsdGetCtrl(void)
 
     // mist/atari, archie and 8bit cores use local queue
     if((user_io_core_type() == CORE_TYPE_MIST) ||
+       (user_io_core_type() == CORE_TYPE_MIST2) ||
        (user_io_core_type() == CORE_TYPE_ARCHIE) ||
        (user_io_core_type() == CORE_TYPE_8BIT))
       c1 = OsdKeyGet();

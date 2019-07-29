@@ -23,8 +23,8 @@
 // directions (in/out) are from an io controller view
 #define UIO_IKBD_OUT    0x02
 #define UIO_IKBD_IN     0x03
-#define UIO_SERIAL_OUT  0x04
-#define UIO_SERIAL_IN   0x05
+#define UIO_SERIAL_OUT  0x04  // Warning! same as UIO_MOUSE
+#define UIO_SERIAL_IN   0x05  // Warning! same as UIO_KEYBOARD
 #define UIO_PARALLEL_IN 0x06
 #define UIO_MIDI_OUT    0x07
 #define UIO_MIDI_IN     0x08
@@ -33,6 +33,11 @@
 #define UIO_ETH_FRM_IN  0x0b
 #define UIO_ETH_FRM_OUT 0x0c
 #define UIO_SERIAL_STAT 0x0d
+
+// codes as used by MiST2 (atari)
+// directions (in/out) are from an io controller view
+#define UIO_SERIAL_OUT2  0x24
+#define UIO_SERIAL_IN2   0x25
 
 #define UIO_JOYSTICK2   0x10  // also used by minimig and 8 bit
 #define UIO_JOYSTICK3   0x11  // -"-
@@ -125,6 +130,7 @@
 #define CORE_TYPE_8BIT      0xa4   // atari 800/c64 like core
 #define CORE_TYPE_MINIMIG2  0xa5   // new Minimig with AGA
 #define CORE_TYPE_ARCHIE    0xa6   // Acorn Archimedes
+#define CORE_TYPE_MIST2     0xa7   // New MiST core
 
 // user io status bits (currently only used by 8bit)
 #define UIO_STATUS_RESET   0x01
@@ -166,6 +172,7 @@ void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
 char *user_io_8bit_get_string(char);
 unsigned long user_io_8bit_set_status(unsigned long, unsigned long);
+void user_io_fill_tx(unsigned char, unsigned int, unsigned char);
 void user_io_file_tx(fileTYPE *, unsigned char);
 void user_io_sd_set_config(void);
 char user_io_dip_switch1(void);

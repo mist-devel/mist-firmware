@@ -226,6 +226,7 @@ void user_io_detect_core_type() {
      (core_type != CORE_TYPE_MINIMIG2) &&
      (core_type != CORE_TYPE_PACE) &&
      (core_type != CORE_TYPE_MIST) &&
+     (core_type != CORE_TYPE_MIST2) &&
      (core_type != CORE_TYPE_ARCHIE) &&
      (core_type != CORE_TYPE_8BIT))
     core_type = CORE_TYPE_UNKNOWN;
@@ -252,6 +253,7 @@ void user_io_detect_core_type() {
     break;
     
   case CORE_TYPE_MIST:
+  case CORE_TYPE_MIST2:
     puts("Identified MiST core");
     break;
 
@@ -380,7 +382,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 	// atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
 	// but only for joystick 1 and 2
 	if((core_type == CORE_TYPE_MIST) && (joystick < 2)) {
-    ikbd_joystick(joystick, map);
+		ikbd_joystick(joystick, map);
 		return;
 	}
 	
@@ -414,7 +416,10 @@ void user_io_joystick(unsigned char joystick, unsigned char map) {
 
 // transmit serial/rs232 data into core
 void user_io_serial_tx(char *chr, uint16_t cnt) {
-  spi_uio_cmd_cont(UIO_SERIAL_OUT);
+  if (core_type == CORE_TYPE_MIST)
+    spi_uio_cmd_cont(UIO_SERIAL_OUT);
+  else
+    spi_uio_cmd_cont(UIO_SERIAL_OUT2);
   while(cnt--) spi8(*chr++);
   DisableIO();
 }
@@ -700,9 +705,27 @@ static void user_io_file_tx_done(void) {
   iprintf("\n");
 }
 
+static void user_io_file_tx_fill(unsigned char fill, unsigned int len) {
+
+  EnableFpga();
+  SPI(UIO_FILE_TX_DAT);
+  while(len--) {
+    SPI(fill);
+  }
+  DisableFpga();
+}
+
+
 void user_io_file_tx(fileTYPE *file, unsigned char index) {
   user_io_file_tx_prepare(index);
   user_io_file_tx_send(file);
+  user_io_file_tx_done();
+}
+
+// send 'fill' byte 'len' times
+void user_io_fill_tx(unsigned char fill, unsigned int len, unsigned char index) {
+  user_io_file_tx_prepare(index);
+  user_io_file_tx_fill(fill, len);
   user_io_file_tx_done();
 }
 
@@ -872,15 +895,17 @@ void user_io_poll() {
      (core_type != CORE_TYPE_MINIMIG2) &&
      (core_type != CORE_TYPE_PACE) &&
      (core_type != CORE_TYPE_MIST) &&
+     (core_type != CORE_TYPE_MIST2) &&
      (core_type != CORE_TYPE_ARCHIE) &&
      (core_type != CORE_TYPE_8BIT)) {
     return;  // no user io for the installed core
   }
 
-  if(core_type == CORE_TYPE_MIST) {
+  if((core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_MIST2)) {
     char redirect = tos_get_cdc_control_redirect();
 
-    ikbd_poll();
+    if (core_type == CORE_TYPE_MIST) ikbd_poll();
 
     // check for input data on usart
     USART_Poll();
@@ -891,7 +916,11 @@ void user_io_poll() {
     // arm rs232 and mixes with debug output. Useful for debugging only of
     // e.g. the diagnostic cartridge    
     if(!pl2303_is_blocked()) {
-      spi_uio_cmd_cont(UIO_SERIAL_IN);
+      if (core_type == CORE_TYPE_MIST)
+        spi_uio_cmd_cont(UIO_SERIAL_IN);
+      else
+        spi_uio_cmd_cont(UIO_SERIAL_IN2);
+
       while(spi_in() && !pl2303_is_blocked()) {
 	c = spi_in();
 	
@@ -1027,7 +1056,8 @@ void user_io_poll() {
     }
   }
 
-  if(core_type == CORE_TYPE_MIST) {
+  if((core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_MIST2)) {
     // do some tos specific monitoring here
     tos_poll();
   }
@@ -1210,7 +1240,8 @@ void user_io_poll() {
     }
   }
 
-  if(core_type == CORE_TYPE_8BIT) {
+  if((core_type == CORE_TYPE_8BIT) ||
+     (core_type == CORE_TYPE_MIST2)) {
 
     // frequently check ps2 mouse for events
     if(CheckTimer(mouse_timer)) {
@@ -1371,13 +1402,13 @@ static void send_keycode(unsigned short code) {
   }
 
   if(core_type == CORE_TYPE_MIST) {
-    // atari has "break" marker in msb
-    if(code & BREAK) code = (code & 0xff) | 0x80;
 
-    ikbd_keyboard(code);
+    // atari has "break" marker in msb
+    ikbd_keyboard((code & BREAK) ? ((code & 0xff) | 0x80) : code);
   }
 
-  if(core_type == CORE_TYPE_8BIT) {
+  if((core_type == CORE_TYPE_8BIT) ||
+     (core_type == CORE_TYPE_MIST2)) {
     // send ps2 keycodes for those cores that prefer ps2
     spi_uio_cmd_cont(UIO_KEYBOARD);
 
@@ -1431,7 +1462,8 @@ void user_io_mouse(unsigned char b, char x, char y) {
   }
 
   // 8 bit core expects ps2 like data
-  if(core_type == CORE_TYPE_8BIT) {
+  if((core_type == CORE_TYPE_8BIT) ||
+     (core_type == CORE_TYPE_MIST2)) {
     mouse_pos[X] += x;
     mouse_pos[Y] -= y;  // ps2 y axis is reversed over usb
     mouse_flags |= 0x08 | (b&3); 
@@ -1488,16 +1520,15 @@ unsigned short keycode(unsigned char in) {
   if((core_type == CORE_TYPE_MINIMIG) ||
      (core_type == CORE_TYPE_MINIMIG2)) 
     return usb2amiga(in);
-  
-  // atari st and the 8 bit core (currently only used for atari 800)
-  // use the same key codes
+
   if(core_type == CORE_TYPE_MIST)
     return usb2atari[in];
 
   if(core_type == CORE_TYPE_ARCHIE)
     return usb2archie[in];
 
-  if(core_type == CORE_TYPE_8BIT)
+  if((core_type == CORE_TYPE_8BIT) ||
+     (core_type == CORE_TYPE_MIST2))
     return usb2ps2code(in);
 
   return MISS;
@@ -1552,11 +1583,12 @@ unsigned short modifier_keycode(unsigned char index) {
     return amiga_modifier[index];
   }
 
-  if(core_type == CORE_TYPE_MIST) {
+  if((core_type == CORE_TYPE_MIST) ||
+     (core_type == CORE_TYPE_MIST2)) {
     static const unsigned short atari_modifier[] = 
       { 0x1d, 0x2a, 0x38, MISS, 0x1d, 0x36, 0x38, MISS };
     return atari_modifier[index];
-  } 
+  }
 
   if(core_type == CORE_TYPE_8BIT) {
     static const unsigned short ps2_modifier[] = 
@@ -1589,6 +1621,7 @@ static char key_used_by_osd(unsigned short s) {
   // else none as it's up to the core to forward keys
   // to the OSD
   return((core_type == CORE_TYPE_MIST) ||
+	 (core_type == CORE_TYPE_MIST2) ||
 	 (core_type == CORE_TYPE_ARCHIE) ||
 	 (core_type == CORE_TYPE_8BIT));
 }
@@ -1722,6 +1755,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 	if( (core_type == CORE_TYPE_MINIMIG) ||
 		(core_type == CORE_TYPE_MINIMIG2) ||
 		(core_type == CORE_TYPE_MIST) ||
+		(core_type == CORE_TYPE_MIST2) ||
 		(core_type == CORE_TYPE_ARCHIE) ||
 		(core_type == CORE_TYPE_8BIT))
 	{
