@@ -1583,14 +1583,14 @@ unsigned short modifier_keycode(unsigned char index) {
     return amiga_modifier[index];
   }
 
-  if((core_type == CORE_TYPE_MIST) ||
-     (core_type == CORE_TYPE_MIST2)) {
+  if(core_type == CORE_TYPE_MIST) {
     static const unsigned short atari_modifier[] = 
       { 0x1d, 0x2a, 0x38, MISS, 0x1d, 0x36, 0x38, MISS };
     return atari_modifier[index];
   }
 
-  if(core_type == CORE_TYPE_8BIT) {
+  if((core_type == CORE_TYPE_8BIT) ||
+     (core_type == CORE_TYPE_MIST2)) {
     static const unsigned short ps2_modifier[] = 
       { 0x14, 0x12, 0x11, EXT|0x1f, EXT|0x14, 0x59, EXT|0x11, EXT|0x27 };
     return ps2_modifier[index];
