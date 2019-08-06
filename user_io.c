@@ -1062,13 +1062,13 @@ void user_io_poll() {
     tos_poll();
   }
 
-  if(core_type == CORE_TYPE_8BIT ||
-     core_type == CORE_TYPE_ARCHIE) {
+  // serial IO - TODO: merge with MiST2
+  if(core_type == CORE_TYPE_8BIT) {
     unsigned char c = 1, f, p=0;
 
     // check for input data on usart
-    USART_Poll();
-      
+    USART_Poll(); // TODO: currently doesn't send anything for 8BIT
+
     // check for serial data to be sent
 
     // check for incoming serial data. this is directly forwarded to the
@@ -1090,9 +1090,13 @@ void user_io_poll() {
       iprintf("\033[0m");
     }
     DisableIO();
+  }
 
-    // sd card emulation
-    {
+  // sd card emulation
+  if((core_type == CORE_TYPE_8BIT) ||
+     (core_type == CORE_TYPE_MIST2) ||
+     (core_type == CORE_TYPE_ARCHIE))
+  {
       uint32_t lba;
       uint8_t drive_index;
       uint8_t c = user_io_sd_get_status(&lba, &drive_index);
@@ -1237,7 +1241,6 @@ void user_io_poll() {
 	  DISKLED_OFF;
 	}
       }
-    }
   }
 
   if((core_type == CORE_TYPE_8BIT) ||
@@ -1300,7 +1303,6 @@ void user_io_poll() {
 	mouse_pos[X] = mouse_pos[Y] = 0;
       }
     }
-
   }
 
   if(core_type == CORE_TYPE_ARCHIE) 
