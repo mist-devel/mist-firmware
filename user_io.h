@@ -34,17 +34,12 @@
 #define UIO_ETH_FRM_OUT 0x0c
 #define UIO_SERIAL_STAT 0x0d
 
-// codes as used by MiST2 (atari)
-// directions (in/out) are from an io controller view
-#define UIO_SERIAL_OUT2  0x24
-#define UIO_SERIAL_IN2   0x25
-
 #define UIO_JOYSTICK2   0x10  // also used by minimig and 8 bit
 #define UIO_JOYSTICK3   0x11  // -"-
 #define UIO_JOYSTICK4   0x12  // -"-
 #define UIO_JOYSTICK5   0x13  // -"-
 
-// codes as currently used by 8bit only
+// general codes used by 8bit, archie and mist2
 #define UIO_GET_STRING  0x14
 #define UIO_SET_STATUS  0x15
 #define UIO_GET_SDSTAT  0x16  // read status of sd card emulation
@@ -57,6 +52,7 @@
 #define UIO_SET_SDINFO  0x1d  // send info about mounted image
 #define UIO_SET_STATUS2 0x1e  // 32bit status
 #define UIO_GET_KBD_LED 0x1f  // keyboard LEDs control
+#define UIO_SIO_OUT     0x20  // serial out
 
 // extended joystick control (32 bit value)
 #define UIO_JOYSTICK0_EXT   0x60

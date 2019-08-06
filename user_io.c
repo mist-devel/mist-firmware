@@ -419,7 +419,7 @@ void user_io_serial_tx(char *chr, uint16_t cnt) {
   if (core_type == CORE_TYPE_MIST)
     spi_uio_cmd_cont(UIO_SERIAL_OUT);
   else
-    spi_uio_cmd_cont(UIO_SERIAL_OUT2);
+    spi_uio_cmd_cont(UIO_SIO_OUT);
   while(cnt--) spi8(*chr++);
   DisableIO();
 }
@@ -919,7 +919,7 @@ void user_io_poll() {
       if (core_type == CORE_TYPE_MIST)
         spi_uio_cmd_cont(UIO_SERIAL_IN);
       else
-        spi_uio_cmd_cont(UIO_SERIAL_IN2);
+        spi_uio_cmd_cont(UIO_SIO_IN);
 
       while(spi_in() && !pl2303_is_blocked()) {
 	c = spi_in();
