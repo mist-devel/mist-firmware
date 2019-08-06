@@ -505,7 +505,7 @@ static void handle_fdc(unsigned char *buffer) {
 		   'A'+drv_sel-1, drv_side, fdc_track, fdc_sector, offset,
                    dma_address);
       }
-      
+
       while(scnt) {
 	// check if requested sector is in range
 	if((fdc_sector > 0) && (fdc_sector <= fdd_image[drv_sel-1].spt)) {
@@ -533,6 +533,7 @@ static void handle_fdc(unsigned char *buffer) {
 	scnt--;
 	dma_address += 512;
 	offset += 1;	
+	if(!(fdc_cmd & 0x10)) break; // single sector
       }
       dma_ack(0x00);
     } else if((fdc_cmd & 0xc0) == 0xc0) {
