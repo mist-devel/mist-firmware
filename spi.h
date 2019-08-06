@@ -14,6 +14,8 @@ void spi_slow();
 void spi_fast();
 void spi_fast_mmc();
 RAMFUNC void spi_wait4xfer_end();
+unsigned char spi_get_speed();
+void spi_set_speed(unsigned char speed);
 
 /* chip select functions */
 void EnableFpga(void);

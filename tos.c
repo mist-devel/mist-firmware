@@ -46,6 +46,9 @@ unsigned long hdd_direct = 0;
 
 static unsigned char dma_buffer[512];
 
+unsigned char spi_speed;
+unsigned char spi_newspeed;
+
 static const char *acsi_cmd_name(int cmd) {
   static const char *cmdname[] = {
     "Test Drive Ready", "Restore to Zero", "Cmd $2", "Request Sense",
@@ -139,7 +142,14 @@ static void mist_memory_read(char *data, unsigned long words) {
   DisableFpga();
 }
 
+static void mist2_spi_set_speed(unsigned char speed)
+{
+  if (user_io_core_type() == CORE_TYPE_MIST2) spi_set_speed(speed);
+}
+
 static void mist_memory_write(char *data, unsigned long words) {
+  spi_speed = spi_get_speed();
+  mist2_spi_set_speed(spi_newspeed);
   EnableFpga();
   SPI(MIST_WRITE_MEMORY);
 
@@ -149,24 +159,31 @@ static void mist_memory_write(char *data, unsigned long words) {
   }
 
   DisableFpga();
+  mist2_spi_set_speed(spi_speed);
 }
 
 static void mist_memory_read_block(char *data) {
+  spi_speed = spi_get_speed();
+  mist2_spi_set_speed(spi_newspeed);
   EnableFpga();
   SPI(MIST_READ_MEMORY);
 
   spi_block_read(data);
 
   DisableFpga();
+  mist2_spi_set_speed(spi_speed);
 }
 
 static void mist_memory_write_block(char *data) {
+  spi_speed = spi_get_speed();
+  mist2_spi_set_speed(spi_newspeed);
   EnableFpga();
   SPI(MIST_WRITE_MEMORY);
 
   spi_block_write(data);
 
   DisableFpga();
+  mist2_spi_set_speed(spi_speed);
 }
 
 void mist_memory_set(char data, unsigned long words) {
@@ -551,12 +568,15 @@ static void mist_get_dmastate() {
   DisableFpga();
 
   //  check if acsi is busy
-  if(buffer[19] & 0x01) 
+  if(buffer[19] & 0x01) {
+    spi_newspeed = SPI_MMC_CLK_VALUE;
     handle_acsi(buffer);
-
+  }
   // check if fdc is busy
-  if(buffer[8] & 0x01) 
+  if(buffer[8] & 0x01) {
+    spi_newspeed = SPI_SLOW_CLK_VALUE;
     handle_fdc(buffer);
+  }
 }
 
 // color test, used to test the shifter without CPU/TOS

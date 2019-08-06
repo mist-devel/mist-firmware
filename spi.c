@@ -128,18 +128,42 @@ void spi_block_write(char *addr) {
   spi_write(addr, 512);
 }
 
+static unsigned char spi_speed;
+
 void spi_slow() {
   AT91C_SPI_CSR[0] = AT91C_SPI_CPOL | (SPI_SLOW_CLK_VALUE << 8) | (2 << 24); // init clock 100-400 kHz
+  spi_speed = SPI_SLOW_CLK_VALUE;
 }
 
 void spi_fast() {
   // set appropriate SPI speed for SD/SDHC card (max 25 Mhz)
   AT91C_SPI_CSR[0] = AT91C_SPI_CPOL | (SPI_SDC_CLK_VALUE << 8); // 24 MHz SPI clock
+  spi_speed = SPI_SDC_CLK_VALUE;
 }
 
 void spi_fast_mmc() {
   // set appropriate SPI speed for MMC card (max 20Mhz)
   AT91C_SPI_CSR[0] = AT91C_SPI_CPOL | (SPI_MMC_CLK_VALUE << 8); // 16 MHz SPI clock
+  spi_speed = SPI_MMC_CLK_VALUE;
+}
+
+unsigned char spi_get_speed() {
+  return spi_speed;
+}
+
+void spi_set_speed(unsigned char speed) {
+  switch (speed) {
+    case SPI_SLOW_CLK_VALUE:
+      spi_slow();
+      break;
+
+    case SPI_SDC_CLK_VALUE:
+      spi_fast();
+      break;
+
+    default:
+      spi_fast_mmc();
+  }
 }
 
 /* generic helper */
