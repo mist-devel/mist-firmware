@@ -1734,9 +1734,14 @@ void HandleUI(void)
 			strcat(s, config_tos_mem[(tos_system_ctrl() >> 1)&7]);
 						OsdWrite(0, s, menusub == 0,0);
 
-			strcpy(s, " CPU:       ");
-			strcat(s, config_cpu_msg[(tos_system_ctrl() >> 4)&3]);
-						OsdWrite(1, s, menusub == 1, 0);
+			if(user_io_core_type() == CORE_TYPE_MIST) {
+				strcpy(s, " CPU:       ");
+				strcat(s, config_cpu_msg[(tos_system_ctrl() >> 4)&3]);
+				OsdWrite(1, s, menusub == 1, 0);
+			} else {
+				menumask &= 0xfd;
+				OsdWrite(1, "", 0, 0);
+			}
 
 			strcpy(s, " TOS:       ");
 			strcat(s, tos_get_image_name());
@@ -1744,7 +1749,7 @@ void HandleUI(void)
 
 			strcpy(s, " Cartridge: ");
 			strcat(s, tos_get_cartridge_name());
-						OsdWrite(3, s, menusub == 3, 0);
+			OsdWrite(3, s, menusub == 3, 0);
 
 			strcpy(s, " USB I/O:   ");
 			strcat(s, config_tos_usb[tos_get_cdc_control_redirect()]);
@@ -1769,7 +1774,7 @@ void HandleUI(void)
 					case 0: { // RAM
 						int mem = (tos_system_ctrl() >> 1)&7;   // current memory config
 						mem++;
-						if(mem > 5) mem = 3;                 // cycle 4MB/8MB/14MB
+						if(mem > 5) mem = 0;
 						tos_update_sysctrl((tos_system_ctrl() & ~0x0e) | (mem<<1) );
 						tos_reset(1);
 						menustate = MENU_MIST_SYSTEM1;
@@ -1862,7 +1867,13 @@ void HandleUI(void)
 			strcat(s, atari_chipset[(tos_system_ctrl()>>23)&3]);
 			OsdWrite(3, s, menusub == 3, 0);
 
-			OsdWrite(4, " Video adjust              \x16", menusub == 4, 0);
+			if(user_io_core_type() == CORE_TYPE_MIST) {
+				OsdWrite(4, " Video adjust              \x16", menusub == 4, 0);
+			} else {
+				strcpy(s, " Scanlines:     ");
+				strcat(s,scanlines[(tos_system_ctrl()>>20)&3]);
+				OsdWrite(4, s, menusub == 4, 0);
+			}
 
 			strcpy(s, " YM-Audio:      ");
 			strcat(s, stereo[(tos_system_ctrl() & TOS_CONTROL_STEREO)?1:0]);
@@ -1872,7 +1883,7 @@ void HandleUI(void)
 			OsdWrite(7, STD_EXIT, menusub == 6,0);
 
 			parentstate = menustate;
-						menustate = MENU_MIST_VIDEO2;
+			menustate = MENU_MIST_VIDEO2;
 			break;
 
 		case MENU_MIST_VIDEO2 :
@@ -1909,9 +1920,15 @@ void HandleUI(void)
 					menustate = MENU_MIST_VIDEO1;
 				} break;
 					
-				case 4:
-					menustate = MENU_MIST_VIDEO_ADJUST1;
-					menusub = 0;
+				case 4: if(user_io_core_type() == CORE_TYPE_MIST) {
+						menustate = MENU_MIST_VIDEO_ADJUST1;
+						menusub = 0;
+					} else {
+						// next scanline state
+						int scan = ((tos_system_ctrl() >> 20)+1)&3;
+						tos_update_sysctrl((tos_system_ctrl() & ~TOS_CONTROL_SCANLINES) | (scan << 20));
+						menustate = MENU_MIST_VIDEO1;
+					}
 					break;
 
 				case 5:
@@ -1959,7 +1976,7 @@ void HandleUI(void)
 						menustate = MENU_MIST_VIDEO_ADJUST2;
 			break;
 
-				case MENU_MIST_VIDEO_ADJUST2 :
+		case MENU_MIST_VIDEO_ADJUST2 :
 					if (menu) {
 			menustate = MENU_MIST_VIDEO1;
 			menusub = 4;
