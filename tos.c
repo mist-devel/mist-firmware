@@ -575,7 +575,6 @@ static void mist_get_dmastate() {
   }
   // check if fdc is busy
   if(buffer[8] & 0x01) {
-    spi_newspeed = SPI_SLOW_CLK_VALUE;
     handle_fdc(buffer);
   }
 }
@@ -1218,6 +1217,16 @@ void tos_insert_disk(char i, fileTYPE *file) {
   fdd_image[i].file.size = 0;
   fdd_image[i].sides = 1;
   fdd_image[i].spt = 0;
+
+  if (user_io_core_type() == CORE_TYPE_MIST2) {
+    user_io_file_mount(NULL, i);
+    if (file) {
+        user_io_file_mount(file, i);
+        fdd_image[i].file = *file;
+        tos_update_sysctrl(config.system_ctrl);
+    }
+    return;
+  }
 
   // no new disk given?
   if(!file) return;
