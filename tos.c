@@ -242,29 +242,17 @@ static void dma_nak(void) {
 
 static void handle_acsi(unsigned char *buffer) {
   static unsigned char asc[2] = { 0,0 };
-  unsigned char target = buffer[19] >> 5;
-  unsigned char device = buffer[10] >> 5;
-  unsigned char cmd = buffer[9];
-  unsigned int dma_address = 256 * 256 * buffer[0] + 
-    256 * buffer[1] + (buffer[2]&0xfe);
-  unsigned char scnt = buffer[3];
-  unsigned long lba = 256 * 256 * (buffer[10] & 0x1f) +
-    256 * buffer[11] + buffer[12];
-  unsigned short length = buffer[13];
+  unsigned char target = buffer[10] >> 5;
+  unsigned char device = buffer[1] >> 5;
+  unsigned char cmd = buffer[0];
+  unsigned long lba = 256 * 256 * (buffer[1] & 0x1f) +
+    256 * buffer[2] + buffer[3];
+  unsigned short length = buffer[4];
   if(length == 0) length = 256;
 
   if(user_io_dip_switch1()) {
     tos_debugf("ACSI: target %d.%d, \"%s\" (%02x)", target, device, acsi_cmd_name(cmd), cmd);
     tos_debugf("ACSI: lba %lu (%lx), length %u", lba, lba, length);
-    tos_debugf("DMA: scnt %u, addr %p", scnt, dma_address);
-    
-    if(buffer[20] == 0xa5) {
-      tos_debugf("DMA: fifo %d/%d %x %s", 
-		 (buffer[21]>>4)&0x0f, buffer[21]&0x0f, 
-		 buffer[22], (buffer[2]&1)?"OUT":"IN");
-      tos_debugf("DMA stat=%x, mode=%x, fdc_irq=%d, acsi_irq=%d",
-		 buffer[23], buffer[24], buffer[25], buffer[26]);
-    }
   }
 
   // only a harddisk on ACSI 0/1 is supported
@@ -329,12 +317,12 @@ static void handle_acsi(unsigned char *buffer) {
       if(device == 0) {
 	if(cmd == 0x28) {
 	  lba = 
-	    256 * 256 * 256 * buffer[11] +
-	    256 * 256 * buffer[12] +
-	    256 * buffer[13] + 
-	    buffer[14];
+	    256 * 256 * 256 * buffer[2] +
+	    256 * 256 * buffer[3] +
+	    256 * buffer[4] + 
+	    buffer[5];
 
-	  length = 256 * buffer[16] + buffer[17];
+	  length = 256 * buffer[7] + buffer[8];
 	  //	  iprintf("READ(10) %d, %d\n", lba, length);
 	}
 
@@ -373,12 +361,12 @@ static void handle_acsi(unsigned char *buffer) {
       if(device == 0) {
 	if(cmd == 0x2a) {
 	  lba = 
-	    256 * 256 * 256 * buffer[11] +
-	    256 * 256 * buffer[12] +
-	    256 * buffer[13] + 
-	    buffer[14];
+	    256 * 256 * 256 * buffer[2] +
+	    256 * 256 * buffer[3] +
+	    256 * buffer[4] + 
+	    buffer[5];
 
-	  length = 256 * buffer[16] + buffer[17];
+	  length = 256 * buffer[7] + buffer[8];
 	  
 	  //	  iprintf("WRITE(10) %d, %d\n", lba, length);
 	}
@@ -451,7 +439,7 @@ static void handle_acsi(unsigned char *buffer) {
 #if 0      
     case 0x1f: // ICD command?
       tos_debugf("ACSI: ICD command %s ($%02x)",
-		 acsi_cmd_name(buffer[10] & 0x1f), buffer[10] & 0x1f);
+		 acsi_cmd_name(buffer[1] & 0x1f), buffer[1] & 0x1f);
       asc[target] = 0x05;	
       dma_ack(0x02);
       break;
@@ -558,24 +546,50 @@ static void handle_fdc(unsigned char *buffer) {
       dma_ack(0x00);
     }
   }
-}  
+}
 
 static void mist_get_dmastate() {
   unsigned char buffer[32];
-  
+  unsigned int dma_address;
+  unsigned char scnt;
+
   EnableFpga();
   SPI(MIST_GET_DMASTATE);
-  spi_read(buffer, 32);
+  if (user_io_core_type() == CORE_TYPE_MIST) {
+    spi_read(buffer, 32);
+  } else {
+    spi_read(buffer, 16);
+  }
   DisableFpga();
 
-  //  check if acsi is busy
-  if(buffer[19] & 0x01) {
-    spi_newspeed = SPI_MMC_CLK_VALUE;
-    handle_acsi(buffer);
-  }
-  // check if fdc is busy
-  if(buffer[8] & 0x01) {
-    handle_fdc(buffer);
+  if (user_io_core_type() == CORE_TYPE_MIST) {
+    if(user_io_dip_switch1()) {
+      if(buffer[19] & 0x01) {
+        dma_address = 256 * 256 * buffer[0] + 256 * buffer[1] + (buffer[2]&0xfe);
+        scnt = buffer[3];
+        tos_debugf("DMA: scnt %u, addr %p", scnt, dma_address);
+        if(buffer[20] == 0xa5) {
+          tos_debugf("DMA: fifo %d/%d %x %s",
+            (buffer[21]>>4)&0x0f, buffer[21]&0x0f,
+             buffer[22], (buffer[2]&1)?"OUT":"IN");
+          tos_debugf("DMA stat=%x, mode=%x, fdc_irq=%d, acsi_irq=%d",
+             buffer[23], buffer[24], buffer[25], buffer[26]);
+        }
+      }
+    }
+    //  check if acsi is busy
+    if(buffer[19] & 0x01) {
+      handle_acsi(&buffer[9]);
+    }
+    // check if fdc is busy
+    if(buffer[8] & 0x01) {
+      handle_fdc(buffer);
+    }
+  } else { // CORE_TYPE_MIST2
+    if(buffer[10] & 0x01) {
+      spi_newspeed = SPI_MMC_CLK_VALUE;
+      handle_acsi(buffer);
+    }
   }
 }
 
