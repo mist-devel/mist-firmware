@@ -17,6 +17,7 @@
 #include "config.h"
 #include "user_io.h"
 #include "usb/usb.h"
+#include "minimig_cfg.h"
 
 configTYPE config;
 fileTYPE file;
@@ -33,6 +34,35 @@ RAFile romfile;
                               "mov r0, r0\n\t" \
                               "mov r0, r0")
 
+void ClearKickstartMirrorE0(void)
+{
+  spi_osd_cmd32le_cont(OSD_CMD_WR, 0x00e00000);
+  for (int i = 0; i < (0x80000 / 4); i++) {
+    SPI(0x00);
+    SPI(0x00);
+    SPIN(); SPIN(); SPIN(); SPIN();
+    SPI(0x00);
+    SPI(0x00);
+    SPIN(); SPIN(); SPIN(); SPIN();
+  }
+  DisableOsd();
+  SPIN(); SPIN(); SPIN(); SPIN();
+}
+
+void ClearVectorTable(void)
+{
+  spi_osd_cmd32le_cont(OSD_CMD_WR, 0x00000000);
+  for (int i = 0; i < 256; i++) {
+    SPI(0x00);
+    SPI(0x00);
+    SPIN(); SPIN(); SPIN(); SPIN();
+    SPI(0x00);
+    SPI(0x00);
+    SPIN(); SPIN(); SPIN(); SPIN();
+  }
+  DisableOsd();
+  SPIN(); SPIN(); SPIN(); SPIN();
+}
 
 //// UploadKickstart() ////
 char UploadKickstart(char *name)
@@ -67,6 +97,7 @@ char UploadKickstart(char *name)
       BootPrint("Uploading 1MB Kickstart ...");
       SendFileV2(&romfile, NULL, 0, 0xe00000, romfile.size>>10);
       SendFileV2(&romfile, NULL, 0, 0xf80000, romfile.size>>10);
+      ClearVectorTable();
       return(1);
     } else if(romfile.size == 0x80000) {
       // 512KB Kickstart ROM
@@ -78,6 +109,7 @@ char UploadKickstart(char *name)
         SendFileV2(&romfile, NULL, 0, 0xf80000, romfile.size>>9);
         RAOpen(&romfile, filename);
         SendFileV2(&romfile, NULL, 0, 0xe00000, romfile.size>>9);
+        ClearVectorTable();
       }
       return(1);
     } else if ((romfile.size == 0x8000b) && keysize) {
@@ -90,6 +122,7 @@ char UploadKickstart(char *name)
         SendFileV2(&romfile, romkey, keysize, 0xf80000, romfile.size>>9);
         RAOpen(&romfile, filename);
         SendFileV2(&romfile, romkey, keysize, 0xe00000, romfile.size>>9);
+        ClearVectorTable();
       }
       return(1);
     } else if (romfile.size == 0x40000) {
@@ -100,8 +133,10 @@ char UploadKickstart(char *name)
         SendFile(&romfile);
       } else {
         SendFileV2(&romfile, NULL, 0, 0xf80000, romfile.size>>9);
-        RAOpen(&romfile, filename); // TODO will this work
+        RAOpen(&romfile, filename);
         SendFileV2(&romfile, NULL, 0, 0xfc0000, romfile.size>>9);
+        ClearVectorTable();
+        ClearKickstartMirrorE0();
       }
       return(1);
     } else if ((romfile.size == 0x4000b) && keysize) {
@@ -112,8 +147,10 @@ char UploadKickstart(char *name)
         SendFileEncrypted(&romfile,romkey,keysize);
       } else {
         SendFileV2(&romfile, romkey, keysize, 0xf80000, romfile.size>>9);
-        RAOpen(&romfile, filename); // TODO will this work
+        RAOpen(&romfile, filename);
         SendFileV2(&romfile, romkey, keysize, 0xfc0000, romfile.size>>9);
+        ClearVectorTable();
+        ClearKickstartMirrorE0();
       }
       return(1);
     } else {
@@ -251,7 +288,7 @@ unsigned char ConfigurationExists(char *filename)
 
 
 //// LoadConfiguration() ////
-unsigned char LoadConfiguration(char *filename)
+unsigned char LoadConfiguration(char *filename, int printconfig)
 {
   static const char config_id[] = "MNMGCFG0";
   char updatekickstart=0;
@@ -316,11 +353,11 @@ unsigned char LoadConfiguration(char *filename)
   }
 
   // print config to boot screen
-  if (minimig_v2()) {
-    char cfg_str[41];
+  if (minimig_v2() && printconfig) {
+    char cfg_str[81];
     siprintf(cfg_str, "CPU:     %s", config_cpu_msg[config.cpu & 0x03]); BootPrintEx(cfg_str);
     siprintf(cfg_str, "Chipset: %s", config_chipset_msg [(config.chipset >> 2) & (minimig_v1()?3:7)]); BootPrintEx(cfg_str);
-    siprintf(cfg_str, "Memory:  CHIP: %s  FAST: %s  SLOW: %s", config_memory_chip_msg[(config.memory >> 0) & 0x03], config_memory_fast_msg[(config.memory >> 4) & 0x03], config_memory_slow_msg[(config.memory >> 2) & 0x03]); BootPrintEx(cfg_str);
+    siprintf(cfg_str, "Memory:  CHIP: %s  FAST: %s  SLOW: %s%s", config_memory_chip_msg[(config.memory >> 0) & 0x03], config_memory_fast_msg[(config.memory >> 4) & 0x03], config_memory_slow_msg[(config.memory >> 2) & 0x03], minimig_cfg.kick1x_memory_detection_patch ? "  [Kick 1.x patch enabled]" : ""); BootPrintEx(cfg_str);
   }
 
   // wait up to 3 seconds for keyboard to appear. If it appears wait another
@@ -503,8 +540,6 @@ void ApplyConfiguration(char reloadkickstart)
     ConfigFloppy(config.floppy.drives, config.floppy.speed);
 
     if(reloadkickstart) {
-      UploadActionReplay();
-
       iprintf("Reloading kickstart ...\r");
       TIMER_wait(1000);
       EnableOsd();
@@ -513,39 +548,27 @@ void ApplyConfiguration(char reloadkickstart)
       SPI(rstval);
       DisableOsd();
       SPIN(); SPIN(); SPIN(); SPIN();
+      UploadActionReplay();
       if (!UploadKickstart(config.kickstart.name)) {
         strcpy(config.kickstart.name, "KICK    ");
         if (!UploadKickstart(config.kickstart.name)) {
           FatalError(6);
         }
       }
-      EnableOsd();
-      SPI(OSD_CMD_RST);
-      rstval |= (SPI_RST_USR | SPI_RST_CPU);
-      SPI(rstval);
-      DisableOsd();
-      SPIN(); SPIN(); SPIN(); SPIN();
-      EnableOsd();
-      SPI(OSD_CMD_RST);
-      rstval = 0;
-      SPI(rstval);
-      DisableOsd();
-      SPIN(); SPIN(); SPIN(); SPIN();
-    } else {
-      iprintf("Resetting ...\r");
-      EnableOsd();
-      SPI(OSD_CMD_RST);
-      rstval |= (SPI_RST_USR | SPI_RST_CPU);
-      SPI(rstval);
-      DisableOsd();
-      SPIN(); SPIN(); SPIN(); SPIN();
-      EnableOsd();
-      SPI(OSD_CMD_RST);
-      rstval = 0;
-      SPI(rstval);
-      DisableOsd();
-      SPIN(); SPIN(); SPIN(); SPIN();
     }
+    iprintf("Resetting ...\r");
+    EnableOsd();
+    SPI(OSD_CMD_RST);
+    rstval |= (SPI_RST_USR | SPI_RST_CPU);
+    SPI(rstval);
+    DisableOsd();
+    SPIN(); SPIN(); SPIN(); SPIN();
+    EnableOsd();
+    SPI(OSD_CMD_RST);
+    rstval = 0;
+    SPI(rstval);
+    DisableOsd();
+    SPIN(); SPIN(); SPIN(); SPIN();
   }
 }
 

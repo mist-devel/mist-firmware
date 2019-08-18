@@ -522,6 +522,7 @@ void HandleUI(void)
 	uint8_t mod;
 	unsigned long len;
 	static hardfileTYPE t_hardfile[2]; // temporary copy of former hardfile configuration
+	static unsigned char t_enable_ide; // temporary copy of former IDE configuration
 	static unsigned char ctrl = false;
 	static unsigned char lalt = false;
 	char enable;
@@ -2115,6 +2116,7 @@ void HandleUI(void)
 			{
 								 t_hardfile[0] = config.hardfile[0];
 								 t_hardfile[1] = config.hardfile[1];
+								 t_enable_ide = config.enable_ide;
 								 menustate = MENU_SETTINGS_HARDFILE1;
 				 menusub=0;
 			}
@@ -2252,7 +2254,7 @@ void HandleUI(void)
 				{
 					OsdDisable();
 					SetConfigurationFilename(menusub);
-					LoadConfiguration(NULL);
+					LoadConfiguration(NULL, 0);
 					//				OsdReset(RESET_NORMAL);
 								menustate = MENU_NONE1;
 				}
@@ -2984,7 +2986,7 @@ void HandleUI(void)
 		 // check if hardfile configuration has changed
 		case MENU_HARDFILE_EXIT :
 
-			 if (memcmp(config.hardfile, t_hardfile, sizeof(t_hardfile)) != 0)
+			 if ((memcmp(config.hardfile, t_hardfile, sizeof(t_hardfile)) != 0) || (config.enable_ide != t_enable_ide))
 			 {
 					 menustate = MENU_HARDFILE_CHANGED1;
 					 menusub = 1;
@@ -3048,16 +3050,20 @@ void HandleUI(void)
 				else if (menusub == 1) // no
 				{
 						memcpy(config.hardfile, t_hardfile, sizeof(t_hardfile)); // restore configuration
+						config.enable_ide = t_enable_ide;
+
 						menustate = MENU_MAIN1;
-						menusub = 3;
+						menusub = 5;
 				}
 			}
 
 			if (menu)
 			{
 					memcpy(config.hardfile, t_hardfile, sizeof(t_hardfile)); // restore configuration
+					config.enable_ide = t_enable_ide;
+
 					menustate = MENU_MAIN1;
-					menusub = 3;
+					menusub = 5;
 			}
 			break;
 
