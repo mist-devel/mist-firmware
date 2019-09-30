@@ -759,7 +759,7 @@ void tos_load_cartridge_mist2(char *name) {
   // erase that ram area to remove any previously uploaded
   // image
   tos_debugf("Erasing cart memory");
-  user_io_fill_tx(0, 128*1024, 0x02);
+  user_io_fill_tx(0xff, 128*1024, 0x02);
 }
 
 void tos_load_cartridge(char *name) {
