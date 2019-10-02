@@ -741,9 +741,9 @@ void tos_load_cartridge_mist1(char *name) {
   // image
   tos_debugf("Erasing cart memory");
   mist_memory_set_address(CART_BASE_ADDRESS, 128, 0);
-  mist_memory_set(0, 64*1024/2);
+  mist_memory_set(0xff, 64*1024/2);
   mist_memory_set_address(CART_BASE_ADDRESS+128*512, 128, 0);
-  mist_memory_set(0, 64*1024/2);
+  mist_memory_set(0xff, 64*1024/2);
 
 }
 
