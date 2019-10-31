@@ -108,7 +108,8 @@ char tos_get_video_adjust(char axis);
 char tos_get_cdc_control_redirect(void);
 void tos_set_cdc_control_redirect(char mode);
 
-void tos_config_init(void);
-void tos_config_save(void);
+void tos_config_load(char slot); // slot -1 == last config
+void tos_config_save(char slot);
+char tos_config_exists(char slot);
 
 #endif

@@ -1559,24 +1559,20 @@ void HandleUI(void)
 			menumask=0xff;
 			OsdSetTitle("Mist", 0);
 
-			// most important: main page has setup for floppy A: and screen
+			// most important: main page has setup for floppy A:
 			strcpy(s, " A: ");
 			strcat(s, tos_get_disk_name(0));
 			if(tos_system_ctrl() & TOS_CONTROL_FDC_WR_PROT_A) strcat(s, " \x17");
 			OsdWrite(0, s, menusub == 0,0);
 
-			strcpy(s, " Screen: ");
-			if(tos_system_ctrl() & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
-			else                                          strcat(s, "Mono");
-				OsdWrite(1, s, menusub == 1,0);
-
 			/* everything else is in submenus */
-			OsdWrite(2, " Storage                   \x16", menusub == 2,0);
-			OsdWrite(3, " System                    \x16", menusub == 3,0);
-			OsdWrite(4, " Audio / Video             \x16", menusub == 4,0);
-			OsdWrite(5, " Firmware & Core           \x16", menusub == 5,0);
+			OsdWrite(1, " Storage                   \x16", menusub == 1,0);
+			OsdWrite(2, " System                    \x16", menusub == 2,0);
+			OsdWrite(3, " Audio / Video             \x16", menusub == 3,0);
+			OsdWrite(4, " Firmware & Core           \x16", menusub == 4,0);
 
-			OsdWrite(6, " Save config                ", menusub == 6,0);
+			OsdWrite(5, " Load config               \x16", menusub == 5,0);
+			OsdWrite(6, " Save config               \x16", menusub == 6,0);
 
 			OsdWrite(7, STD_EXIT, menusub == 7,0);
 
@@ -1597,35 +1593,35 @@ void HandleUI(void)
 						} else
 							SelectFile("ST ", SCAN_DIR | SCAN_LFN, MENU_MIST_MAIN_FILE_SELECTED, MENU_MIST_MAIN1, 0);
 						break;
-						
-					case 1:
-						tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIDEO_COLOR);
-									menustate = MENU_MIST_MAIN1;
-						break;
 
-					case 2:  // Storage submenu
+					case 1:  // Storage submenu
 						menustate = MENU_MIST_STORAGE1;
 						menusub = 0;
 						break;
 
-					case 3:  // System submenu
+					case 2:  // System submenu
 						menustate = MENU_MIST_SYSTEM1;
 						menusub = 0;
 						break;
 
-					case 4:  // Video submenu
+					case 3:  // Video submenu
 						menustate = MENU_MIST_VIDEO1;
 						menusub = 0;
 						break;
 
-					case 5:  // Firmware submenu
+					case 4:  // Firmware submenu
 						menustate = MENU_FIRMWARE1;
 						menusub = 1;
 						break;
 
+					case 5:  // Load config
+						menustate = MENU_MIST_LOAD_CONFIG1;
+						menusub = 0;
+						break;
+
 					case 6:  // Save config
-						menustate = MENU_NONE1;
-						tos_config_save();
+						menustate = MENU_MIST_SAVE_CONFIG1;
+						menusub = 0;
 						break;
 
 					case 7:  // Exit
@@ -1676,7 +1672,7 @@ void HandleUI(void)
 		case MENU_MIST_STORAGE2 :
 			if (menu) {
 				menustate = MENU_MIST_MAIN1;
-				menusub = 2;
+				menusub = 1;
 			}
 			if(select) {
 				if(menusub <= 1) {
@@ -1710,7 +1706,7 @@ void HandleUI(void)
 
 				} else if (tos_get_direct_hdd()?(menusub == 5):(menusub == 6)) {
 					menustate = MENU_MIST_MAIN1;
-					menusub = 2;
+					menusub = 1;
 				}
 			}
 			break;
@@ -1768,7 +1764,7 @@ void HandleUI(void)
 		case MENU_MIST_SYSTEM2 :
 			if (menu) {
 				menustate = MENU_MIST_MAIN1;
-				menusub = 3;
+				menusub = 2;
 			}
 			if(select) {
 				switch(menusub) {
@@ -1823,7 +1819,7 @@ void HandleUI(void)
 
 					case 7:
 						menustate = MENU_MIST_MAIN1;
-						menusub = 3;
+						menusub = 2;
 						break;
 				}
 			}
@@ -1890,7 +1886,7 @@ void HandleUI(void)
 		case MENU_MIST_VIDEO2 :
 			if (menu) {
 				menustate = MENU_MIST_MAIN1;
-				menusub = 4;
+				menusub = 3;
 			}
 
 			if(select) {
@@ -1939,7 +1935,7 @@ void HandleUI(void)
 					
 				case 6:
 					menustate = MENU_MIST_MAIN1;
-					menusub = 4;
+					menusub = 3;
 					break;
 				}
 			}
@@ -2019,6 +2015,101 @@ void HandleUI(void)
 			}
 			}
 			break;
+
+		case MENU_MIST_LOAD_CONFIG1 :
+			helptext=helptexts[HELPTEXT_NONE];
+			if(parentstate!=menustate)	// First run?
+			{
+				menumask=0x20;
+				if(tos_config_exists(0)) menumask|=0x01;
+				if(tos_config_exists(1)) menumask|=0x02;
+				if(tos_config_exists(2)) menumask|=0x04;
+				if(tos_config_exists(3)) menumask|=0x08;
+				if(tos_config_exists(4)) menumask|=0x10;
+			}
+			parentstate=menustate;
+			parentstate=menustate;
+			OsdSetTitle("Load",0);
+
+			OsdWrite(0, "", 0, 0);
+			OsdWrite(1, "        Default", menusub == 0,!(menumask & 0x01));
+			OsdWrite(2, "        1", menusub == 1,!(menumask & 0x02));
+			OsdWrite(3, "        2", menusub == 2,!(menumask & 0x04));
+			OsdWrite(4, "        3", menusub == 3,!(menumask & 0x08));
+			OsdWrite(5, "        4", menusub == 4,!(menumask & 0x10));
+			OsdWrite(6, "", 0,0);
+			OsdWrite(7, STD_EXIT, menusub == 5,0);
+
+			menustate = MENU_MIST_LOAD_CONFIG2;
+			break;
+
+		case MENU_MIST_LOAD_CONFIG2 :
+
+			if (menu)
+			{
+				menustate = MENU_MIST_MAIN1;
+				menusub = 5;
+			}
+
+			if (select)
+			{
+				if(menusub<5)
+				{
+					tos_insert_disk(2, NULL);
+					tos_insert_disk(3, NULL);
+					tos_config_load(menusub);
+					tos_upload(NULL);
+					menustate = MENU_NONE1;
+				}
+				else
+				{
+					menustate = MENU_MIST_MAIN1;
+					menusub = 5;
+				}
+			}
+			break;
+
+		case MENU_MIST_SAVE_CONFIG1 :
+			helptext=helptexts[HELPTEXT_NONE];
+			menumask=0x3f;
+			parentstate=menustate;
+			OsdSetTitle("Save",0);
+
+			OsdWrite(0, "", 0, 0);
+			OsdWrite(1, "        Default", menusub == 0,0);
+			OsdWrite(2, "        1", menusub == 1,0);
+			OsdWrite(3, "        2", menusub == 2,0);
+			OsdWrite(4, "        3", menusub == 3,0);
+			OsdWrite(5, "        4", menusub == 4,0);
+			OsdWrite(6, "", 0,0);
+			OsdWrite(7, STD_EXIT, menusub == 5,0);
+
+			menustate = MENU_MIST_SAVE_CONFIG2;
+			break;
+
+		case MENU_MIST_SAVE_CONFIG2 :
+
+			if (menu)
+			{
+				menustate = MENU_MIST_MAIN1;
+				menusub = 6;
+			}
+
+			if (select)
+			{
+				if(menusub<5)
+				{
+					tos_config_save(menusub);
+					menustate = MENU_NONE1;
+				}
+				else
+				{
+					menustate = MENU_MIST_MAIN1;
+					menusub = 6;
+				}
+			}
+			break;
+
 
 		/******************************************************************/
 		/* minimig main menu                                              */
@@ -3356,7 +3447,7 @@ void HandleUI(void)
 				switch(user_io_core_type()) {
 				case CORE_TYPE_MIST:
 				case CORE_TYPE_MIST2:
-					menusub = 5;
+					menusub = 4;
 					menustate = MENU_MIST_MAIN1;
 					break;
 				case CORE_TYPE_ARCHIE:
