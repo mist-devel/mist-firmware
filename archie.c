@@ -4,6 +4,7 @@
 
 #include "menu.h"
 #include "archie.h"
+#include "hdd.h"
 #include "user_io.h"
 #include "debug.h"
 
@@ -15,6 +16,7 @@ typedef struct {
   unsigned long system_ctrl;     // system control word
   char rom_img[12];              // rom image file name
   char cmos_img[12];             // cmos image file name
+  hardfileTYPE  hardfile[2];
 } archie_config_t;
 
 static archie_config_t config;
@@ -212,6 +214,13 @@ void archie_init(void) {
   strcpy(config.rom_img, "RISCOS  ROM");
   strcpy(config.cmos_img, "CMOS    RAM");
 
+  config.hardfile[0].enabled = HDF_FILE;
+  strncpy(config.hardfile[0].name, "ARCHIE1 ", sizeof(config.hardfile[0].name));
+  config.hardfile[0].long_name[0]=0;
+  config.hardfile[1].enabled = HDF_FILE;
+  strncpy(config.hardfile[1].name, "ARCHIE2 ", sizeof(config.hardfile[1].name));
+  config.hardfile[1].long_name[0]=0;
+
   // try to load config from card
   if(FileOpen(&file, CONFIG_FILENAME)) {
     if(file.size == sizeof(archie_config_t)) {
@@ -252,6 +261,13 @@ void archie_init(void) {
     } else
       floppy[i].size = 0;
   }
+
+  // open hdd image(s)
+  hardfile[0] = &config.hardfile[0];
+  hardfile[1] = &config.hardfile[1];
+
+  OpenHardfile(0);
+  OpenHardfile(1);
 
   archie_kbd_send(STATE_RAK1, HRST);
   ack_timeout = GetTimer(20);  // give archie 20ms to reply
@@ -463,6 +479,22 @@ void archie_handle_kbd(void) {
     DisableIO();
 }
 
+void archie_handle_hdd(void) {
+  unsigned char  c1;
+
+  EnableFpga();
+  c1 = SPI(0); // cmd request
+  SPI(0);
+  SPI(0);
+  SPI(0);
+  SPI(0);
+  SPI(0);
+  DisableFpga();
+
+  HandleHDD(c1, 0);
+}
+
 void archie_poll(void) {
   archie_handle_kbd();
+  archie_handle_hdd();
 }

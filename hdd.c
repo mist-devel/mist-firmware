@@ -703,6 +703,12 @@ void HandleHDD(unsigned char c1, unsigned char c2)
     unit = tfr[6] & 0x10 ? 1 : 0; // master/slave selection
     if (0) hdd_debugf("IDE%d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X", unit, tfr[0], tfr[1], tfr[2], tfr[3], tfr[4], tfr[5], tfr[6], tfr[7]);
 
+    if (!hardfile[unit]->present) {
+      hdd_debugf("IDE%d: not present", unit);
+      WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ | IDE_STATUS_ERR);
+      DISKLED_OFF;
+      return;
+    }
     sector = tfr[3];
     cylinder = tfr[4] | (tfr[5] << 8);
     head = tfr[6] & 0x0F;
