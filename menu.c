@@ -169,7 +169,7 @@ const char *config_memory_chip_msg[] = {"0.5 MB", "1.0 MB", "1.5 MB", "2.0 MB"};
 const char *config_memory_slow_msg[] = {"none  ", "0.5 MB", "1.0 MB", "1.5 MB"};
 const char *config_scanlines_msg[] = {"off", "dim", "black"};
 const char *config_dither_msg[] = {"off", "SPT", "RND", "S+R"};
-const char *config_memory_fast_msg[] = {"none  ", "2.0 MB", "4.0 MB","24.0 MB","24.0 MB"};
+const char *config_memory_fast_msg[] = {"none  ", "2.0 MB", "4.0 MB","8.0 MB","24.0 MB"};
 const char *config_cpu_msg[] = {"68000 ", "68010", "-----","68020"};
 const char *config_hdf_msg[] = {"Disabled", "Hardfile (disk img)", "MMC/SD card", "MMC/SD partition 1", "MMC/SD partition 2", "MMC/SD partition 3", "MMC/SD partition 4"};
 const char *config_chipset_msg[] = {"OCS-A500", "OCS-A1000", "ECS", "---", "---", "---", "AGA", "---"};
@@ -186,7 +186,7 @@ const char *helptexts[]={
 	"                                Welcome to MiST!  Use the cursor keys to navigate the menus.  Use space bar or enter to select an item.  Press Esc or F12 to exit the menus.  Joystick emulation on the numeric keypad can be toggled with the numlock key, while pressing Ctrl-Alt-0 (numeric keypad) toggles autofire mode.",
 	"                                Minimig can emulate an A600 IDE harddisk interface.  The emulation can make use of Minimig-style hardfiles (complete disk images) or UAE-style hardfiles (filesystem images with no partition table).  It is also possible to use either the entire SD card or an individual partition as an emulated harddisk.",
 	"                                Minimig's processor core can emulate a 68000 or 68020 processor (though the 68020 mode is still experimental.)  If you're running software built for 68000, there's no advantage to using the 68020 mode, since the 68000 emulation runs just as fast.",
-	"                                Minimig can make use of up to 2 megabytes of Chip RAM, up to 1.5 megabytes of Slow RAM (A500 Trapdoor RAM), and up to 24 megabytes of true Fast RAM.  To use the HRTmon feature you will need a file on the SD card named hrtmon.rom.",
+	"                                Minimig can make use of up to 2 megabytes of Chip RAM, up to 1.5 megabytes of Slow RAM (A500 Trapdoor RAM), and up to 8 megabytes (68000/68010) / 24 megabytes (68020) of true Fast RAM.  To use the HRTmon feature you will need a file on the SD card named hrtmon.rom.",
 	"                                Minimig's video features include a blur filter, to simulate the poorer picture quality on older monitors, and also scanline generation to simulate the appearance of a screen with low vertical resolution.",
 	0
 };
@@ -2786,7 +2786,10 @@ void HandleUI(void)
 			strcat(s, config_memory_slow_msg[config.memory >> 2 & 0x03]);
 			OsdWrite(2, s, menusub == 1,0);
 			strcpy(s, "      FAST  : ");
-			strcat(s, config_memory_fast_msg[config.memory >> 4 & 0x03]);
+			if (!(((config.cpu & 0x02) == 0x02) && ((config.memory >> 4 & 0x03) == 0x03)))
+				strcat(s, config_memory_fast_msg[config.memory >> 4 & 0x03]);
+			else
+				strcat(s, config_memory_fast_msg[(config.memory >> 4 & 0x03) + 1]);
 			OsdWrite(3, s, menusub == 2,0);
 
 			OsdWrite(4, "", 0,0);
