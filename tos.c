@@ -1322,8 +1322,13 @@ unsigned long tos_system_ctrl(void) {
   return config.system_ctrl;
 }
 
-void tos_config_init(void) {
+// load/init configuration
+void tos_config_load(char slot) {
   fileTYPE file;
+  static char last_slot = 0;
+  char new_slot;
+
+  new_slot = (slot == -1) ? last_slot : slot;
 
   // set default values
   config.system_ctrl = TOS_MEMCONFIG_4M | TOS_CONTROL_BLITTER;
@@ -1335,7 +1340,9 @@ void tos_config_init(void) {
   config.cdc_control_redirect = CDC_REDIRECT_NONE;
 
   // try to load config
-  if (FileOpen(&file, CONFIG_FILENAME))  {
+  strncpy(file.name, CONFIG_FILENAME, 11);
+  if (new_slot) file.name[4] = '0'+new_slot;
+  if (FileOpen(&file, file.name))  {
     tos_debugf("Configuration file size: %lu (should be %lu)", 
 	       file.size, sizeof(tos_config_t));
     if(file.size == sizeof(tos_config_t)) {
@@ -1349,20 +1356,24 @@ void tos_config_init(void) {
 }
 
 // save configuration
-void tos_config_save(void) {
+void tos_config_save(char slot) {
   fileTYPE file;
+  char filename[11];
+
+  strncpy(filename, CONFIG_FILENAME, 11);
+  if (slot) filename[4] = '0'+slot;
 
   // save configuration data
-  if (FileOpen(&file, CONFIG_FILENAME))  {
-    tos_debugf("Existing conf file size: %lu", file.size);
+  if (FileOpen(&file, filename))  {
+    tos_debugf("Existing conf size: %lu", file.size);
     if(file.size != sizeof(tos_config_t)) {
       file.size = sizeof(tos_config_t);
       if (!UpdateEntry(&file))
-	return;
+        return;
     }
   } else {
     tos_debugf("Creating new config");
-    strncpy(file.name, CONFIG_FILENAME, 11);
+    strncpy(file.name, filename, 11);
     file.attributes = 0;
     file.size = sizeof(tos_config_t);
     if(!FileCreate(0, &file)) {
@@ -1374,4 +1385,12 @@ void tos_config_save(void) {
   // finally write the config
   memcpy(sector_buffer, &config, sizeof(tos_config_t));
   FileWrite(&file, sector_buffer);
+}
+
+// configuration file check
+char tos_config_exists(char slot) {
+  fileTYPE file;
+  strncpy(file.name, CONFIG_FILENAME, 11);
+  if (slot) file.name[4] = '0'+slot;
+  return FileOpen(&file, file.name);
 }
