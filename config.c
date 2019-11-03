@@ -202,31 +202,31 @@ char UploadActionReplay()
       data = 0xff; // col1l, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
-      data = 0x01; // right, 1 byte
+      data = 0xff; // right, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
       data = 0x00; // keyboard, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
-      data = 0x01; // key, 1 byte
+      data = 0xff; // key, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
-      data = config.enable_ide ? 1 : 0; // ide, 1 byte
+      data = config.enable_ide ? 0xff : 0; // ide, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
-      data = 0x01; // a1200, 1 byte
+      data = 0xff; // a1200, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
-      data = config.chipset&CONFIG_AGA ? 1 : 0; // aga, 1 byte
+      data = config.chipset&CONFIG_AGA ? 0xff : 0; // aga, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
-      data = 0x01; // insert, 1 byte
+      data = 0xff; // insert, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
       data = 0x0f; // delay, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
-      data = 0x01; // lview, 1 byte
+      data = 0xff; // lview, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
       data = 0x00; // cd32, 1 byte
@@ -235,7 +235,7 @@ char UploadActionReplay()
       data = config.chipset&CONFIG_NTSC ? 1 : 0; // screenmode, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
-      data = 1; // novbr, 1 byte
+      data = 0xff; // novbr, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
       data = 0; // entered, 1 byte
