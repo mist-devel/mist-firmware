@@ -175,15 +175,12 @@ static void mist_memory_read_block(char *data) {
 }
 
 static void mist_memory_write_block(char *data) {
-  spi_speed = spi_get_speed();
-  mist2_spi_set_speed(spi_newspeed);
   EnableFpga();
   SPI(MIST_WRITE_MEMORY);
 
   spi_block_write(data);
 
   DisableFpga();
-  mist2_spi_set_speed(spi_speed);
 }
 
 void mist_memory_set(char data, unsigned long words) {
@@ -327,18 +324,24 @@ static void handle_acsi(unsigned char *buffer) {
 	}
 
 	if(lba+length <= blocks) {
+	  // SD-Card -> FPGA direct SPI transfer on MIST2
+	  unsigned char *sector_buffer = (user_io_core_type() == CORE_TYPE_MIST2) ? 0 : dma_buffer;
+
 	  DISKLED_ON;
 	  while(length) {
+	    spi_speed = spi_get_speed();
+	    mist2_spi_set_speed(spi_newspeed);
 	    if(hdd_direct && target == 0) {
 	      if(user_io_dip_switch1()) 
 		tos_debugf("ACSI: direct read %ld", lba);
-	      MMC_Read(lba++, dma_buffer);
+	      MMC_Read(lba++, sector_buffer);
 	    } else {
 	      FileSeek(&hdd_image[target], lba++, SEEK_SET);
-	      FileRead(&hdd_image[target], dma_buffer);
+	      FileRead(&hdd_image[target], sector_buffer);
 	    }
+	    mist2_spi_set_speed(spi_speed);
 	    //	    hexdump(dma_buffer, 32, 0);
-	    mist_memory_write_block(dma_buffer);
+	    if (sector_buffer) mist_memory_write_block(sector_buffer);
 	    length--;
 	  }
 	  DISKLED_OFF;
