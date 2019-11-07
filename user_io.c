@@ -344,52 +344,22 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 	// "only" 6 joysticks are supported
 	if(joystick > 5)
 		return;
-	
-		// the physical joysticks (db9 ports at the right device side)
-		// as well as the joystick emulation are renumbered if usb joysticks
-		// are present in the system. The USB joystick(s) replace joystick 1
-		// and 0 and the physical joysticks are "shifted up". 
-		// Since the primary joystick is in port 1 the first usb joystick 
-		// becomes joystick 1 and only the second one becomes joystick 0
-		// (mouse port)
-		
-	StateJoySet(state, joystick==0?1:0);
-	if (joystick==1) {
-		//StateJoyUpdateTurboStructure(0);
-		//map = (unsigned char) StateJoyStructureState(0) & 0xFF;
-	}
-	else if (joystick==0) {// WARNING: 0 is the second joystick, either USB or DB9
-		//StateJoyUpdateTurboStructure(1);
-		//map = (unsigned char) StateJoyStructureState(1) & 0xFF;
-	}	
-		
-  // if osd is open control it via joystick
-  if(osd_is_visible) {
-    static const uint8_t joy2kbd[] = { 
-      OSDCTRLMENU, OSDCTRLMENU, OSDCTRLMENU, OSDCTRLSELECT,
-      OSDCTRLUP, OSDCTRLDOWN, OSDCTRLLEFT, OSDCTRLRIGHT };
-		
-    	// iprintf("joy to osd\n");
-    
-    //    OsdKeySet(0x80 | usb2ami[pressed[i]]);
-
-    return;
-  }
+	// if osd is open, control it via joystick
+	if(osd_is_visible)
+		return;
 
 	//iprintf("j%d: %x\n", joystick, map);
 
-		
 	// atari ST handles joystick 0 and 1 through the ikbd emulated by the io controller
 	// but only for joystick 1 and 2
 	if((core_type == CORE_TYPE_MIST) && (joystick < 2)) {
 		ikbd_joystick(joystick, map);
 		return;
 	}
-	
-  // every other core else uses this
+
+	// every other core else uses this
 	// (even MIST, joystick 3 and 4 were introduced later)
-  spi_uio_cmd8((joystick < 2)?(UIO_JOYSTICK0 + joystick):((UIO_JOYSTICK2 + joystick - 2)), map);
-    
+	spi_uio_cmd8((joystick < 2)?(UIO_JOYSTICK0 + joystick):((UIO_JOYSTICK2 + joystick - 2)), map);
 }
 
 void user_io_digital_joystick_ext(unsigned char joystick, uint16_t map) {
@@ -971,6 +941,7 @@ void user_io_poll() {
     if(!(joy0_state & JOY0_BTN2))  joy_map |= JOY_BTN2;
 
     user_io_joystick(joystick_renumber(0), joy_map);
+    StateJoySet(joy_map, hid_get_joysticks()); // send to OSD
   }
   
   static int joy1_state = JOY1;
@@ -984,8 +955,9 @@ void user_io_poll() {
     if(!(joy1_state & JOY1_RIGHT)) joy_map |= JOY_RIGHT;
     if(!(joy1_state & JOY1_BTN1))  joy_map |= JOY_BTN1;
     if(!(joy1_state & JOY1_BTN2))  joy_map |= JOY_BTN2;
-    
+
     user_io_joystick(joystick_renumber(1), joy_map);
+    StateJoySet(joy_map, hid_get_joysticks()+1); // send to OSD
   }
 
   user_io_send_buttons(0);

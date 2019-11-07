@@ -473,11 +473,9 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
       }
       // one less joystick in the system ...
       joysticks--;
-			StateNumJoysticksSet(joysticks);
-      if (joysticks < 2)
-	      StateUsbIdSet(0, 0, 0, 1);
-      if (joysticks < 1)
-	      StateUsbIdSet(0, 0, 0, 0);
+      StateNumJoysticksSet(joysticks);
+      if (joysticks < 6)
+        StateUsbIdSet(0, 0, 0, joysticks);
     }
   }
 
@@ -765,6 +763,7 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				
 				// report joysticks to OSD
 				idx=iface->jindex;
+				StateJoySet(jmap, idx);
 				StateJoySetExtra( btn_extra, idx);
 				// swap joystick 0 and 1 since 1 is the one 
 				// used primarily on most systems
