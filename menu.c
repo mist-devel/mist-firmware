@@ -3327,7 +3327,7 @@ void HandleUI(void)
 					else if (menusub == 1)
 					{
 							menustate = MENU_SETTINGS_MEMORY1;
-							menusub = 2;
+							menusub = 3;
 					}
 				}
 
