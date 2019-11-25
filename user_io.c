@@ -50,6 +50,8 @@ static unsigned long emu_timer = 0;
 // keep state over core type and its capabilities
 static unsigned char core_type = CORE_TYPE_UNKNOWN;
 static char core_type_8bit_with_config_string = 0;
+// core supports direct ROM upload via SS4
+static char rom_direct_upload = 0;
 
 // permanent state of adc inputs used for dip switches
 static unsigned char adc_state = 0;
@@ -220,6 +222,8 @@ void user_io_detect_core_type() {
   EnableIO();
   core_type = SPI(0xff);
   DisableIO();
+  rom_direct_upload = (core_type & 0x10) >> 4; // bit 4 - direct upload support
+  core_type &= 0xef;
 
   if((core_type != CORE_TYPE_DUMB) &&
      (core_type != CORE_TYPE_MINIMIG) &&
@@ -647,16 +651,21 @@ static void user_io_file_tx_send(fileTYPE *file) {
     unsigned short c, chunk = (bytes2send>512)?512:bytes2send;
     char *p;
 
-    FileRead(file, sector_buffer);
+    if (rom_direct_upload) {
+      // upload directly from the SD-Card if the core supports that
+      FileRead(file, 0);
+    } else {
+      FileRead(file, sector_buffer);
 
-    EnableFpga();
-    SPI(UIO_FILE_TX_DAT);
+      EnableFpga();
+      SPI(UIO_FILE_TX_DAT);
 
-    for(p = sector_buffer, c=0;c < chunk;c++)
-      SPI(*p++);
+      for(p = sector_buffer, c=0;c < chunk;c++)
+        SPI(*p++);
 
-    DisableFpga();
-    
+      DisableFpga();
+    }
+
     bytes2send -= chunk;
 
     // still bytes to send? read next sector
@@ -840,15 +849,15 @@ void user_io_poll() {
     ct = SPI(0xff);
     DisableIO();
     SPI(0xff);      // needed for old minimig core
-    
-    if(ct == core_type) 
+
+    if((ct&0xef) == core_type)
       ct_cnt = 0;        // same core type, everything is fine
     else {
       // core type has changed
       if(++ct_cnt == 255) {
 	  USB_LOAD_VAR = USB_LOAD_VALUE;
 	// wait for a new valid core id to appear
-	while((ct &  0xf0) != 0xa0) {
+	while((ct &  0xe0) != 0xa0) {
 	  EnableIO();
 	  ct = SPI(0xff);
 	  DisableIO();
