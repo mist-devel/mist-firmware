@@ -632,7 +632,7 @@ void HandleUI(void)
 			++helpstate;
 		}
 		else
-			ScrollText(7,helptext,0,0,0);
+			ScrollText(7,helptext,0,0,0,0);
 	}
 
 	// Standardised menu up/down.
@@ -1159,7 +1159,7 @@ void HandleUI(void)
 			OsdDrawLogo(3,3,1);
 			OsdDrawLogo(4,4,1);
 			OsdDrawLogo(6,6,1);
-			ScrollText(5,"                                 MiST by Till Harbaum, based on Minimig by Dennis van Weeren and other projects. MiST hardware and software is distributed under the terms of the GNU General Public License version 3. MiST FPGA cores are the work of their respective authors under individual licensing.", 0, 0, 0);			
+			ScrollText(5,"                                 MiST by Till Harbaum, based on Minimig by Dennis van Weeren and other projects. MiST hardware and software is distributed under the terms of the GNU General Public License version 3. MiST FPGA cores are the work of their respective authors under individual licensing.", 0, 0, 0, 0);			
 			// menu key closes menu
 			if (menu) {
 				menustate = MENU_8BIT_SYSTEM1;
@@ -3609,9 +3609,9 @@ void ScrollLongName(void)
 
         max_len = 30; // number of file name characters to display (one more required for scrolling)
         if (DirEntry[k].Attributes & ATTR_DIRECTORY)
-            max_len = 25; // number of directory name characters to display
+            max_len = 23; // number of directory name characters to display
 
-		ScrollText(iSelectedEntry,DirEntryLFN[k],len,max_len,1);
+		ScrollText(iSelectedEntry,DirEntryLFN[k],len,max_len,1,2);
     }
 }
 
