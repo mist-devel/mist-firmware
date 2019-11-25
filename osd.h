@@ -127,7 +127,7 @@ void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned
 void OsdWriteDoubleSize(unsigned char n, char *s, unsigned char pass);
 //void OsdDrawLogo(unsigned char n, char row);
 void OsdDrawLogo(unsigned char n, char row,char superimpose);
-void ScrollText(char n,const char *str, int len, int max_len,unsigned char invert);
+void ScrollText(char n, const char *str, int len, int max_len, unsigned char invert, int len_offset);
 void ScrollReset();
 void StarsInit();
 void StarsUpdate();

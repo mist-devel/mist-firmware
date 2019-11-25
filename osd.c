@@ -676,7 +676,7 @@ unsigned char GetASCIIKey(unsigned char keycode)
 }
 
 
-void ScrollText(char n,const char *str, int len,int max_len,unsigned char invert)
+void ScrollText(char n, const char *str, int len, int max_len, unsigned char invert, int len_offset)
 {
 // this function is called periodically when a string longer than the window is displayed.
 
@@ -696,7 +696,7 @@ void ScrollText(char n,const char *str, int len,int max_len,unsigned char invert
 		if(!len)
 	        len = strlen(str); // get name length
 
-        if (len > max_len) // scroll name if longer than display size
+        if (len + len_offset > max_len) // scroll name if longer than display size
         {
             if (scroll_offset >= (len + BLANKSPACE) << 3) // reset scroll position if it exceeds predefined maximum
                 scroll_offset = 0;
