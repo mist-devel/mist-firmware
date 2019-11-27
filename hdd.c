@@ -49,6 +49,18 @@ hdfTYPE hdf[2];
 // we scan for RDB without mounting the file as a unit, so need a file struct specifically for this task
 fileTYPE rdbfile;
 
+static void SwapBytes(char *c, unsigned int len)
+{
+  char temp;
+
+  while(len) {
+    temp = *c;
+    *c=c[1];
+    c[1]=temp;
+    len-=2;
+    c+=2;
+  }
+}
 
 // RDBChecksum()
 static void RDBChecksum(unsigned long *p)
@@ -168,7 +180,7 @@ void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
       pBuffer[3] = hdf[unit].heads; // head count
       pBuffer[6] = hdf[unit].sectors; // sectors per track
       // FIXME - can get serial no from card itself.
-      memcpy((char*)&pBuffer[10], "MiSTMiniMigHardfile ", 20); // serial number - byte swapped
+      memcpy((char*)&pBuffer[10], "iMTSiMiniMHgrafdli e", 20); // serial number - byte swapped
       memcpy((char*)&pBuffer[23], ".100    ", 8); // firmware version - byte swapped
       p = (char*)&pBuffer[27];
       // FIXME - likewise the model name can be fetched from the card.
@@ -186,7 +198,7 @@ void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
           memcpy(p, hardfile[unit]->name, 8); // copy file name as model name
         }
       }
-      // SwapBytes((char*)&pBuffer[27], 40); //not for 68000
+      SwapBytes((char*)&pBuffer[27], 40);
       break;
     case HDF_CARD:
     case HDF_CARDPART0:
@@ -198,7 +210,7 @@ void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
       pBuffer[3] = hdf[unit].heads;                                  // head count
       pBuffer[6] = hdf[unit].sectors;                                // sectors per track
       // FIXME - can get serial no from card itself.
-      memcpy((char*)&pBuffer[10], "MiSTMiniMigSD0      ", 20);       // serial number - byte swapped
+      memcpy((char*)&pBuffer[10], "iMTSiMiniMSg0D      ", 20);       // serial number - byte swapped
       pBuffer[23]+=hdf[unit].type-HDF_CARD;
       memcpy((char*)&pBuffer[23], ".100    ", 8);                    // firmware version - byte swapped
       p = (char*)&pBuffer[27];
@@ -211,7 +223,7 @@ void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
         memcpy(p, "Card Part 1", 11);                                // copy file name as model name
         p[10]+=hdf[unit].partition;
       }
-      // SwapBytes((char*)&pBuffer[27], 40); //not for 68000
+      SwapBytes((char*)&pBuffer[27], 40);
       break;
   }
 
