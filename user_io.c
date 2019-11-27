@@ -653,7 +653,8 @@ static void user_io_file_tx_send(fileTYPE *file) {
 
     if (rom_direct_upload) {
       // upload directly from the SD-Card if the core supports that
-      FileRead(file, 0);
+      FileReadEx(file, 0, ((bytes2send-1)>>9)+1);
+      bytes2send = 0;
     } else {
       FileRead(file, sector_buffer);
 
@@ -664,9 +665,9 @@ static void user_io_file_tx_send(fileTYPE *file) {
         SPI(*p++);
 
       DisableFpga();
+      bytes2send -= chunk;
     }
 
-    bytes2send -= chunk;
 
     // still bytes to send? read next sector
     if(bytes2send)
