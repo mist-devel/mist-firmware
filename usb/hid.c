@@ -326,7 +326,7 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 
   // process all supported interfaces
   for(i=0; i<info->bNumIfaces; i++) {
-	
+
     info->iface[i].conf.pid = pid;
     info->iface[i].conf.vid = vid;
 
@@ -336,6 +336,21 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
     if(!info->iface[i].has_boot_mode || info->iface[i].ignore_boot_mode) {
       rcode = hid_get_report_descr(dev, i, info->iface[i].report_desc_size);
       if(rcode) return rcode;
+
+      if(info->iface[i].device_type == REPORT_TYPE_NONE) {
+	// bInterfaceProtocol was 0 ("none") -> try to parse anyway
+	iprintf("HID NONE: report type = %d, size = %d\n",
+		info->iface[i].conf.type, info->iface[i].conf.report_size);
+
+	// currently we only use this to support "report type "REPORT_TYPE_KEYBOARD" which in turn
+	// allows arduinos to be used as keyboards
+	if((info->iface[i].conf.type == REPORT_TYPE_KEYBOARD) &&
+	   (info->iface[i].conf.report_size == 8)) {
+	  iprintf("HID NONE: is keyboard (arduino?)\n");
+	  info->iface[i].device_type = REPORT_TYPE_KEYBOARD;
+	  info->iface[i].has_boot_mode = true;   // assume that the report is boot mode style as it's 8 bytes in size
+	}
+      }
 
       if(info->iface[i].device_type == REPORT_TYPE_MOUSE) {
 	iprintf("MOUSE: report type = %d, id = %d, size = %d\n", 
@@ -365,23 +380,6 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 		  info->iface[i].conf.joystick_mouse.button[k].bitmask);
       }
       
-      
-      // use fixed setup for known interfaces 
-/*    // unbreak cheap cheap Chinese controllers (not just NES) - use mist.ini instead
-      if((vid == 0x0079) && (pid == 0x0011) && (i==0)) {
-        iprintf("hacking cheap NES pad\n");
-        
-        // fixed setup for nes gamepad
-        info->iface[0].conf.joystick_mouse.button[0].byte_offset = 5;
-        info->iface[0].conf.joystick_mouse.button[0].bitmask = 32;
-        info->iface[0].conf.joystick_mouse.button[1].byte_offset = 5;
-        info->iface[0].conf.joystick_mouse.button[1].bitmask = 64 | 16;
-        info->iface[0].conf.joystick_mouse.button[2].byte_offset = 6;
-        info->iface[0].conf.joystick_mouse.button[2].bitmask = 16;
-        info->iface[0].conf.joystick_mouse.button[3].byte_offset = 6;
-        info->iface[0].conf.joystick_mouse.button[3].bitmask = 32;
-      }
-*/
       if((vid == 0x04d8) && (pid == 0xf6ec) && (i==0)) {
         iprintf("hacking 5200daptor\n");
             

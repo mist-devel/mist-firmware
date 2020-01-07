@@ -64,7 +64,8 @@ bool report_is_usable(uint16_t bit_count, uint8_t report_complete, hid_report_t 
 
   // check if something useful was detected
   if( ((conf->type == REPORT_TYPE_JOYSTICK) && ((report_complete & JOYSTICK_COMPLETE) == JOYSTICK_COMPLETE)) ||
-      ((conf->type == REPORT_TYPE_MOUSE)    && ((report_complete & MOUSE_COMPLETE) == MOUSE_COMPLETE))) {
+      ((conf->type == REPORT_TYPE_MOUSE)    && ((report_complete & MOUSE_COMPLETE) == MOUSE_COMPLETE)) ||
+      ((conf->type == REPORT_TYPE_KEYBOARD))) {
     hidp_debugf("  - report %d is usable", conf->report_id);
     return true;
   }
