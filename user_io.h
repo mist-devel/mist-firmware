@@ -116,6 +116,7 @@
 
 #define CONF_SCANDOUBLER_DISABLE 0x10
 #define CONF_YPBPR               0x20
+#define CONF_CSYNC_DISABLE       0x40
 
 // core type value should be unlikely to be returned by broken cores
 #define CORE_TYPE_UNKNOWN   0x55

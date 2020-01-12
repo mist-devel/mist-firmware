@@ -810,6 +810,7 @@ void user_io_send_buttons(char force) {
   {
 	if(mist_cfg.ypbpr) map |= CONF_YPBPR;
   }
+  if(mist_cfg.csync_disable) map |= CONF_CSYNC_DISABLE;
 
   if((map != key_map) || force) {
     key_map = map;
