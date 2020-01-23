@@ -42,6 +42,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "config.h"
 #include "menu.h"
 #include "user_io.h"
+#include "data_io.h"
 #include "tos.h"
 #include "cdc_control.h"
 #include "debug.h"
@@ -1013,14 +1014,14 @@ void HandleUI(void)
 
 		case MENU_8BIT_MAIN_FILE_SELECTED : // file successfully selected
 			// this assumes that further file entries only exist if the first one also exists
-			user_io_file_tx(&file, user_io_ext_idx(&file, fs_pFileExt)<<6 | (menusub+1));
+			data_io_file_tx(&file, user_io_ext_idx(&file, fs_pFileExt)<<6 | (menusub+1));
 			// close menu afterwards
 			menustate = MENU_NONE1;
 			break;
 
 		case MENU_8BIT_MAIN_IMAGE_SELECTED :
 			iprintf("Image selected: %s\n", file.name);
-			user_io_set_index(user_io_ext_idx(&file, fs_pFileExt)<<6 | (menusub+1));
+			data_io_set_index(user_io_ext_idx(&file, fs_pFileExt)<<6 | (menusub+1));
 			user_io_file_mount(&file, selected_drive_slot);
 			// select image for SD card
 			menustate = MENU_NONE1;

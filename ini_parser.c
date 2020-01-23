@@ -16,6 +16,7 @@
 #include "fat.h"
 #endif
 #include "user_io.h"
+#include "data_io.h"
 
 //// defines ////
 #define INI_EOT                 4 // End-Of-Transmission
@@ -61,12 +62,12 @@ fileTYPE ini_file;
 
 int ini_pt = 0;
 
-// call user_io_rom_upload but reload sector_buffer afterwards since the io
-// operations in user_io_rom_upload may have overwritten the buffer
+// call data_io_rom_upload but reload sector_buffer afterwards since the io
+// operations in data_io_rom_upload may have overwritten the buffer
 // mode = 0: prepare for rom upload, mode = 1: rom upload, mode = 2, end rom upload
 void ini_rom_upload(char *s) {
 #ifndef INI_PARSER_TEST
-  user_io_rom_upload(s, 1);
+  data_io_rom_upload(s, 1);
 
   FileRead(&ini_file, sector_buffer);
 #endif
@@ -316,7 +317,7 @@ void ini_parse(const ini_cfg_t* cfg)
 
   ini_parser_debugf("Start INI parser for core \"%s\".", get_core_name());
 
-  user_io_rom_upload(NULL, 0);   // prepare upload
+  data_io_rom_upload(NULL, 0);   // prepare upload
 
   // open ini file
   #ifdef INI_PARSER_TEST
@@ -375,7 +376,7 @@ void ini_parse(const ini_cfg_t* cfg)
   fclose(ini_fp);
   #endif
 
-  user_io_rom_upload(NULL, 2);   // upload done
+  data_io_rom_upload(NULL, 2);   // upload done
 }
 
 

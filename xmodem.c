@@ -16,6 +16,7 @@
 #include "hardware.h"
 #include "fat.h"
 #include "user_io.h"
+#include "data_io.h"
 
 typedef enum { IDLE, X_NAME, EXP_SOH1, EXP_SOH, BLKNO, DATA, CHK, U_NAME } state_t;
 
@@ -123,7 +124,7 @@ void xmodem_rx_byte(unsigned char byte) {
 	    if(!FileOpen(&file, filename))
 	      iprintf("UPLOAD: File open failed\n");
 	    else 
-	      user_io_file_tx(&file, 1);
+	      data_io_file_tx(&file, 1);
 	  }
 	}
 	state = IDLE;

@@ -9,6 +9,7 @@
 #include "cdc_control.h"
 #include "debug.h"
 #include "user_io.h"
+#include "data_io.h"
 #include "mmc.h"
 #include "ikbd.h"
 
@@ -764,14 +765,14 @@ void tos_load_cartridge_mist2(char *name) {
 
   // upload cartridge
   if(config.cart_img[0] && FileOpen(&file, config.cart_img)) {
-    user_io_file_tx(&file, 0x02);
+    data_io_file_tx(&file, 0x02);
     tos_debugf("%s uploaded", config.cart_img);
     return;
   }
   // erase that ram area to remove any previously uploaded
   // image
   tos_debugf("Erasing cart memory");
-  user_io_fill_tx(0xff, 128*1024, 0x02);
+  data_io_fill_tx(0xff, 128*1024, 0x02);
 }
 
 void tos_load_cartridge(char *name) {
@@ -818,7 +819,7 @@ void tos_upload_mist2(char *name) {
 
   // clear first 16k
   tos_debugf("Clear first 16k");
-  user_io_fill_tx(0, 16*1024, 0x03);
+  data_io_fill_tx(0, 16*1024, 0x03);
 
   // upload and verify tos image
   if(FileOpen(&file, config.tos_img)) {
@@ -826,9 +827,9 @@ void tos_upload_mist2(char *name) {
     tos_debugf("TOS.IMG:\n  size = %d", file.size);
 
     if(file.size >= 256*1024)
-      user_io_file_tx(&file, 0x00);
+      data_io_file_tx(&file, 0x00);
     else if(file.size == 192*1024)
-      user_io_file_tx(&file, 0x01);
+      data_io_file_tx(&file, 0x01);
     else
       tos_debugf("WARNING: Unexpected TOS size!");
   } else {

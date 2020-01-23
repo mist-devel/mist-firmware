@@ -66,10 +66,6 @@
 #define UIO_GET_STATUS  0x50 // removed
 #define UIO_SECTOR_SND  0x51 // removed
 #define UIO_SECTOR_RCV  0x52 // removed
-#define UIO_FILE_TX     0x53
-#define UIO_FILE_TX_DAT 0x54
-#define UIO_FILE_INDEX  0x55
-#define UIO_FILE_INFO   0x56
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
@@ -169,8 +165,6 @@ void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
 char *user_io_8bit_get_string(char);
 unsigned long user_io_8bit_set_status(unsigned long, unsigned long);
-void user_io_fill_tx(unsigned char, unsigned int, unsigned char);
-void user_io_file_tx(fileTYPE *, unsigned char);
 void user_io_sd_set_config(void);
 char user_io_dip_switch1(void);
 char user_io_serial_status(serial_status_t *, uint8_t);
@@ -197,11 +191,10 @@ void user_io_send_buttons(char);
 void user_io_key_remap(char *);
 void add_modifiers(uint8_t mod, uint16_t* keys_ps2);
 
-void user_io_set_index(unsigned char index);
 unsigned char user_io_ext_idx(fileTYPE *, char*);
 
-// called when a rom entry is found in the mist.ini
-void user_io_rom_upload(char *s, char mode);
+void user_io_change_into_core_dir(void);
+
 
 #define USB_LOAD_VAR   *(int*)(0x0020FF04)
 #define USB_LOAD_VAR   *(int*)(0x0020FF04)

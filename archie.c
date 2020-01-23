@@ -6,6 +6,7 @@
 #include "archie.h"
 #include "hdd.h"
 #include "user_io.h"
+#include "data_io.h"
 #include "debug.h"
 
 #define MAX_FLOPPY  2
@@ -150,7 +151,7 @@ void archie_set_cmos(fileTYPE *file) {
   // save file name
   memcpy(config.cmos_img, file->name, 11);
 
-  user_io_file_tx(file, 0x03);
+  data_io_file_tx(file, 0x03);
 }
 
 void archie_set_rom(fileTYPE *file) {
@@ -162,7 +163,7 @@ void archie_set_rom(fileTYPE *file) {
   // save file name
   memcpy(config.rom_img, file->name, 11);
 
-  user_io_file_tx(file, 0x01);
+  data_io_file_tx(file, 0x01);
 }
 
 static void archie_kbd_enqueue(unsigned char state, unsigned char byte) {
@@ -241,7 +242,7 @@ void archie_init(void) {
   // upload ext file
   if(FileOpen(&file, "RISCOS  EXT")) {
     archie_debugf("Found RISCOS.EXT, uploading it");
-    user_io_file_tx(&file, 0x02);
+    data_io_file_tx(&file, 0x02);
   } else 
     archie_debugf("RISCOS.EXT no found");
 

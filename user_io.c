@@ -8,6 +8,7 @@
 #include "state.h"
 #include "state.h"
 #include "user_io.h"
+#include "data_io.h"
 #include "archie.h"
 #include "cdc_control.h"
 #include "usb.h"
@@ -36,10 +37,6 @@ static uint32_t buffer_lba = 0xffffffff;
 extern fileTYPE file;
 extern char s[40];
 
-extern DIRENTRY DirEntry[MAXDIRENTRIES];
-extern unsigned char iSelectedEntry;
-extern unsigned char sort_table[MAXDIRENTRIES];
-
 // mouse and keyboard emulation state
 typedef enum { EMU_NONE, EMU_MOUSE, EMU_JOY0, EMU_JOY1 } emu_mode_t;
 static emu_mode_t emu_mode = EMU_NONE;
@@ -51,7 +48,7 @@ static unsigned long emu_timer = 0;
 static unsigned char core_type = CORE_TYPE_UNKNOWN;
 static char core_type_8bit_with_config_string = 0;
 // core supports direct ROM upload via SS4
-static char rom_direct_upload = 0;
+extern char rom_direct_upload;
 
 // permanent state of adc inputs used for dip switches
 static unsigned char adc_state = 0;
@@ -300,7 +297,7 @@ void user_io_detect_core_type() {
       // check if there's a <core>.rom present
       strcpy(s+8, "ROM");
       if (FileOpen(&file, s))
-	user_io_file_tx(&file, 0);
+	data_io_file_tx(&file, 0);
 	
       // check if there's a <core>.vhd present
       strcpy(s+8, "VHD");
@@ -585,13 +582,6 @@ static void kbd_fifo_poll() {
   kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
 }
 
-void user_io_set_index(unsigned char index) {
-  EnableFpga();
-  SPI(UIO_FILE_INDEX);
-  SPI(index);
-  DisableFpga();
-}
-
 void user_io_file_mount(fileTYPE *file, unsigned char index) {
   if (file) {
     iprintf("selected %.12s with %d bytes to slot %d\n", file->name, file->size, index);
@@ -618,95 +608,6 @@ void user_io_file_mount(fileTYPE *file, unsigned char index) {
 
   // notify core of possible sd image change
   spi_uio_cmd8(UIO_SET_SDSTAT, index);
-}
-
-static void user_io_file_tx_prepare(unsigned char index) {
-  iprintf("Preparing transmission for index %d\n", index);
-
-  // set index byte (0=bios rom, 1-n=OSD entry index)
-  user_io_set_index(index);
-
-  // send directory entry (for alpha amstrad core)
-  EnableFpga();
-  SPI(UIO_FILE_INFO);
-  spi_write((void*)(DirEntry+sort_table[iSelectedEntry]), sizeof(DIRENTRY));
-  DisableFpga();
-
-  // prepare transmission of new file
-  EnableFpga();
-  SPI(UIO_FILE_TX);
-  SPI(0xff);
-  DisableFpga();
-}
-
-static void user_io_file_tx_send(fileTYPE *file) {
-  unsigned long bytes2send = file->size;
-  
-  /* transmit the entire file using one transfer */
-  iprintf("Selected file %.11s with %lu bytes to send\n", file->name, file->size);
-
-  while(bytes2send) {
-    iprintf(".");
-
-    unsigned short c, chunk = (bytes2send>512)?512:bytes2send;
-    char *p;
-
-    if (rom_direct_upload) {
-      // upload directly from the SD-Card if the core supports that
-      FileReadEx(file, 0, ((bytes2send-1)>>9)+1);
-      bytes2send = 0;
-    } else {
-      FileRead(file, sector_buffer);
-
-      EnableFpga();
-      SPI(UIO_FILE_TX_DAT);
-
-      for(p = sector_buffer, c=0;c < chunk;c++)
-        SPI(*p++);
-
-      DisableFpga();
-      bytes2send -= chunk;
-    }
-
-
-    // still bytes to send? read next sector
-    if(bytes2send)
-      FileNextSector(file);
-  }
-}
-
-static void user_io_file_tx_done(void) {
-  // signal end of transmission
-  EnableFpga();
-  SPI(UIO_FILE_TX);
-  SPI(0x00);
-  DisableFpga();
-
-  iprintf("\n");
-}
-
-static void user_io_file_tx_fill(unsigned char fill, unsigned int len) {
-
-  EnableFpga();
-  SPI(UIO_FILE_TX_DAT);
-  while(len--) {
-    SPI(fill);
-  }
-  DisableFpga();
-}
-
-
-void user_io_file_tx(fileTYPE *file, unsigned char index) {
-  user_io_file_tx_prepare(index);
-  user_io_file_tx_send(file);
-  user_io_file_tx_done();
-}
-
-// send 'fill' byte 'len' times
-void user_io_fill_tx(unsigned char fill, unsigned int len, unsigned char index) {
-  user_io_file_tx_prepare(index);
-  user_io_file_tx_fill(fill, len);
-  user_io_file_tx_done();
 }
 
 // 8 bit cores have a config string telling the firmware how
@@ -2081,10 +1982,11 @@ unsigned char user_io_ext_idx(fileTYPE *file, char* ext) {
 }
 
 extern unsigned char nDirEntries;
-extern unsigned long iCurrentDirectory;    // cluster number of current directory, 0 for root
+extern DIRENTRY DirEntry[MAXDIRENTRIES];
+extern unsigned char iSelectedEntry;
 
 // this should be moved into fat.c and be re-used for the menu functions as well
-void change_into_core_dir(void) {
+void user_io_change_into_core_dir(void) {
   char s[13];  // 8+3+'\0'
   user_io_create_config_name(s);
   
@@ -2126,55 +2028,4 @@ void change_into_core_dir(void) {
     if((nDirEntries == 8) && (DirEntry[0].StartCluster == last_StartCluster)) 
       break;
   }
-}
-
-void user_io_rom_upload(char *rname, char mode) {
-  fileTYPE f;
-  static char first = 1;
-  char s[13];  // 8+3+'\0'
-
-  // new ini parsing starts, prepare uploads
-  if(mode == 0) {
-    first = 1;
-    return;
-  }
-
-  // ini parsing done
-  if(mode == 2) {
-    // has something been uploaded?
-    // -> then end transfer
-    if(!first) {
-      iprintf("upload ends\n");
-
-      user_io_file_tx_done();
-      user_io_8bit_set_status(0, UIO_STATUS_RESET);
-    }
-    return;
-  }
-    
-    
-  // try to change into core dir. Stay in root if that doesn't exist
-  change_into_core_dir();
-  
-  strcpy(s, "        ROM");
-  strncpy(s, rname, strlen(rname));
-  iprintf("rom upload '%s' %d\n", s, sizeof(f));
-
-  if (FileOpenDir(&f, s, iCurrentDirectory)) {
-    iprintf("file found!\n");
-
-    if(first) {    
-      // set reset
-      user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);
-      user_io_file_tx_prepare(0);
-      first = 0;
-    }
-      
-    //    user_io_file_tx(&f, 0);
-    user_io_file_tx_send(&f);
-  } else
-    iprintf("file not found!\n");
-
-  ChangeDirectory(DIRECTORY_ROOT);
-  ScanDirectory(SCAN_INIT, "RBF",  SCAN_LFN | SCAN_SYSDIR);
 }
