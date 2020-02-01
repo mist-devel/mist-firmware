@@ -1985,7 +1985,7 @@ extern unsigned char nDirEntries;
 extern DIRENTRY DirEntry[MAXDIRENTRIES];
 extern unsigned char iSelectedEntry;
 
-// this should be moved into fat.c and be re-used for the menu functions as well
+// this should be moved into fat.c?
 void user_io_change_into_core_dir(void) {
   char s[13];  // 8+3+'\0'
   user_io_create_config_name(s);
