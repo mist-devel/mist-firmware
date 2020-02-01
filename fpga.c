@@ -50,6 +50,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                               "mov r0, r0");
 
 extern fileTYPE file;
+extern unsigned long iCurrentDirectory;
 extern char s[40];
 extern adfTYPE df[4];
 
@@ -115,7 +116,7 @@ void ShiftFpga(unsigned char data)
 
 // Xilinx FPGA configuration
 // was before unsigned char ConfigureFpga(void)
-RAMFUNC unsigned char ConfigureFpga(char *name, unsigned long currentdirectory)
+RAMFUNC unsigned char ConfigureFpga(char *name)
 {
     unsigned long  t;
     unsigned long  n;
@@ -159,7 +160,7 @@ RAMFUNC unsigned char ConfigureFpga(char *name, unsigned long currentdirectory)
 		name = "X7A102T BIN";
 
     // open bitstream file
-    if (FileOpenDir(&file, name, currentdirectory) == 0)
+    if (FileOpenDir(&file, name, iCurrentDirectory) == 0)
     {
         iprintf("No FPGA configuration file found!\r");
         FatalError(4);
@@ -242,7 +243,7 @@ static inline void ShiftFpga(unsigned char data)
 }
 
 // Altera FPGA configuration
-RAMFUNC unsigned char ConfigureFpga(char *name, unsigned long currentdirectory)
+RAMFUNC unsigned char ConfigureFpga(char *name)
 {
     unsigned long i;
     unsigned char *ptr;
@@ -256,7 +257,7 @@ RAMFUNC unsigned char ConfigureFpga(char *name, unsigned long currentdirectory)
       name = "CORE    RBF";
 
     // open bitstream file
-    if (FileOpenDir(&file, name, currentdirectory) == 0)
+    if (FileOpenDir(&file, name, iCurrentDirectory) == 0)
     {
         iprintf("No FPGA configuration file found!\r");
         FatalError(4);
@@ -891,9 +892,8 @@ unsigned char GetFPGAStatus(void)
     return status;
 }
 
-extern unsigned long iCurrentDirectory;
 
-void fpga_init(char *name, unsigned long currentdirectory) {
+void fpga_init(char *name) {
   unsigned long time = GetTimer(0);
   int loaded_from_usb = USB_LOAD_VAR;
 
@@ -903,7 +903,7 @@ void fpga_init(char *name, unsigned long currentdirectory) {
   if((loaded_from_usb != USB_LOAD_VALUE) && !user_io_dip_switch1()) {
     unsigned char ct;
 
-    if (ConfigureFpga(name, currentdirectory)) {
+    if (ConfigureFpga(name)) {
       time = GetTimer(0) - time;
       iprintf("FPGA configured in %lu ms\r", time >> 20);
     } else {

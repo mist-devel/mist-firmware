@@ -3278,7 +3278,7 @@ void HandleUI(void)
 				OsdCoreNameSet(file.name);
 
 			// reset fpga with core
-			fpga_init(file.name, iCurrentDirectory);
+			fpga_init(file.name);
 
 			menustate = MENU_NONE1;
 			break;
