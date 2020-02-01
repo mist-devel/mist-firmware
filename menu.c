@@ -54,51 +54,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #define ALLOW_TEST_MENU 0 //remove to disable in prod version
 
 
-// central MiST joystick status
-
-static mist_joystick_t mist_joy[3] = { // 3rd one is dummy, used to store defaults
-	{
-		.vid = 0,
-		.pid = 0,
-		.num_buttons=1, // DB9 has 1 button
-		.state=0,
-		.state_extra=0,
-		.usb_state=0,
-		.usb_state_extra=0,
-		.turbo=0,
-		.turbo_counter=0,
-		.turbo_mask=0x30,	 // A and B buttons		
-		.turbo_state=0xFF  // flip state (0 or 1)
-	},
-	{
-		.vid = 0,
-		.pid = 0,
-		.num_buttons=1, // DB9 has 1 button
-		.state=0,
-		.state_extra=0,
-		.usb_state=0,
-		.usb_state_extra=0,
-		.turbo=0,
-		.turbo_counter=0,
-		.turbo_mask=0x30, // A and B buttons		
-		.turbo_state=0xFF // flip state (0 or 1)
-	},
-	{
-		.vid = 0,
-		.pid = 0,
-		.num_buttons=1, // DB9 has 1 button
-		.state=0,
-		.state_extra=0,
-		.usb_state=0,
-		.usb_state_extra=0,
-		.turbo=0,
-		.turbo_counter=0,
-		.turbo_mask=0x30, // A and B buttons		
-		.turbo_state=0xFF // flip state (0 or 1)
-	}
-};
-// state of MIST virtual joystick
-
 // other constants
 #define DIRSIZE 8 // number of items in directory display window
 
@@ -186,7 +141,7 @@ unsigned char fs_MenuCancel;
 char* GetExt(char *ext) {
 	static char extlist[32];
 	char *p = extlist;
-	
+
 	while(*ext) {
 		strcpy(p, ",");
 		strncat(p, ext, 3);
@@ -194,92 +149,90 @@ char* GetExt(char *ext) {
 		ext +=3;
 		p += strlen(p);
 	}
-	
+
 	return extlist+1;
 }
 
 void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect, unsigned char MenuCancel, char chdir)
 {
-  // this function displays file selection menu
+	// this function displays file selection menu
 
-  iprintf("%s - %s\n", pFileExt, fs_pFileExt);
-  
-  if (strncmp(pFileExt, fs_pFileExt, 12) != 0) // check desired file extension
-  { // if different from the current one go to the root directory and init entry buffer
-    ChangeDirectory(DIRECTORY_ROOT);
+	iprintf("%s - %s\n", pFileExt, fs_pFileExt);
 
-    // for 8 bit cores try to 
-    if(((user_io_core_type() == CORE_TYPE_8BIT) || (user_io_core_type() == CORE_TYPE_ARCHIE)) && chdir) {
-      user_io_create_config_name(s);
-      // try to change into subdir named after the core
-      strcpy(s+8, "   ");
-      iprintf("Trying to open work dir \"%s\"\n", s);
-      
-      ScanDirectory(SCAN_INIT, "",  SCAN_DIR | FIND_DIR);
+	if (strncmp(pFileExt, fs_pFileExt, 12) != 0) // check desired file extension
+	{ // if different from the current one go to the root directory and init entry buffer
+		ChangeDirectory(DIRECTORY_ROOT);
 
-      // no return flag :(, so scan 10 times blindly...
-      for(;;) {
-	int i;
-	char res = 0;
-	unsigned short last_StartCluster = DirEntry[0].StartCluster;
+		// for 8 bit cores try to 
+		if(((user_io_core_type() == CORE_TYPE_8BIT) || (user_io_core_type() == CORE_TYPE_ARCHIE)) && chdir) {
+			 user_io_create_config_name(s);
+			// try to change into subdir named after the core
+			strcpy(s+8, "   ");
+			iprintf("Trying to open work dir \"%s\"\n", s);
+ 
+			 ScanDirectory(SCAN_INIT, "",  SCAN_DIR | FIND_DIR);
 
-	for(i=0;i<nDirEntries;i++) {
-	  //iprintf("cmp %11s %11s\n", DirEntry[i].Name, s);
-	  if(strncasecmp(DirEntry[i].Name, s, 11) == 0) {
-	    ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
-	    res = 1;
-            break;
-          }
-        }
-	// found directory: stop searching
-        if(res) break;
+			// no return flag :(, so scan 10 times blindly...
+			for(;;) {
+				int i;
+				char res = 0;
+				unsigned short last_StartCluster = DirEntry[0].StartCluster;
 
-	// last search returned less than 8 entries: Stop searching since 
-	// there sure aren't more
-	if(nDirEntries != 8) 
-	  break;
+				for(i=0;i<nDirEntries;i++) {
+					//iprintf("cmp %11s %11s\n", DirEntry[i].Name, s);
+					if(strncasecmp(DirEntry[i].Name, s, 11) == 0) {
+						ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
+						res = 1;
+						break;
+					}
+				}
+				// found directory: stop searching
+				if(res) break;
 
-	// get next 8 directory entries
-	iSelectedEntry = MAXDIRENTRIES -1;
-	ScanDirectory(SCAN_NEXT_PAGE, "",  SCAN_DIR | FIND_DIR);
+				// last search returned less than 8 entries: Stop searching since 
+				// there sure aren't more
+				if(nDirEntries != 8) 
+					break;
 
-	// if 8 entries are returned check if the start cluster of the first entry
-	// is the same as the first one in the previous list. If it is, then this
-	// is the same list and we are done
-	if((nDirEntries == 8) && (DirEntry[0].StartCluster == last_StartCluster)) 
-	  break;
-      }
-    }
-    
-    ScanDirectory(SCAN_INIT, pFileExt, Options);
-  }
+				// get next 8 directory entries
+				iSelectedEntry = MAXDIRENTRIES -1;
+				ScanDirectory(SCAN_NEXT_PAGE, "",  SCAN_DIR | FIND_DIR);
 
-  iprintf("pFileExt = %3s\n", pFileExt);
-  strcpy(fs_pFileExt, pFileExt);
-  fs_ShowExt = (strlen(fs_pFileExt)>3 || strchr(fs_pFileExt, '*') || strchr(fs_pFileExt, '?'));
-  //  fs_pFileExt = pFileExt;
-  fs_Options = Options;
-  fs_MenuSelect = MenuSelect;
-  fs_MenuCancel = MenuCancel;
-  
-  menustate = MENU_FILE_SELECT1;
+				// if 8 entries are returned check if the start cluster of the first entry
+				// is the same as the first one in the previous list. If it is, then this
+				// is the same list and we are done
+				if((nDirEntries == 8) && (DirEntry[0].StartCluster == last_StartCluster)) 
+					break;
+			}
+		}
+		ScanDirectory(SCAN_INIT, pFileExt, Options);
+	}
+
+	iprintf("pFileExt = %3s\n", pFileExt);
+	strcpy(fs_pFileExt, pFileExt);
+	fs_ShowExt = (strlen(fs_pFileExt)>3 || strchr(fs_pFileExt, '*') || strchr(fs_pFileExt, '?'));
+	//  fs_pFileExt = pFileExt;
+	fs_Options = Options;
+	fs_MenuSelect = MenuSelect;
+	fs_MenuCancel = MenuCancel;
+
+	menustate = MENU_FILE_SELECT1;
 }
 
 
 static void substrcpy(char *d, char *s, char idx) {
-  char p = 0;
+	char p = 0;
 
-  while(*s) {
-    if((p == idx) && *s && (*s != ','))
-      *d++ = *s;
+	while(*s) {
+		if((p == idx) && *s && (*s != ','))
+			*d++ = *s;
 
-    if(*s == ',')
-      p++;
+		if(*s == ',')
+			p++;
 
-    s++;
-  }
-
-  *d = 0;
+		s++;
+	}
+	*d = 0;
 }
 
 #define STD_EXIT       "            exit"
@@ -293,19 +246,19 @@ static void substrcpy(char *d, char *s, char idx) {
 // assumes big endian, returns using special characters (checked box/unchecked box)
 void siprintbinary(char* buffer, size_t const size, void const * const ptr)
 {
-    unsigned char *b = (unsigned char*) ptr;
-    unsigned char byte;
-    int i, j;
-		memset(buffer, '\0', sizeof(buffer));
-    for (i=size-1;i>=0;i--)
-    {
-        for (j=0;j<8;j++)
-        {
-            byte = (b[i] >> j) & 1;
-            buffer[j]=byte?'\x1a':'\x19';
-        }
-    }
-		return;
+	unsigned char *b = (unsigned char*) ptr;
+	unsigned char byte;
+	int i, j;
+	memset(buffer, '\0', sizeof(buffer));
+	for (i=size-1;i>=0;i--)
+	{
+		for (j=0;j<8;j++)
+		{
+			byte = (b[i] >> j) & 1;
+			buffer[j]=byte?'\x1a':'\x19';
+		}
+	}
+	return;
 }
 
 void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) {	
@@ -522,14 +475,10 @@ void HandleUI(void)
 	char joy_string[32];
 	char joy_string2[32];
 	char usb_id[64];
-		
-	// update turbo status for joysticks
-	//StateTurboUpdate(0);
-	//StateTurboUpdate(1);
-		
+
 	// get user control codes
 	c = OsdGetCtrl();
-	
+
 	// decode and set events
 	menu = false;
 	select = false;
@@ -601,11 +550,11 @@ void HandleUI(void)
 				right = true;
 				break;
 		case KEY_KPPLUS :
-		plus=true;
-				break;
+			plus=true;
+			break;
 		case KEY_KPMINUS :
-		minus=true;
-				break;
+			minus=true;
+			break;
 	}
 
 	if(menu || select || up || down || left || right )
@@ -647,21 +596,21 @@ void HandleUI(void)
 			do
 				menusub++;
 			while((menumask & (1<<menusub)) == 0);
-            menustate = parentstate;
-    }
+			menustate = parentstate;
+		}
 
 		if (up && menusub > 0 && (menumask<<(8-menusub)))
 		{
 			do
 				--menusub;
 			while((menumask & (1<<menusub)) == 0);
-            menustate = parentstate;
+			menustate = parentstate;
 		}
 	}
 
-	
+
 	// Switch to current menu screen
-  switch (menustate)
+	switch (menustate)
 	{
 		/******************************************************************/
 		/* no menu selected                                               */
@@ -677,7 +626,7 @@ void HandleUI(void)
 			if (menu)
 			{
 				if((user_io_core_type() == CORE_TYPE_MINIMIG) ||
-					 (user_io_core_type() == CORE_TYPE_MINIMIG2))
+				   (user_io_core_type() == CORE_TYPE_MINIMIG2))
 					menustate = MENU_MAIN1;
 				else if((user_io_core_type() == CORE_TYPE_MIST) ||
 				        (user_io_core_type() == CORE_TYPE_MIST2))
@@ -774,18 +723,18 @@ void HandleUI(void)
 
 		case MENU_ARCHIE_MAIN_FILE_SELECTED : // file successfully selected
 			if(menusub == 0) {
-			    archie_set_floppy(0, &file);
-			    user_io_file_mount(&file, 0);
+				archie_set_floppy(0, &file);
+				user_io_file_mount(&file, 0);
 			}
 			if(menusub == 1) {
-			    archie_set_floppy(1, &file);
-			    user_io_file_mount(&file, 1);
+				archie_set_floppy(1, &file);
+				user_io_file_mount(&file, 1);
 			}
 			if(menusub == 2) archie_set_rom(&file);
 			if(menusub == 3) archie_set_cmos(&file);
 			menustate = MENU_ARCHIE_MAIN1;
 			break;
-			
+
 		/******************************************************************/
 		/* 8 bit main menu                                                */
 		/******************************************************************/
@@ -918,16 +867,16 @@ void HandleUI(void)
 			// clear rest of OSD
 			for(;entry<7;entry++) 
 				OsdWrite(entry, "", 0,0);
-			
+
 			menustate = MENU_8BIT_MAIN2;
 			parentstate=MENU_8BIT_MAIN1;
-			
+
 			// set helptext with core display on top of basic info
 			siprintf(helptext_custom, HELPTEXT_SPACER);
 			strcat(helptext_custom, OsdCoreName());
 			strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
 			helptext=helptext_custom;
-			
+
 		} break; // end MENU_8BIT_MAIN1
 
 		case MENU_8BIT_MAIN2 :
@@ -983,13 +932,13 @@ void HandleUI(void)
 							unsigned long mask = 1<<getIdx(p);
 							unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 
-							//	    iprintf("Option %s %x\n", p, status ^ mask);
+							//iprintf("Option %s %x\n", p, status ^ mask);
 
 							// change bit
 							user_io_8bit_set_status(status ^ mask, mask);
 
 							// ... and change it again in case of a toggle bit
-								user_io_8bit_set_status(status, mask);
+							user_io_8bit_set_status(status, mask);
 
 							menustate = MENU_8BIT_MAIN1;
 						}
@@ -1151,7 +1100,7 @@ void HandleUI(void)
 			StarsInit();
 			ScrollReset();
 			break;
-			
+
 		case MENU_8BIT_ABOUT2:
 			StarsUpdate();
 			OsdDrawLogo(0,0,1);
@@ -1181,14 +1130,13 @@ void HandleUI(void)
 				} 
 			}
 			break;
-		
+
 		case MENU_8BIT_CONTROLLERS1:
 			helptext = helptexts[HELPTEXT_NONE];
 			menumask=0x7f;
 			OsdSetTitle("Inputs", 0);
 			menustate = MENU_8BIT_CONTROLLERS2;
 			parentstate=MENU_8BIT_CONTROLLERS1;
-			//OsdWrite(0, " Turbo Settings            \x16", menusub==0, 0);
 			OsdWrite(0, " Joystick 1 Test           \x16", menusub==0, 0);
 			OsdWrite(1, " Joystick 2 Test           \x16", menusub==1, 0);
 			OsdWrite(2, " Joystick 3 Test           \x16", menusub==2, 0);
@@ -1199,7 +1147,7 @@ void HandleUI(void)
 			OsdWrite(6, "", 0, 0);
 			OsdWrite(7, STD_EXIT, menusub==6, 0);
 			break;
-		
+
 		case MENU_8BIT_CONTROLLERS2:
 			// menu key goes back to previous menu
 			if (menu) {
@@ -1264,7 +1212,7 @@ void HandleUI(void)
 			//StateKeyboardPressedPS2(keys_ps2);
 			uint16_t keys_ps2b[6]={0,0,0,0,0,0};
 			siprintf(s, "   %4x %4x %4x %4x", keys_ps2b[0], keys_ps2b[1], keys_ps2b[2], keys_ps2b[3]); // keys_ps2[4], keys_ps2[5]);
-			OsdWrite(5, s, 0, 0);			
+			OsdWrite(5, s, 0, 0);
 			OsdWrite(6, " ", 0, 0);
 			OsdWrite(7, STD_COMBO_EXIT, menusub==0, 0);
 			break;
@@ -1286,7 +1234,7 @@ void HandleUI(void)
 			add_modifiers(mod, keys_ps2);
 			siprintf(s, "   %4x %4x %4x %4x ", keys_ps2[0], keys_ps2[1], keys_ps2[2], keys_ps2[3]);// keys_ps2[4], keys_ps2[5]);
 			OsdWrite(5, s, 0, 0);
-			//OsdWrite(5, "", 0, 0);					
+			//OsdWrite(5, "", 0, 0);
 			// allow allow exit when hitting space and ESC
 			for(i=0; i<6; i++) {
 				if(keys[i]==0x29) { //ESC
@@ -1374,83 +1322,6 @@ void HandleUI(void)
 			}
 			break;
 
-		case MENU_8BIT_TURBO1:
-			helptext = helptexts[HELPTEXT_NONE];
-			menumask=0x1F;
-			OsdSetTitle("Turbo", 0);
-			menustate = MENU_8BIT_TURBO2;
-			parentstate=MENU_8BIT_TURBO1;
-			//StateJoyState(0, &mist_joy[0]);
-			//joy0 = mist_joy[0];//StateJoyGet(0);
-			StateJoyState(0, &mist_joy[0]);
-			joy0 = mist_joy[0];
-			//StateJoyState(1, &mist_joy[1]);
-			joy1 = mist_joy[1];//StateJoyGet(1);
-			OsdWrite(0, "    Button Configuration", 1, 0);
-			OsdWrite(1, "", 0, 0);
-			strcpy(s,   "    Joy 1 Turbo     : ");
-			strcat(s, config_button_turbo_msg[(int)joy0.turbo/OSD_TURBO_STEP]);
-			OsdWrite(2, s, menusub==0, 0);
-			strcpy(s,   "          Buttons   : ");
-			strcat(s, config_button_turbo_choice_msg[(int)joy0.turbo_mask/16]);
-			OsdWrite(3, s, menusub==1, 0);
-			strcpy(s,   "    Joy 2 Turbo     : ");
-			strcat(s, config_button_turbo_msg[(int)joy1.turbo/OSD_TURBO_STEP]);
-			OsdWrite(4, s, menusub==2, 0);
-			strcpy(s,   "          Buttons   : ");
-			strcat(s, config_button_turbo_choice_msg[(int)joy1.turbo_mask/16]);
-			OsdWrite(5, s, menusub==3, 0);
-			OsdWrite(6, " ", 0, 0);
-			OsdWrite(7, STD_EXIT, menusub==4, 0);
-			break;
-			
-		case MENU_8BIT_TURBO2:
-			StateJoyState(0, &mist_joy[0]);
-			joy0 = mist_joy[0];
-			//StateJoyState(1, &mist_joy[1]);
-			//joy0 = mist_joy[0];//StateJoyGet(0);
-			joy1 = mist_joy[1];//StateJoyGet(1);
-			strcpy(s,   "    Joy 1 Turbo     : ");
-			strcat(s, config_button_turbo_msg[(int)(mist_joy[0].turbo/OSD_TURBO_STEP)&0xFF]);
-			OsdWrite(2, s, menusub==0, 0);
-			strcpy(s,   "          Buttons   : ");
-			strcat(s, config_button_turbo_choice_msg[(int)(mist_joy[0].turbo_mask/16-1)&0xFF]);
-			OsdWrite(3, s, menusub==1, 0);
-			strcpy(s,   "    Joy 2 Turbo     : ");
-			strcat(s, config_button_turbo_msg[(int)(mist_joy[1].turbo/OSD_TURBO_STEP)&0xFF]);
-			OsdWrite(4, s, menusub==2, 0);
-			strcpy(s,   "          Buttons   : ");
-			strcat(s, config_button_turbo_choice_msg[(int)(mist_joy[1].turbo_mask/16-1)&0xFF]);
-			OsdWrite(5, s, menusub==3, 0);
-			// menu key goes back to previous menu
-			if (menu) {
-					menustate = MENU_8BIT_CONTROLLERS1;
-					menusub = 0;
-			}	
-			if(select) {
-				if(menusub==0) {
-					mist_joy[0].turbo += OSD_TURBO_STEP;
-					if(mist_joy[0].turbo>OSD_TURBO_STEP*3) mist_joy[0].turbo=0;
-				}
-				if(menusub==1) {
-					mist_joy[0].turbo_mask += 16;
-					if(mist_joy[0].turbo_mask>16*3) mist_joy[0].turbo_mask=16;
-				}
-				if(menusub==2) {
-					mist_joy[1].turbo += OSD_TURBO_STEP;
-					if(mist_joy[1].turbo>OSD_TURBO_STEP*3) mist_joy[1].turbo=0;
-				}
-				if(menusub==3) {
-					mist_joy[1].turbo_mask += 16;
-					if(mist_joy[1].turbo_mask>16*3) mist_joy[1].turbo_mask=16;
-				}
-				if(menusub==4) {
-					menustate = MENU_8BIT_CONTROLLERS1;
-					menusub = 0;
-				}
-			}
-			break;
-						
 		case MENU_8BIT_CHRTEST1:
 			helptext = helptexts[HELPTEXT_NONE];
 			menumask=0;
@@ -1833,7 +1704,7 @@ void HandleUI(void)
 					tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIDEO_COLOR);
 					menustate = MENU_MIST_VIDEO1;
 					break;
-					
+
 				case 1:
 					// viking/sm194
 					tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIKING);
@@ -1850,11 +1721,12 @@ void HandleUI(void)
 				case 3: {
 					unsigned long chipset = (tos_system_ctrl() >> 23)+1;
 					if(chipset == 4) chipset = 0;
-					tos_update_sysctrl(tos_system_ctrl() & ~(TOS_CONTROL_STE | TOS_CONTROL_MSTE) | 
-								 (chipset << 23));
+					tos_update_sysctrl(tos_system_ctrl() & ~(TOS_CONTROL_STE | TOS_CONTROL_MSTE) |
+						 (chipset << 23));
 					menustate = MENU_MIST_VIDEO1;
-				} break;
-					
+					}
+					break;
+
 				case 4: if(user_io_core_type() == CORE_TYPE_MIST) {
 						menustate = MENU_MIST_VIDEO_ADJUST1;
 						menusub = 0;
@@ -1888,7 +1760,7 @@ void HandleUI(void)
 
 			strcpy(s, " PAL mode:    ");
 			if(tos_system_ctrl() & TOS_CONTROL_PAL50HZ) strcat(s, "50Hz");
-			else                                      strcat(s, "56Hz");
+			else                                        strcat(s, "56Hz");
 			OsdWrite(1, s, menusub == 0,0);
 
 			strcpy(s, " Scanlines:   ");
@@ -1897,7 +1769,7 @@ void HandleUI(void)
 
 			OsdWrite(3, "", 0,0);
 
-						siprintf(s, " Horizontal:  %d", tos_get_video_adjust(0));
+			siprintf(s, " Horizontal:  %d", tos_get_video_adjust(0));
 			OsdWrite(4, s, menusub == 2,0);
 
 			siprintf(s, " Vertical:    %d", tos_get_video_adjust(1));
@@ -1908,49 +1780,49 @@ void HandleUI(void)
 			OsdWrite(7, STD_EXIT, menusub == 4,0);
 
 			parentstate = menustate;
-						menustate = MENU_MIST_VIDEO_ADJUST2;
+			menustate = MENU_MIST_VIDEO_ADJUST2;
 			break;
 
 		case MENU_MIST_VIDEO_ADJUST2 :
-					if (menu) {
-			menustate = MENU_MIST_VIDEO1;
-			menusub = 4;
-					}
-
-					// use left/right to adjust video position
-					if(left || right) {
-			if((menusub == 2)||(menusub == 3)) {
-				if(left && (tos_get_video_adjust(menusub - 2) > -100))
-					tos_set_video_adjust(menusub - 2, -1);
-				
-				if(right && (tos_get_video_adjust(menusub - 2) < 100))
-					tos_set_video_adjust(menusub - 2, +1);
-				
-				menustate = MENU_MIST_VIDEO_ADJUST1;
-			}
-					}
-
-					if(select) {
-			switch(menusub) {
-			case 0:
-				tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_PAL50HZ);
-				menustate = MENU_MIST_VIDEO_ADJUST1;
-				break;
-
-			case 1: {
-				// next scanline state
-				int scan = ((tos_system_ctrl() >> 20)+1)&3;
-				tos_update_sysctrl((tos_system_ctrl() & ~TOS_CONTROL_SCANLINES) | (scan << 20));
-				menustate=MENU_MIST_VIDEO_ADJUST1;
-			} break;
-
-				// entries 2 and 3 use left/right
-				
-			case 4:
+			if (menu) {
 				menustate = MENU_MIST_VIDEO1;
 				menusub = 4;
-				break;
 			}
+
+			// use left/right to adjust video position
+			if(left || right) {
+				if((menusub == 2)||(menusub == 3)) {
+					if(left && (tos_get_video_adjust(menusub - 2) > -100))
+						tos_set_video_adjust(menusub - 2, -1);
+
+					if(right && (tos_get_video_adjust(menusub - 2) < 100))
+						tos_set_video_adjust(menusub - 2, +1);
+
+					menustate = MENU_MIST_VIDEO_ADJUST1;
+				}
+			}
+
+			if(select) {
+				switch(menusub) {
+				case 0:
+					tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_PAL50HZ);
+					menustate = MENU_MIST_VIDEO_ADJUST1;
+					break;
+
+				case 1: {
+					// next scanline state
+					int scan = ((tos_system_ctrl() >> 20)+1)&3;
+					tos_update_sysctrl((tos_system_ctrl() & ~TOS_CONTROL_SCANLINES) | (scan << 20));
+					menustate=MENU_MIST_VIDEO_ADJUST1;
+				} break;
+
+				// entries 2 and 3 use left/right
+
+				case 4:
+					menustate = MENU_MIST_VIDEO1;
+					menusub = 4;
+					break;
+				}
 			}
 			break;
 
@@ -2053,128 +1925,128 @@ void HandleUI(void)
 		/* minimig main menu                                              */
 		/******************************************************************/
 		case MENU_MAIN1 :
-		menumask=0x70;	// b01110000 Floppy turbo, Harddisk options & Exit.
-		OsdSetTitle("Minimig",OSD_ARROW_RIGHT);
-		helptext=helptexts[HELPTEXT_MAIN];
+			menumask=0x70;	// b01110000 Floppy turbo, Harddisk options & Exit.
+			OsdSetTitle("Minimig",OSD_ARROW_RIGHT);
+			helptext=helptexts[HELPTEXT_MAIN];
 
-				// floppy drive info
-		// We display a line for each drive that's active
-		// in the config file, but grey out any that the FPGA doesn't think are active.
-		// We also print a help text in place of the last drive if it's inactive.
-				for (i = 0; i < 4; i++)
-				{
-			if(i==config.floppy.drives+1)
-				OsdWrite(i," KP +/- to add/remove drives",0,1);
-			else
+			// floppy drive info
+			// We display a line for each drive that's active
+			// in the config file, but grey out any that the FPGA doesn't think are active.
+			// We also print a help text in place of the last drive if it's inactive.
+			for (i = 0; i < 4; i++)
 			{
-						strcpy(s, " dfx: ");
-						s[3] = i + '0';
-				if(i<=drives)
+				if(i==config.floppy.drives+1)
+					OsdWrite(i," KP +/- to add/remove drives",0,1);
+				else
 				{
-					menumask|=(1<<i);	// Make enabled drives selectable
+					strcpy(s, " dfx: ");
+					s[3] = i + '0';
+					if(i<=drives)
+					{
+						menumask|=(1<<i);	// Make enabled drives selectable
 
 						if (df[i].status & DSK_INSERTED) // floppy disk is inserted
 						{
-								strncpy(&s[6], df[i].name, sizeof(df[0].name));
-						if(!(df[i].status & DSK_WRITABLE))
-									strcpy(&s[6 + sizeof(df[i].name)-1], " \x17"); // padlock icon for write-protected disks
-						else
-									strcpy(&s[6 + sizeof(df[i].name)-1], "  "); // clear padlock icon for write-enabled disks
+							strncpy(&s[6], df[i].name, sizeof(df[0].name));
+							if(!(df[i].status & DSK_WRITABLE))
+								strcpy(&s[6 + sizeof(df[i].name)-1], " \x17"); // padlock icon for write-protected disks
+							else
+								strcpy(&s[6 + sizeof(df[i].name)-1], "  "); // clear padlock icon for write-enabled disks
 						}
 						else // no floppy disk
-					{
-								strcat(s, "* no disk *");
+						{
+							strcat(s, "* no disk *");
+						}
 					}
+					else if(i<=config.floppy.drives)
+					{
+						strcat(s,"* active after reset *");
+					}
+					else
+						strcpy(s,"");
+					OsdWrite(i, s, menusub == i,(i>drives)||(i>config.floppy.drives));
 				}
-				else if(i<=config.floppy.drives)
-				{
-					strcat(s,"* active after reset *");
-				}
-				else
-					strcpy(s,"");
-						OsdWrite(i, s, menusub == i,(i>drives)||(i>config.floppy.drives));
 			}
-				}
-		siprintf(s," Floppy disk turbo : %s",config.floppy.speed ? "on" : "off");
-				OsdWrite(4, s, menusub==4,0);
-				OsdWrite(5, " Hard disk settings \x16", menusub == 5,0);
-				OsdWrite(6, "", 0,0);
-				OsdWrite(7, STD_EXIT, menusub == 6,0);
+			siprintf(s," Floppy disk turbo : %s",config.floppy.speed ? "on" : "off");
+			OsdWrite(4, s, menusub==4,0);
+			OsdWrite(5, " Hard disk settings \x16", menusub == 5,0);
+			OsdWrite(6, "", 0,0);
+			OsdWrite(7, STD_EXIT, menusub == 6,0);
 
-				menustate = MENU_MAIN2;
-		parentstate=MENU_MAIN1;
-				break;
+			menustate = MENU_MAIN2;
+			parentstate=MENU_MAIN1;
+			break;
 
 		case MENU_MAIN2 :
-				if (menu)
-						menustate = MENU_NONE1;
-		else if(plus && (config.floppy.drives<3))
-		{
-			config.floppy.drives++;
-			ConfigFloppy(config.floppy.drives,config.floppy.speed);
-					menustate = MENU_MAIN1;
-		}
-		else if(minus && (config.floppy.drives>0))
-		{
-			config.floppy.drives--;
-			ConfigFloppy(config.floppy.drives,config.floppy.speed);
-					menustate = MENU_MAIN1;
-		}
-				else if (select)
-				{
-						if (menusub < 4)
-						{
-								if (df[menusub].status & DSK_INSERTED) // eject selected floppy
-								{
-										df[menusub].status = 0;
-										menustate = MENU_MAIN1;
-								}
-								else
-								{
-										df[menusub].status = 0;
-										SelectFile("ADF", SCAN_DIR | SCAN_LFN, MENU_FILE_SELECTED, MENU_MAIN1, 0);
-								}
-						}
-						else if (menusub == 4)	// Toggle floppy turbo
+			if (menu)
+				menustate = MENU_NONE1;
+			else if(plus && (config.floppy.drives<3))
 			{
-								config.floppy.speed^=1;
+				config.floppy.drives++;
 				ConfigFloppy(config.floppy.drives,config.floppy.speed);
-								menustate = MENU_MAIN1;
+				menustate = MENU_MAIN1;
 			}
-						else if (menusub == 5)	// Go to harddrives page.
+			else if(minus && (config.floppy.drives>0))
 			{
-								 t_hardfile[0] = config.hardfile[0];
-								 t_hardfile[1] = config.hardfile[1];
-								 t_enable_ide = config.enable_ide;
-								 menustate = MENU_SETTINGS_HARDFILE1;
-				 menusub=0;
+				config.floppy.drives--;
+				ConfigFloppy(config.floppy.drives,config.floppy.speed);
+				menustate = MENU_MAIN1;
 			}
-						else if (menusub == 6)
-								menustate = MENU_NONE1;
-				}
-				else if (c == KEY_BACK) // eject all floppies
+			else if (select)
+			{
+				if (menusub < 4)
 				{
-						for (i = 0; i <= drives; i++)
-								df[i].status = 0;
-
+					if (df[menusub].status & DSK_INSERTED) // eject selected floppy
+					{
+						df[menusub].status = 0;
 						menustate = MENU_MAIN1;
+					}
+					else
+					{
+						df[menusub].status = 0;
+						SelectFile("ADF", SCAN_DIR | SCAN_LFN, MENU_FILE_SELECTED, MENU_MAIN1, 0);
+					}
 				}
-				else if (right)
+				else if (menusub == 4)	// Toggle floppy turbo
 				{
-						menustate = MENU_MAIN2_1;
-						menusub = 0;
+					config.floppy.speed^=1;
+					ConfigFloppy(config.floppy.drives,config.floppy.speed);
+					menustate = MENU_MAIN1;
 				}
-				break;
+				else if (menusub == 5)	// Go to harddrives page.
+				{
+					t_hardfile[0] = config.hardfile[0];
+					t_hardfile[1] = config.hardfile[1];
+					t_enable_ide = config.enable_ide;
+					menustate = MENU_SETTINGS_HARDFILE1;
+					menusub=0;
+				}
+				else if (menusub == 6)
+					menustate = MENU_NONE1;
+			}
+			else if (c == KEY_BACK) // eject all floppies
+			{
+				for (i = 0; i <= drives; i++)
+					df[i].status = 0;
+
+				menustate = MENU_MAIN1;
+			}
+			else if (right)
+			{
+				menustate = MENU_MAIN2_1;
+				menusub = 0;
+			}
+			break;
 
 		case MENU_FILE_SELECTED : // file successfully selected
 
-				 InsertFloppy(&df[menusub]);
-				 menustate = MENU_MAIN1;
-				 menusub++;
-				 if (menusub > drives)
-						 menusub = 6;
+			InsertFloppy(&df[menusub]);
+			menustate = MENU_MAIN1;
+			menusub++;
+			if (menusub > drives)
+				menusub = 6;
 
-				 break;
+			break;
 
 		/******************************************************************/
 		/* second part of the main menu                                   */
@@ -2198,50 +2070,49 @@ void HandleUI(void)
 		case MENU_MAIN2_2 :
 
 			if (menu)
-					menustate = MENU_NONE1;
+				menustate = MENU_NONE1;
 			else if (select)
 			{
-					if (menusub == 0)
-					{
-							menusub = 0;
-							menustate = MENU_LOADCONFIG_1;
-					}
-					else if (menusub == 1)
-					{
-							menusub = 0;
-							menustate = MENU_SAVECONFIG_1;
-					}
-					else if (menusub == 2)
-					{
-							menustate = MENU_SETTINGS_CHIPSET1;
-							menusub = 0;
-					}
-					else if (menusub == 3)
-					{
-							menustate = MENU_SETTINGS_MEMORY1;
-							menusub = 0;
-					}
-					else if (menusub == 4)
-					{
-							menustate = MENU_SETTINGS_VIDEO1;
-							menusub = 0;
-					}
-					else if (menusub == 5)
-							menustate = MENU_NONE1;
+				if (menusub == 0)
+				{
+					menusub = 0;
+					menustate = MENU_LOADCONFIG_1;
+				}
+				else if (menusub == 1)
+				{
+					menusub = 0;
+					menustate = MENU_SAVECONFIG_1;
+				}
+				else if (menusub == 2)
+				{
+					menustate = MENU_SETTINGS_CHIPSET1;
+					menusub = 0;
+				}
+				else if (menusub == 3)
+				{
+					menustate = MENU_SETTINGS_MEMORY1;
+					menusub = 0;
+				}
+				else if (menusub == 4)
+				{
+					menustate = MENU_SETTINGS_VIDEO1;
+					menusub = 0;
+				}
+				else if (menusub == 5)
+					menustate = MENU_NONE1;
 			}
 			else if (left)
 			{
-					menustate = MENU_MAIN1;
-					menusub = 0;
+				menustate = MENU_MAIN1;
+				menusub = 0;
 			}
 			else if (right)
 			{
-					menustate = MENU_8BIT_SYSTEM1; 
-					menusub = 0;
+				menustate = MENU_8BIT_SYSTEM1; 
+				menusub = 0;
 			}
 			break;
-		
-	
+
 		case MENU_LOADCONFIG_1 :
 			helptext=helptexts[HELPTEXT_NONE];
 			if(parentstate!=menustate)	// First run?
@@ -2273,8 +2144,8 @@ void HandleUI(void)
 			if (down)
 			{
 			//            if (menusub < 3)
-					if (menusub < 5)
-							menusub++;
+				if (menusub < 5)
+					menusub++;
 					menustate = MENU_LOADCONFIG_1;
 			}
 			else if (select)
@@ -2284,8 +2155,8 @@ void HandleUI(void)
 					OsdDisable();
 					SetConfigurationFilename(menusub);
 					LoadConfiguration(NULL, 0);
-					//				OsdReset(RESET_NORMAL);
-								menustate = MENU_NONE1;
+					//OsdReset(RESET_NORMAL);
+					menustate = MENU_NONE1;
 				}
 				else
 				{
@@ -2295,8 +2166,8 @@ void HandleUI(void)
 			}
 			if (menu) // exit menu
 			{
-					menustate = MENU_MAIN2_1;
-					menusub = 0;
+				menustate = MENU_MAIN2_1;
+				menusub = 0;
 			}
 			break;
 
@@ -2317,143 +2188,144 @@ void HandleUI(void)
 
 			if (c == KEY_HOME)
 			{
-					ScanDirectory(SCAN_INIT, fs_pFileExt, fs_Options);
-					menustate = MENU_FILE_SELECT1;
+				ScanDirectory(SCAN_INIT, fs_pFileExt, fs_Options);
+				menustate = MENU_FILE_SELECT1;
 			}
 
 			if (c == KEY_BACK)
 			{
-					if (iCurrentDirectory) // if not root directory
-					{
-							ScanDirectory(SCAN_INIT, fs_pFileExt, fs_Options);
-							ChangeDirectory(DirEntry[sort_table[iSelectedEntry]].StartCluster + (fat32 ? (DirEntry[sort_table[iSelectedEntry]].HighCluster & 0x0FFF) << 16 : 0));
-							if (ScanDirectory(SCAN_INIT_FIRST, fs_pFileExt, fs_Options))
-									ScanDirectory(SCAN_INIT_NEXT, fs_pFileExt, fs_Options);
+				if (iCurrentDirectory) // if not root directory
+				{
+					ScanDirectory(SCAN_INIT, fs_pFileExt, fs_Options);
+					ChangeDirectory(DirEntry[sort_table[iSelectedEntry]].StartCluster + (fat32 ? (DirEntry[sort_table[iSelectedEntry]].HighCluster & 0x0FFF) << 16 : 0));
+					if (ScanDirectory(SCAN_INIT_FIRST, fs_pFileExt, fs_Options))
+						ScanDirectory(SCAN_INIT_NEXT, fs_pFileExt, fs_Options);
 
-							menustate = MENU_FILE_SELECT1;
-					}
+					menustate = MENU_FILE_SELECT1;
+				}
 			}
 
 			if ((c == KEY_PGUP) || (c == KEY_LEFT))
 			{
-					ScanDirectory(SCAN_PREV_PAGE, fs_pFileExt, fs_Options);
-					menustate = MENU_FILE_SELECT1;        }
+				ScanDirectory(SCAN_PREV_PAGE, fs_pFileExt, fs_Options);
+				menustate = MENU_FILE_SELECT1;
+			}
 
 			if ((c == KEY_PGDN) || (c == KEY_RIGHT))
 			{
-					ScanDirectory(SCAN_NEXT_PAGE, fs_pFileExt, fs_Options);
-					menustate = MENU_FILE_SELECT1;
+				ScanDirectory(SCAN_NEXT_PAGE, fs_pFileExt, fs_Options);
+				menustate = MENU_FILE_SELECT1;
 			}
 
 			if (down) // scroll down one entry
 			{
-					ScanDirectory(SCAN_NEXT, fs_pFileExt, fs_Options);
-					menustate = MENU_FILE_SELECT1;
+				ScanDirectory(SCAN_NEXT, fs_pFileExt, fs_Options);
+				menustate = MENU_FILE_SELECT1;
 			}
 
 			if (up) // scroll up one entry
 			{
-					ScanDirectory(SCAN_PREV, fs_pFileExt, fs_Options);
-					menustate = MENU_FILE_SELECT1;
+				ScanDirectory(SCAN_PREV, fs_pFileExt, fs_Options);
+				menustate = MENU_FILE_SELECT1;
 			}
 
 			if ((i = GetASCIIKey(c)))
 			{ // find an entry beginning with given character
-					if (nDirEntries)
-					{
-							if (DirEntry[sort_table[iSelectedEntry]].Attributes & ATTR_DIRECTORY)
-							{ // it's a directory
-									if (i < DirEntry[sort_table[iSelectedEntry]].Name[0])
-									{
-											if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE))
-													ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR);
-									}
-									else if (i > DirEntry[sort_table[iSelectedEntry]].Name[0])
-									{
-											if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR))
-													ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE);
-									}
-									else
-									{
-											if (!ScanDirectory(i, fs_pFileExt, fs_Options)) // find nexr
-													if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE))
-															ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR);
-									}
-							}
-							else
-							{ // it's a file
-									if (i < DirEntry[sort_table[iSelectedEntry]].Name[0])
-									{
-											if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR))
-													ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE);
-									}
-									else if (i > DirEntry[sort_table[iSelectedEntry]].Name[0])
-									{
-											if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE))
-													ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR);
-									}
-									else
-									{
-											if (!ScanDirectory(i, fs_pFileExt, fs_Options)) // find next
-													if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR))
-															ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE);
-									}
-							}
+				if (nDirEntries)
+				{
+					if (DirEntry[sort_table[iSelectedEntry]].Attributes & ATTR_DIRECTORY)
+					{ // it's a directory
+						if (i < DirEntry[sort_table[iSelectedEntry]].Name[0])
+						{
+							if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE))
+								ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR);
+						}
+						else if (i > DirEntry[sort_table[iSelectedEntry]].Name[0])
+						{
+							if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR))
+							ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE);
+						}
+						else
+						{
+							if (!ScanDirectory(i, fs_pFileExt, fs_Options)) // find nexr
+								if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE))
+									ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR);
+						}
 					}
-					menustate = MENU_FILE_SELECT1;
+					else
+					{ // it's a file
+						if (i < DirEntry[sort_table[iSelectedEntry]].Name[0])
+						{
+							if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR))
+								ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE);
+						}
+						else if (i > DirEntry[sort_table[iSelectedEntry]].Name[0])
+						{
+							if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE))
+								ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR);
+						}
+						else
+						{
+							if (!ScanDirectory(i, fs_pFileExt, fs_Options)) // find next
+								if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR))
+									ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE);
+						}
+					}
+				}
+				menustate = MENU_FILE_SELECT1;
 			}
 
 			if (select)
 			{
-					if (DirEntry[sort_table[iSelectedEntry]].Attributes & ATTR_DIRECTORY)
+				if (DirEntry[sort_table[iSelectedEntry]].Attributes & ATTR_DIRECTORY)
+				{
+					ChangeDirectory(DirEntry[sort_table[iSelectedEntry]].StartCluster + (fat32 ? (DirEntry[sort_table[iSelectedEntry]].HighCluster & 0x0FFF) << 16 : 0));
 					{
-							ChangeDirectory(DirEntry[sort_table[iSelectedEntry]].StartCluster + (fat32 ? (DirEntry[sort_table[iSelectedEntry]].HighCluster & 0x0FFF) << 16 : 0));
-							{
-									if (strncmp((char*)DirEntry[sort_table[iSelectedEntry]].Name, "..", 2) == 0)
-									{ // parent dir selected
-											 if (ScanDirectory(SCAN_INIT_FIRST, fs_pFileExt, fs_Options))
-													 ScanDirectory(SCAN_INIT_NEXT, fs_pFileExt, fs_Options);
-											 else
-													 ScanDirectory(SCAN_INIT, fs_pFileExt, fs_Options);
-									}
-									else
-											ScanDirectory(SCAN_INIT, fs_pFileExt, fs_Options);
+						if (strncmp((char*)DirEntry[sort_table[iSelectedEntry]].Name, "..", 2) == 0)
+						{ // parent dir selected
+							if (ScanDirectory(SCAN_INIT_FIRST, fs_pFileExt, fs_Options))
+								ScanDirectory(SCAN_INIT_NEXT, fs_pFileExt, fs_Options);
+							else
+								ScanDirectory(SCAN_INIT, fs_pFileExt, fs_Options);
+						}
+						else
+							ScanDirectory(SCAN_INIT, fs_pFileExt, fs_Options);
 
-									menustate = MENU_FILE_SELECT1;
-							}
+						menustate = MENU_FILE_SELECT1;
 					}
-					else
+				}
+				else
+				{
+					if (nDirEntries)
 					{
-							if (nDirEntries)
-							{
-									file.long_name[0] = 0;
-									len = strlen(DirEntryLFN[sort_table[iSelectedEntry]]);
-									if ((len > 4) && !fs_ShowExt)
-											if (DirEntryLFN[sort_table[iSelectedEntry]][len-4] == '.')
-													len -= 4; // remove extension
+						file.long_name[0] = 0;
+						len = strlen(DirEntryLFN[sort_table[iSelectedEntry]]);
+						if ((len > 4) && !fs_ShowExt)
+							if (DirEntryLFN[sort_table[iSelectedEntry]][len-4] == '.')
+								len -= 4; // remove extension
 
-									if (len > sizeof(file.long_name))
-											len = sizeof(file.long_name);
+						if (len > sizeof(file.long_name))
+							len = sizeof(file.long_name);
 
-									strncpy(file.name, (const char*)DirEntry[sort_table[iSelectedEntry]].Name, sizeof(file.name));
-									memset(file.long_name, 0, sizeof(file.long_name));
-									strncpy(file.long_name, DirEntryLFN[sort_table[iSelectedEntry]], len);
-									strncpy(DiskInfo, DirEntryInfo[iSelectedEntry], sizeof(DiskInfo));
+						strncpy(file.name, (const char*)DirEntry[sort_table[iSelectedEntry]].Name, sizeof(file.name));
+						memset(file.long_name, 0, sizeof(file.long_name));
+						strncpy(file.long_name, DirEntryLFN[sort_table[iSelectedEntry]], len);
+						strncpy(DiskInfo, DirEntryInfo[iSelectedEntry], sizeof(DiskInfo));
 
-									file.size = DirEntry[sort_table[iSelectedEntry]].FileSize;
-									file.attributes = DirEntry[sort_table[iSelectedEntry]].Attributes;
-									file.start_cluster = DirEntry[sort_table[iSelectedEntry]].StartCluster + (fat32 ? (DirEntry[sort_table[iSelectedEntry]].HighCluster & 0x0FFF) << 16 : 0);
-									file.cluster = file.start_cluster;
-									file.sector = 0;
+						file.size = DirEntry[sort_table[iSelectedEntry]].FileSize;
+						file.attributes = DirEntry[sort_table[iSelectedEntry]].Attributes;
+						file.start_cluster = DirEntry[sort_table[iSelectedEntry]].StartCluster + (fat32 ? (DirEntry[sort_table[iSelectedEntry]].HighCluster & 0x0FFF) << 16 : 0);
+						file.cluster = file.start_cluster;
+						file.sector = 0;
 
-									menustate = fs_MenuSelect;
-							}
+						menustate = fs_MenuSelect;
 					}
+				}
 			}
 
 			if (menu)
 			{
-					menustate = fs_MenuCancel;
+				menustate = fs_MenuCancel;
 			}
 
 			break;
@@ -2482,7 +2354,7 @@ void HandleUI(void)
 			menustate = MENU_RESET2;
 			break;
 
-	case MENU_RESET2 :
+		case MENU_RESET2 :
 
 			m = 0;
 			if (user_io_core_type()==CORE_TYPE_MINIMIG || user_io_core_type()==CORE_TYPE_MINIMIG2)
@@ -2509,11 +2381,11 @@ void HandleUI(void)
 
 			if (menu || (select && (menusub == 1))) // exit menu
 			{
-					menustate = MENU_8BIT_SYSTEM1;
-					menusub = 0;
+				menustate = MENU_8BIT_SYSTEM1;
+				menusub = 0;
 			}
 			break;
-	
+
 		case MENU_SAVECONFIG_1 :
 			helptext=helptexts[HELPTEXT_NONE];
 			menumask=0x3f;
@@ -2527,7 +2399,6 @@ void HandleUI(void)
 			OsdWrite(4, "        3", menusub == 3,0);
 			OsdWrite(5, "        4", menusub == 4,0);
 			OsdWrite(6, "", 0,0);
-//        OsdWrite(7, "              exit", menusub == 3);
 			OsdWrite(7, STD_EXIT, menusub == 5,0);
 
 			menustate = MENU_SAVECONFIG_2;
@@ -2537,22 +2408,21 @@ void HandleUI(void)
 
 			if (menu)
 			{
-					menustate = MENU_MAIN2_1;
-					menusub = 5;
+				menustate = MENU_MAIN2_1;
+				menusub = 5;
 			}
 
 			else if (up)
 			{
-					if (menusub > 0)
-							menusub--;
-					menustate = MENU_SAVECONFIG_1;
+				if (menusub > 0)
+					menusub--;
+				menustate = MENU_SAVECONFIG_1;
 			}
 			else if (down)
 			{
-//            if (menusub < 3)
-					if (menusub < 5)
-							menusub++;
-					menustate = MENU_SAVECONFIG_1;
+				if (menusub < 5)
+					menusub++;
+				menustate = MENU_SAVECONFIG_1;
 			}
 			else if (select)
 			{
@@ -2560,7 +2430,7 @@ void HandleUI(void)
 				{
 					SetConfigurationFilename(menusub);
 					SaveConfiguration(NULL);
-							menustate = MENU_NONE1;
+					menustate = MENU_NONE1;
 				}
 				else
 				{
@@ -2570,8 +2440,8 @@ void HandleUI(void)
 			}
 			if (menu) // exit menu
 			{
-					menustate = MENU_MAIN2_1;
-					menusub = 1;
+				menustate = MENU_MAIN2_1;
+				menusub = 1;
 			}
 			break;
 
@@ -2611,98 +2481,98 @@ void HandleUI(void)
 
 			if (down && menusub < 5)
 			{
-					menusub++;
-					menustate = MENU_SETTINGS_CHIPSET1;
+				menusub++;
+				menustate = MENU_SETTINGS_CHIPSET1;
 			}
 
 			if (up && menusub > 0)
 			{
-					menusub--;
-					menustate = MENU_SETTINGS_CHIPSET1;
+				menusub--;
+				menustate = MENU_SETTINGS_CHIPSET1;
 			}
 
 			if (select)
 			{
-					if (menusub == 0)
+				if (menusub == 0)
+				{
+					menustate = MENU_SETTINGS_CHIPSET1;
+					int _config_cpu = config.cpu & 0x3;
+					_config_cpu += 1; 
+					if (_config_cpu==0x02) _config_cpu += 1;
+					config.cpu = (config.cpu & 0xfc) | (_config_cpu & 0x3);
+					ConfigCPU(config.cpu);
+				}
+				else if (menusub == 1)
+				{
+					menustate = MENU_SETTINGS_CHIPSET1;
+					int _config_turbo = (config.cpu >> 2) & 0x3;
+					_config_turbo += 1;
+					config.cpu = (config.cpu & 0x3) | ((_config_turbo & 0x3) << 2);
+					ConfigCPU(config.cpu);
+				}
+				else if (menusub == 2)
+				{
+					config.chipset ^= CONFIG_NTSC;
+					menustate = MENU_SETTINGS_CHIPSET1;
+					ConfigChipset(config.chipset);
+				}
+				else if (menusub == 3)
+				{
+					if(minimig_v1()) 
 					{
-							menustate = MENU_SETTINGS_CHIPSET1;
-							int _config_cpu = config.cpu & 0x3;
-							_config_cpu += 1; 
-							if (_config_cpu==0x02) _config_cpu += 1;
-							config.cpu = (config.cpu & 0xfc) | (_config_cpu & 0x3);
-							ConfigCPU(config.cpu);
-					}
-					else if (menusub == 1)
-					{
-							menustate = MENU_SETTINGS_CHIPSET1;
-							int _config_turbo = (config.cpu >> 2) & 0x3;
-							_config_turbo += 1;
-							config.cpu = (config.cpu & 0x3) | ((_config_turbo & 0x3) << 2);
-							ConfigCPU(config.cpu);
-					}
-					else if (menusub == 2)
-					{
-							config.chipset ^= CONFIG_NTSC;
-							menustate = MENU_SETTINGS_CHIPSET1;
-							ConfigChipset(config.chipset);
-					}
-					else if (menusub == 3)
-					{
-						if(minimig_v1()) 
-						{
-							if (config.chipset & CONFIG_ECS)
-								config.chipset &= ~(CONFIG_ECS|CONFIG_A1000);
-							else
-								config.chipset += CONFIG_A1000;
-						} 
+						if (config.chipset & CONFIG_ECS)
+							config.chipset &= ~(CONFIG_ECS|CONFIG_A1000);
 						else
-						{
-							switch(config.chipset&0x1c) {
-								case 0:
-									config.chipset = (config.chipset&3) | CONFIG_A1000;
-									break;
-								case CONFIG_A1000:
-									config.chipset = (config.chipset&3) | CONFIG_ECS;
-									break;
-								case CONFIG_ECS:
-									config.chipset = (config.chipset&3) | CONFIG_AGA | CONFIG_ECS;
-									break;
-								case (CONFIG_AGA|CONFIG_ECS):
-									config.chipset = (config.chipset&3) | 0;
-									break;
-								}
+							config.chipset += CONFIG_A1000;
+					} 
+					else
+					{
+						switch(config.chipset&0x1c) {
+							case 0:
+								config.chipset = (config.chipset&3) | CONFIG_A1000;
+								break;
+							case CONFIG_A1000:
+								config.chipset = (config.chipset&3) | CONFIG_ECS;
+								break;
+							case CONFIG_ECS:
+								config.chipset = (config.chipset&3) | CONFIG_AGA | CONFIG_ECS;
+								break;
+							case (CONFIG_AGA|CONFIG_ECS):
+								config.chipset = (config.chipset&3) | 0;
+								break;
 						}
-							menustate = MENU_SETTINGS_CHIPSET1;
-							ConfigChipset(config.chipset);
 					}
-					else if (menusub == 4)
-					{
-						//config.autofire = ((((config.autofire >> 2) + 1) & 1) << 2) || (config.autofire & 3);
-						config.autofire  = (config.autofire + 4) & 0x7;
-						menustate = MENU_SETTINGS_CHIPSET1;
-						ConfigAutofire(config.autofire);
-					}
-					else if (menusub == 5)
-					{
-							menustate = MENU_MAIN2_1;
-							menusub = 2;
-					}
+					menustate = MENU_SETTINGS_CHIPSET1;
+					ConfigChipset(config.chipset);
+				}
+				else if (menusub == 4)
+				{
+					//config.autofire = ((((config.autofire >> 2) + 1) & 1) << 2) || (config.autofire & 3);
+					config.autofire  = (config.autofire + 4) & 0x7;
+					menustate = MENU_SETTINGS_CHIPSET1;
+					ConfigAutofire(config.autofire);
+				}
+				else if (menusub == 5)
+				{
+					menustate = MENU_MAIN2_1;
+					menusub = 2;
+				}
 			}
 
 			if (menu)
 			{
-					menustate = MENU_MAIN2_1;
-					menusub = 2;
+				menustate = MENU_MAIN2_1;
+				menusub = 2;
 			}
 			else if (right)
 			{
-					menustate = MENU_SETTINGS_MEMORY1;
-					menusub = 0;
+				menustate = MENU_SETTINGS_MEMORY1;
+				menusub = 0;
 			}
 			else if (left)
 			{
-					menustate = MENU_SETTINGS_VIDEO1;
-					menusub = 0;
+				menustate = MENU_SETTINGS_VIDEO1;
+				menusub = 0;
 			}
 			break;
 
@@ -2751,63 +2621,63 @@ void HandleUI(void)
 		case MENU_SETTINGS_MEMORY2 :
 			if (select)
 			{
-					if (menusub == 0)
-					{
-							config.memory = ((config.memory + 1) & 0x03) | (config.memory & ~0x03);
-							menustate = MENU_SETTINGS_MEMORY1;
-							ConfigMemory(config.memory);
-					}
-					else if (menusub == 1)
-					{
-							config.memory = ((config.memory + 4) & 0x0C) | (config.memory & ~0x0C);
-							menustate = MENU_SETTINGS_MEMORY1;
-							ConfigMemory(config.memory);
-					}
-					else if (menusub == 2)
-					{
-							config.memory = ((config.memory + 0x10) & 0x30) | (config.memory & ~0x30);
-				//                if ((config.memory & 0x30) == 0x30)
-				//					config.memory -= 0x30;
-				//				if (!(config.disable_ar3 & 0x01)&&(config.memory & 0x20))
-				//                    config.memory &= ~0x30;
-							menustate = MENU_SETTINGS_MEMORY1;
-							ConfigMemory(config.memory);
-					}
-					else if (menusub == 3)
-					{
-						SelectFile("ROM", SCAN_LFN, MENU_ROMFILE_SELECTED, MENU_SETTINGS_MEMORY1, 0);
-					}
-					else if (menusub == 4)
-					{
-						config.memory ^= 0x40;
-						ConfigMemory(config.memory);
-						//if (!(config.disable_ar3 & 0x01)||(config.memory & 0x20))
-						//  config.disable_ar3 |= 0x01;
-						//else
-						//  config.disable_ar3 &= 0xFE;
-						menustate = MENU_SETTINGS_MEMORY1;
-					}
-					else if (menusub == 5)
-					{
-							menustate = MENU_MAIN2_1;
-							menusub = 3;
-					}
+				if (menusub == 0)
+				{
+					config.memory = ((config.memory + 1) & 0x03) | (config.memory & ~0x03);
+					menustate = MENU_SETTINGS_MEMORY1;
+					ConfigMemory(config.memory);
+				}
+				else if (menusub == 1)
+				{
+					config.memory = ((config.memory + 4) & 0x0C) | (config.memory & ~0x0C);
+					menustate = MENU_SETTINGS_MEMORY1;
+					ConfigMemory(config.memory);
+				}
+				else if (menusub == 2)
+				{
+					config.memory = ((config.memory + 0x10) & 0x30) | (config.memory & ~0x30);
+				//	if ((config.memory & 0x30) == 0x30)
+				//		config.memory -= 0x30;
+				//		if (!(config.disable_ar3 & 0x01)&&(config.memory & 0x20))
+				//			config.memory &= ~0x30;
+					menustate = MENU_SETTINGS_MEMORY1;
+					ConfigMemory(config.memory);
+				}
+				else if (menusub == 3)
+				{
+					SelectFile("ROM", SCAN_LFN, MENU_ROMFILE_SELECTED, MENU_SETTINGS_MEMORY1, 0);
+				}
+				else if (menusub == 4)
+				{
+					config.memory ^= 0x40;
+					ConfigMemory(config.memory);
+					//if (!(config.disable_ar3 & 0x01)||(config.memory & 0x20))
+					//  config.disable_ar3 |= 0x01;
+					//else
+					//  config.disable_ar3 &= 0xFE;
+					menustate = MENU_SETTINGS_MEMORY1;
+				}
+				else if (menusub == 5)
+				{
+					menustate = MENU_MAIN2_1;
+					menusub = 3;
+				}
 			}
 
 			if (menu)
 			{
-					menustate = MENU_MAIN2_1;
-					menusub = 3;
+				menustate = MENU_MAIN2_1;
+				menusub = 3;
 			}
 			else if (right)
 			{
-					menustate = MENU_SETTINGS_VIDEO1;
-					menusub = 0;
+				menustate = MENU_SETTINGS_VIDEO1;
+				menusub = 0;
 			}
 			else if (left)
 			{
-					menustate = MENU_SETTINGS_CHIPSET1;
-					menusub = 0;
+				menustate = MENU_SETTINGS_CHIPSET1;
+				menusub = 0;
 			}
 			break;
 
@@ -2840,35 +2710,35 @@ void HandleUI(void)
 			OsdWrite(2, s, config.enable_ide ? (menusub == 1) : 0 ,config.enable_ide==0);
 			if (config.hardfile[0].present)
 			{
-					strcpy(s, "                                ");
-					if (config.hardfile[0].long_name[0])
-							strncpy(&s[14], config.hardfile[0].long_name, sizeof(config.hardfile[0].long_name));
-					else
-							strncpy(&s[14], config.hardfile[0].name, sizeof(config.hardfile[0].name));
+				strcpy(s, "                                ");
+				if (config.hardfile[0].long_name[0])
+					strncpy(&s[14], config.hardfile[0].long_name, sizeof(config.hardfile[0].long_name));
+				else
+					strncpy(&s[14], config.hardfile[0].name, sizeof(config.hardfile[0].name));
 			}
 			else
-					strcpy(s, "       ** file not found **");
+				strcpy(s, "       ** file not found **");
 
 			enable=config.enable_ide && ((config.hardfile[0].enabled&HDF_TYPEMASK)==HDF_FILE);
 			if(enable)
 				menumask|=0x04;	// Make hardfile selectable
-				OsdWrite(3, s, enable ? (menusub == 2) : 0 , enable==0);
+			OsdWrite(3, s, enable ? (menusub == 2) : 0 , enable==0);
 
-					strcpy(s, "  Slave : ");
+			strcpy(s, "  Slave : ");
 			if(config.hardfile[1].enabled==(HDF_FILE|HDF_SYNTHRDB))
 				strcat(s,"Hardfile (filesys)");
 			else
 				strcat(s, config_hdf_msg[config.hardfile[1].enabled & HDF_TYPEMASK]);
 			OsdWrite(4, s, config.enable_ide ? (menusub == 3) : 0 ,config.enable_ide==0);
 			if (config.hardfile[1].present) {
-					strcpy(s, "                                ");
-					if (config.hardfile[1].long_name[0])
-							strncpy(&s[14], config.hardfile[1].long_name, sizeof(config.hardfile[0].long_name));
-					else
-							strncpy(&s[14], config.hardfile[1].name, sizeof(config.hardfile[0].name));
+				strcpy(s, "                                ");
+				if (config.hardfile[1].long_name[0])
+					strncpy(&s[14], config.hardfile[1].long_name, sizeof(config.hardfile[0].long_name));
+				else
+					strncpy(&s[14], config.hardfile[1].name, sizeof(config.hardfile[0].name));
 			}
 			else
-					strcpy(s, "       ** file not found **");
+				strcpy(s, "       ** file not found **");
 			enable=config.enable_ide && ((config.hardfile[1].enabled&HDF_TYPEMASK)==HDF_FILE);
 			if(enable)
 				menumask|=0x10;	// Make hardfile selectable
@@ -2935,13 +2805,13 @@ void HandleUI(void)
 				}
 				else if (menusub == 5) // return to previous menu
 				{
-						menustate = MENU_HARDFILE_EXIT;
+					menustate = MENU_HARDFILE_EXIT;
 				}
 			}
 
 			if (menu) // return to previous menu
 			{
-					menustate = MENU_HARDFILE_EXIT;
+				menustate = MENU_HARDFILE_EXIT;
 			}
 			break;
 
@@ -2958,16 +2828,16 @@ void HandleUI(void)
 				{
 					case HDF_FILETYPE_RDB:
 						config.hardfile[0].enabled=HDF_FILE;
-									config.hardfile[0].present = 1;
-								menustate = MENU_SETTINGS_HARDFILE1;
+						config.hardfile[0].present = 1;
+						menustate = MENU_SETTINGS_HARDFILE1;
 						break;
 					case HDF_FILETYPE_DOS:
 						config.hardfile[0].enabled=HDF_FILE|HDF_SYNTHRDB;
-									config.hardfile[0].present = 1;
-								menustate = MENU_SETTINGS_HARDFILE1;
+						config.hardfile[0].present = 1;
+						menustate = MENU_SETTINGS_HARDFILE1;
 						break;
 					case HDF_FILETYPE_UNKNOWN:
-									config.hardfile[0].present = 1;
+						config.hardfile[0].present = 1;
 						if(config.hardfile[0].enabled==HDF_FILE)	// Warn if we can't detect the type
 							menustate=MENU_SYNTHRDB1;
 						else
@@ -2976,8 +2846,8 @@ void HandleUI(void)
 						break;
 					case HDF_FILETYPE_NOTFOUND:
 					default:
-									config.hardfile[0].present = 0;
-								menustate = MENU_SETTINGS_HARDFILE1;
+						config.hardfile[0].present = 0;
+						menustate = MENU_SETTINGS_HARDFILE1;
 						break;
 				}
 			}
@@ -2990,16 +2860,16 @@ void HandleUI(void)
 				{
 					case HDF_FILETYPE_RDB:
 						config.hardfile[1].enabled=HDF_FILE;
-									config.hardfile[1].present = 1;
-								menustate = MENU_SETTINGS_HARDFILE1;
+						config.hardfile[1].present = 1;
+						menustate = MENU_SETTINGS_HARDFILE1;
 						break;
 					case HDF_FILETYPE_DOS:
 						config.hardfile[1].enabled=HDF_FILE|HDF_SYNTHRDB;
-									config.hardfile[1].present = 1;
-								menustate = MENU_SETTINGS_HARDFILE1;
+						config.hardfile[1].present = 1;
+						menustate = MENU_SETTINGS_HARDFILE1;
 						break;
 					case HDF_FILETYPE_UNKNOWN:
-									config.hardfile[1].present = 1;
+						config.hardfile[1].present = 1;
 						if(config.hardfile[1].enabled==HDF_FILE)	// Warn if we can't detect the type...
 							menustate=MENU_SYNTHRDB1;
 						else
@@ -3008,8 +2878,8 @@ void HandleUI(void)
 						break;
 					case HDF_FILETYPE_NOTFOUND:
 					default:
-									config.hardfile[1].present = 0;
-								menustate = MENU_SETTINGS_HARDFILE1;
+						config.hardfile[1].present = 0;
+						menustate = MENU_SETTINGS_HARDFILE1;
 						break;
 				}
 			}
@@ -3018,18 +2888,18 @@ void HandleUI(void)
 		 // check if hardfile configuration has changed
 		case MENU_HARDFILE_EXIT :
 
-			 if ((memcmp(config.hardfile, t_hardfile, sizeof(t_hardfile)) != 0) || (config.enable_ide != t_enable_ide))
-			 {
-					 menustate = MENU_HARDFILE_CHANGED1;
-					 menusub = 1;
-			 }
-			 else
-			 {
-					 menustate = MENU_MAIN1;
-					 menusub = 5;
-			 }
+			if ((memcmp(config.hardfile, t_hardfile, sizeof(t_hardfile)) != 0) || (config.enable_ide != t_enable_ide))
+			{
+				menustate = MENU_HARDFILE_CHANGED1;
+				menusub = 1;
+			}
+			else
+			{
+				menustate = MENU_MAIN1;
+				menusub = 5;
+			}
 
-			 break;
+			break;
 
 		// hardfile configuration has changed, ask user if he wants to use the new settings
 		case MENU_HARDFILE_CHANGED1 :
@@ -3060,15 +2930,15 @@ void HandleUI(void)
 						|| (strncmp(config.hardfile[0].name, t_hardfile[0].name, sizeof(t_hardfile[0].name)) != 0))
 					{
 						OpenHardfile(0);
-						//					if((config.hardfile[0].enabled == HDF_FILE) && !FindRDB(0))
-						//						menustate = MENU_SYNTHRDB1;
+						//if((config.hardfile[0].enabled == HDF_FILE) && !FindRDB(0))
+						//	menustate = MENU_SYNTHRDB1;
 					}
 					if (config.hardfile[1].enabled != t_hardfile[1].enabled
 						|| (strncmp(config.hardfile[1].name, t_hardfile[1].name, sizeof(t_hardfile[1].name)) != 0))
 					{
 						OpenHardfile(1);
-						//					if((config.hardfile[1].enabled == HDF_FILE) && !FindRDB(1))
-						//						menustate = MENU_SYNTHRDB2_1;
+						//if((config.hardfile[1].enabled == HDF_FILE) && !FindRDB(1))
+						//	menustate = MENU_SYNTHRDB2_1;
 					}
 
 					if(menustate==MENU_HARDFILE_CHANGED2)
@@ -3081,21 +2951,21 @@ void HandleUI(void)
 				}
 				else if (menusub == 1) // no
 				{
-						memcpy(config.hardfile, t_hardfile, sizeof(t_hardfile)); // restore configuration
-						config.enable_ide = t_enable_ide;
-
-						menustate = MENU_MAIN1;
-						menusub = 5;
-				}
-			}
-
-			if (menu)
-			{
 					memcpy(config.hardfile, t_hardfile, sizeof(t_hardfile)); // restore configuration
 					config.enable_ide = t_enable_ide;
 
 					menustate = MENU_MAIN1;
 					menusub = 5;
+				}
+			}
+
+			if (menu)
+			{
+				memcpy(config.hardfile, t_hardfile, sizeof(t_hardfile)); // restore configuration
+				config.enable_ide = t_enable_ide;
+
+				menustate = MENU_MAIN1;
+				menusub = 5;
 			}
 			break;
 
@@ -3137,8 +3007,8 @@ void HandleUI(void)
 		case MENU_SYNTHRDB2 :
 			if (select || menu)
 			{
-					if (menusub == 0) // OK
-					menustate = MENU_SETTINGS_HARDFILE1;
+				if (menusub == 0) // OK
+				menustate = MENU_SETTINGS_HARDFILE1;
 			}
 			break;
 
@@ -3150,7 +3020,7 @@ void HandleUI(void)
 			menumask=minimig_v1()?0x0f:0x1f;
 			parentstate=menustate;
 			helptext=helptexts[HELPTEXT_VIDEO];
-					
+
 			OsdSetTitle("Video",OSD_ARROW_LEFT|OSD_ARROW_RIGHT);
 			OsdWrite(0, "", 0,0);
 			strcpy(s, "   Lores Filter : ");
@@ -3161,98 +3031,98 @@ void HandleUI(void)
 			OsdWrite(2, s, menusub == 1,0);
 			strcpy(s, "   Scanlines    : ");
 			if(minimig_v1()) {
-					strcat(s, config_scanlines_msg[config.scanlines % 3]);
-					OsdWrite(3, s, menusub == 2,0);
-					OsdWrite(4, "", 0,0);
-					OsdWrite(5, "", 0,0);
-					OsdWrite(6, "", 0,0);
-					OsdWrite(7, STD_EXIT, menusub == 3,0);
+				strcat(s, config_scanlines_msg[config.scanlines % 3]);
+				OsdWrite(3, s, menusub == 2,0);
+				OsdWrite(4, "", 0,0);
+				OsdWrite(5, "", 0,0);
+				OsdWrite(6, "", 0,0);
+				OsdWrite(7, STD_EXIT, menusub == 3,0);
 			} else {
-					strcat(s, config_scanlines_msg[(config.scanlines&0x3) % 3]);
-					OsdWrite(3, s, menusub == 2,0);
-					strcpy(s, "   Dither       : ");
-					strcat(s, config_dither_msg[(config.scanlines>>2) & 0x03]);
-					OsdWrite(4, s, menusub == 3,0);
-					OsdWrite(5, "", 0,0);
-					OsdWrite(6, "", 0,0);
-					OsdWrite(7, STD_EXIT, menusub == 4,0);
+				strcat(s, config_scanlines_msg[(config.scanlines&0x3) % 3]);
+				OsdWrite(3, s, menusub == 2,0);
+				strcpy(s, "   Dither       : ");
+				strcat(s, config_dither_msg[(config.scanlines>>2) & 0x03]);
+				OsdWrite(4, s, menusub == 3,0);
+				OsdWrite(5, "", 0,0);
+				OsdWrite(6, "", 0,0);
+				OsdWrite(7, STD_EXIT, menusub == 4,0);
 			}
-		
+
 			menustate = MENU_SETTINGS_VIDEO2;
 			break;
 
 		case MENU_SETTINGS_VIDEO2 :
 			if (select)
 			{
-					if (menusub == 0)
-					{
-						config.filter.lores++;
-						config.filter.lores &= 0x03;
-						menustate = MENU_SETTINGS_VIDEO1;
+				if (menusub == 0)
+				{
+					config.filter.lores++;
+					config.filter.lores &= 0x03;
+					menustate = MENU_SETTINGS_VIDEO1;
+					MM1_ConfigFilter(config.filter.lores, config.filter.hires);
+					if(minimig_v1())
 						MM1_ConfigFilter(config.filter.lores, config.filter.hires);
-						if(minimig_v1())
-							MM1_ConfigFilter(config.filter.lores, config.filter.hires);
-						else
-							ConfigVideo(config.filter.hires, config.filter.lores, config.scanlines);
-					}
-					else if (menusub == 1)
-					{
-						config.filter.hires++;
-						config.filter.hires &= 0x03;
+					else
+						ConfigVideo(config.filter.hires, config.filter.lores, config.scanlines);
+				}
+				else if (menusub == 1)
+				{
+					config.filter.hires++;
+					config.filter.hires &= 0x03;
+					menustate = MENU_SETTINGS_VIDEO1;
+					if(minimig_v1())
+						MM1_ConfigFilter(config.filter.lores, config.filter.hires);
+					else
+						ConfigVideo(config.filter.hires, config.filter.lores, config.scanlines);
+				}
+				else if (menusub == 2)
+				{
+					if(minimig_v1()) {
+						config.scanlines++;
+						if (config.scanlines > 2)
+							config.scanlines = 0;
 						menustate = MENU_SETTINGS_VIDEO1;
-						if(minimig_v1())
-							MM1_ConfigFilter(config.filter.lores, config.filter.hires);
-						else
-							ConfigVideo(config.filter.hires, config.filter.lores, config.scanlines);
+						MM1_ConfigScanlines(config.scanlines);
+					} else {
+						config.scanlines = ((config.scanlines + 1)&0x03) | (config.scanlines&0xfc);
+						if ((config.scanlines&0x03) > 2)
+							config.scanlines = config.scanlines&0xfc;
+						menustate = MENU_SETTINGS_VIDEO1;
+						ConfigVideo(config.filter.hires, config.filter.lores, config.scanlines);
 					}
-					else if (menusub == 2)
-					{
-						if(minimig_v1()) {
-							config.scanlines++;
-							if (config.scanlines > 2)
-									config.scanlines = 0;
-							menustate = MENU_SETTINGS_VIDEO1;
-							MM1_ConfigScanlines(config.scanlines);
-						} else {
-							config.scanlines = ((config.scanlines + 1)&0x03) | (config.scanlines&0xfc);
-							if ((config.scanlines&0x03) > 2)
-								config.scanlines = config.scanlines&0xfc;
-							menustate = MENU_SETTINGS_VIDEO1;
-							ConfigVideo(config.filter.hires, config.filter.lores, config.scanlines);
-						}
+				}
+				else if (menusub == 3)
+				{
+					if(minimig_v1()) {
+						menustate = MENU_MAIN2_1;
+						menusub = 4;
+					} else {
+						config.scanlines = (config.scanlines + 4)&0x0f;
+						menustate = MENU_SETTINGS_VIDEO1;
+						ConfigVideo(config.filter.hires, config.filter.lores, config.scanlines);
 					}
-					else if (menusub == 3)
-					{
-						if(minimig_v1()) {
-							menustate = MENU_MAIN2_1;
-							menusub = 4;
-						} else {
-								config.scanlines = (config.scanlines + 4)&0x0f;
-								menustate = MENU_SETTINGS_VIDEO1;
-								ConfigVideo(config.filter.hires, config.filter.lores, config.scanlines);
-						}
-					}
-					else if (menusub == 4)
-					{
-							menustate = MENU_MAIN2_1;
-							menusub = 4;
-					}
+				}
+				else if (menusub == 4)
+				{
+					menustate = MENU_MAIN2_1;
+					menusub = 4;
+				}
 			}
 
 			if (menu)
 			{
-					menustate = MENU_MAIN2_1;
-					menusub = 4;
+				menustate = MENU_MAIN2_1;
+				menusub = 4;
 			}
 			else if (right)
 			{
-					menustate = MENU_SETTINGS_CHIPSET1;
-					menusub = 0;
+				menustate = MENU_SETTINGS_CHIPSET1;
+				menusub = 0;
 			}
 			else if (left)
 			{
-					menustate = MENU_SETTINGS_MEMORY1;
-					menusub = 0;
+				menustate = MENU_SETTINGS_MEMORY1;
+				menusub = 0;
 			}
 			break;
 
@@ -3279,65 +3149,65 @@ void HandleUI(void)
 			menustate = MENU_ROMFILE_SELECTED2;
 			break;
 
-			case MENU_ROMFILE_SELECTED2 :
+		case MENU_ROMFILE_SELECTED2 :
 
-				if (select)
+			if (select)
+			{
+				if (menusub == 0)
 				{
-					if (menusub == 0)
-					{
-						memcpy((void*)config.kickstart.name, (void*)file.name, sizeof(config.kickstart.name));
-						memcpy((void*)config.kickstart.long_name, (void*)file.long_name, sizeof(config.kickstart.long_name));
-						if(minimig_v1()) {
-								OsdDisable();
-								OsdReset(RESET_BOOTLOADER);
-								ConfigChipset(config.chipset | CONFIG_TURBO);
-								ConfigFloppy(config.floppy.drives, CONFIG_FLOPPY2X);
-								if (UploadKickstart(config.kickstart.name)) {
-									BootExit();
-								}
-								ConfigChipset(config.chipset); // restore CPU speed mode
-								ConfigFloppy(config.floppy.drives, config.floppy.speed); // restore floppy speed mode
-						} 
-						else {
-								// reset bootscreen cursor position
-								BootHome();
-								OsdDisable();
-								EnableOsd();
-								SPI(OSD_CMD_RST);
-								rstval = (SPI_RST_CPU | SPI_CPU_HLT);
-								SPI(rstval);
-								DisableOsd();
-								SPIN(); SPIN(); SPIN(); SPIN();
-								UploadKickstart(config.kickstart.name);
-								EnableOsd();
-								SPI(OSD_CMD_RST);
-								rstval = (SPI_RST_USR | SPI_RST_CPU);
-								SPI(rstval);
-								DisableOsd();
-								SPIN(); SPIN(); SPIN(); SPIN();
-								EnableOsd();
-								SPI(OSD_CMD_RST);
-								rstval = 0;
-								SPI(rstval);
-								DisableOsd();
-								SPIN(); SPIN(); SPIN(); SPIN();
+					memcpy((void*)config.kickstart.name, (void*)file.name, sizeof(config.kickstart.name));
+					memcpy((void*)config.kickstart.long_name, (void*)file.long_name, sizeof(config.kickstart.long_name));
+					if(minimig_v1()) {
+						OsdDisable();
+						OsdReset(RESET_BOOTLOADER);
+						ConfigChipset(config.chipset | CONFIG_TURBO);
+						ConfigFloppy(config.floppy.drives, CONFIG_FLOPPY2X);
+						if (UploadKickstart(config.kickstart.name)) {
+							BootExit();
 						}
+						ConfigChipset(config.chipset); // restore CPU speed mode
+						ConfigFloppy(config.floppy.drives, config.floppy.speed); // restore floppy speed mode
+						}
+					else {
+						// reset bootscreen cursor position
+						BootHome();
+						OsdDisable();
+						EnableOsd();
+						SPI(OSD_CMD_RST);
+						rstval = (SPI_RST_CPU | SPI_CPU_HLT);
+						SPI(rstval);
+						DisableOsd();
+						SPIN(); SPIN(); SPIN(); SPIN();
+						UploadKickstart(config.kickstart.name);
+						EnableOsd();
+						SPI(OSD_CMD_RST);
+						rstval = (SPI_RST_USR | SPI_RST_CPU);
+						SPI(rstval);
+						DisableOsd();
+						SPIN(); SPIN(); SPIN(); SPIN();
+						EnableOsd();
+						SPI(OSD_CMD_RST);
+						rstval = 0;
+						SPI(rstval);
+						DisableOsd();
+						SPIN(); SPIN(); SPIN(); SPIN();
+					}
 
 					menustate = MENU_NONE1;
-					}
-					else if (menusub == 1)
-					{
-							menustate = MENU_SETTINGS_MEMORY1;
-							menusub = 3;
-					}
 				}
-
-				if (menu)
+				else if (menusub == 1)
 				{
-						menustate = MENU_SETTINGS_MEMORY1;
-						menusub = 2;
+					menustate = MENU_SETTINGS_MEMORY1;
+					menusub = 3;
 				}
-				break;
+			}
+
+			if (menu)
+			{
+				menustate = MENU_SETTINGS_MEMORY1;
+				menusub = 2;
+			}
+			break;
 
 		/******************************************************************/
 		/* firmware menu */
@@ -3445,7 +3315,7 @@ void HandleUI(void)
 				OsdCoreNameSet(file.long_name);
 			else
 				OsdCoreNameSet(file.name);
-			
+
 			// reset fpga with core
 			fpga_init(file.name, iCurrentDirectory);
 
@@ -3479,17 +3349,17 @@ void HandleUI(void)
 		case MENU_FIRMWARE_UPDATE2 :
 			if (select)
 			{
-					if (menusub == 0)
-					{
-							menustate = MENU_FIRMWARE_UPDATING1;
-							menusub = 0;
-							OsdClear();
-					}
-					else if (menusub == 1)
-					{
-							menustate = MENU_FIRMWARE1;
-							menusub = 2;
-					}
+				if (menusub == 0)
+				{
+					menustate = MENU_FIRMWARE_UPDATING1;
+					menusub = 0;
+					OsdClear();
+				}
+				else if (menusub == 1)
+				{
+					menustate = MENU_FIRMWARE1;
+					menusub = 2;
+				}
 			}
 			break;
 
@@ -3536,16 +3406,16 @@ void HandleUI(void)
 			{
 			case ERROR_FILE_NOT_FOUND :
 				OsdWrite(2, "       Update file", 0, 0);
-					OsdWrite(3, "        not found!", 0, 0);
-					break;
+				OsdWrite(3, "        not found!", 0, 0);
+				break;
 			case ERROR_INVALID_DATA :
 				OsdWrite(2, "       Invalid ", 0, 0);
 				OsdWrite(3, "     update file!", 0, 0);
-					break;
+				break;
 			case ERROR_UPDATE_FAILED :
 				OsdWrite(2, "", 0, 0);
 				OsdWrite(3, "    Update failed!", 0, 0);
-					break;
+				break;
 			}
 			OsdWrite(4, "", 0, 0);
 			OsdWrite(5, "", 0, 0);
@@ -3556,8 +3426,8 @@ void HandleUI(void)
 
 		case MENU_FIRMWARE_UPDATE_ERROR2 :
 			if (select) {
-					menustate = MENU_FIRMWARE1;
-					menusub = 2;
+				menustate = MENU_FIRMWARE1;
+				menusub = 2;
 			}
 			break;
 
@@ -3566,7 +3436,7 @@ void HandleUI(void)
 		/******************************************************************/
 		case MENU_ERROR :
 			if (menu)
-					menustate = MENU_NONE1;
+				menustate = MENU_NONE1;
 			break;
 
 		/******************************************************************/
@@ -3575,9 +3445,9 @@ void HandleUI(void)
 		case MENU_INFO :
 
 			if (menu)
-					menustate = MENU_NONE1;
+				menustate = MENU_NONE1;
 			else if (CheckTimer(menu_timer))
-					menustate = MENU_NONE1;
+				menustate = MENU_NONE1;
 
 			break;
 
@@ -3592,28 +3462,28 @@ void HandleUI(void)
 
 void ScrollLongName(void)
 {
-// this function is called periodically when file selection window is displayed
-// it checks if predefined period of time has elapsed and scrolls the name if necessary
+	// this function is called periodically when file selection window is displayed
+	// it checks if predefined period of time has elapsed and scrolls the name if necessary
 
-    char k = sort_table[iSelectedEntry];
+	char k = sort_table[iSelectedEntry];
 	static int len;
 	int max_len;
 
-    if (DirEntryLFN[k][0]) // && CheckTimer(scroll_timer)) // scroll if long name and timer delay elapsed
-    {
+	if (DirEntryLFN[k][0]) // && CheckTimer(scroll_timer)) // scroll if long name and timer delay elapsed
+	{
 		// FIXME - yuk, we don't want to do this every frame!
-        len = strlen(DirEntryLFN[k]); // get name length
+		len = strlen(DirEntryLFN[k]); // get name length
 
-        if((len > 4) && !fs_ShowExt)
-            if (DirEntryLFN[k][len - 4] == '.')
-                len -= 4; // remove extension
+		if((len > 4) && !fs_ShowExt)
+			if (DirEntryLFN[k][len - 4] == '.')
+				len -= 4; // remove extension
 
-        max_len = 30; // number of file name characters to display (one more required for scrolling)
-        if (DirEntry[k].Attributes & ATTR_DIRECTORY)
-            max_len = 23; // number of directory name characters to display
+		max_len = 30; // number of file name characters to display (one more required for scrolling)
+		if (DirEntry[k].Attributes & ATTR_DIRECTORY)
+			max_len = 23; // number of directory name characters to display
 
 		ScrollText(iSelectedEntry,DirEntryLFN[k],len,max_len,1,2);
-    }
+	}
 }
 
 
