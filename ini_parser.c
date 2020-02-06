@@ -14,9 +14,9 @@
 #ifndef INI_PARSER_TEST
 #include "debug.h"
 #include "fat.h"
-#endif
 #include "user_io.h"
 #include "data_io.h"
+#endif
 
 //// defines ////
 #define INI_EOT                 4 // End-Of-Transmission
@@ -76,13 +76,13 @@ void ini_rom_upload(char *s) {
 //// ini_getch() ////
 char ini_getch()
 {
-  if ((ini_pt&0x3ff) == 0x200) {
+  if (!(ini_pt&0x1ff)) {
     // reload buffer
     #ifdef INI_PARSER_TEST
     fread(sector_buffer, sizeof(char), INI_BUF_SIZE, ini_fp);
     #else
-    FileNextSector(&ini_file);
     FileRead(&ini_file, sector_buffer);
+    FileNextSector(&ini_file);
     #endif
   }
 
@@ -102,7 +102,7 @@ int ini_putch(char c)
 
   sector_buffer[ini_pt++] = c;
 
-  if ((ini_pt%0x3ff) == 0x200) {
+  if (!(ini_pt%0x1ff)) {
     // write buffer
     ini_pt = 0;
     #ifdef INI_PARSER_TEST
@@ -134,13 +134,12 @@ int ini_getline(char* line)
   char literal=0;
   int i=0;
 
-  while(i<(INI_LINE_SIZE-1)) {
+  while(1) {
     c = ini_getch();
     if ((!c) || CHAR_IS_LINEEND(c)) break;
     else if (CHAR_IS_QUOTE(c)) literal ^= 1;
     else if (CHAR_IS_COMMENT(c) && !ignore && !literal) ignore++;
-    else if (literal) line[i++] = c;
-    else if (CHAR_IS_VALID(c) && !ignore) line[i++] = c;
+    else if ((literal || (CHAR_IS_VALID(c) && !ignore)) && i<(INI_LINE_SIZE-1)) line[i++] = c;
   }
   line[i] = '\0';
   return c==0 ? INI_EOT : literal ? 1 : 0;
@@ -161,6 +160,7 @@ int ini_putline(char* line)
 
 char *get_core_name()
 {
+#ifndef INI_PARSER_TEST
   switch(user_io_core_type())
   {
 	case CORE_TYPE_MINIMIG:
@@ -182,6 +182,9 @@ char *get_core_name()
   }
 
   return "";
+#else
+  return "TESTCORE";
+#endif
 }
 
 //// ini_get_section() ////
@@ -317,7 +320,9 @@ void ini_parse(const ini_cfg_t* cfg)
 
   ini_parser_debugf("Start INI parser for core \"%s\".", get_core_name());
 
+  #ifndef INI_PARSER_TEST
   data_io_rom_upload(NULL, 0);   // prepare upload
+  #endif
 
   // open ini file
   #ifdef INI_PARSER_TEST
@@ -345,13 +350,6 @@ void ini_parse(const ini_cfg_t* cfg)
 
   ini_pt = 0;
 
-  // preload buffer
-  #ifdef INI_PARSER_TEST
-  fread(sector_buffer, sizeof(char), INI_BUF_SIZE, ini_fp);
-  #else
-  FileRead(&ini_file, sector_buffer);
-  #endif
-
   // parse ini
   while (1) {
     // get line
@@ -376,7 +374,9 @@ void ini_parse(const ini_cfg_t* cfg)
   fclose(ini_fp);
   #endif
 
+  #ifndef INI_PARSER_TEST
   data_io_rom_upload(NULL, 2);   // upload done
+  #endif
 }
 
 
