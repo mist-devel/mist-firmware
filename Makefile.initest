@@ -1,0 +1,16 @@
+PRJ = initest
+SRC = ini_test.c mist_cfg.c ini_parser.c
+
+OBJ = $(SRC:.c=.o)
+DEP = $(SRC:.c=.d)
+
+CPPFLAGS  = -DINI_PARSER_TEST
+
+# Our target.
+all: $(PRJ)
+
+$(PRJ): $(OBJ)
+	$(CC) -o $@ $(OBJ)
+
+clean:
+	rm -f $(OBJ) $(PRJ)

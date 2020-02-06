@@ -14,9 +14,11 @@
 //// mist_ini_parse() ////
 void mist_ini_parse()
 {
+#ifndef INI_PARSER_TEST
   hid_joystick_button_remap_init();
   virtual_joystick_remap_init();
   joy_key_map_init();
+#endif
   memset(&mist_cfg, 0, sizeof(mist_cfg));
   memset(&minimig_cfg, 0, sizeof(minimig_cfg));
   minimig_cfg.kick1x_memory_detection_patch = 1;
@@ -70,10 +72,12 @@ const ini_var_t mist_ini_vars[] = {
   {"JOYSTICK0_PREFER_DB9", (void*)(&(mist_cfg.joystick0_prefer_db9)), UINT8, 0, 1, 1},
   {"JOYSTICK_EMU_FIXED_INDEX", (void*)(&(mist_cfg.joystick_emu_fixed_index)), UINT8, 0, 1, 1},
   {"KEY_MENU_AS_RGUI", (void*)(&(mist_cfg.key_menu_as_rgui)), UINT8, 0, 1, 1},
+#ifndef INI_PARSER_TEST
   {"KEY_REMAP", (void*)user_io_key_remap, CUSTOM_HANDLER, 0, 0, 1},
   {"HID_BUTTON_REMAP", (void*)hid_joystick_button_remap, CUSTOM_HANDLER, 0, 0, 1},
   {"JOYSTICK_REMAP", (void*)virtual_joystick_remap, CUSTOM_HANDLER, 0, 0, 1},
   {"JOY_KEY_MAP", (void*)joystick_key_map, CUSTOM_HANDLER, 0, 0, 1},
+#endif
   {"ROM", (void*)ini_rom_upload, CUSTOM_HANDLER, 0, 0, 1},
   // [MINIMIG_CONFIG]
   {"KICK1X_MEMORY_DETECTION_PATCH", (void*)(&(minimig_cfg.kick1x_memory_detection_patch)), UINT8, 0, 1, 2}
@@ -81,7 +85,11 @@ const ini_var_t mist_ini_vars[] = {
 
 // mist ini config
 const ini_cfg_t mist_ini_cfg = {
+#ifdef INI_PARSER_TEST
+  "test.ini",
+#else
   "MIST    INI",
+#endif
   mist_ini_sections,
   mist_ini_vars,
   (int)(sizeof(mist_ini_sections) / sizeof(ini_section_t)),
