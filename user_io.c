@@ -242,10 +242,12 @@ void user_io_detect_core_type() {
     break;
     
   case CORE_TYPE_MINIMIG:
+    strcpy(core_name, "MINIMIG");
     puts("Identified Minimig V1 core");
     break;
 
   case CORE_TYPE_MINIMIG2:
+    strcpy(core_name, "MINIMIG");
     puts("Identified Minimig V2 core");
     break;
     
@@ -255,6 +257,7 @@ void user_io_detect_core_type() {
     
   case CORE_TYPE_MIST:
   case CORE_TYPE_MIST2:
+    strcpy(core_name, "ST");
     puts("Identified MiST core");
     break;
 

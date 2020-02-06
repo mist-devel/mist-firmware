@@ -44,7 +44,7 @@ typedef struct {
 
 
 //// functions ////
-void ini_parse(const ini_cfg_t* cfg);
+void ini_parse(const ini_cfg_t* cfg, const char *alter_section);
 void ini_save(const ini_cfg_t* cfg);
 void ini_rom_upload(char *s);
 

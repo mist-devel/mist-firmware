@@ -14,8 +14,6 @@
 #ifndef INI_PARSER_TEST
 #include "debug.h"
 #include "fat.h"
-#include "user_io.h"
-#include "data_io.h"
 #endif
 
 //// defines ////
@@ -61,17 +59,6 @@ fileTYPE ini_file;
 #endif
 
 int ini_pt = 0;
-
-// call data_io_rom_upload but reload sector_buffer afterwards since the io
-// operations in data_io_rom_upload may have overwritten the buffer
-// mode = 0: prepare for rom upload, mode = 1: rom upload, mode = 2, end rom upload
-void ini_rom_upload(char *s) {
-#ifndef INI_PARSER_TEST
-  data_io_rom_upload(s, 1);
-
-  FileRead(&ini_file, sector_buffer);
-#endif
-}
 
 //// ini_getch() ////
 char ini_getch()
@@ -158,37 +145,8 @@ int ini_putline(char* line)
   return ini_pt;
 }
 
-char *get_core_name()
-{
-#ifndef INI_PARSER_TEST
-  switch(user_io_core_type())
-  {
-	case CORE_TYPE_MINIMIG:
-	case CORE_TYPE_MINIMIG2:
-		return "MINIMIG";
-
-	case CORE_TYPE_PACE:
-		return "PACE";
-
-	case CORE_TYPE_MIST:
-	case CORE_TYPE_MIST2:
-		return "ST";
-
-	case CORE_TYPE_ARCHIE:
-		return "ARCHIE";
-
-	case CORE_TYPE_8BIT:
-		return user_io_get_core_name();
-  }
-
-  return "";
-#else
-  return "TESTCORE";
-#endif
-}
-
 //// ini_get_section() ////
-int ini_get_section(const ini_cfg_t* cfg, char* buf)
+int ini_get_section(const ini_cfg_t* cfg, char* buf, const char* alter_section)
 {
   int i=0;
 
@@ -223,7 +181,10 @@ int ini_get_section(const ini_cfg_t* cfg, char* buf)
     }  
   }
 
-  if(!strcasecmp(buf, get_core_name())) return cfg->sections[0].id;
+  if(alter_section && !strcasecmp(buf, alter_section)) {
+    ini_parser_debugf("Got ALTER SECTION '%s' with ID %d", buf, cfg->sections[0].id);
+    return cfg->sections[0].id;
+  }
 
   return INI_SECTION_INVALID_ID;
 }
@@ -312,17 +273,13 @@ void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
 
 
 //// ini_parse() ////
-void ini_parse(const ini_cfg_t* cfg)
+void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
 {
   char line[INI_LINE_SIZE] = {0};
   int section = INI_SECTION_INVALID_ID;
   int line_status;
 
-  ini_parser_debugf("Start INI parser for core \"%s\".", get_core_name());
-
-  #ifndef INI_PARSER_TEST
-  data_io_rom_upload(NULL, 0);   // prepare upload
-  #endif
+  ini_parser_debugf("Start INI parser for core \"%s\".", alter_section);
 
   // open ini file
   #ifdef INI_PARSER_TEST
@@ -359,7 +316,7 @@ void ini_parse(const ini_cfg_t* cfg)
     if (line_status != 1) {
       if (line[0] == INI_SECTION_START) {
         // if first char in line is INI_SECTION_START, get section
-        section = ini_get_section(cfg, line);
+        section = ini_get_section(cfg, line, alter_section);
       } else {
         // otherwise this is a variable, get it
         ini_get_var(cfg, section, line);
@@ -372,10 +329,6 @@ void ini_parse(const ini_cfg_t* cfg)
   #ifdef INI_PARSER_TEST
   // close file
   fclose(ini_fp);
-  #endif
-
-  #ifndef INI_PARSER_TEST
-  data_io_rom_upload(NULL, 2);   // upload done
   #endif
 }
 

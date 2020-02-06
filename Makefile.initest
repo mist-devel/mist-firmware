@@ -4,6 +4,7 @@ SRC = ini_test.c mist_cfg.c ini_parser.c
 OBJ = $(SRC:.c=.o)
 DEP = $(SRC:.c=.d)
 
+CFLAGS = -Wno-attributes
 CPPFLAGS  = -DINI_PARSER_TEST
 
 # Our target.

@@ -7,9 +7,23 @@
 #include "ini_parser.h"
 #include "mist_cfg.h"
 #include "user_io.h"
+#include "data_io.h"
 #include "usb/usb.h"
 #include "usb/hid.h"
 #include "usb/joymapping.h"
+
+extern fileTYPE ini_file;
+
+// call data_io_rom_upload but reload sector_buffer afterwards since the io
+// operations in data_io_rom_upload may have overwritten the buffer
+// mode = 0: prepare for rom upload, mode = 1: rom upload, mode = 2, end rom upload
+void ini_rom_upload(char *s) {
+#ifndef INI_PARSER_TEST
+  data_io_rom_upload(s, 1);
+
+  FileRead(&ini_file, sector_buffer);
+#endif
+}
 
 //// mist_ini_parse() ////
 void mist_ini_parse()
@@ -18,11 +32,13 @@ void mist_ini_parse()
   hid_joystick_button_remap_init();
   virtual_joystick_remap_init();
   joy_key_map_init();
-#endif
+  data_io_rom_upload(NULL, 0);   // prepare upload
   memset(&mist_cfg, 0, sizeof(mist_cfg));
   memset(&minimig_cfg, 0, sizeof(minimig_cfg));
   minimig_cfg.kick1x_memory_detection_patch = 1;
-  ini_parse(&mist_ini_cfg);
+  ini_parse(&mist_ini_cfg, user_io_get_core_name());
+  data_io_rom_upload(NULL, 2);   // upload done
+#endif
 }
 
 

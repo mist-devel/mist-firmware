@@ -15,5 +15,5 @@ int main() {
 
     memset(&mist_cfg, 0, sizeof(mist_cfg));
     memset(&minimig_cfg, 0, sizeof(minimig_cfg));
-    ini_parse(&mist_ini_cfg);
+    ini_parse(&mist_ini_cfg, "DEFENDER");
 }
