@@ -21,7 +21,7 @@
 #include "mmc.h"
 #include "tos.h"
 #include "errors.h"
-#include "ini_parser.h"
+#include "arc_file.h"
 
 // up to 16 key can be remapped
 #define MAX_REMAP  16
@@ -49,6 +49,9 @@ static unsigned char core_type = CORE_TYPE_UNKNOWN;
 static char core_type_8bit_with_config_string = 0;
 // core supports direct ROM upload via SS4
 extern char rom_direct_upload;
+
+// core variant (mostly for arcades)
+static char core_mod = 0;
 
 // permanent state of adc inputs used for dip switches
 static unsigned char adc_state = 0;
@@ -213,6 +216,15 @@ static void user_io_read_core_name() {
   iprintf("Core name is \"%s\"\n", core_name);
 }
 
+void user_io_set_core_mod(char mod) {
+  core_mod = mod;
+}
+
+void user_io_send_core_mod() {
+  iprintf("Sending core mod = %d\n", core_mod);
+  spi_uio_cmd8(UIO_SET_MOD, core_mod);
+}
+
 void user_io_detect_core_type() {
   core_name[0] = 0;
 
@@ -270,6 +282,9 @@ void user_io_detect_core_type() {
   case CORE_TYPE_8BIT: {
     puts("Identified 8BIT core");
 
+    // send core variant first to allow the FPGA choosing the config string
+    user_io_send_core_mod();
+
     // forward SD card config to core in case it uses the local
     // SD card implementation
     user_io_sd_set_config();
@@ -315,6 +330,7 @@ void user_io_detect_core_type() {
   } break;
   }
 }
+
 
 unsigned short usb2amiga( unsigned  char k ) {
 	//  replace MENU key by RGUI to allow using Right Amiga on reduced keyboards
@@ -616,7 +632,9 @@ void user_io_file_mount(fileTYPE *file, unsigned char index) {
 // 8 bit cores have a config string telling the firmware how
 // to treat it
 char *user_io_8bit_get_string(char index) {
-  unsigned char i, lidx = 0, j = 0;
+  unsigned char i, lidx = 0, j = 0, d = 0, arc = 0;
+  int arc_ptr = 0;
+  char dip[3];
   static char buffer[128+1];  // max 128 bytes per config item
 
   // clear buffer
@@ -635,17 +653,35 @@ char *user_io_8bit_get_string(char index) {
 
   while ((i != 0) && (i!=0xff) && (j<sizeof(buffer))) {
     if(i == ';') {
-      if(lidx == index) buffer[j++] = 0;
-      lidx++;
+      if(!arc && d==3 && !strncmp(dip, "DIP", 3)) {
+        // found "DIP", continue with config snippet from ARC
+        if(lidx == index) {
+          // skip the DIP line
+          j = 0;
+          buffer[0] = 0;
+        }
+        arc = 1;
+      } else {
+        if(lidx == index) buffer[j++] = 0;
+        lidx++;
+      }
+      d = 0;
     } else {
       if(lidx == index)
-	buffer[j++] = i;
+        buffer[j++] = i;
+      if (d<3)
+        dip[d++] = i;
     }
 
-    //    iprintf("%c", i);
-    i = spi_in();
+    //iprintf("%c", i);
+    if (arc) {
+      i = arc_get_conf()[arc_ptr++];
+      if (!i) arc = 0;
+    }
+    if (!arc)
+      i = spi_in();
   }
-    
+
   DisableIO();
   //  iprintf("\n");
 
@@ -659,7 +695,7 @@ char *user_io_8bit_get_string(char index) {
     return NULL;
 
   return buffer;
-}    
+}
 
 unsigned long user_io_8bit_set_status(unsigned long new_status, unsigned long mask) {
   static unsigned long status = 0;

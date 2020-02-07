@@ -48,6 +48,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "debug.h"
 #include "boot.h"
 #include "archie.h"
+#include "arc_file.h"
 #include "usb/joymapping.h"
 
 // test features (not used right now)
@@ -171,8 +172,7 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 
 	iprintf("pFileExt = %3s\n", pFileExt);
 	strcpy(fs_pFileExt, pFileExt);
-	fs_ShowExt = (strlen(fs_pFileExt)>3 || strchr(fs_pFileExt, '*') || strchr(fs_pFileExt, '?'));
-	//  fs_pFileExt = pFileExt;
+	fs_ShowExt = ((strlen(fs_pFileExt)>3 && strncmp(fs_pFileExt, "RBFARC", 6)) || strchr(fs_pFileExt, '*') || strchr(fs_pFileExt, '?'));
 	fs_Options = Options;
 	fs_MenuSelect = MenuSelect;
 	fs_MenuCancel = MenuCancel;
@@ -597,7 +597,7 @@ void HandleUI(void)
 				else {
 					// the "menu" core is special in jumps directly to the core selection menu
 					if(!strcmp(user_io_get_core_name(), "MENU"))
-						SelectFile("RBF", SCAN_LFN | SCAN_SYSDIR, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
+						SelectFile("RBFARC", SCAN_LFN | SCAN_SYSDIR, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
 					else
 						menustate = MENU_8BIT_MAIN1;
 				}
@@ -3242,7 +3242,7 @@ void HandleUI(void)
 					OsdClear();
 				}
 				else if (menusub == fat_uses_mmc()?1:0) {
-					SelectFile("RBF", SCAN_LFN | SCAN_SYSDIR, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
+					SelectFile("RBFARC", SCAN_LFN | SCAN_SYSDIR, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
 				}
 				else if (menusub == fat_uses_mmc()?2:1) {
 					switch(user_io_core_type()) {
@@ -3276,6 +3276,20 @@ void HandleUI(void)
 				OsdCoreNameSet(file.long_name);
 			else
 				OsdCoreNameSet(file.name);
+
+			char mod = 0;
+
+			if (!strncasecmp(&file.name[8],"ARC",3)) {
+				mod = arc_open(file.name);
+				if(mod < 0) { // error
+					menustate = MENU_NONE1;
+					break;
+				}
+				strncpy(file.name, arc_get_rbfname(), 8);
+				strncpy(&file.name[8], "RBF", 3);
+			}
+
+			user_io_set_core_mod(mod);
 
 			// reset fpga with core
 			fpga_init(file.name);

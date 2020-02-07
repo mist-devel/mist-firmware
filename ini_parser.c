@@ -286,7 +286,7 @@ void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
   if ((ini_fp = fopen(cfg->filename, "rb")) == NULL) { 
   #else
   memset(&ini_file, 0, sizeof(ini_file));
-  if (!FileOpen(&ini_file, cfg->filename)) {
+  if (!FileOpenDir(&ini_file, cfg->filename, cfg->dir)) {
   #endif
     ini_parser_debugf("Can't open file %s !", cfg->filename);
     return;

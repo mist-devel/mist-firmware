@@ -106,6 +106,7 @@ const ini_cfg_t mist_ini_cfg = {
 #else
   "MIST    INI",
 #endif
+  0,
   mist_ini_sections,
   mist_ini_vars,
   (int)(sizeof(mist_ini_sections) / sizeof(ini_section_t)),

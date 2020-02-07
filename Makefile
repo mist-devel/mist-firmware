@@ -10,7 +10,7 @@ DUMP    = $(BASE)-objdump
 TODAY = `date +"%m/%d/%y"`
 
 PRJ = firmware
-SRC = Cstartup_SAM7.c  fat.c  fdd.c  firmware.c  fpga.c  hardware.c spi.c hdd.c  main.c  menu.c  mmc.c  osd.c state.c syscalls.c user_io.c data_io.c boot.c rafile.c idxfile.c config.c tos.c ikbd.c xmodem.c ini_parser.c mist_cfg.c archie.c
+SRC = Cstartup_SAM7.c  fat.c  fdd.c  firmware.c  fpga.c  hardware.c spi.c hdd.c  main.c  menu.c  mmc.c  osd.c state.c syscalls.c user_io.c data_io.c boot.c rafile.c idxfile.c config.c tos.c ikbd.c xmodem.c ini_parser.c mist_cfg.c archie.c arc_file.c
 SRC += usb/max3421e.c usb/usb.c usb/hub.c usb/hid.c usb/hidparser.c usb/timer.c usb/asix.c usb/pl2303.c usb/usbrtc.c usb/joymapping.c
 # SRC += usb/storage.c
 SRC += cdc_enumerate.c cdc_control.c

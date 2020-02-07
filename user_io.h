@@ -53,6 +53,7 @@
 #define UIO_SET_STATUS2 0x1e  // 32bit status
 #define UIO_GET_KBD_LED 0x1f  // keyboard LEDs control
 #define UIO_SIO_OUT     0x20  // serial out
+#define UIO_SET_MOD     0x21  // send core variant from metadata (ARC) file
 
 // extended joystick control (32 bit value)
 #define UIO_JOYSTICK0_EXT   0x60
@@ -170,6 +171,7 @@ char user_io_dip_switch1(void);
 char user_io_serial_status(serial_status_t *, uint8_t);
 void user_io_file_mount(fileTYPE *, unsigned char);
 char *user_io_get_core_name();
+void user_io_set_core_mod(char);
 
 // io controllers interface for FPGA ethernet emulation using usb ethernet
 // devices attached to the io controller (ethernec emulation)
