@@ -11,4 +11,4 @@ char arc_open(char *fname);
 char *arc_get_rbfname();
 char *arc_get_conf();
 
-#endif // DATA_IO_H
+#endif // ARC_FILE_H

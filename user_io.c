@@ -296,7 +296,7 @@ void user_io_detect_core_type() {
     user_io_read_core_name();
 
     // send a reset
-    user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);
+    user_io_8bit_set_status(UIO_STATUS_RESET, 0xffffffff);
 
     // try to load config
     user_io_create_config_name(s);

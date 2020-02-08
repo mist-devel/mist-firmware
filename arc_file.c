@@ -13,8 +13,7 @@ static char rbfname[9];
 static char conf[MAX_CONF_SIZE];
 static int conf_ptr;
 
-void arc_set_rbf();
-void arc_set_conf();
+void arc_set_conf(char *);
 
 // arc ini sections
 const ini_section_t arc_ini_sections[] = {

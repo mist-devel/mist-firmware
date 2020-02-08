@@ -3281,12 +3281,12 @@ void HandleUI(void)
 
 			if (!strncasecmp(&file.name[8],"ARC",3)) {
 				mod = arc_open(file.name);
-				if(mod < 0) { // error
+				if(mod < 0 || !strlen(arc_get_rbfname())) { // error
 					menustate = MENU_NONE1;
 					break;
 				}
-				strncpy(file.name, arc_get_rbfname(), 8);
-				strncpy(&file.name[8], "RBF", 3);
+				strncpy(file.name, "        RBF", 11);
+				strncpy(file.name, arc_get_rbfname(), strlen(arc_get_rbfname()));
 			}
 
 			user_io_set_core_mod(mod);
