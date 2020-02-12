@@ -226,6 +226,8 @@ void user_io_send_core_mod() {
   spi_uio_cmd8(UIO_SET_MOD, core_mod);
 }
 
+extern unsigned long iCurrentDirectory;    // cluster number of current directory, 0 for root
+
 void user_io_detect_core_type() {
   core_name[0] = 0;
 
@@ -315,9 +317,9 @@ void user_io_detect_core_type() {
 
       // check if there's a <core>.rom present
       strcpy(s+8, "ROM");
-      if (FileOpen(&file, s))
-	data_io_file_tx(&file, 0);
-	
+      if (FileOpenDir(&file, s, iCurrentDirectory) || FileOpen(&file, s))
+        data_io_file_tx(&file, 0);
+
       // check if there's a <core>.vhd present
       strcpy(s+8, "VHD");
       if (FileOpen(&file, s))
