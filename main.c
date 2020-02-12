@@ -51,6 +51,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "firmware.h"
 #include "menu.h"
 #include "user_io.h"
+#include "arc_file.h"
 #include "tos.h"
 #include "cdc_control.h"
 #include "usb.h"
@@ -160,6 +161,8 @@ int main(void)
         FatalError(2);
 
     ChangeDirectory(DIRECTORY_ROOT);
+
+    arc_reset();
 
     user_io_init();
 
