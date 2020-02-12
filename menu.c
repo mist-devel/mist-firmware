@@ -3287,6 +3287,8 @@ void HandleUI(void)
 				}
 				strncpy(file.name, "        RBF", 11);
 				strncpy(file.name, arc_get_rbfname(), strlen(arc_get_rbfname()));
+			} else {
+				arc_reset();
 			}
 
 			user_io_set_core_mod(mod);

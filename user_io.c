@@ -202,7 +202,8 @@ char user_io_is_8bit_with_config_string() {
 static char core_name[16+1];  // max 16 bytes for core name
 
 char *user_io_get_core_name() {
-  return core_name;
+  char *arc_core_name = arc_get_corename();
+  return *arc_core_name ? arc_core_name : core_name;
 }
 
 static void user_io_read_core_name() {
@@ -213,7 +214,7 @@ static void user_io_read_core_name() {
     if(p && p[0]) strcpy(core_name, p);
   }
 
-  iprintf("Core name is \"%s\"\n", core_name);
+  iprintf("Core name from FPGA is \"%s\"\n", core_name);
 }
 
 void user_io_set_core_mod(char mod) {

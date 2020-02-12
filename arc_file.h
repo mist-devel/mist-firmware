@@ -8,7 +8,9 @@
 #define ARC_FILE_H
 
 char arc_open(char *fname);
+void arc_reset();
 char *arc_get_rbfname();
+char *arc_get_corename();
 char *arc_get_conf();
 
 #endif // ARC_FILE_H
