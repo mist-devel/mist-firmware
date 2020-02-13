@@ -675,9 +675,9 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 					// scale to 0 -> 255 range. 99% of the joysticks already deliver that
 					if((conf->joystick_mouse.axis[i].logical.min != 0) ||
 					 (conf->joystick_mouse.axis[i].logical.max != 255)) {
-						 a[i] = ((a[i] - conf->joystick_mouse.axis[i].logical.min) * 255)/
+						 a[i] = ((a[i] - abs(conf->joystick_mouse.axis[i].logical.min)) * 255)/
 						 (conf->joystick_mouse.axis[i].logical.max - 
-						 conf->joystick_mouse.axis[i].logical.min);
+						 abs(conf->joystick_mouse.axis[i].logical.min));
 					}
 				}
 
