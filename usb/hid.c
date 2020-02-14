@@ -690,16 +690,9 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
                                         if (a[i] < -127) a[i] = -127;
                                          else if (a[i] > 127) a[i] = 127;
                                          
-                                        a[i]=a[i]+127;
+                                        a[i]=a[i]+127; // mist wants a value in the range [0..255]
 
 
-					// scale to 0 -> 255 range. 99% of the joysticks already deliver that
-					//if((conf->joystick_mouse.axis[i].logical.min != 0) ||
-					// (conf->joystick_mouse.axis[i].logical.max != 255)) {
-					//	 a[i] = ((a[i] - abs(conf->joystick_mouse.axis[i].logical.min)) * 255)/
-					//	 (conf->joystick_mouse.axis[i].logical.max - 
-					//	 abs(conf->joystick_mouse.axis[i].logical.min));
-					//}
 				}
 
 				// handle hat if present and overwrite any axis value
