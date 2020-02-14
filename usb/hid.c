@@ -672,13 +672,34 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 			if(iface->device_type == HID_DEVICE_JOYSTICK) {
 
 				for(i=0;i<2;i++) {
+				        int hrange = (conf->joystick_mouse.axis[i].logical.max - abs(conf->joystick_mouse.axis[i].logical.min)) / 2;
+                                        int dead = hrange/63;
+                                        
+                                        if (a[i] < conf->joystick_mouse.axis[i].logical.min) a[i] = conf->joystick_mouse.axis[i].logical.min;
+                                          else if (a[i] > conf->joystick_mouse.axis[i].logical.max) a[i] = conf->joystick_mouse.axis[i].logical.max;
+					
+					a[i] = a[i] - (abs(conf->joystick_mouse.axis[i].logical.min) + conf->joystick_mouse.axis[i].logical.max) / 2;
+					
+					hrange -= dead;
+                                        if (a[i] < -dead) a[i] += dead;
+                                        else if (a[i] > dead) a[i] -= dead;
+                                        else a[i] = 0;
+                                        
+                                        a[i] = (a[i] * 127) / hrange;
+                                        
+                                        if (a[i] < -127) a[i] = -127;
+                                         else if (a[i] > 127) a[i] = 127;
+                                         
+                                        a[i]=a[i]+127;
+
+
 					// scale to 0 -> 255 range. 99% of the joysticks already deliver that
-					if((conf->joystick_mouse.axis[i].logical.min != 0) ||
-					 (conf->joystick_mouse.axis[i].logical.max != 255)) {
-						 a[i] = ((a[i] - abs(conf->joystick_mouse.axis[i].logical.min)) * 255)/
-						 (conf->joystick_mouse.axis[i].logical.max - 
-						 abs(conf->joystick_mouse.axis[i].logical.min));
-					}
+					//if((conf->joystick_mouse.axis[i].logical.min != 0) ||
+					// (conf->joystick_mouse.axis[i].logical.max != 255)) {
+					//	 a[i] = ((a[i] - abs(conf->joystick_mouse.axis[i].logical.min)) * 255)/
+					//	 (conf->joystick_mouse.axis[i].logical.max - 
+					//	 abs(conf->joystick_mouse.axis[i].logical.min));
+					//}
 				}
 
 				// handle hat if present and overwrite any axis value
