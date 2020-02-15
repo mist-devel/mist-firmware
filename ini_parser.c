@@ -68,8 +68,8 @@ char ini_getch()
     #ifdef INI_PARSER_TEST
     fread(sector_buffer, sizeof(char), INI_BUF_SIZE, ini_fp);
     #else
+    if (ini_pt) FileNextSector(&ini_file);
     FileRead(&ini_file, sector_buffer);
-    FileNextSector(&ini_file);
     #endif
   }
 
