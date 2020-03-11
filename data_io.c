@@ -27,7 +27,7 @@ void data_io_set_index(unsigned char index) {
   DisableFpga();
 }
 
-static void data_io_file_tx_prepare(unsigned char index) {
+static void data_io_file_tx_prepare(fileTYPE *file, unsigned char index) {
   iprintf("Preparing transmission for index %d\n", index);
 
   // set index byte (0=bios rom, 1-n=OSD entry index)
@@ -36,7 +36,15 @@ static void data_io_file_tx_prepare(unsigned char index) {
   // send directory entry
   EnableFpga();
   SPI(DIO_FILE_INFO);
-  spi_write((void*)(DirEntry+sort_table[iSelectedEntry]), sizeof(DIRENTRY));
+  if (file && !index) {
+    // Synthesize a directory entry for index=0 (ROM)
+    spi_write((void*)file, 11); // name+ext
+    spi_write((void*)&file->attributes, 1);
+    spi_n(0, 16);
+    spi_write((void*)&file->size, 4);
+  } else
+    spi_write((void*)(DirEntry+sort_table[iSelectedEntry]), sizeof(DIRENTRY));
+
   DisableFpga();
 
   // prepare transmission of new file
@@ -103,14 +111,14 @@ static void data_io_file_tx_fill(unsigned char fill, unsigned int len) {
 }
 
 void data_io_file_tx(fileTYPE *file, unsigned char index) {
-  data_io_file_tx_prepare(index);
+  data_io_file_tx_prepare(file, index);
   data_io_file_tx_send(file);
   data_io_file_tx_done();
 }
 
 // send 'fill' byte 'len' times
 void data_io_fill_tx(unsigned char fill, unsigned int len, unsigned char index) {
-  data_io_file_tx_prepare(index);
+  data_io_file_tx_prepare(0, index);
   data_io_file_tx_fill(fill, len);
   data_io_file_tx_done();
 }
@@ -152,7 +160,7 @@ void data_io_rom_upload(char *rname, char mode) {
     if(first) {
       // set reset
       user_io_8bit_set_status(UIO_STATUS_RESET, UIO_STATUS_RESET);
-      data_io_file_tx_prepare(0);
+      data_io_file_tx_prepare(&f, 0);
       first = 0;
     }
 
