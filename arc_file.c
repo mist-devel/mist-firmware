@@ -6,7 +6,7 @@
 #include "arc_file.h"
 #include "debug.h"
 
-#define MAX_CONF_SIZE 256
+#define MAX_CONF_SIZE 512
 
 static char mod;
 static char rbfname[9];
