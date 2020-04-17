@@ -3278,6 +3278,7 @@ void HandleUI(void)
 				OsdCoreNameSet(file.name);
 
 			char mod = 0;
+			arc_reset();
 
 			if (!strncasecmp(&file.name[8],"ARC",3)) {
 				mod = arc_open(file.name);
@@ -3287,8 +3288,6 @@ void HandleUI(void)
 				}
 				strncpy(file.name, "        RBF", 11);
 				strncpy(file.name, arc_get_rbfname(), strlen(arc_get_rbfname()));
-			} else {
-				arc_reset();
 			}
 
 			user_io_set_core_mod(mod);

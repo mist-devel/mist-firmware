@@ -307,12 +307,14 @@ void user_io_detect_core_type() {
       iprintf("Loading config %.11s\n", s);
 
       if (FileOpen(&file, s))  {
-	iprintf("Found config\n");
-	if(file.size <= 4) {
-      ((unsigned long*)sector_buffer)[0] = 0;
-	  FileRead(&file, sector_buffer);
-	  user_io_8bit_set_status(((unsigned long*)sector_buffer)[0], 0xffffffff);
-	}
+        iprintf("Found config\n");
+        if(file.size <= 4) {
+          ((unsigned long*)sector_buffer)[0] = 0;
+          FileRead(&file, sector_buffer);
+          user_io_8bit_set_status(((unsigned long*)sector_buffer)[0], 0xfffffffe);
+        }
+      } else {
+          user_io_8bit_set_status(arc_get_default(), 0xfffffffe);
       }
 
       // check if there's a <core>.rom present
@@ -711,7 +713,7 @@ unsigned long user_io_8bit_set_status(unsigned long new_status, unsigned long ma
     status |= new_status & mask;
 
     spi_uio_cmd8(UIO_SET_STATUS, status);
-	spi_uio_cmd32(UIO_SET_STATUS2, status);
+    spi_uio_cmd32(UIO_SET_STATUS2, status);
   }
 
   return status;
