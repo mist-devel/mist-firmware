@@ -25,7 +25,7 @@ const ini_section_t arc_ini_sections[] = {
 // arc ini vars
 const ini_var_t arc_ini_vars[] = {
 	{"MOD", (void*)(&mod), UINT8, 0, 127, 1},
-	{"DEFAULT", (void*)(&conf_default), UINT32, 0, 0xffffff, 1},
+	{"DEFAULT", (void*)(&conf_default), UINT32, 0, 0xffffffff, 1},
 	{"RBF", (void*)rbfname, STRING, 1, 8, 1},
 	{"NAME", (void*)corename, STRING, 1, 8, 1},
 	{"CONF", (void*)arc_set_conf, CUSTOM_HANDLER, 0, 0, 1},
