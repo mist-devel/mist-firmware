@@ -6,7 +6,7 @@
 // on blocks 0 and 1.  All other blocks within the first cylinder will be translated into the hardfile
 
 struct RigidDiskBlock {
-    unsigned long   rdb_ID;	// "RDSK"
+    unsigned long   rdb_ID __attribute__ ((aligned(4)));	// "RDSK"
     unsigned long   rdb_Summedlongs; // 0x40
     long			rdb_ChkSum;	// Sum to zero
     unsigned long   rdb_HostID;	// 0x07
@@ -70,7 +70,7 @@ struct DosEnvec {
 
 
 struct PartitionBlock {
-    unsigned long   pb_ID;		// "PART"
+    unsigned long   pb_ID __attribute__ ((aligned(4)));		// "PART"
     unsigned long   pb_Summedlongs;	// 0x40
     long    pb_ChkSum;		// Sum to zero
     unsigned long   pb_HostID;		// 0x07

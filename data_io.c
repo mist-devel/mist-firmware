@@ -151,7 +151,7 @@ void data_io_rom_upload(char *rname, char mode) {
   user_io_change_into_core_dir();
 
   strcpy(s, "        ROM");
-  strncpy(s, rname, strlen(rname));
+  strncpy(s, rname, strlen(rname) < 8 ? strlen(rname) : 8);
   iprintf("rom upload '%s' %d\n", s, sizeof(f));
 
   if (FileOpenDir(&f, s, iCurrentDirectory)) {
