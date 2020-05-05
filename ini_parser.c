@@ -124,7 +124,7 @@ int ini_getline(char* line)
   while(1) {
     c = ini_getch();
     if ((!c) || CHAR_IS_LINEEND(c)) break;
-    else if (CHAR_IS_QUOTE(c)) literal ^= 1;
+    else if (CHAR_IS_QUOTE(c) && !ignore) literal ^= 1;
     else if (CHAR_IS_COMMENT(c) && !ignore && !literal) ignore++;
     else if ((literal || (CHAR_IS_VALID(c) && !ignore)) && i<(INI_LINE_SIZE-1)) line[i++] = c;
   }
