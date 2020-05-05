@@ -169,7 +169,18 @@ int main(void)
     // tos config also contains cdc redirect settings used by minimig
     tos_config_load(-1);
 
-    fpga_init(NULL);
+    char mod = 0;
+    char name[12];
+    strncpy(name, "CORE    ARC", 12);
+
+    mod = arc_open(name);
+    if(mod < 0 || !strlen(arc_get_rbfname())) {
+        fpga_init(NULL); // error opening default ARC, try with default RBF
+    } else {
+        strncpy(name, "        RBF", 11);
+        strncpy(name, arc_get_rbfname(), strlen(arc_get_rbfname()));
+        fpga_init(name);
+    }
 
     cdc_control_open();
 
