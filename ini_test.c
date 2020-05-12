@@ -14,6 +14,11 @@ void siprintf(char *str, const char *format, ...) {
 int main() {
 
     memset(&mist_cfg, 0, sizeof(mist_cfg));
-    memset(&minimig_cfg, 0, sizeof(minimig_cfg));
     ini_parse(&mist_ini_cfg, "DEFENDER");
+    for (int i=0; i<5; i++) {
+        printf("minimig cfg[%d] = %s\n", i, minimig_cfg.conf_name[i]);
+    }
+    for (int i=0; i<5; i++) {
+        printf("atarist cfg[%d] = %s\n", i, atarist_cfg.conf_name[i]);
+    }
 }

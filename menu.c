@@ -49,6 +49,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "boot.h"
 #include "archie.h"
 #include "arc_file.h"
+#include "misc_cfg.h"
 #include "usb/joymapping.h"
 
 // test features (not used right now)
@@ -1850,11 +1851,11 @@ void HandleUI(void)
 			OsdSetTitle("Load",0);
 
 			OsdWrite(0, "", 0, 0);
-			OsdWrite(1, "        Default", menusub == 0,!(menumask & 0x01));
-			OsdWrite(2, "        1", menusub == 1,!(menumask & 0x02));
-			OsdWrite(3, "        2", menusub == 2,!(menumask & 0x04));
-			OsdWrite(4, "        3", menusub == 3,!(menumask & 0x08));
-			OsdWrite(5, "        4", menusub == 4,!(menumask & 0x10));
+			for(int i = 0; i < 5; i++) {
+				strcpy(s,"          ");
+				strcat(s, atarist_cfg.conf_name[i]);
+				OsdWrite(i+1, s, menusub == i, !(menumask & (1<<i)));
+			}
 			OsdWrite(6, "", 0,0);
 			OsdWrite(7, STD_EXIT, menusub == 5,0);
 
@@ -1894,11 +1895,11 @@ void HandleUI(void)
 			OsdSetTitle("Save",0);
 
 			OsdWrite(0, "", 0, 0);
-			OsdWrite(1, "        Default", menusub == 0,0);
-			OsdWrite(2, "        1", menusub == 1,0);
-			OsdWrite(3, "        2", menusub == 2,0);
-			OsdWrite(4, "        3", menusub == 3,0);
-			OsdWrite(5, "        4", menusub == 4,0);
+			for(int i = 0; i < 5; i++) {
+				strcpy(s,"          ");
+				strcat(s, atarist_cfg.conf_name[i]);
+				OsdWrite(i+1, s, menusub == i, 0);
+			}
 			OsdWrite(6, "", 0,0);
 			OsdWrite(7, STD_EXIT, menusub == 5,0);
 
@@ -2136,11 +2137,11 @@ void HandleUI(void)
 			OsdSetTitle("Load",0);
 
 			OsdWrite(0, "", 0,0);
-			OsdWrite(1, "          Default", menusub == 0,(menumask & 1)==0);
-			OsdWrite(2, "          1", menusub == 1,(menumask & 2)==0);
-			OsdWrite(3, "          2", menusub == 2,(menumask & 4)==0);
-			OsdWrite(4, "          3", menusub == 3,(menumask & 8)==0);
-			OsdWrite(5, "          4", menusub == 4,(menumask & 0x10)==0);
+			for(int i = 0; i < 5; i++) {
+				strcpy(s,"          ");
+				strcat(s, minimig_cfg.conf_name[i]);
+				OsdWrite(i+1, s, menusub == i, !(menumask & (1<<i)));
+			}
 			OsdWrite(6, "", 0,0);
 			OsdWrite(7, STD_EXIT, menusub == 5,0);
 
@@ -2401,11 +2402,11 @@ void HandleUI(void)
 			OsdSetTitle("Save",0);
 
 			OsdWrite(0, "", 0, 0);
-			OsdWrite(1, "        Default", menusub == 0,0);
-			OsdWrite(2, "        1", menusub == 1,0);
-			OsdWrite(3, "        2", menusub == 2,0);
-			OsdWrite(4, "        3", menusub == 3,0);
-			OsdWrite(5, "        4", menusub == 4,0);
+			for(int i = 0; i < 5; i++) {
+				strcpy(s,"          ");
+				strcat(s, minimig_cfg.conf_name[i]);
+				OsdWrite(i+1, s, menusub == i, 0);
+			}
 			OsdWrite(6, "", 0,0);
 			OsdWrite(7, STD_EXIT, menusub == 5,0);
 

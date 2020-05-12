@@ -9,7 +9,7 @@
 //// includes ////
 #include <inttypes.h>
 #include "ini_parser.h"
-#include "minimig_cfg.h"
+#include "misc_cfg.h"
 
 
 //// type definitions ////

@@ -17,7 +17,7 @@
 #include "config.h"
 #include "user_io.h"
 #include "usb/usb.h"
-#include "minimig_cfg.h"
+#include "misc_cfg.h"
 
 configTYPE config;
 fileTYPE file;

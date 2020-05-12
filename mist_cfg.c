@@ -34,7 +34,6 @@ void mist_ini_parse()
   joy_key_map_init();
   data_io_rom_upload(NULL, 0);   // prepare upload
   memset(&mist_cfg, 0, sizeof(mist_cfg));
-  memset(&minimig_cfg, 0, sizeof(minimig_cfg));
   minimig_cfg.kick1x_memory_detection_patch = 1;
   ini_parse(&mist_ini_cfg, user_io_get_core_name());
   data_io_rom_upload(NULL, 2);   // upload done
@@ -62,13 +61,19 @@ mist_cfg_t mist_cfg = {
 };
 
 minimig_cfg_t minimig_cfg = {
-  .kick1x_memory_detection_patch = 0
+  .kick1x_memory_detection_patch = 0,
+  .conf_name = {"Default","1","2","3","4"}
+};
+
+atarist_cfg_t atarist_cfg = {
+  .conf_name = {"Default","1","2","3","4"}
 };
 
 // mist ini sections
 const ini_section_t mist_ini_sections[] = {
   {1, "MIST"},
-  {2, "MINIMIG_CONFIG"}
+  {2, "MINIMIG_CONFIG"},
+  {3, "ATARIST_CONFIG"}
 };
 
 // mist ini vars
@@ -96,7 +101,18 @@ const ini_var_t mist_ini_vars[] = {
 #endif
   {"ROM", (void*)ini_rom_upload, CUSTOM_HANDLER, 0, 0, 1},
   // [MINIMIG_CONFIG]
-  {"KICK1X_MEMORY_DETECTION_PATCH", (void*)(&(minimig_cfg.kick1x_memory_detection_patch)), UINT8, 0, 1, 2}
+  {"KICK1X_MEMORY_DETECTION_PATCH", (void*)(&(minimig_cfg.kick1x_memory_detection_patch)), UINT8, 0, 1, 2},
+  {"CONF_DEFAULT", (void*)(&(minimig_cfg.conf_name[0])), STRING, 1, 10, 2},
+  {"CONF_1", (void*)(&(minimig_cfg.conf_name[1])), STRING, 1, 10, 2},
+  {"CONF_2", (void*)(&(minimig_cfg.conf_name[2])), STRING, 1, 10, 2},
+  {"CONF_3", (void*)(&(minimig_cfg.conf_name[3])), STRING, 1, 10, 2},
+  {"CONF_4", (void*)(&(minimig_cfg.conf_name[4])), STRING, 1, 10, 2},
+  // [ATARIST_CONFIG]
+  {"CONF_DEFAULT", (void*)(&(atarist_cfg.conf_name[0])), STRING, 1, 10, 3},
+  {"CONF_1", (void*)(&(atarist_cfg.conf_name[1])), STRING, 1, 10, 3},
+  {"CONF_2", (void*)(&(atarist_cfg.conf_name[2])), STRING, 1, 10, 3},
+  {"CONF_3", (void*)(&(atarist_cfg.conf_name[3])), STRING, 1, 10, 3},
+  {"CONF_4", (void*)(&(atarist_cfg.conf_name[4])), STRING, 1, 10, 3}
 };
 
 // mist ini config
