@@ -66,6 +66,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 unsigned char menustate = MENU_NONE1;
 unsigned char first_displayed_8bit = 0;
+unsigned char currentpage_8bit;
+unsigned char menuidx_8bit[8];
 unsigned char selected_drive_slot;
 unsigned char parentstate;
 unsigned char menusub = 0;
@@ -158,7 +160,7 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 {
 	// this function displays file selection menu
 
-	iprintf("%s - %s\n", pFileExt, fs_pFileExt);
+	menu_debugf("%s - %s\n", pFileExt, fs_pFileExt);
 
 	if (strncmp(pFileExt, fs_pFileExt, 12) != 0) // check desired file extension
 	{ // if different from the current one go to the root directory and init entry buffer
@@ -170,7 +172,7 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 		ScanDirectory(SCAN_INIT, pFileExt, Options);
 	}
 
-	iprintf("pFileExt = %3s\n", pFileExt);
+	menu_debugf("pFileExt = %3s\n", pFileExt);
 	strcpy(fs_pFileExt, pFileExt);
 	fs_ShowExt = ((strlen(fs_pFileExt)>3 && strncmp(fs_pFileExt, "RBFARC", 6)) || strchr(fs_pFileExt, '*') || strchr(fs_pFileExt, '?'));
 	fs_Options = Options;
@@ -598,13 +600,15 @@ void HandleUI(void)
 					// the "menu" core is special in jumps directly to the core selection menu
 					if(!strcmp(user_io_get_core_name(), "MENU"))
 						SelectFile("RBFARC", SCAN_LFN | SCAN_SYSDIR, MENU_FIRMWARE_CORE_FILE_SELECTED, MENU_FIRMWARE1, 0);
-					else
+					else {
 						menustate = MENU_8BIT_MAIN1;
+					}
 				}
 				menusub = 0;
 				OsdClear();
 				OsdEnable(DISABLE_KEYBOARD);
 				first_displayed_8bit = 0;
+				currentpage_8bit = 0;
 			}
 			break;
 
@@ -719,14 +723,15 @@ void HandleUI(void)
 				unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 
 				p = user_io_8bit_get_string(i);
-				// iprintf("Option %d: %s\n", i, p);
+				menu_debugf("Option %d: %s\n", i, p);
 				// check if there's a file type supported
 				if(i == 1) {
-					if (p && strlen(p)) {
+					if (currentpage_8bit == 0 && p && strlen(p)) {
 						menumask = 1;
 						strcpy(s, " Load *.");
 						strcat(s, GetExt(p));
 						OsdWrite(entry, s, menusub==entry, 0);
+						menuidx_8bit[entry] = i;
 						entry++;
 					} else {
 						first_displayed_8bit = 1;
@@ -750,8 +755,34 @@ void HandleUI(void)
 
 				if(entry<7) last = i;
 
+				// check for 'P'age
+				char page = 0;
+				if(entry<7 && p && (p[0] == 'P')) {
+					if (p[2] == ',') {
+						// 'P' is to open a submenu
+						if (currentpage_8bit == 0) {
+							s[0] = ' ';
+							substrcpy(s+1, p, 1);
+							char l = 25-strlen(s); 
+							while(l--) strcat(s, " ");
+							strcat(s,"\x16");
+							menu_debugf("Add submenu: %s\n", s);
+
+							OsdWrite(entry, s, menusub == entry,0);
+							menumask = (menumask << 1) | 1;
+							menuidx_8bit[entry] = i;
+							entry++;
+						}
+					} else {
+						// 'P' is a prefix fo F,S,O,T
+						page = getIdx(p);
+						p+=2;
+						menu_debugf("P is prefix for: %s\n", p);
+					}
+				}
+
 				// check for 'F'ile or 'S'D image strings
-				if(entry<7 && p && ((p[0] == 'F') || (p[0] == 'S'))) {
+				if(currentpage_8bit == page && entry<7 && p && ((p[0] == 'F') || (p[0] == 'S'))) {
 					substrcpy(s, p, 2);
 					if(strlen(s)) {
 						strcpy(s, " ");
@@ -768,11 +799,12 @@ void HandleUI(void)
 
 					// add bit in menu mask
 					menumask = (menumask << 1) | 1;
+					menuidx_8bit[entry] = i;
 					entry++;
 				}
 
 				// check for 'T'oggle strings
-				if(entry<7 && p && (p[0] == 'T')) {
+				if(currentpage_8bit == page && entry<7 && p && (p[0] == 'T')) {
 
 					s[0] = ' ';
 					substrcpy(s+1, p, 1);
@@ -780,11 +812,12 @@ void HandleUI(void)
 
 					// add bit in menu mask
 					menumask = (menumask << 1) | 1;
+					menuidx_8bit[entry] = i;
 					entry++;
 				}
 
 				// check for 'O'ption strings
-				if(entry<7 && p && (p[0] == 'O')) {
+				if(currentpage_8bit == page && entry<7 && p && (p[0] == 'O')) {
 					unsigned long x = getStatus(p, status);
 
 					// get currently active option
@@ -811,6 +844,7 @@ void HandleUI(void)
 
 					// add bit in menu mask
 					menumask = (menumask << 1) | 1;
+					menuidx_8bit[entry] = i;
 					entry++;
 				}
 				
@@ -841,9 +875,16 @@ void HandleUI(void)
 		} break; // end MENU_8BIT_MAIN1
 
 		case MENU_8BIT_MAIN2 :
-			// menu key closes menu
+			// menu key closes the menu or returns to the main page
 			if (menu)
-				menustate = MENU_NONE1;
+				if (currentpage_8bit) {
+					currentpage_8bit = 0;
+					menusub = 0;
+					first_displayed_8bit = 0;
+					menustate = MENU_8BIT_MAIN1;
+				} else {
+					menustate = MENU_NONE1;
+				}
 			if(select) {
 				
 				if (menusub==menusub_last) {
@@ -859,7 +900,9 @@ void HandleUI(void)
 						while(strlen(ext) < 3) strcat(ext, " ");
 						SelectFile(ext, SCAN_DIR | SCAN_LFN, MENU_8BIT_MAIN_FILE_SELECTED, MENU_8BIT_MAIN1, 1);
 					} else {
-						p = user_io_8bit_get_string(menusub + first_displayed_8bit + 1);
+						p = user_io_8bit_get_string(menuidx_8bit[menusub]);
+
+						if((p[0] == 'P') && (p[2] != ',')) p+=2;
 
 						if((p[0] == 'F')||(p[0] == 'S')) {
 							static char ext[13];
@@ -881,19 +924,17 @@ void HandleUI(void)
 							substrcpy(s, p, 2+x);
 							if(!strlen(s)) x = 0;
 
-							//iprintf("Option %s %x %x %x %x\n", p, status, mask, x2, x);
+							//menu_debugf("Option %s %x %x %x %x\n", p, status, mask, x2, x);
 
 							user_io_8bit_set_status(setStatus(p, status, x), 0xffffffff);
 
 							menustate = MENU_8BIT_MAIN1;
-						} else {
-							// 'T' option
-
+						} else if(p[0] == 'T') {
 							// determine which status bit is affected
 							unsigned long mask = 1<<getIdx(p);
 							unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 
-							//iprintf("Option %s %x\n", p, status ^ mask);
+							menu_debugf("Option %s %x\n", p, status ^ mask);
 
 							// change bit
 							user_io_8bit_set_status(status ^ mask, mask);
@@ -901,6 +942,12 @@ void HandleUI(void)
 							// ... and change it again in case of a toggle bit
 							user_io_8bit_set_status(status, mask);
 
+							menustate = MENU_8BIT_MAIN1;
+						} else if(p[0] == 'P') {
+							currentpage_8bit = getIdx(p);
+							menusub = 0;
+							first_displayed_8bit = 0;
+							menu_debugf("Page switch to %d\n", currentpage_8bit);
 							menustate = MENU_8BIT_MAIN1;
 						}
 					}
@@ -910,12 +957,12 @@ void HandleUI(void)
 				menustate = MENU_8BIT_SYSTEM1;
 				menusub = 0;
 			} else if (menusub == 6 && down) {
-				p = user_io_8bit_get_string(menusub_last + first_displayed_8bit + 1);
+				p = user_io_8bit_get_string(menuidx_8bit[menusub] + 1);
 				if (p && strlen(p) && p[0] != 'V') {
 					first_displayed_8bit++;
 					menustate = MENU_8BIT_MAIN1;
 				}
-				// iprintf("Next hidden option %s\n", p);
+				menu_debugf("Next hidden option %d %d %s\n", menusub_last, first_displayed_8bit, p);
 			} else if (!menusub && up) {
 				if (first_displayed_8bit) first_displayed_8bit--;
 				menustate = MENU_8BIT_MAIN1;
