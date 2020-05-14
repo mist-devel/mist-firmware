@@ -32,8 +32,6 @@ static tos_config_t config;
 #define CART_BASE_ADDRESS        0xfa0000
 #define VIDEO_BASE_ADDRESS       0x010000
 
-static unsigned char font[2048];  // buffer for 8x16 atari font
-
 // two floppies
 static struct {
   fileTYPE file;
@@ -647,6 +645,17 @@ static void tos_color_test() {
 #endif
 }
 
+extern unsigned char charfont[128][8];
+
+static char tos_writechar(char c, char l) {
+    char r=0;
+    for(int i=0;i<8;i++) {
+        r |= (((charfont[c & 0x7f][7-i]>>l) & 0x01)<<i);
+    }
+    return r;
+
+}
+
 static void tos_write(char *str) {
   static int y = 0;
   int l;
@@ -666,8 +675,8 @@ static void tos_write(char *str) {
     // 16 pixel lines
     for(l=0;l<16;l++) {
       char *p = str, *f=buffer;
-      while(*p)	*f++ = font[16 * *p++ + l];
-      while(f < buffer+c) *f++ = font[16 * ' ' + l];
+      while(*p)	*f++ = tos_writechar(*p++, l>>1);
+      while(f < buffer+c) *f++ = tos_writechar(' ', l>>1);
 
       mist_memory_set_address(VIDEO_BASE_ADDRESS + 80*(y+l), 1, 0);
       mist_memory_write(buffer, c/2);
@@ -681,42 +690,6 @@ static void tos_clr() {
   mist_memory_set(0, 16000);
 
   tos_write(NULL);
-}
-
-// the built-in OSD font, being used if everything else fails
-extern unsigned char charfont[256][8];
-
-static void tos_font_load() {
-  fileTYPE file;
-  if(FileOpen(&file,"SYSTEM  FNT")) {
-    if(file.size == 4096) {
-      int i;
-      for(i=0;i<4;i++) {
-	FileRead(&file, font+i*512);
-	FileNextSector(&file);
-      }
-
-      return;
-    } 
-  }
-
-  // if we couldn't load something, then just convert the 
-  // built-on OSD font, so we see at least something
-  unsigned char c, l, n;
-  // copy 128 chars
-  for(c=0;c<128;c++) {
-    // each character is 8 pixel tall
-    for(l=0;l<8;l++) {
-      unsigned char *d = font + c*16 + 2*l;
-      *d = 0;
-
-      for(n=0;n<8;n++)
-	if(charfont[c][n] & (1 << l))
-	  *d |= 0x80 >> n;
-
-      *(d+1) = *d;
-    }
-  }
 }
 
 void tos_load_cartridge_mist1(char *name) {
@@ -876,7 +849,6 @@ void tos_upload_mist1(char *name) {
   // set video offset in fpga
   tos_set_video_adjust(0, 0);
 
-  tos_font_load();
   tos_clr();
 
   // do the MiST core handling

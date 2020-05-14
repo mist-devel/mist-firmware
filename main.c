@@ -52,6 +52,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "menu.h"
 #include "user_io.h"
 #include "arc_file.h"
+#include "font.h"
 #include "tos.h"
 #include "cdc_control.h"
 #include "usb.h"
@@ -163,6 +164,8 @@ int main(void)
     ChangeDirectory(DIRECTORY_ROOT);
 
     arc_reset();
+
+    font_load();
 
     user_io_init();
 
