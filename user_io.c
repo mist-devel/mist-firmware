@@ -2037,21 +2037,29 @@ void user_io_change_into_core_dir(void) {
   // try to change into subdir named after the core
   strcpy(s+8, "   ");
   iprintf("Trying to open work dir \"%s\"\n", s);
-  
+
   ScanDirectory(SCAN_INIT, "",  SCAN_DIR | FIND_DIR);
+
+  unsigned short last_StartCluster = 0;
 
   // no return flag :(, so scan 10 times blindly...
   for(;;) {
-    int i;
     char res = 0;
-    unsigned short last_StartCluster = DirEntry[0].StartCluster;
-    
-    for(i=0;i<nDirEntries;i++) {
+
+#if 0
+    // debug
+    iprintf("new list nDirentries=%d iSelected=%d\n", nDirEntries, iSelectedEntry);
+    for(int i=0;i<nDirEntries;i++) {
+      iprintf("%11s %x\n", DirEntry[i].Name, DirEntry[i].StartCluster);
+    }
+#endif
+
+    for(int i=0;i<nDirEntries;i++) {
       //iprintf("cmp %11s %11s\n", DirEntry[i].Name, s);
       if(strncasecmp(DirEntry[i].Name, s, 11) == 0) {
-	ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
-	res = 1;
-	break;
+        ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
+        res = 1;
+        break;
       }
     }
     // found directory: stop searching
@@ -2061,15 +2069,18 @@ void user_io_change_into_core_dir(void) {
     // there sure aren't more
     if(nDirEntries != 8) 
       break;
-    
-    // get next 8 directory entries
-    iSelectedEntry = MAXDIRENTRIES -1;
-    ScanDirectory(SCAN_NEXT_PAGE, "",  SCAN_DIR | FIND_DIR);
-    
+
     // if 8 entries are returned check if the start cluster of the first entry
     // is the same as the first one in the previous list. If it is, then this
     // is the same list and we are done
     if((nDirEntries == 8) && (DirEntry[0].StartCluster == last_StartCluster)) 
       break;
+
+    last_StartCluster = DirEntry[0].StartCluster;
+
+    // get next 8 directory entries
+    iSelectedEntry = MAXDIRENTRIES -1;
+    ScanDirectory(SCAN_NEXT_PAGE, "",  SCAN_DIR | FIND_DIR);
+
   }
 }
