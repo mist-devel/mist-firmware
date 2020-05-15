@@ -784,6 +784,7 @@ void HandleUI(void)
 
 				// check for 'F'ile or 'S'D image strings
 				if(currentpage_8bit == page && entry<7 && p && ((p[0] == 'F') || (p[0] == 'S'))) {
+					if (entry == 0) first_displayed_8bit = i - 1;
 					substrcpy(s, p, 2);
 					if(strlen(s)) {
 						strcpy(s, " ");
@@ -806,6 +807,7 @@ void HandleUI(void)
 
 				// check for 'T'oggle strings
 				if(currentpage_8bit == page && entry<7 && p && (p[0] == 'T')) {
+					if (entry == 0) first_displayed_8bit = i - 1;
 
 					s[0] = ' ';
 					substrcpy(s+1, p, 1);
@@ -819,6 +821,7 @@ void HandleUI(void)
 
 				// check for 'O'ption strings
 				if(currentpage_8bit == page && entry<7 && p && (p[0] == 'O')) {
+					if (entry == 0) first_displayed_8bit = i - 1;
 					unsigned long x = getStatus(p, status);
 
 					// get currently active option
@@ -855,11 +858,18 @@ void HandleUI(void)
 			// exit row
 			OsdWrite(7, STD_EXIT, menusub == entry, 0);
 			menusub_last=entry; //remember final row
-			if (entry<6 || (!(p = user_io_8bit_get_string(last+1)) || p[0] == 'V')) {
+			if (entry<6) menumask = (menumask << 1) | 1;
+			else {
+				p = user_io_8bit_get_string(last+1);
 				// set exit selectable if no option to scroll down
-				menumask = (menumask << 1) | 1;
+				if ((!p || p[0] == 'V') ||
+				   (!(currentpage_8bit && p[0] == 'P' && p[2] != ',' && currentpage_8bit == getIdx(p)) &&
+				    !(!currentpage_8bit && (p[0] != 'P' || p[2] == ',')))) {
+
+					menumask = (menumask << 1) | 1;
+				}
 			}
-			
+
 			// clear rest of OSD
 			for(;entry<7;entry++) 
 				OsdWrite(entry, "", 0,0);
@@ -960,8 +970,12 @@ void HandleUI(void)
 			} else if (menusub == 6 && down) {
 				p = user_io_8bit_get_string(menuidx_8bit[menusub] + 1);
 				if (p && strlen(p) && p[0] != 'V') {
-					first_displayed_8bit++;
-					menustate = MENU_8BIT_MAIN1;
+					// the next option belongs to the current page?
+					if ((currentpage_8bit && p[0] == 'P' && p[2] != ',' && currentpage_8bit == getIdx(p)) ||
+					    (!currentpage_8bit && (p[0] != 'P' || p[2] == ','))) {
+						first_displayed_8bit++;
+						menustate = MENU_8BIT_MAIN1;
+					}
 				}
 				menu_debugf("Next hidden option %d %d %s\n", menusub_last, first_displayed_8bit, p);
 			} else if (!menusub && up) {
