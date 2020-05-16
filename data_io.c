@@ -27,6 +27,10 @@ void data_io_set_index(unsigned char index) {
   DisableFpga();
 }
 
+///////////////////////////
+// TRANSMIT FILE TO FPGA //
+///////////////////////////
+
 static void data_io_file_tx_prepare(fileTYPE *file, unsigned char index) {
   iprintf("Preparing transmission for index %d\n", index);
 
@@ -122,6 +126,72 @@ void data_io_fill_tx(unsigned char fill, unsigned int len, unsigned char index) 
   data_io_file_tx_fill(fill, len);
   data_io_file_tx_done();
 }
+
+////////////////////////////
+// RECEIVE FILE FROM FPGA //
+////////////////////////////
+
+static void data_io_file_rx_prepare(unsigned char index) {
+  iprintf("Preparing receiving for index %d\n", index);
+
+  // set index byte (0=bios rom, 1-n=OSD entry index)
+  data_io_set_index(index);
+
+  // prepare transmission of new file
+  EnableFpga();
+  SPI(DIO_FILE_RX);
+  SPI(0xff);
+  DisableFpga();
+}
+
+static void data_io_file_rx_receive(fileTYPE *file, unsigned int len) {
+  unsigned long bytes2receive = (len > file->size) ? file->size : len;
+
+  /* receive the entire file using one transfer */
+  iprintf("Selected file %.11s with %lu bytes to receive\n", file->name, bytes2receive);
+
+  while(bytes2receive) {
+    iprintf(".");
+
+    unsigned short c, chunk = (bytes2receive>512)?512:bytes2receive;
+    char *p;
+
+    EnableFpga();
+    SPI(DIO_FILE_RX_DAT);
+    SPI(0);
+
+    for(p = sector_buffer, c=0;c < chunk;c++)
+      *p++ = SPI(0xFF);
+
+    DisableFpga();
+    bytes2receive -= chunk;
+    FileWrite(file, sector_buffer);
+
+    // still bytes to send? read next sector
+    if(bytes2receive)
+      FileNextSector(file);
+  }
+}
+
+static void data_io_file_rx_done(void) {
+  // signal end of transmission
+  EnableFpga();
+  SPI(DIO_FILE_RX);
+  SPI(0x00);
+  DisableFpga();
+
+  iprintf("\n");
+}
+
+void data_io_file_rx(fileTYPE *file, unsigned char index, unsigned int len) {
+  data_io_file_rx_prepare(index);
+  data_io_file_rx_receive(file, len);
+  data_io_file_rx_done();
+}
+
+////////////////
+// ROM UPLOAD //
+////////////////
 
 void data_io_rom_upload(char *rname, char mode) {
   fileTYPE f;
