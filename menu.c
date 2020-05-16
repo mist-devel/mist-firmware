@@ -618,7 +618,7 @@ void HandleUI(void)
 			/******************************************************************/
 
 		case MENU_ARCHIE_MAIN1: {
-			menumask=0x7f;
+			menumask=0xff;
 			OsdSetTitle("ARCHIE", 0);
 
 			strcpy(s, " Floppy 0: ");
@@ -636,12 +636,14 @@ void HandleUI(void)
 			strcpy(s, " CMOS RAM: ");
 			strcat(s, archie_get_cmos_name());
 			OsdWrite(3, s, menusub == 3, 0);
-			
+
+			strcpy(s, " Save CMOS RAM ");
+			OsdWrite(4, s, menusub == 4, 0);
+
 			// the following is exactly like the atatri st core
-			OsdWrite(4, " Firmware & Core           \x16", menusub == 4,0);
-			OsdWrite(5, " Save config                ", menusub == 5,0);
-			OsdWrite(6, "", 0,0);
-			OsdWrite(7, STD_EXIT, menusub == 6,0);
+			OsdWrite(5, " Firmware & Core           \x16", menusub == 5,0);
+			OsdWrite(6, " Save config                ", menusub == 6,0);
+			OsdWrite(7, STD_EXIT, menusub == 7,0);
 			menustate = MENU_ARCHIE_MAIN2;
 			parentstate=MENU_ARCHIE_MAIN1;
 		} break;
@@ -670,17 +672,22 @@ void HandleUI(void)
 						SelectFile("RAM", SCAN_LFN, MENU_ARCHIE_MAIN_FILE_SELECTED, MENU_ARCHIE_MAIN1, 0);
 						break;
 
-					case 4:  // Firmware submenu
+					case 4:  // Save CMOS
+						menustate = MENU_NONE1;
+						archie_save_cmos();
+						break;
+
+					case 5:  // Firmware submenu
 						menustate = MENU_FIRMWARE1;
 						menusub = 1;
 						break;
 
-					case 5:  // Save config
+					case 6:  // Save config
 						menustate = MENU_NONE1;
 						archie_save_config();
 						break;
 
-					case 6:  // Exit
+					case 7:  // Exit
 						menustate = MENU_NONE1;
 						break;
 				}
@@ -3285,7 +3292,7 @@ void HandleUI(void)
 					menustate = MENU_MIST_MAIN1;
 					break;
 				case CORE_TYPE_ARCHIE:
-					menusub = 3;
+					menusub = 5;
 					menustate = MENU_ARCHIE_MAIN1;
 					break;
 				default:

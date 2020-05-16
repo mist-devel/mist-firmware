@@ -15,5 +15,6 @@ void archie_set_cmos(fileTYPE *);
 void archie_set_floppy(char i, fileTYPE *);
 char archie_floppy_is_inserted(char i);
 void archie_save_config(void);
+void archie_save_cmos(void);
 
 #endif // ARCHIE_H

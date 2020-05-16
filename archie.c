@@ -142,6 +142,27 @@ char archie_floppy_is_inserted(char i) {
   return(floppy[i].size != 0);
 }
 
+void archie_save_cmos() {
+  fileTYPE file;
+
+  archie_debugf("Saving CMOS file");
+  if (FileOpen(&file, config.cmos_img)) {
+    archie_debugf("Existing CMOS file size: %lu", file.size);
+  } else {
+    archie_debugf("Creating new CMOS file");
+    strncpy(file.name, config.cmos_img, 11);
+    file.attributes = 0;
+    file.size = 256;
+    if(!FileCreate(0, &file)) {
+      archie_debugf("File creation failed.");
+      return;
+    }
+  }
+
+  data_io_file_rx(&file, 0x03, 256);
+
+}
+
 void archie_set_cmos(fileTYPE *file) {
   if(!file) return;
 
