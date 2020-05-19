@@ -974,7 +974,7 @@ void HandleUI(void)
 			else if (right) {
 				menustate = MENU_8BIT_SYSTEM1;
 				menusub = 0;
-			} else if (menusub == 6 && down) {
+			} else if (menusub == 6 && menusub != menusub_last && down) {
 				p = user_io_8bit_get_string(menuidx_8bit[menusub] + 1);
 				if (p && strlen(p) && p[0] != 'V') {
 					// the next option belongs to the current page?
