@@ -847,10 +847,8 @@ void HandleUI(void)
 					substrcpy(s+1, p, 1);
 					strcat(s, ":");
 					l = 26-l-strlen(s); 
-					while(l--) strcat(s, " ");
-
+					while(l-- >= 0) strcat(s, " ");
 					substrcpy(s+strlen(s), p, 2+x);
-
 					OsdWrite(entry, s, menusub == entry,0);
 
 					// add bit in menu mask
