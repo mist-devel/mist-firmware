@@ -20,7 +20,7 @@
 #define INI_EOT                 4 // End-Of-Transmission
 
 #define INI_BUF_SIZE            512
-#define INI_LINE_SIZE           90
+#define INI_LINE_SIZE           140
 
 #define INI_SECTION_START       '['
 #define INI_SECTION_END         ']'
