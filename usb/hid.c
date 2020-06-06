@@ -72,6 +72,19 @@ void hid_joystick_button_remap(char *s) {
 
 /*****************************************************************************/
 
+uint8_t hid_get_jindex(usb_hid_iface_info_t *iface) {
+  uint8_t jindex;
+
+  // Get USB joystick index (0,1...)
+  jindex = iface->jindex;
+
+  // If DB9 joystick are preferred: USB joysticks are shifted to 2,3...
+  if(mist_cfg.joystick_db9_fixed_index) {
+    jindex += 2;
+  }
+
+  return jindex;
+}
 
 uint8_t hid_get_joysticks(void) {
   return joysticks;
@@ -444,7 +457,7 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
   // check if a joystick is released
   for(i=0;i<info->bNumIfaces;i++) {
     if(info->iface[i].device_type == HID_DEVICE_JOYSTICK) {
-      uint8_t c_jindex = info->iface[i].jindex;
+      uint8_t c_jindex = hid_get_jindex(&info->iface[i]);
       hid_debugf("releasing joystick #%d, renumbering", c_jindex);
 
       // walk through all devices and search for sticks with a higher id
@@ -458,9 +471,10 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
 					uint8_t k;
 					for(k=0;k<MAX_IFACES;k++) {
 						if(dev[j].hid_info.iface[k].device_type == HID_DEVICE_JOYSTICK) {
-							if(dev[j].hid_info.iface[k].jindex > c_jindex) {
+							uint8_t jindex = hid_get_jindex(&dev[j].hid_info.iface[k]);
+							if(jindex > c_jindex) {
 								hid_debugf("decreasing jindex of dev #%d from %d to %d", j, 
-									dev[j].hid_info.iface[k].jindex, dev[j].hid_info.iface[k].jindex-1);
+									jindex, jindex-1);
 								dev[j].hid_info.iface[k].jindex--;
 								StateUsbIdSet( dev[j].hid_info.iface[k].conf.vid, dev[j].hid_info.iface[k].conf.pid, dev[j].hid_info.iface[k].conf.joystick_mouse.button_count, dev[j].hid_info.iface[k].jindex);
 
@@ -509,7 +523,8 @@ static void handle_5200daptor(usb_hid_iface_info_t *iface, uint8_t *buf) {
 
   // keyboard events are only generated for the first
   // two joysticks in the system
-  if(iface->jindex > 1) return;
+  uint8_t jindex = hid_get_jindex(iface);
+  if(jindex > 1) return;
 
   // build map of pressed keys
   uint8_t i;
@@ -526,7 +541,7 @@ static void handle_5200daptor(usb_hid_iface_info_t *iface, uint8_t *buf) {
     // report up to 6 pressed keys
     for(i=0;(i<16)&&(p<6);i++) 
       if(keys & (1<<i))
-	buf[p++] = button_map[i].key_code[iface->jindex];
+	buf[p++] = button_map[i].key_code[jindex];
 
     //    iprintf("5200: %d %d %d %d %d %d\n", buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
 
@@ -756,8 +771,9 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				jmap |= btn << JOY_BTN_SHIFT;      // add buttons
 				
 				// report joystick 1 to OSD
-				StateUsbIdSet( conf->vid, conf->pid, conf->joystick_mouse.button_count, iface->jindex);
-				StateUsbJoySet( jmap, btn_extra, iface->jindex);
+				idx = hid_get_jindex(iface);
+				StateUsbIdSet( conf->vid, conf->pid, conf->joystick_mouse.button_count, idx);
+				StateUsbJoySet( jmap, btn_extra, idx);
 				
 				// map virtual joypad
 				uint16_t vjoy = jmap;
@@ -774,7 +790,6 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				//if (jmap != 0) iprintf("JMAP post map:%d\n", jmap);
 				
 				// report joysticks to OSD
-				idx=iface->jindex;
 				StateJoySet(jmap, idx);
 				StateJoySetExtra( btn_extra, idx);
 				// swap joystick 0 and 1 since 1 is the one 

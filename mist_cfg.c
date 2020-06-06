@@ -51,6 +51,7 @@ mist_cfg_t mist_cfg = {
   .joystick_ignore_osd = 0,
   .joystick_disable_shortcuts = 0,
   .joystick0_prefer_db9 = 0,
+  .joystick_db9_fixed_index = 0,
   .joystick_emu_fixed_index = 0,
   .key_menu_as_rgui = 0,
   .keyrah_mode = 0,
@@ -91,6 +92,7 @@ const ini_var_t mist_ini_vars[] = {
   {"JOYSTICK_DISABLE_SHORTCUTS", (void*)(&(mist_cfg.joystick_disable_shortcuts)), UINT8, 0, 1, 1},
   {"JOYSTICK_IGNORE_OSD", (void*)(&(mist_cfg.joystick_ignore_osd)), UINT8, 0, 1, 1},
   {"JOYSTICK0_PREFER_DB9", (void*)(&(mist_cfg.joystick0_prefer_db9)), UINT8, 0, 1, 1},
+  {"JOYSTICK_DB9_FIXED_INDEX", (void*)(&(mist_cfg.joystick_db9_fixed_index)), UINT8, 0, 1, 1},
   {"JOYSTICK_EMU_FIXED_INDEX", (void*)(&(mist_cfg.joystick_emu_fixed_index)), UINT8, 0, 1, 1},
   {"KEY_MENU_AS_RGUI", (void*)(&(mist_cfg.key_menu_as_rgui)), UINT8, 0, 1, 1},
 #ifndef INI_PARSER_TEST
