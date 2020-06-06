@@ -547,6 +547,10 @@ static uint8_t joystick_renumber(uint8_t j) {
   // no usb sticks present: no changes are being made
   if(!usb_sticks) return j;
 
+  // Keep DB9 joysticks as joystick 0 and joystick 1
+  // USB joysticks will be 2,3,...
+  if(mist_cfg.joystick_db9_fixed_index) return j;
+
 	if(j == 0) {
 		// if usb joysticks are present, then physical joystick 0 (mouse port)
 		// becomes becomes 2,3,...
@@ -896,8 +900,9 @@ void user_io_poll() {
     if(!(joy0_state & JOY0_BTN1))  joy_map |= JOY_BTN1;
     if(!(joy0_state & JOY0_BTN2))  joy_map |= JOY_BTN2;
 
-    user_io_joystick(joystick_renumber(0), joy_map);
-    StateJoySet(joy_map, hid_get_joysticks()); // send to OSD
+    uint8_t idx = joystick_renumber(0);
+    user_io_joystick(idx, joy_map);
+    StateJoySet(joy_map, idx); // send to OSD
   }
   
   static int joy1_state = JOY1;
@@ -912,8 +917,9 @@ void user_io_poll() {
     if(!(joy1_state & JOY1_BTN1))  joy_map |= JOY_BTN1;
     if(!(joy1_state & JOY1_BTN2))  joy_map |= JOY_BTN2;
 
-    user_io_joystick(joystick_renumber(1), joy_map);
-    StateJoySet(joy_map, hid_get_joysticks()+1); // send to OSD
+    uint8_t idx = joystick_renumber(1);
+    user_io_joystick(idx, joy_map);
+    StateJoySet(joy_map, idx); // send to OSD
   }
 
   user_io_send_buttons(0);

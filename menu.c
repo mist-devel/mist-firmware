@@ -51,6 +51,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "arc_file.h"
 #include "misc_cfg.h"
 #include "usb/joymapping.h"
+#include "mist_cfg.h"
 
 // test features (not used right now)
 // #define ALLOW_TEST_MENU 0 //remove to disable in prod version
@@ -270,7 +271,7 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	char binary_string[9]="00000000";
 	unsigned char joy = 0;
 	unsigned int max_btn = 1;
-	if (StateNumJoysticks() <= joy_num)
+	if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && StateNumJoysticks() <= joy_num))
 	{
 		strcpy( s, " ");
 		return;
@@ -311,10 +312,10 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	char buffer[32]="";
 
 	if (raw_id==0) {
-		if (joy_num >= StateNumJoysticks())
+		if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && joy_num >= StateNumJoysticks()))
 		{
 			strcpy( usb_id, "      ");
-			if (joy_num < StateNumJoysticks()+2) {
+			if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && joy_num < StateNumJoysticks()+2)) {
 				strcat( usb_id, "Atari DB9 Joystick");
 			} else {
 				strcat( usb_id, "None");
@@ -336,9 +337,9 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 			append_joystick_usbid( buffer, vid, pid );
 		}
 	} else {
-		if (joy_num >= StateNumJoysticks())
+		if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && joy_num >= StateNumJoysticks()))
 		{
-			if (joy_num < StateNumJoysticks()+2) {
+			if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && joy_num < StateNumJoysticks()+2)) {
 				strcpy( buffer, "Atari DB9 Joystick");
 			} else {
 				strcpy( buffer, "None");
@@ -353,6 +354,18 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	return;
 }
 
+
+// De-init all joysticks, useful when changing core
+void joystick_reset() {
+  uint8_t idx;
+
+  for(idx=0; idx<6; idx++) {
+    StateJoySet(0, idx);
+    StateJoySetExtra(0, idx);
+    StateUsbIdSet(0, 0, 0, idx);
+    StateUsbJoySet(0, 0, idx);
+  }
+}
 
 unsigned char getIdx(char *opt) {
 	if((opt[1]>='0') && (opt[1]<='9')) return opt[1]-'0';
@@ -3361,6 +3374,9 @@ void HandleUI(void)
 
 			// reset fpga with core
 			fpga_init(file.name);
+
+			// De-init joysticks to allow re-ordering for new core
+			joystick_reset();
 
 			menustate = MENU_NONE1;
 			break;
