@@ -57,6 +57,18 @@ static mist_joystick_t mist_joysticks[7] = { // 7th one is dummy, used to store 
 	joy_init
 };
 
+// De-init all joysticks, useful when changing core
+void StateReset() {
+	uint8_t idx;
+
+	for(idx=0; idx<6; idx++) {
+		StateJoySet(0, idx);
+		StateJoySetExtra(0, idx);
+		StateUsbIdSet(0, 0, 0, idx);
+		StateUsbJoySet(0, 0, idx);
+	}
+}
+
 // sets a joystick to input status
 void StateJoyCopy ( uint8_t num_joy, mist_joystick_t* joy ) {
 	mist_joystick_t mine;
@@ -271,24 +283,3 @@ void StateKeyboardPressed(uint8_t *keycodes) {
 		keycodes[i]=key_pressed[i];
 }
 
-
-/* core currently loaded */
-static char lastcorename[261+10] = "CORE";
-void StateCoreNameSet(const char* str) {
-	siprintf(lastcorename, "%s", str);
-}
-char* StateCoreName() {
-	return lastcorename;
-}
-
-// clear all states
-void StateReset() {
-	strcpy(lastcorename, "CORE");
-	//State_key = 0;
-	//joysticks=0;
-	key_modifier = 0;
-	for(int i=0; i<6; i++) {
-		key_pressed[i]=0;
-		keys_ps2[i]=0;
-	}
-}

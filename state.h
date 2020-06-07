@@ -27,6 +27,8 @@ typedef struct {
  * Various functions to retrieve hardware state from the State
  */
 
+void StateReset();
+
  // USB raw data for joystick
 void StateUsbJoySet(uint8_t usbjoy, uint8_t usbextra, uint8_t joy_num);
 void StateUsbIdSet(uint16_t vid, uint16_t pid, uint8_t num_buttons, uint8_t joy_num);
@@ -73,10 +75,6 @@ void StateKeyboardSet( uint8_t modifier, uint8_t* pressed, uint16_t* pressed_ps2
 uint8_t StateKeyboardModifiers();
 void StateKeyboardPressed(uint8_t *pressed);
 void StateKeyboardPressedPS2(uint16_t *keycodes);
-
-// get/set core currently loaded
-void StateCoreNameSet(const char* str);
-char* StateCoreName();
 
 #endif
 

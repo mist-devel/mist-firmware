@@ -354,19 +354,6 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	return;
 }
 
-
-// De-init all joysticks, useful when changing core
-void joystick_reset() {
-  uint8_t idx;
-
-  for(idx=0; idx<6; idx++) {
-    StateJoySet(0, idx);
-    StateJoySetExtra(0, idx);
-    StateUsbIdSet(0, 0, 0, idx);
-    StateUsbJoySet(0, 0, idx);
-  }
-}
-
 unsigned char getIdx(char *opt) {
 	if((opt[1]>='0') && (opt[1]<='9')) return opt[1]-'0';
 	if((opt[1]>='A') && (opt[1]<='V')) return opt[1]-'A'+10;
@@ -3376,7 +3363,7 @@ void HandleUI(void)
 			fpga_init(file.name);
 
 			// De-init joysticks to allow re-ordering for new core
-			joystick_reset();
+			StateReset();
 
 			menustate = MENU_NONE1;
 			break;
