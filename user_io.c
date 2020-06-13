@@ -91,250 +91,250 @@ bool scrl_status = 0;
 static char osd_is_visible = false;
 
 char user_io_osd_is_visible() {
-  return osd_is_visible;
+	return osd_is_visible;
 }
 
 static void PollOneAdc() {
-  static unsigned char adc_cnt = 0xff;
+	static unsigned char adc_cnt = 0xff;
 
-  // fetch result from previous run
-  if(adc_cnt != 0xff) {
-    unsigned int result;
+	// fetch result from previous run
+	if(adc_cnt != 0xff) {
+		unsigned int result;
 
-    // wait for end of convertion
-    while(!(AT91C_BASE_ADC->ADC_SR & (1 << (4+adc_cnt))));
-    
-    switch (adc_cnt) {
-    case 0: result = AT91C_BASE_ADC->ADC_CDR4; break;
-    case 1: result = AT91C_BASE_ADC->ADC_CDR5; break;
-    case 2: result = AT91C_BASE_ADC->ADC_CDR6; break;
-    case 3: result = AT91C_BASE_ADC->ADC_CDR7; break;
-    }
-    
-    if(result < 128) adc_state |=  (1<<adc_cnt);
-    if(result > 128) adc_state &= ~(1<<adc_cnt);
-  }
-  
-  adc_cnt = (adc_cnt + 1)&3;
-  
-  // Enable desired chanel
-  AT91C_BASE_ADC->ADC_CHER = 1 << (4+adc_cnt);
-  
-  // Start conversion
-  AT91C_BASE_ADC->ADC_CR = AT91C_ADC_START;
+		// wait for end of convertion
+		while(!(AT91C_BASE_ADC->ADC_SR & (1 << (4+adc_cnt))));
+ 
+		switch (adc_cnt) {
+		case 0: result = AT91C_BASE_ADC->ADC_CDR4; break;
+		case 1: result = AT91C_BASE_ADC->ADC_CDR5; break;
+		case 2: result = AT91C_BASE_ADC->ADC_CDR6; break;
+		case 3: result = AT91C_BASE_ADC->ADC_CDR7; break;
+		}
+
+		if(result < 128) adc_state |=  (1<<adc_cnt);
+		if(result > 128) adc_state &= ~(1<<adc_cnt);
+	}
+
+	adc_cnt = (adc_cnt + 1)&3;
+
+	// Enable desired chanel
+	AT91C_BASE_ADC->ADC_CHER = 1 << (4+adc_cnt);
+
+	// Start conversion
+	AT91C_BASE_ADC->ADC_CR = AT91C_ADC_START;
 }
 
 static void InitADC(void) {
-  // Enable clock for interface
-  AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_ADC;
+	// Enable clock for interface
+	AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_ADC;
 
-  // Reset
-  AT91C_BASE_ADC->ADC_CR = AT91C_ADC_SWRST;
-  AT91C_BASE_ADC->ADC_CR = 0x0;
+	// Reset
+	AT91C_BASE_ADC->ADC_CR = AT91C_ADC_SWRST;
+	AT91C_BASE_ADC->ADC_CR = 0x0;
 
-  // Set maximum startup time and hold time
-  AT91C_BASE_ADC->ADC_MR = 0x0F1F0F00 | AT91C_ADC_LOWRES_8_BIT;
+	// Set maximum startup time and hold time
+	AT91C_BASE_ADC->ADC_MR = 0x0F1F0F00 | AT91C_ADC_LOWRES_8_BIT;
 
-  // make sure we get the first values immediately
-  PollOneAdc();
-  PollOneAdc();
-  PollOneAdc();
-  PollOneAdc();
+	// make sure we get the first values immediately
+	PollOneAdc();
+	PollOneAdc();
+	PollOneAdc();
+	PollOneAdc();
 }
 
 // poll one adc channel every 25ms
 static void PollAdc() {
-  static long adc_timer = 0;
+	static long adc_timer = 0;
 
-  if(CheckTimer(adc_timer)) {
-    adc_timer = GetTimer(25);
-    PollOneAdc();
-  }
+	if(CheckTimer(adc_timer)) {
+		adc_timer = GetTimer(25);
+		PollOneAdc();
+	}
 }
 
 void user_io_init() {
-  // no sd card image selected, SD card accesses will go directly
-  // to the card
-  sd_image[0].file.size = 0;
-  sd_image[1].file.size = 0;
+	// no sd card image selected, SD card accesses will go directly
+	// to the card
+	sd_image[0].file.size = 0;
+	sd_image[1].file.size = 0;
 
-  if(video_keep != VIDEO_KEEP_VALUE) video_altered = 0;
-  video_keep = 0;
+	if(video_keep != VIDEO_KEEP_VALUE) video_altered = 0;
+	video_keep = 0;
 
-  // mark remap table as unused
-  memset(key_remap_table, 0, sizeof(key_remap_table));
+	// mark remap table as unused
+	memset(key_remap_table, 0, sizeof(key_remap_table));
 
-  InitADC();
-  
-  if(user_io_menu_button()) DEBUG_MODE_VAR = DEBUG_MODE ? 0 : DEBUG_MODE_VALUE;
-  iprintf("debug_mode = %d\n", DEBUG_MODE);
+	InitADC();
 
-  ikbd_init();
+	if(user_io_menu_button()) DEBUG_MODE_VAR = DEBUG_MODE ? 0 : DEBUG_MODE_VALUE;
+	iprintf("debug_mode = %d\n", DEBUG_MODE);
+
+	ikbd_init();
 }
 
 unsigned char user_io_core_type() {
-  return core_type;
+	return core_type;
 }
 
 char minimig_v1() {
-  return(core_type == CORE_TYPE_MINIMIG);
+	return(core_type == CORE_TYPE_MINIMIG);
 }
 
 char minimig_v2() {
-  return(core_type == CORE_TYPE_MINIMIG2);
+	return(core_type == CORE_TYPE_MINIMIG2);
 }
 
 char user_io_create_config_name(char *s) {
-  char *p = user_io_get_core_name();
-  if(p[0]) {
-    strcpy(s, p);
-    while(strlen(s) < 8) strcat(s, " ");
-    strcat(s, "CFG");
-    
-    return 0;
-  }
-  return 1;
+	char *p = user_io_get_core_name();
+	if(p[0]) {
+		strcpy(s, p);
+		while(strlen(s) < 8) strcat(s, " ");
+		strcat(s, "CFG");
+
+		return 0;
+	}
+	return 1;
 }
 
 char user_io_is_8bit_with_config_string() {
-  return core_type_8bit_with_config_string;
-}  
+	return core_type_8bit_with_config_string;
+}
 
 static char core_name[16+1];  // max 16 bytes for core name
 
 char *user_io_get_core_name() {
-  char *arc_core_name = arc_get_corename();
-  return *arc_core_name ? arc_core_name : core_name;
+	char *arc_core_name = arc_get_corename();
+	return *arc_core_name ? arc_core_name : core_name;
 }
 
 static void user_io_read_core_name() {
-  core_name[0] = 0;
+	core_name[0] = 0;
 
-  if(user_io_is_8bit_with_config_string()) {
-    char *p = user_io_8bit_get_string(0);  // get core name
-    if(p && p[0]) strcpy(core_name, p);
-  }
+	if(user_io_is_8bit_with_config_string()) {
+		char *p = user_io_8bit_get_string(0);  // get core name
+		if(p && p[0]) strcpy(core_name, p);
+	}
 
-  iprintf("Core name from FPGA is \"%s\"\n", core_name);
+	iprintf("Core name from FPGA is \"%s\"\n", core_name);
 }
 
 void user_io_set_core_mod(char mod) {
-  core_mod = mod;
+	core_mod = mod;
 }
 
 void user_io_send_core_mod() {
-  iprintf("Sending core mod = %d\n", core_mod);
-  spi_uio_cmd8(UIO_SET_MOD, core_mod);
+	iprintf("Sending core mod = %d\n", core_mod);
+	spi_uio_cmd8(UIO_SET_MOD, core_mod);
 }
 
 extern unsigned long iCurrentDirectory;    // cluster number of current directory, 0 for root
 
 void user_io_detect_core_type() {
-  core_name[0] = 0;
+	core_name[0] = 0;
 
-  EnableIO();
-  core_type = SPI(0xff);
-  DisableIO();
-  rom_direct_upload = (core_type & 0x10) >> 4; // bit 4 - direct upload support
-  core_type &= 0xef;
+	EnableIO();
+	core_type = SPI(0xff);
+	DisableIO();
+	rom_direct_upload = (core_type & 0x10) >> 4; // bit 4 - direct upload support
+	core_type &= 0xef;
 
-  if((core_type != CORE_TYPE_DUMB) &&
-     (core_type != CORE_TYPE_MINIMIG) &&
-     (core_type != CORE_TYPE_MINIMIG2) &&
-     (core_type != CORE_TYPE_PACE) &&
-     (core_type != CORE_TYPE_MIST) &&
-     (core_type != CORE_TYPE_MIST2) &&
-     (core_type != CORE_TYPE_ARCHIE) &&
-     (core_type != CORE_TYPE_8BIT))
-    core_type = CORE_TYPE_UNKNOWN;
+	if((core_type != CORE_TYPE_DUMB) &&
+	   (core_type != CORE_TYPE_MINIMIG) &&
+	   (core_type != CORE_TYPE_MINIMIG2) &&
+	   (core_type != CORE_TYPE_PACE) &&
+	   (core_type != CORE_TYPE_MIST) &&
+	   (core_type != CORE_TYPE_MIST2) &&
+	   (core_type != CORE_TYPE_ARCHIE) &&
+	   (core_type != CORE_TYPE_8BIT))
+	    core_type = CORE_TYPE_UNKNOWN;
 
-  switch(core_type) {
-  case CORE_TYPE_UNKNOWN:
-    iprintf("Unable to identify core (%x)!\n", core_type);
-    break;
-    
-  case CORE_TYPE_DUMB:
-    puts("Identified core without user interface");
-    break;
-    
-  case CORE_TYPE_MINIMIG:
-    strcpy(core_name, "MINIMIG");
-    puts("Identified Minimig V1 core");
-    break;
+	switch(core_type) {
+	case CORE_TYPE_UNKNOWN:
+		iprintf("Unable to identify core (%x)!\n", core_type);
+		break;
 
-  case CORE_TYPE_MINIMIG2:
-    strcpy(core_name, "MINIMIG");
-    puts("Identified Minimig V2 core");
-    break;
-    
-  case CORE_TYPE_PACE:
-    puts("Identified PACE core");
-    break;
-    
-  case CORE_TYPE_MIST:
-  case CORE_TYPE_MIST2:
-    strcpy(core_name, "ST");
-    puts("Identified MiST core");
-    break;
+	case CORE_TYPE_DUMB:
+		puts("Identified core without user interface");
+		break;
 
-  case CORE_TYPE_ARCHIE:
-    puts("Identified Archimedes core");
-    strcpy(core_name, "ARCHIE");
-    archie_init();
-    break;
+	case CORE_TYPE_MINIMIG:
+		strcpy(core_name, "MINIMIG");
+		puts("Identified Minimig V1 core");
+		break;
 
-  case CORE_TYPE_8BIT: {
-    puts("Identified 8BIT core");
+	case CORE_TYPE_MINIMIG2:
+		strcpy(core_name, "MINIMIG");
+		puts("Identified Minimig V2 core");
+		break;
 
-    // send core variant first to allow the FPGA choosing the config string
-    user_io_send_core_mod();
+	case CORE_TYPE_PACE:
+		puts("Identified PACE core");
+		break;
 
-    // forward SD card config to core in case it uses the local
-    // SD card implementation
-    user_io_sd_set_config();
+	case CORE_TYPE_MIST:
+	case CORE_TYPE_MIST2:
+		strcpy(core_name, "ST");
+		puts("Identified MiST core");
+		break;
 
-    // check if core has a config string
-    core_type_8bit_with_config_string = (user_io_8bit_get_string(0) != NULL);
+	case CORE_TYPE_ARCHIE:
+		puts("Identified Archimedes core");
+		strcpy(core_name, "ARCHIE");
+		archie_init();
+		break;
 
-    // set core name. This currently only sets a name for the 8 bit cores
-    user_io_read_core_name();
+	case CORE_TYPE_8BIT: {
+		puts("Identified 8BIT core");
 
-    // send a reset
-    user_io_8bit_set_status(UIO_STATUS_RESET, 0xffffffff);
+		// send core variant first to allow the FPGA choosing the config string
+		user_io_send_core_mod();
 
-    // try to load config
-    user_io_create_config_name(s);
-    if(strlen(s) > 0) {
-      iprintf("Loading config %.11s\n", s);
+		// forward SD card config to core in case it uses the local
+		// SD card implementation
+		user_io_sd_set_config();
 
-      if (FileOpen(&file, s))  {
-        iprintf("Found config\n");
-        if(file.size <= 4) {
-          ((unsigned long*)sector_buffer)[0] = 0;
-          FileRead(&file, sector_buffer);
-          user_io_8bit_set_status(((unsigned long*)sector_buffer)[0], 0xfffffffe);
-        }
-      } else {
-          user_io_8bit_set_status(arc_get_default(), 0xfffffffe);
-      }
+		// check if core has a config string
+		core_type_8bit_with_config_string = (user_io_8bit_get_string(0) != NULL);
 
-      // check if there's a <core>.rom present
-      strcpy(s+8, "ROM");
-      if (FileOpenDir(&file, s, iCurrentDirectory) || FileOpen(&file, s))
-        data_io_file_tx(&file, 0);
+		// set core name. This currently only sets a name for the 8 bit cores
+		user_io_read_core_name();
 
-      // check if there's a <core>.vhd present
-      strcpy(s+8, "VHD");
-      if (FileOpen(&file, s))
-	user_io_file_mount(&file, 0);
+		// send a reset
+		user_io_8bit_set_status(UIO_STATUS_RESET, 0xffffffff);
 
-    }
-    
-    // release reset
-    user_io_8bit_set_status(0, UIO_STATUS_RESET);
-    
-  } break;
-  }
+		// try to load config
+		user_io_create_config_name(s);
+		if(strlen(s) > 0) {
+			iprintf("Loading config %.11s\n", s);
+
+			if (FileOpen(&file, s))  {
+				iprintf("Found config\n");
+				if(file.size <= 4) {
+					((unsigned long*)sector_buffer)[0] = 0;
+					FileRead(&file, sector_buffer);
+					user_io_8bit_set_status(((unsigned long*)sector_buffer)[0], 0xfffffffe);
+				}
+			} else {
+				user_io_8bit_set_status(arc_get_default(), 0xfffffffe);
+			}
+
+			// check if there's a <core>.rom present
+			strcpy(s+8, "ROM");
+			if (FileOpenDir(&file, s, iCurrentDirectory) || FileOpen(&file, s))
+				data_io_file_tx(&file, 0);
+
+			// check if there's a <core>.vhd present
+			strcpy(s+8, "VHD");
+			if (FileOpen(&file, s))
+				user_io_file_mount(&file, 0);
+
+		}
+
+		// release reset
+		user_io_8bit_set_status(0, UIO_STATUS_RESET);
+
+	} break;
+	}
 }
 
 
@@ -357,12 +357,12 @@ unsigned short usb2ps2code( unsigned char k) {
 }
 
 void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
-  if(core_type == CORE_TYPE_8BIT) {
-    spi_uio_cmd8_cont(UIO_ASTICK, joystick);
-    spi8(valueX);
-    spi8(valueY);
-    DisableIO();
-  }
+	if(core_type == CORE_TYPE_8BIT) {
+		spi_uio_cmd8_cont(UIO_ASTICK, joystick);
+		spi8(valueX);
+		spi8(valueY);
+		DisableIO();
+	}
 }
 
 void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
@@ -396,141 +396,140 @@ void user_io_digital_joystick_ext(unsigned char joystick, uint16_t map) {
 }
 
 static char dig2ana(char min, char max) {
-  if(min && !max) return -128;
-  if(max && !min) return  127;
-  return 0;
+	if(min && !max) return -128;
+	if(max && !min) return  127;
+	return 0;
 }
 
 void user_io_joystick(unsigned char joystick, unsigned char map) {
   // digital joysticks also send analog signals
-  user_io_digital_joystick(joystick, map);
-  user_io_digital_joystick_ext(joystick, map);
-  user_io_analog_joystick(joystick, 
+	user_io_digital_joystick(joystick, map);
+	user_io_digital_joystick_ext(joystick, map);
+	user_io_analog_joystick(joystick, 
 		       dig2ana(map&JOY_LEFT, map&JOY_RIGHT),
 		       dig2ana(map&JOY_UP, map&JOY_DOWN));
 }
 
 // transmit serial/rs232 data into core
 void user_io_serial_tx(char *chr, uint16_t cnt) {
-  if (core_type == CORE_TYPE_MIST)
-    spi_uio_cmd_cont(UIO_SERIAL_OUT);
-  else
-    spi_uio_cmd_cont(UIO_SIO_OUT);
-  while(cnt--) spi8(*chr++);
-  DisableIO();
+	if (core_type == CORE_TYPE_MIST)
+		spi_uio_cmd_cont(UIO_SERIAL_OUT);
+	else
+		spi_uio_cmd_cont(UIO_SIO_OUT);
+	while(cnt--) spi8(*chr++);
+	DisableIO();
 }
 
 char user_io_serial_status(serial_status_t *status_in, uint8_t status_out) {
-  uint8_t i, *p = (uint8_t*)status_in;
+	uint8_t i, *p = (uint8_t*)status_in;
 
-  spi_uio_cmd_cont(UIO_SERIAL_STAT);
+	spi_uio_cmd_cont(UIO_SERIAL_STAT);
 
-  // first byte returned by core must be "magic". otherwise the
-  // core doesn't support this request
-  if(SPI(status_out) != 0xa5) {
-    DisableIO();
-    return 0;
-  }
+	// first byte returned by core must be "magic". otherwise the
+	// core doesn't support this request
+	if(SPI(status_out) != 0xa5) {
+		DisableIO();
+		return 0;
+	}
 
-  // read the whole structure
-  for(i=0;i<sizeof(serial_status_t);i++)
-    *p++ = spi_in();
+	// read the whole structure
+	for(i=0;i<sizeof(serial_status_t);i++)
+		*p++ = spi_in();
 
-  DisableIO();
-  return 1;
+	DisableIO();
+	return 1;
 }
 
 // transmit midi data into core
 void user_io_midi_tx(char chr) {
-  spi_uio_cmd8(UIO_MIDI_OUT, chr);
+	spi_uio_cmd8(UIO_MIDI_OUT, chr);
 }
 
 // send ethernet mac address into FPGA
 void user_io_eth_send_mac(uint8_t *mac) {
-  uint8_t i;
+	uint8_t i;
 
-  spi_uio_cmd_cont(UIO_ETH_MAC);
-  for(i=0;i<6;i++) spi8(*mac++);
-  DisableIO();
+	spi_uio_cmd_cont(UIO_ETH_MAC);
+	for(i=0;i<6;i++) spi8(*mac++);
+	DisableIO();
 }
 
 // set SD card info in FPGA (CSD, CID)
 void user_io_sd_set_config(void) {
-  unsigned char data[33];
+	unsigned char data[33];
 
-  // get CSD and CID from SD card
-  MMC_GetCID(data);
-  MMC_GetCSD(data+16);
-  // byte 32 is a generic config byte
-  data[32] = MMC_IsSDHC()?1:0;
+	// get CSD and CID from SD card
+	MMC_GetCID(data);
+	MMC_GetCSD(data+16);
+	// byte 32 is a generic config byte
+	data[32] = MMC_IsSDHC()?1:0;
 
-  // and forward it to the FPGA
-  spi_uio_cmd_cont(UIO_SET_SDCONF);
-  spi_write(data, sizeof(data));
-  DisableIO();
+	// and forward it to the FPGA
+	spi_uio_cmd_cont(UIO_SET_SDCONF);
+	spi_write(data, sizeof(data));
+	DisableIO();
 
-  //  hexdump(data, sizeof(data), 0);
+	//  hexdump(data, sizeof(data), 0);
 }
 
 // read 8+32 bit sd card status word from FPGA
 uint8_t user_io_sd_get_status(uint32_t *lba, uint8_t *drive_index) {
-  uint32_t s;
-  uint8_t c; 
+	uint32_t s;
+	uint8_t c; 
 
-  *drive_index = 0;
-  spi_uio_cmd_cont(UIO_GET_SDSTAT);
-  c = spi_in();
-  if ((c & 0xf0) == 0x60) *drive_index = spi_in() & 0x01;
-  s = spi_in();
-  s = (s<<8) | spi_in();
-  s = (s<<8) | spi_in();
-  s = (s<<8) | spi_in();
-  DisableIO();
+	*drive_index = 0;
+	spi_uio_cmd_cont(UIO_GET_SDSTAT);
+	c = spi_in();
+	if ((c & 0xf0) == 0x60) *drive_index = spi_in() & 0x01;
+	s = spi_in();
+	s = (s<<8) | spi_in();
+	s = (s<<8) | spi_in();
+	s = (s<<8) | spi_in();
+	DisableIO();
 
-  if(lba)
-    *lba = s;
+	if(lba) *lba = s;
 
-  return c;
+	return c;
 }
 
 // read 8 bit keyboard LEDs status from FPGA
 uint8_t user_io_kbdled_get_status(void) {
-  uint8_t c; 
+	uint8_t c;
 
-  spi_uio_cmd_cont(UIO_GET_KBD_LED);
-  c = spi_in();
-  DisableIO();
+	spi_uio_cmd_cont(UIO_GET_KBD_LED);
+	c = spi_in();
+	DisableIO();
 
-  return c;
+	return c;
 }
 
 // read 32 bit ethernet status word from FPGA
 uint32_t user_io_eth_get_status(void) {
-  uint32_t s;
+	uint32_t s;
 
-  spi_uio_cmd_cont(UIO_ETH_STATUS);
-  s = spi_in();
-  s = (s<<8) | spi_in();
-  s = (s<<8) | spi_in();
-  s = (s<<8) | spi_in();
-  DisableIO();
+	spi_uio_cmd_cont(UIO_ETH_STATUS);
+	s = spi_in();
+	s = (s<<8) | spi_in();
+	s = (s<<8) | spi_in();
+	s = (s<<8) | spi_in();
+	DisableIO();
 
-  return s;
+	return s;
 }
 
 // read ethernet frame from FPGAs ethernet tx buffer
 void user_io_eth_receive_tx_frame(uint8_t *d, uint16_t len) {
-  spi_uio_cmd_cont(UIO_ETH_FRM_IN);
-  while(len--) *d++=spi_in();
-  DisableIO();
+	spi_uio_cmd_cont(UIO_ETH_FRM_IN);
+	while(len--) *d++=spi_in();
+	DisableIO();
 }
 
 // write ethernet frame to FPGAs rx buffer
 void user_io_eth_send_rx_frame(uint8_t *s, uint16_t len) {
-  spi_uio_cmd_cont(UIO_ETH_FRM_OUT);
-  spi_write(s, len);
-  spi8(0);     // one additional byte to allow fpga to store the previous one
-  DisableIO();
+	spi_uio_cmd_cont(UIO_ETH_FRM_OUT);
+	spi_write(s, len);
+	spi8(0);     // one additional byte to allow fpga to store the previous one
+	DisableIO();
 }
 
 // the physical joysticks (db9 ports at the right device side)
@@ -543,14 +542,14 @@ void user_io_eth_send_rx_frame(uint8_t *s, uint16_t len) {
 // (mouse port)
 
 static uint8_t joystick_renumber(uint8_t j) {
-  uint8_t usb_sticks = hid_get_joysticks();
+	uint8_t usb_sticks = hid_get_joysticks();
 
-  // no usb sticks present: no changes are being made
-  if(!usb_sticks) return j;
+	// no usb sticks present: no changes are being made
+	if(!usb_sticks) return j;
 
-  // Keep DB9 joysticks as joystick 0 and joystick 1
-  // USB joysticks will be 2,3,...
-  if(mist_cfg.joystick_db9_fixed_index) return j;
+	// Keep DB9 joysticks as joystick 0 and joystick 1
+	// USB joysticks will be 2,3,...
+	if(mist_cfg.joystick_db9_fixed_index) return j;
 
 	if(j == 0) {
 		// if usb joysticks are present, then physical joystick 0 (mouse port)
@@ -563,8 +562,8 @@ static uint8_t joystick_renumber(uint8_t j) {
 		if(usb_sticks == 1) j = 0;
 		else                j = usb_sticks;
 	}
-	 
-  return j;
+
+	return j;
 }
 
 void user_io_joystick_emu() {
@@ -574,7 +573,6 @@ void user_io_joystick_emu() {
 	if(emu_mode == EMU_JOY1) user_io_joystick(mist_cfg.joystick_emu_fixed_index ? 1 : joystick_renumber(1), emu_state);
 }
 
-
 // 16 byte fifo for amiga key codes to limit max key rate sent into the core
 #define KBD_FIFO_SIZE  16   // must be power of 2
 static unsigned short kbd_fifo[KBD_FIFO_SIZE];
@@ -582,191 +580,190 @@ static unsigned char kbd_fifo_r=0, kbd_fifo_w=0;
 static long kbd_timer = 0;
 
 static void kbd_fifo_minimig_send(unsigned short code) {
-  spi_uio_cmd8((code&OSD)?UIO_KBD_OSD:UIO_KEYBOARD, code & 0xff);
-  kbd_timer = GetTimer(10);  // next key after 10ms earliest
+	spi_uio_cmd8((code&OSD)?UIO_KBD_OSD:UIO_KEYBOARD, code & 0xff);
+	kbd_timer = GetTimer(10);  // next key after 10ms earliest
 }
 
 static void kbd_fifo_enqueue(unsigned short code) {
-  // if fifo full just drop the value. This should never happen
-  if(((kbd_fifo_w+1)&(KBD_FIFO_SIZE-1)) == kbd_fifo_r)
-    return;
+	// if fifo full just drop the value. This should never happen
+	if(((kbd_fifo_w+1)&(KBD_FIFO_SIZE-1)) == kbd_fifo_r)
+		return;
 
-  // store in queue
-  kbd_fifo[kbd_fifo_w] = code;
-  kbd_fifo_w = (kbd_fifo_w + 1)&(KBD_FIFO_SIZE-1);
+	// store in queue
+	kbd_fifo[kbd_fifo_w] = code;
+	kbd_fifo_w = (kbd_fifo_w + 1)&(KBD_FIFO_SIZE-1);
 }
 
 // send pending bytes if timer has run up
 static void kbd_fifo_poll() {
-  // timer enabled and runnig?
-  if(kbd_timer && !CheckTimer(kbd_timer))
-    return;
- 
-  kbd_timer = 0;  // timer == 0 means timer is not running anymore
+	// timer enabled and runnig?
+	if(kbd_timer && !CheckTimer(kbd_timer))
+		return;
 
-  if(kbd_fifo_w == kbd_fifo_r)
-    return;
+	kbd_timer = 0;  // timer == 0 means timer is not running anymore
 
-  kbd_fifo_minimig_send(kbd_fifo[kbd_fifo_r]);
-  kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
+	if(kbd_fifo_w == kbd_fifo_r)
+		return;
+
+	kbd_fifo_minimig_send(kbd_fifo[kbd_fifo_r]);
+	kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
 }
 
 void user_io_file_mount(fileTYPE *file, unsigned char index) {
-  if (file) {
-    iprintf("selected %.12s with %d bytes to slot %d\n", file->name, file->size, index);
+	if (file) {
+		iprintf("selected %.12s with %d bytes to slot %d\n", file->name, file->size, index);
 
-    memcpy(&sd_image[index].file, file, sizeof(fileTYPE));
+		memcpy(&sd_image[index].file, file, sizeof(fileTYPE));
+		// build index for fast random access
+		IDXIndex(&sd_image[index]);
+	} else {
+		iprintf("unmounting file in slot %d\n", index);
+		sd_image[index].file.size = 0;
+	}
+	buffer_lba = 0xffffffff;
 
-    // build index for fast random access
-    IDXIndex(&sd_image[index]);
-  } else {
-    iprintf("unmounting file in slot %d\n", index);
-    sd_image[index].file.size = 0;
-  }
-  buffer_lba = 0xffffffff;
+	// send mounted image size first then notify about mounting
+	EnableIO();
+	SPI(UIO_SET_SDINFO);
+	// use LE version, so following BYTE(s) may be used for size extension in the future.
+	spi32le(file ? file->size : 0);
+	spi32le(0); // reserved for future expansion
+	spi32le(0); // reserved for future expansion
+	spi32le(0); // reserved for future expansion
+	DisableIO();
 
-  // send mounted image size first then notify about mounting
-  EnableIO();
-  SPI(UIO_SET_SDINFO);
-  // use LE version, so following BYTE(s) may be used for size extension in the future.
-  spi32le(file ? file->size : 0);
-  spi32le(0); // reserved for future expansion
-  spi32le(0); // reserved for future expansion
-  spi32le(0); // reserved for future expansion
-  DisableIO();
-
-  // notify core of possible sd image change
-  spi_uio_cmd8(UIO_SET_SDSTAT, index);
+	// notify core of possible sd image change
+	spi_uio_cmd8(UIO_SET_SDSTAT, index);
 }
 
 // 8 bit cores have a config string telling the firmware how
 // to treat it
 char *user_io_8bit_get_string(char index) {
-  unsigned char i, lidx = 0, j = 0, d = 0, arc = 0;
-  int arc_ptr = 0;
-  char dip[3];
-  static char buffer[128+1];  // max 128 bytes per config item
+	unsigned char i, lidx = 0, j = 0, d = 0, arc = 0;
+	int arc_ptr = 0;
+	char dip[3];
+	static char buffer[128+1];  // max 128 bytes per config item
 
-  // clear buffer
-  buffer[0] = 0;
+	// clear buffer
+	buffer[0] = 0;
 
-  spi_uio_cmd_cont(UIO_GET_STRING);
-  i = spi_in();
-  // the first char returned will be 0xff if the core doesn't support
-  // config strings. atari 800 returns 0xa4 which is the status byte
-  if((i == 0xff) || (i == 0xa4)) {
-    DisableIO();
-    return NULL;
-  }
+	spi_uio_cmd_cont(UIO_GET_STRING);
+	i = spi_in();
+	// the first char returned will be 0xff if the core doesn't support
+	// config strings. atari 800 returns 0xa4 which is the status byte
+	if((i == 0xff) || (i == 0xa4)) {
+		DisableIO();
+		return NULL;
+	}
 
-  //  iprintf("String: ");
+	//  iprintf("String: ");
 
-  while ((i != 0) && (i!=0xff) && (j<sizeof(buffer))) {
-    if(i == ';') {
-      if(!arc && d==3 && !strncmp(dip, "DIP", 3)) {
-        // found "DIP", continue with config snippet from ARC
-        if(lidx == index) {
-          // skip the DIP line
-          j = 0;
-          buffer[0] = 0;
-        }
-        arc = 1;
-      } else {
-        if(lidx == index) buffer[j++] = 0;
-        lidx++;
-      }
-      d = 0;
-    } else {
-      if(lidx == index)
-        buffer[j++] = i;
-      if (d<3)
-        dip[d++] = i;
-    }
+	while ((i != 0) && (i!=0xff) && (j<sizeof(buffer))) {
+		if(i == ';') {
+			if(!arc && d==3 && !strncmp(dip, "DIP", 3)) {
+				// found "DIP", continue with config snippet from ARC
+				if(lidx == index) {
+					// skip the DIP line
+					j = 0;
+					buffer[0] = 0;
+				}
+				arc = 1;
+			} else {
+				if(lidx == index) buffer[j++] = 0;
+				lidx++;
+			}
+			d = 0;
+		} else {
+			if(lidx == index)
+				buffer[j++] = i;
+			if (d<3)
+				dip[d++] = i;
+		}
 
-    //iprintf("%c", i);
-    if (arc) {
-      i = arc_get_conf()[arc_ptr++];
-      if (!i) arc = 0;
-    }
-    if (!arc)
-      i = spi_in();
-  }
+		//iprintf("%c", i);
+		if (arc) {
+			i = arc_get_conf()[arc_ptr++];
+			if (!i) arc = 0;
+		}
+		if (!arc)
+			i = spi_in();
+	}
 
-  DisableIO();
-  //  iprintf("\n");
+	DisableIO();
+	//  iprintf("\n");
 
-  // if this was the last string in the config string list, then it still
-  // needs to be terminated
-  if(lidx == index)
-    buffer[j] = 0;
+	// if this was the last string in the config string list, then it still
+	// needs to be terminated
+	if(lidx == index)
+		buffer[j] = 0;
 
-  // also return NULL for empty strings
-  if(!buffer[0]) 
-    return NULL;
+	// also return NULL for empty strings
+	if(!buffer[0])
+		return NULL;
 
-  return buffer;
+	return buffer;
 }
 
 unsigned long user_io_8bit_set_status(unsigned long new_status, unsigned long mask) {
-  static unsigned long status = 0;
+	static unsigned long status = 0;
 
-  // if mask is 0 just return the current status 
-  if(mask) {
-    // keep everything not masked
-    status &= ~mask;
-    // updated masked bits
-    status |= new_status & mask;
+	// if mask is 0 just return the current status 
+	if(mask) {
+		// keep everything not masked
+		status &= ~mask;
+		// updated masked bits
+		status |= new_status & mask;
 
-    spi_uio_cmd8(UIO_SET_STATUS, status);
-    spi_uio_cmd32(UIO_SET_STATUS2, status);
-  }
+		spi_uio_cmd8(UIO_SET_STATUS, status);
+		spi_uio_cmd32(UIO_SET_STATUS2, status);
+	}
 
-  return status;
+	return status;
 }
 
 char kbd_reset = 0;
 
 void user_io_send_buttons(char force) {
-  static unsigned char key_map = 0;
+	static unsigned char key_map = 0;
 
-  // frequently poll the adc the switches 
-  // and buttons are connected to
-  PollAdc();
-  
-  unsigned char map = 0;
-  if(adc_state & 1) map |= SWITCH2;
-  if(adc_state & 2) map |= SWITCH1;
+	// frequently poll the adc the switches 
+	// and buttons are connected to
+	PollAdc();
 
-  if(adc_state & 4) map |= BUTTON1;
-  else if(adc_state & 8) map |= BUTTON2;
-  if(kbd_reset)     map |= BUTTON2;
+	unsigned char map = 0;
+	if(adc_state & 1) map |= SWITCH2;
+	if(adc_state & 2) map |= SWITCH1;
 
-  if(!mist_cfg.keep_video_mode) video_altered = 0;
+	if(adc_state & 4) map |= BUTTON1;
+	else if(adc_state & 8) map |= BUTTON2;
+	if(kbd_reset)     map |= BUTTON2;
 
-  if(video_altered & 1)
-  {
-	if(video_sd_disable) map |= CONF_SCANDOUBLER_DISABLE;
-  }
-  else
-  {
-	if(mist_cfg.scandoubler_disable) map |= CONF_SCANDOUBLER_DISABLE;
-  }
+	if(!mist_cfg.keep_video_mode) video_altered = 0;
 
-  if(video_altered & 2)
-  {
-	if(video_ypbpr) map |= CONF_YPBPR;
-  }
-  else
-  {
-	if(mist_cfg.ypbpr) map |= CONF_YPBPR;
-  }
-  if(mist_cfg.csync_disable) map |= CONF_CSYNC_DISABLE;
+	if(video_altered & 1)
+	{
+		if(video_sd_disable) map |= CONF_SCANDOUBLER_DISABLE;
+	}
+	else
+	{
+		if(mist_cfg.scandoubler_disable) map |= CONF_SCANDOUBLER_DISABLE;
+	}
 
-  if((map != key_map) || force) {
-    key_map = map;
-    spi_uio_cmd8(UIO_BUT_SW, map);
-    iprintf("sending keymap\n");
-  }
+	if(video_altered & 2)
+	{
+		if(video_ypbpr) map |= CONF_YPBPR;
+	}
+	else
+	{
+		if(mist_cfg.ypbpr) map |= CONF_YPBPR;
+	}
+	if(mist_cfg.csync_disable) map |= CONF_CSYNC_DISABLE;
+
+	if((map != key_map) || force) {
+		key_map = map;
+		spi_uio_cmd8(UIO_BUT_SW, map);
+		iprintf("sending keymap\n");
+	}
 }
 
 void set_kbd_led(unsigned char led, bool on)
@@ -792,481 +789,482 @@ void set_kbd_led(unsigned char led, bool on)
 
 void user_io_poll() {
 
-    // check of core has changed from a good one to a not supported on
-    // as this likely means that the user is reloading the core via jtag
-    unsigned char ct;
-    static unsigned char ct_cnt = 0;
-    
-    EnableIO();
-    ct = SPI(0xff);
-    DisableIO();
-    SPI(0xff);      // needed for old minimig core
+	// check of core has changed from a good one to a not supported on
+	// as this likely means that the user is reloading the core via jtag
+	unsigned char ct;
+	static unsigned char ct_cnt = 0;
 
-    if((ct&0xef) == core_type)
-      ct_cnt = 0;        // same core type, everything is fine
-    else {
-      // core type has changed
-      if(++ct_cnt == 255) {
-	  USB_LOAD_VAR = USB_LOAD_VALUE;
-	// wait for a new valid core id to appear
-	while((ct &  0xe0) != 0xa0) {
-	  EnableIO();
-	  ct = SPI(0xff);
-	  DisableIO();
-	  SPI(0xff);      // needed for old minimig core
-	}
+	EnableIO();
+	ct = SPI(0xff);
+	DisableIO();
+	SPI(0xff);      // needed for old minimig core
 
-	// reset io controller to cope with new core
-	*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
-	for(;;);
-      }
-    }
-
-  if((core_type != CORE_TYPE_MINIMIG) &&
-     (core_type != CORE_TYPE_MINIMIG2) &&
-     (core_type != CORE_TYPE_PACE) &&
-     (core_type != CORE_TYPE_MIST) &&
-     (core_type != CORE_TYPE_MIST2) &&
-     (core_type != CORE_TYPE_ARCHIE) &&
-     (core_type != CORE_TYPE_8BIT)) {
-    return;  // no user io for the installed core
-  }
-
-  if((core_type == CORE_TYPE_MIST) ||
-     (core_type == CORE_TYPE_MIST2)) {
-    char redirect = tos_get_cdc_control_redirect();
-
-    if (core_type == CORE_TYPE_MIST) ikbd_poll();
-
-    // check for input data on usart
-    USART_Poll();
-      
-    unsigned char c = 0;
-
-    // check for incoming serial data. this is directly forwarded to the
-    // arm rs232 and mixes with debug output. Useful for debugging only of
-    // e.g. the diagnostic cartridge    
-    if(!pl2303_is_blocked()) {
-      if (core_type == CORE_TYPE_MIST)
-        spi_uio_cmd_cont(UIO_SERIAL_IN);
-      else
-        spi_uio_cmd_cont(UIO_SIO_IN);
-
-      while(spi_in() && !pl2303_is_blocked()) {
-	c = spi_in();
-	
-	// if a serial/usb adapter is connected it has precesence over
-	// any other sink
-	if(pl2303_present()) 
-	  pl2303_tx_byte(c);
+	if((ct&0xef) == core_type)
+		ct_cnt = 0;        // same core type, everything is fine
 	else {
-	  if(c != 0xff) 
-	    putchar(c);
-	  
-	  // forward to USB if redirection via USB/CDC enabled
-	  if(redirect == CDC_REDIRECT_RS232)
-	    cdc_control_tx(c);
+		// core type has changed
+		if(++ct_cnt == 255) {
+			USB_LOAD_VAR = USB_LOAD_VALUE;
+			// wait for a new valid core id to appear
+			while((ct &  0xe0) != 0xa0) {
+				EnableIO();
+				ct = SPI(0xff);
+				DisableIO();
+				SPI(0xff);      // needed for old minimig core
+			}
+
+			// reset io controller to cope with new core
+			*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
+			for(;;);
+		}
 	}
-      }
-      DisableIO();
-    }
-    
-    // check for incoming parallel/midi data
-    if((redirect == CDC_REDIRECT_PARALLEL) || (redirect == CDC_REDIRECT_MIDI)) {
-      spi_uio_cmd_cont((redirect == CDC_REDIRECT_PARALLEL)?UIO_PARALLEL_IN:UIO_MIDI_IN);
-      // character 0xff is returned if FPGA isn't configured
-      c = 0;
-      while(spi_in() && (c!= 0xff)) {
-	c = spi_in();
-	cdc_control_tx(c);
-      }
-      DisableIO();
-      
-      // always flush when doing midi to reduce latencies
-      if(redirect == CDC_REDIRECT_MIDI)
-	cdc_control_flush();
-    }
-  }
 
-  // poll db9 joysticks
-  static int joy0_state = JOY0;
-  if((*AT91C_PIOA_PDSR & JOY0) != joy0_state) {
-    joy0_state = *AT91C_PIOA_PDSR & JOY0;
-    
-    unsigned char joy_map = 0;
-    if(!(joy0_state & JOY0_UP))    joy_map |= JOY_UP;
-    if(!(joy0_state & JOY0_DOWN))  joy_map |= JOY_DOWN;
-    if(!(joy0_state & JOY0_LEFT))  joy_map |= JOY_LEFT;
-    if(!(joy0_state & JOY0_RIGHT)) joy_map |= JOY_RIGHT;
-    if(!(joy0_state & JOY0_BTN1))  joy_map |= JOY_BTN1;
-    if(!(joy0_state & JOY0_BTN2))  joy_map |= JOY_BTN2;
+	if((core_type != CORE_TYPE_MINIMIG) &&
+	   (core_type != CORE_TYPE_MINIMIG2) &&
+	   (core_type != CORE_TYPE_PACE) &&
+	   (core_type != CORE_TYPE_MIST) &&
+	   (core_type != CORE_TYPE_MIST2) &&
+	   (core_type != CORE_TYPE_ARCHIE) &&
+	   (core_type != CORE_TYPE_8BIT)) {
+		return;  // no user io for the installed core
+	}
 
-    uint8_t idx = joystick_renumber(0);
-    user_io_joystick(idx, joy_map);
-    StateJoySet(joy_map, idx); // send to OSD
-  }
-  
-  static int joy1_state = JOY1;
-  if((*AT91C_PIOA_PDSR & JOY1) != joy1_state) {
-    joy1_state = *AT91C_PIOA_PDSR & JOY1;
-    
-    unsigned char joy_map = 0;
-    if(!(joy1_state & JOY1_UP))    joy_map |= JOY_UP;
-    if(!(joy1_state & JOY1_DOWN))  joy_map |= JOY_DOWN;
-    if(!(joy1_state & JOY1_LEFT))  joy_map |= JOY_LEFT;
-    if(!(joy1_state & JOY1_RIGHT)) joy_map |= JOY_RIGHT;
-    if(!(joy1_state & JOY1_BTN1))  joy_map |= JOY_BTN1;
-    if(!(joy1_state & JOY1_BTN2))  joy_map |= JOY_BTN2;
+	if((core_type == CORE_TYPE_MIST) ||
+	   (core_type == CORE_TYPE_MIST2)) {
+		char redirect = tos_get_cdc_control_redirect();
 
-    uint8_t idx = joystick_renumber(1);
-    user_io_joystick(idx, joy_map);
-    StateJoySet(joy_map, idx); // send to OSD
-  }
+		if (core_type == CORE_TYPE_MIST) ikbd_poll();
 
-  user_io_send_buttons(0);
+		// check for input data on usart
+		USART_Poll();
 
-  // mouse movement emulation is continous 
-  if(emu_mode == EMU_MOUSE) {
-    if(CheckTimer(emu_timer)) {
-      emu_timer = GetTimer(EMU_MOUSE_FREQ);
-      
-      if(emu_state & JOY_MOVE) {
-	unsigned char b = 0;
-	char x = 0, y = 0;
-	if((emu_state & (JOY_LEFT | JOY_RIGHT)) == JOY_LEFT)  x = -1; 
-	if((emu_state & (JOY_LEFT | JOY_RIGHT)) == JOY_RIGHT) x = +1; 
-	if((emu_state & (JOY_UP   | JOY_DOWN))  == JOY_UP)    y = -1; 
-	if((emu_state & (JOY_UP   | JOY_DOWN))  == JOY_DOWN)  y = +1; 
-	
-	if(emu_state & JOY_BTN1) b |= 1;
-	if(emu_state & JOY_BTN2) b |= 2;
-	
-	user_io_mouse(0, b, x, y, 0);
-      }
-    }
-  }
+		unsigned char c = 0;
 
-  if((core_type == CORE_TYPE_MINIMIG) ||
-     (core_type == CORE_TYPE_MINIMIG2)) {
-    kbd_fifo_poll();
+		// check for incoming serial data. this is directly forwarded to the
+		// arm rs232 and mixes with debug output. Useful for debugging only of
+		// e.g. the diagnostic cartridge    
+		if(!pl2303_is_blocked()) {
+			if (core_type == CORE_TYPE_MIST)
+				spi_uio_cmd_cont(UIO_SERIAL_IN);
+			else
+				spi_uio_cmd_cont(UIO_SIO_IN);
 
-    // frequently check mouse for events
-    if(CheckTimer(mouse_timer)) {
-      mouse_timer = GetTimer(MOUSE_FREQ);
+			while(spi_in() && !pl2303_is_blocked()) {
+				c = spi_in();
 
-      // has ps2 mouse data been updated in the meantime
-      for (char idx = 0; idx < 2; idx ++) {
-        if(mouse_flags[idx] & 0x80) {
-          char x, y, z;
-          // ----- X axis -------
-          if(mouse_pos[idx][X] < -128) {
-            x = -128;
-            mouse_pos[idx][X] += 128;
-          } else if(mouse_pos[idx][X] > 127) {
-            x = 127;
-            mouse_pos[idx][X] -= 127;
-          } else {
-            x = mouse_pos[idx][X];
-            mouse_pos[idx][X] = 0;
-          }
+				// if a serial/usb adapter is connected it has precesence over
+				// any other sink
+				if(pl2303_present()) 
+					pl2303_tx_byte(c);
+				else {
+					if(c != 0xff)
+						putchar(c);
 
-          // ----- Y axis -------
-          if(mouse_pos[idx][Y] < -128) {
-            y = (-128);
-            mouse_pos[idx][Y] += 128;
-          } else if(mouse_pos[idx][Y] > 127) {
-            y = 127;
-            mouse_pos[idx][Y] -= 127;
-          } else {
-            y = mouse_pos[idx][Y];
-            mouse_pos[idx][Y] = 0;
-          }
+					// forward to USB if redirection via USB/CDC enabled
+					if(redirect == CDC_REDIRECT_RS232)
+						cdc_control_tx(c);
+				}
+			}
+			DisableIO();
+		}
 
-          // ----- Z axis -------
-          if(mouse_pos[idx][Z] < -128) {
-            z = (-128);
-            mouse_pos[idx][Z] += 128;
-          } else if(mouse_pos[idx][Z] > 127) {
-            z = 127;
-            mouse_pos[idx][Z] -= 127;
-          } else {
-            z = mouse_pos[idx][Z];
-            mouse_pos[idx][Z] = 0;
-          }
+		// check for incoming parallel/midi data
+		if((redirect == CDC_REDIRECT_PARALLEL) || (redirect == CDC_REDIRECT_MIDI)) {
+			spi_uio_cmd_cont((redirect == CDC_REDIRECT_PARALLEL)?UIO_PARALLEL_IN:UIO_MIDI_IN);
+			// character 0xff is returned if FPGA isn't configured
+			c = 0;
+			while(spi_in() && (c!= 0xff)) {
+				c = spi_in();
+				cdc_control_tx(c);
+			}
+			DisableIO();
+			// always flush when doing midi to reduce latencies
+			if(redirect == CDC_REDIRECT_MIDI)
+				cdc_control_flush();
+		}
+	}
 
-          spi_uio_cmd_cont(UIO_MOUSE);
-          spi8(x);
-          spi8(y);
-          spi8(mouse_flags[idx] & 0x03);
-          DisableIO();
+	// poll db9 joysticks
+	static int joy0_state = JOY0;
+	if((*AT91C_PIOA_PDSR & JOY0) != joy0_state) {
+		joy0_state = *AT91C_PIOA_PDSR & JOY0;
 
-          spi_uio_cmd_cont(UIO_MOUSE0_EXT + idx);
-          spi8(x);
-          spi8(y);
-          spi8(mouse_flags[idx] & 0x03);
-          spi8(z);
-          DisableIO();
+		unsigned char joy_map = 0;
+		if(!(joy0_state & JOY0_UP))    joy_map |= JOY_UP;
+		if(!(joy0_state & JOY0_DOWN))  joy_map |= JOY_DOWN;
+		if(!(joy0_state & JOY0_LEFT))  joy_map |= JOY_LEFT;
+		if(!(joy0_state & JOY0_RIGHT)) joy_map |= JOY_RIGHT;
+		if(!(joy0_state & JOY0_BTN1))  joy_map |= JOY_BTN1;
+		if(!(joy0_state & JOY0_BTN2))  joy_map |= JOY_BTN2;
 
-          // reset flags
-          mouse_flags[idx] = 0;
-        }
-      }
-    }
-  }
+		uint8_t idx = joystick_renumber(0);
+		user_io_joystick(idx, joy_map);
+		StateJoySet(joy_map, idx); // send to OSD
+	}
 
-  if((core_type == CORE_TYPE_MIST) ||
-     (core_type == CORE_TYPE_MIST2)) {
-    // do some tos specific monitoring here
-    tos_poll();
-  }
+	static int joy1_state = JOY1;
+	if((*AT91C_PIOA_PDSR & JOY1) != joy1_state) {
+		joy1_state = *AT91C_PIOA_PDSR & JOY1;
+ 
+		unsigned char joy_map = 0;
+		if(!(joy1_state & JOY1_UP))    joy_map |= JOY_UP;
+		if(!(joy1_state & JOY1_DOWN))  joy_map |= JOY_DOWN;
+		if(!(joy1_state & JOY1_LEFT))  joy_map |= JOY_LEFT;
+		if(!(joy1_state & JOY1_RIGHT)) joy_map |= JOY_RIGHT;
+		if(!(joy1_state & JOY1_BTN1))  joy_map |= JOY_BTN1;
+		if(!(joy1_state & JOY1_BTN2))  joy_map |= JOY_BTN2;
 
-  // serial IO - TODO: merge with MiST2
-  if(core_type == CORE_TYPE_8BIT) {
-    unsigned char c = 1, f, p=0;
+		uint8_t idx = joystick_renumber(1);
+		user_io_joystick(idx, joy_map);
+		StateJoySet(joy_map, idx); // send to OSD
+	}
 
-    // check for input data on usart
-    USART_Poll(); // TODO: currently doesn't send anything for 8BIT
+	user_io_send_buttons(0);
 
-    // check for serial data to be sent
+	// mouse movement emulation is continous 
+	if(emu_mode == EMU_MOUSE) {
+		if(CheckTimer(emu_timer)) {
+			emu_timer = GetTimer(EMU_MOUSE_FREQ);
 
-    // check for incoming serial data. this is directly forwarded to the
-    // arm rs232 and mixes with debug output.
-    spi_uio_cmd_cont(UIO_SIO_IN);
-    // status byte is 1000000A with A=1 if data is available
-    if((f = spi_in(0)) == 0x81) {
-      iprintf("\033[1;36m");
-      
-      // character 0xff is returned if FPGA isn't configured
-      while((f == 0x81) && (c!= 0xff) && (c != 0x00) && (p < 8)) {
-	c = spi_in();
-	if(c != 0xff && c != 0x00) 
-	  iprintf("%c", c);
+			if(emu_state & JOY_MOVE) {
+				unsigned char b = 0;
+				char x = 0, y = 0;
+				if((emu_state & (JOY_LEFT | JOY_RIGHT)) == JOY_LEFT)  x = -1; 
+				if((emu_state & (JOY_LEFT | JOY_RIGHT)) == JOY_RIGHT) x = +1; 
+				if((emu_state & (JOY_UP   | JOY_DOWN))  == JOY_UP)    y = -1; 
+				if((emu_state & (JOY_UP   | JOY_DOWN))  == JOY_DOWN)  y = +1; 
 
-	f = spi_in();
-	p++;
-      }
-      iprintf("\033[0m");
-    }
-    DisableIO();
-  }
+				if(emu_state & JOY_BTN1) b |= 1;
+				if(emu_state & JOY_BTN2) b |= 2;
 
-  // sd card emulation
-  if((core_type == CORE_TYPE_8BIT) ||
-     (core_type == CORE_TYPE_MIST2) ||
-     (core_type == CORE_TYPE_ARCHIE))
-  {
-      uint32_t lba;
-      uint8_t drive_index;
-      uint8_t c = user_io_sd_get_status(&lba, &drive_index);
+				user_io_mouse(0, b, x, y, 0);
+			}
+		}
+	}
 
-      // valid sd commands start with "5x" (old API), or "6x" (new API)
-      // to avoid problems with cores that don't implement this command
-      if((c & 0xf0) == 0x50 || (c & 0xf0) == 0x60) {
+	if((core_type == CORE_TYPE_MINIMIG) ||
+	   (core_type == CORE_TYPE_MINIMIG2)) {
+		kbd_fifo_poll();
+
+		// frequently check mouse for events
+		if(CheckTimer(mouse_timer)) {
+			mouse_timer = GetTimer(MOUSE_FREQ);
+
+			// has ps2 mouse data been updated in the meantime
+			for (char idx = 0; idx < 2; idx ++) {
+				if(mouse_flags[idx] & 0x80) {
+					char x, y, z;
+					// ----- X axis -------
+					if(mouse_pos[idx][X] < -128) {
+						x = -128;
+						mouse_pos[idx][X] += 128;
+					} else if(mouse_pos[idx][X] > 127) {
+						x = 127;
+						mouse_pos[idx][X] -= 127;
+					} else {
+						x = mouse_pos[idx][X];
+						mouse_pos[idx][X] = 0;
+					}
+
+					// ----- Y axis -------
+					if(mouse_pos[idx][Y] < -128) {
+						y = (-128);
+						mouse_pos[idx][Y] += 128;
+					} else if(mouse_pos[idx][Y] > 127) {
+						y = 127;
+						mouse_pos[idx][Y] -= 127;
+					} else {
+						y = mouse_pos[idx][Y];
+						mouse_pos[idx][Y] = 0;
+					}
+
+					// ----- Z axis -------
+					if(mouse_pos[idx][Z] < -128) {
+						z = (-128);
+						mouse_pos[idx][Z] += 128;
+					} else if(mouse_pos[idx][Z] > 127) {
+						z = 127;
+						mouse_pos[idx][Z] -= 127;
+					} else {
+						z = mouse_pos[idx][Z];
+						mouse_pos[idx][Z] = 0;
+					}
+
+					spi_uio_cmd_cont(UIO_MOUSE);
+					spi8(x);
+					spi8(y);
+					spi8(mouse_flags[idx] & 0x03);
+					DisableIO();
+
+					spi_uio_cmd_cont(UIO_MOUSE0_EXT + idx);
+					spi8(x);
+					spi8(y);
+					spi8(mouse_flags[idx] & 0x03);
+					spi8(z);
+					DisableIO();
+
+					// reset flags
+					mouse_flags[idx] = 0;
+				}
+			}
+		}
+	}
+
+	if((core_type == CORE_TYPE_MIST) ||
+	   (core_type == CORE_TYPE_MIST2)) {
+		// do some tos specific monitoring here
+		tos_poll();
+	}
+
+	// serial IO - TODO: merge with MiST2
+	if(core_type == CORE_TYPE_8BIT) {
+		unsigned char c = 1, f, p=0;
+
+		// check for input data on usart
+		USART_Poll(); // TODO: currently doesn't send anything for 8BIT
+
+		// check for serial data to be sent
+
+		// check for incoming serial data. this is directly forwarded to the
+		// arm rs232 and mixes with debug output.
+		spi_uio_cmd_cont(UIO_SIO_IN);
+		// status byte is 1000000A with A=1 if data is available
+		if((f = spi_in(0)) == 0x81) {
+			iprintf("\033[1;36m");
+
+			// character 0xff is returned if FPGA isn't configured
+			while((f == 0x81) && (c!= 0xff) && (c != 0x00) && (p < 8)) {
+				c = spi_in();
+				if(c != 0xff && c != 0x00) 
+					iprintf("%c", c);
+
+				f = spi_in();
+				p++;
+			}
+			iprintf("\033[0m");
+		}
+		DisableIO();
+	}
+
+	// sd card emulation
+	if((core_type == CORE_TYPE_8BIT) ||
+	   (core_type == CORE_TYPE_MIST2) ||
+	   (core_type == CORE_TYPE_ARCHIE))
+	{
+		uint32_t lba;
+		uint8_t drive_index;
+		uint8_t c = user_io_sd_get_status(&lba, &drive_index);
+
+		// valid sd commands start with "5x" (old API), or "6x" (new API)
+		// to avoid problems with cores that don't implement this command
+		if((c & 0xf0) == 0x50 || (c & 0xf0) == 0x60) {
 
 #if 0
-	// debug: If the io controller reports and non-sdhc card, then
-	// the core should never set the sdhc flag
-	if((c & 3) && !MMC_IsSDHC() && (c & 0x04))
-	  iprintf("WARNING: SDHC access to non-sdhc card\n");
+		// debug: If the io controller reports and non-sdhc card, then
+		// the core should never set the sdhc flag
+		if((c & 3) && !MMC_IsSDHC() && (c & 0x04))
+			iprintf("WARNING: SDHC access to non-sdhc card\n");
 #endif
-	
-	// check if core requests configuration
-	if(c & 0x08) {
-	  iprintf("core requests SD config\n");
-	  user_io_sd_set_config();
-	}
 
-	// check if system is trying to access a sdhc card from 
-	// a sd/mmc setup
+		// check if core requests configuration
+		if(c & 0x08) {
+			iprintf("core requests SD config\n");
+			user_io_sd_set_config();
+		}
 
-	// check if an SDHC card is inserted
-	if(MMC_IsSDHC()) {
-	  static char using_sdhc = 1;
+		// check if system is trying to access a sdhc card from 
+		// a sd/mmc setup
 
-	  // SD request and 
-	  if((c & 0x03) && !(c & 0x04)) {
-	    if(using_sdhc) {
-	      // we have not been using sdhc so far? 
-	      // -> complain!
-	      ErrorMessage(" This core does not support\n"
-			   " SDHC cards. Using them may\n"
-			   " lead to data corruption.\n\n"
-			   " Please use an SD card <2GB!", 0);
-	      using_sdhc = 0;
-	    }
-	  } else
-	    // SDHC request from core is always ok
-	    using_sdhc = 1;
-	}
+		// check if an SDHC card is inserted
+		if(MMC_IsSDHC()) {
+			static char using_sdhc = 1;
 
-	if((c & 0x03) == 0x02) {
-	  // only write if the inserted card is not sdhc or
-	  // if the core uses sdhc
-	  if((!MMC_IsSDHC()) || (c & 0x04)) {  
-	    uint8_t wr_buf[512];
+			// SD request and 
+			if((c & 0x03) && !(c & 0x04)) {
+				if(using_sdhc) {
+					// we have not been using sdhc so far? 
+					// -> complain!
+					ErrorMessage(" This core does not support\n"
+					             " SDHC cards. Using them may\n"
+					             " lead to data corruption.\n\n"
+					            " Please use an SD card <2GB!", 0);
+					using_sdhc = 0;
+				}
+			} else
+				// SDHC request from core is always ok
+				using_sdhc = 1;
+		}
 
-	    if(user_io_dip_switch1())
-	      iprintf("SD WR %d\n", lba);
+		// Write to file/SD Card
+		if((c & 0x03) == 0x02) {
+			// only write if the inserted card is not sdhc or
+			// if the core uses sdhc
+			if((!MMC_IsSDHC()) || (c & 0x04)) {
+				uint8_t wr_buf[512];
 
-	    // if we write the sector stored in the read buffer, then
-	    // invalidate the cache
-	    if(buffer_lba == lba && buffer_drive_index == drive_index) {
-		buffer_lba = 0xffffffff;
-	    }
+				if(user_io_dip_switch1())
+					iprintf("SD WR %d\n", lba);
 
-	    // Fetch sector data from FPGA ...
-	    spi_uio_cmd_cont(UIO_SECTOR_WR);
-	    spi_block_read(wr_buf);
-	    DisableIO();
+					// if we write the sector stored in the read buffer, then
+					// invalidate the cache
+					if(buffer_lba == lba && buffer_drive_index == drive_index) {
+						buffer_lba = 0xffffffff;
+					}
 
-	    // ... and write it to disk
-	    DISKLED_ON;
+					// Fetch sector data from FPGA ...
+					spi_uio_cmd_cont(UIO_SECTOR_WR);
+					spi_block_read(wr_buf);
+					DisableIO();
+
+					// ... and write it to disk
+					DISKLED_ON;
 
 #if 1
-	    if(sd_image[drive_index].file.size) {
-		if(((sd_image[drive_index].file.size-1) >> 9) >= lba) {
-		    IDXSeek(&sd_image[drive_index], lba);
-		    IDXWrite(&sd_image[drive_index], wr_buf);
-		}
-	    } else
-	      MMC_Write(lba, wr_buf);
+					if(sd_image[drive_index].file.size) {
+						if(((sd_image[drive_index].file.size-1) >> 9) >= lba) {
+							IDXSeek(&sd_image[drive_index], lba);
+							IDXWrite(&sd_image[drive_index], wr_buf);
+						}
+					} else
+						MMC_Write(lba, wr_buf);
 #else
-	    hexdump(wr_buf, 512, 0);
+						hexdump(wr_buf, 512, 0);
 #endif
 
-	    DISKLED_OFF;
-	  }
-	}
-
-	if((c & 0x03) == 0x01) {
-
-	  if(user_io_dip_switch1())
-	    iprintf("SD RD %d\n", lba);
-
-	  // invalidate cache if it stores data from another drive
-	  if (drive_index != buffer_drive_index)
-	      buffer_lba = 0xffffffff;
-
-	  // are we using a file as the sd card image?
-	  // (C64 floppy does that ...)
-	  if(buffer_lba != lba) {
-	    DISKLED_ON;
-	    if(sd_image[drive_index].file.size) {
-		if(((sd_image[drive_index].file.size-1) >> 9) >= lba) {
-			IDXSeek(&sd_image[drive_index], lba);
-			IDXRead(&sd_image[drive_index], buffer);
+					DISKLED_OFF;
+			}
 		}
-	    } else {
-	      // sector read
-	      // read sector from sd card if it is not already present in
-	      // the buffer
-	      MMC_Read(lba, buffer);
-	    }
-	    buffer_lba = lba;
-	    DISKLED_OFF;
-	  }
 
-	  if(buffer_lba == lba) {
-	    //	    hexdump(buffer, 32, 0);
+		// Read from file/SD Card
+		if((c & 0x03) == 0x01) {
 
-	    // data is now stored in buffer. send it to fpga
-	    spi_uio_cmd_cont(UIO_SECTOR_RD);
-	    spi_block_write(buffer);
-	    DisableIO();
+			if(user_io_dip_switch1())
+				iprintf("SD RD %d\n", lba);
 
-	    // the end of this transfer acknowledges the FPGA internal
-	    // sd card emulation
-	  }
+				// invalidate cache if it stores data from another drive
+				if (drive_index != buffer_drive_index)
+					buffer_lba = 0xffffffff;
 
-	  // just load the next sector now, so it may be prefetched
-	  // for the next request already
-	  DISKLED_ON;
-	  if(sd_image[drive_index].file.size) {
-	    // but check if it would overrun on the file
-	    if(((sd_image[drive_index].file.size-1) >> 9) > lba) {
-		IDXSeek(&sd_image[drive_index], lba+1);
-		IDXRead(&sd_image[drive_index], buffer);
-		buffer_lba = lba + 1;
-	    }
-	  } else {
-	    // sector read
-	    // read sector from sd card if it is not already present in
-	    // the buffer
-	    MMC_Read(lba+1, buffer);
-	    buffer_lba = lba+1;
-	  }
-	  buffer_drive_index = drive_index;
-	  DISKLED_OFF;
+				// are we using a file as the sd card image?
+				// (C64 floppy does that ...)
+				if(buffer_lba != lba) {
+					DISKLED_ON;
+					if(sd_image[drive_index].file.size) {
+						if(((sd_image[drive_index].file.size-1) >> 9) >= lba) {
+							IDXSeek(&sd_image[drive_index], lba);
+							IDXRead(&sd_image[drive_index], buffer);
+						}
+					} else {
+						// sector read
+						// read sector from sd card if it is not already present in
+						// the buffer
+						MMC_Read(lba, buffer);
+					}
+					buffer_lba = lba;
+					DISKLED_OFF;
+				}
+
+				if(buffer_lba == lba) {
+					// hexdump(buffer, 32, 0);
+
+					// data is now stored in buffer. send it to fpga
+					spi_uio_cmd_cont(UIO_SECTOR_RD);
+					spi_block_write(buffer);
+					DisableIO();
+
+					// the end of this transfer acknowledges the FPGA internal
+					// sd card emulation
+				}
+
+				// just load the next sector now, so it may be prefetched
+				// for the next request already
+				DISKLED_ON;
+				if(sd_image[drive_index].file.size) {
+					// but check if it would overrun on the file
+					if(((sd_image[drive_index].file.size-1) >> 9) > lba) {
+						IDXSeek(&sd_image[drive_index], lba+1);
+						IDXRead(&sd_image[drive_index], buffer);
+						buffer_lba = lba + 1;
+					}
+				} else {
+					// sector read
+					// read sector from sd card if it is not already present in
+					// the buffer
+					MMC_Read(lba+1, buffer);
+					buffer_lba = lba+1;
+				}
+				buffer_drive_index = drive_index;
+				DISKLED_OFF;
+			}
+		}
 	}
-      }
-  }
 
-  if((core_type == CORE_TYPE_8BIT) ||
-     (core_type == CORE_TYPE_MIST2)) {
+	if((core_type == CORE_TYPE_8BIT) ||
+	   (core_type == CORE_TYPE_MIST2)) {
 
-    // frequently check ps2 mouse for events
-    if(CheckTimer(mouse_timer)) {
-      mouse_timer = GetTimer(MOUSE_FREQ);
+		// frequently check ps2 mouse for events
+		if(CheckTimer(mouse_timer)) {
+			mouse_timer = GetTimer(MOUSE_FREQ);
 
-      // has ps2 mouse data been updated in the meantime
-      if(mouse_flags[0] & 0x08) {
-	unsigned char ps2_mouse[3];
+			// has ps2 mouse data been updated in the meantime
+			if(mouse_flags[0] & 0x08) {
+				unsigned char ps2_mouse[3];
 
-	// PS2 format: 
-	// YOvfl, XOvfl, dy8, dx8, 1, mbtn, rbtn, lbtn
-	// dx[7:0]
-	// dy[7:0]
-	ps2_mouse[0] = mouse_flags[0];
+				// PS2 format:
+				// YOvfl, XOvfl, dy8, dx8, 1, mbtn, rbtn, lbtn
+				// dx[7:0]
+				// dy[7:0]
+				ps2_mouse[0] = mouse_flags[0];
 
-	// ------ X axis -----------
-	// store sign bit in first byte
-	ps2_mouse[0] |= (mouse_pos[0][X] < 0)?0x10:0x00;
-	if(mouse_pos[0][X] < -255) {
-	  // min possible value + overflow flag
-	  ps2_mouse[0] |= 0x40;
-	  ps2_mouse[1] = -128;
-	} else if(mouse_pos[0][X] > 255) {
-	  // max possible value + overflow flag
-	  ps2_mouse[0] |= 0x40;
-	  ps2_mouse[1] = 255;
-	} else 
-	  ps2_mouse[1] = mouse_pos[0][X];
+				// ------ X axis -----------
+				// store sign bit in first byte
+				ps2_mouse[0] |= (mouse_pos[0][X] < 0)?0x10:0x00;
+				if(mouse_pos[0][X] < -255) {
+					// min possible value + overflow flag
+					ps2_mouse[0] |= 0x40;
+					ps2_mouse[1] = -128;
+				} else if(mouse_pos[0][X] > 255) {
+					// max possible value + overflow flag
+					ps2_mouse[0] |= 0x40;
+					ps2_mouse[1] = 255;
+				} else
+					ps2_mouse[1] = mouse_pos[0][X];
 
-	// ------ Y axis -----------
-	// store sign bit in first byte
-	ps2_mouse[0] |= (mouse_pos[0][Y] < 0)?0x20:0x00;
-	if(mouse_pos[0][Y] < -255) {
-	  // min possible value + overflow flag
-	  ps2_mouse[0] |= 0x80;
-	  ps2_mouse[2] = -128;
-	} else if(mouse_pos[0][Y] > 255) {
-	  // max possible value + overflow flag
-	  ps2_mouse[0] |= 0x80;
-	  ps2_mouse[2] = 255;
-	} else 
-	  ps2_mouse[2] = mouse_pos[0][Y];
-	
-	// collect movement info and send at predefined rate
-	if(!(ps2_mouse[0]==0x08 && ps2_mouse[1]==0 && ps2_mouse[2]==0) && user_io_dip_switch1())
-		iprintf("PS2 MOUSE: %x %d %d\n", ps2_mouse[0], ps2_mouse[1], ps2_mouse[2]);
+				// ------ Y axis -----------
+				// store sign bit in first byte
+				ps2_mouse[0] |= (mouse_pos[0][Y] < 0)?0x20:0x00;
+				if(mouse_pos[0][Y] < -255) {
+					// min possible value + overflow flag
+					ps2_mouse[0] |= 0x80;
+					ps2_mouse[2] = -128;
+				} else if(mouse_pos[0][Y] > 255) {
+					// max possible value + overflow flag
+					ps2_mouse[0] |= 0x80;
+					ps2_mouse[2] = 255;
+				} else
+					ps2_mouse[2] = mouse_pos[0][Y];
 
-	spi_uio_cmd_cont(UIO_MOUSE);
-	spi8(ps2_mouse[0]);
-	spi8(ps2_mouse[1]);
-	spi8(ps2_mouse[2]);
-	DisableIO();
+				// collect movement info and send at predefined rate
+				if(!(ps2_mouse[0]==0x08 && ps2_mouse[1]==0 && ps2_mouse[2]==0) && user_io_dip_switch1())
+					iprintf("PS2 MOUSE: %x %d %d\n", ps2_mouse[0], ps2_mouse[1], ps2_mouse[2]);
 
-	// reset counters
-	mouse_flags[0] = 0;
-	mouse_pos[0][X] = mouse_pos[0][Y] = 0;
-      }
-    }
-  }
+				spi_uio_cmd_cont(UIO_MOUSE);
+				spi8(ps2_mouse[0]);
+				spi8(ps2_mouse[1]);
+				spi8(ps2_mouse[2]);
+				DisableIO();
 
-  if(core_type == CORE_TYPE_ARCHIE) 
-    archie_poll();
+				// reset counters
+				mouse_flags[0] = 0;
+				mouse_pos[0][X] = mouse_pos[0][Y] = 0;
+			}
+		}
+	}
 
-    if(CheckTimer(led_timer))
+	if(core_type == CORE_TYPE_ARCHIE) 
+		archie_poll();
+
+	if(CheckTimer(led_timer))
 	{
 		led_timer = GetTimer(LED_FREQ);
 		uint8_t leds = user_io_kbdled_get_status();
@@ -1274,7 +1272,7 @@ void user_io_poll() {
 
 		if((keyboard_leds & KBD_LED_CAPS_MASK) != (leds & KBD_LED_CAPS_MASK))
 			hid_set_kbd_led(HID_LED_CAPS_LOCK, (leds & KBD_LED_CAPS_CONTROL) ? leds & KBD_LED_CAPS_STATUS : caps_status);
-			
+
 		if((keyboard_leds & KBD_LED_NUM_MASK) != (leds & KBD_LED_NUM_MASK))
 			hid_set_kbd_led(HID_LED_NUM_LOCK, (leds & KBD_LED_NUM_CONTROL) ? leds & KBD_LED_NUM_STATUS : num_status);
 
@@ -1282,13 +1280,13 @@ void user_io_poll() {
 			hid_set_kbd_led(HID_LED_SCROLL_LOCK, (leds & KBD_LED_SCRL_CONTROL) ? leds & KBD_LED_SCRL_STATUS : scrl_status);
 
 		keyboard_leds = leds;
-    }
+	}
 
-    // check for long press > 1 sec on menu button
-    // and toggle scandoubler on/off then
-    static unsigned long timer = 1;
+	// check for long press > 1 sec on menu button
+	// and toggle scandoubler on/off then
+	static unsigned long timer = 1;
 	static unsigned char ypbpr_toggle = 0;
-    if(user_io_menu_button())
+	if(user_io_menu_button())
 	{
 		if(timer == 1) 
 			timer = GetTimer(1000);
@@ -1327,7 +1325,7 @@ void user_io_poll() {
 			ypbpr_toggle = 0;
 		}
 
-    }
+	}
 	else
 	{
 		timer = 1;
@@ -1337,46 +1335,45 @@ void user_io_poll() {
 }
 
 char user_io_dip_switch1() {
-  return(((adc_state & 2)?1:0) || DEBUG_MODE);
+	return(((adc_state & 2)?1:0) || DEBUG_MODE);
 }
 
 char user_io_menu_button() {
-  return((adc_state & 4)?1:0);
+	return((adc_state & 4)?1:0);
 }
 
 char user_io_user_button() {
-  return((!user_io_menu_button() && (adc_state & 8))?1:0);
+	return((!user_io_menu_button() && (adc_state & 8))?1:0);
 }
 
 static void send_keycode(unsigned short code) {
-  if((core_type == CORE_TYPE_MINIMIG) ||
-     (core_type == CORE_TYPE_MINIMIG2)) {
-    // amiga has "break" marker in msb
-    if(code & BREAK) code = (code & 0xff) | 0x80;
+	if((core_type == CORE_TYPE_MINIMIG) ||
+	   (core_type == CORE_TYPE_MINIMIG2)) {
+		// amiga has "break" marker in msb
+		if(code & BREAK) code = (code & 0xff) | 0x80;
 
-    // send immediately if possible
-    if(CheckTimer(kbd_timer) &&(kbd_fifo_w == kbd_fifo_r) )
-      kbd_fifo_minimig_send(code);
-    else
-      kbd_fifo_enqueue(code);
-  }
+		// send immediately if possible
+		if(CheckTimer(kbd_timer) &&(kbd_fifo_w == kbd_fifo_r) )
+			kbd_fifo_minimig_send(code);
+		else
+			kbd_fifo_enqueue(code);
+	}
 
-  if(core_type == CORE_TYPE_MIST) {
+	if(core_type == CORE_TYPE_MIST) {
+		// atari has "break" marker in msb
+		ikbd_keyboard((code & BREAK) ? ((code & 0xff) | 0x80) : code);
+	}
 
-    // atari has "break" marker in msb
-    ikbd_keyboard((code & BREAK) ? ((code & 0xff) | 0x80) : code);
-  }
+	if((core_type == CORE_TYPE_8BIT) ||
+	   (core_type == CORE_TYPE_MIST2)) {
+		// send ps2 keycodes for those cores that prefer ps2
+		spi_uio_cmd_cont(UIO_KEYBOARD);
 
-  if((core_type == CORE_TYPE_8BIT) ||
-     (core_type == CORE_TYPE_MIST2)) {
-    // send ps2 keycodes for those cores that prefer ps2
-    spi_uio_cmd_cont(UIO_KEYBOARD);
+		// "pause" has a complex code 
+		if((code&0xff) == 0x77) {
 
-    // "pause" has a complex code 
-    if((code&0xff) == 0x77) {
-
-      // pause does not have a break code
-      if(!(code & BREAK)) {
+			// pause does not have a break code
+			if(!(code & BREAK)) {
 				// Pause key sends E11477E1F014E077
 				static const unsigned char c[] = { 
 					0xe1, 0x14, 0x77, 0xe1, 0xf0, 0x14, 0xf0, 0x77, 0x00 };
@@ -1388,56 +1385,56 @@ static void send_keycode(unsigned short code) {
 					spi8(*p++);
 				}
 				iprintf("\n");
-      }
-    } else {
-      if (user_io_dip_switch1()) {
-        iprintf("PS2 KBD ");
-        if(code & EXT)   iprintf("e0 ");
-        if(code & BREAK) iprintf("f0 ");
-        iprintf("%x\n", code & 0xff);
-      }
+			}
+		} else {
+			if (user_io_dip_switch1()) {
+				iprintf("PS2 KBD ");
+				if(code & EXT)   iprintf("e0 ");
+				if(code & BREAK) iprintf("f0 ");
+				iprintf("%x\n", code & 0xff);
+			}
 
-      if(code & EXT)    // prepend extended code flag if required
-	spi8(0xe0);
-      
-      if(code & BREAK)  // prepend break code if required
-	spi8(0xf0);
-      
-      spi8(code & 0xff);  // send code itself
-    }
+			if(code & EXT)    // prepend extended code flag if required
+				spi8(0xe0);
+ 
+			if(code & BREAK)  // prepend break code if required
+				spi8(0xf0);
 
-    DisableIO();
-  }
+			spi8(code & 0xff);  // send code itself
+		}
 
-  if(core_type == CORE_TYPE_ARCHIE) 
-    archie_kbd(code);
+		DisableIO();
+	}
+
+	if(core_type == CORE_TYPE_ARCHIE) 
+		archie_kbd(code);
 }
 
 void user_io_mouse(unsigned char idx, unsigned char b, char x, char y, char z) {
 
-  // send mouse data as minimig expects it
-  if((core_type == CORE_TYPE_MINIMIG) || 
-     (core_type == CORE_TYPE_MINIMIG2)) {
-    mouse_pos[idx][X] += x;
-    mouse_pos[idx][Y] += y;
-    mouse_pos[idx][Z] += z;
-    mouse_flags[idx] |= 0x80 | (b&3);
-  }
+	// send mouse data as minimig expects it
+	if((core_type == CORE_TYPE_MINIMIG) || 
+	   (core_type == CORE_TYPE_MINIMIG2)) {
+		mouse_pos[idx][X] += x;
+		mouse_pos[idx][Y] += y;
+		mouse_pos[idx][Z] += z;
+		mouse_flags[idx] |= 0x80 | (b&3);
+	}
 
-  // 8 bit core expects ps2 like data
-  if((core_type == CORE_TYPE_8BIT) ||
-     (core_type == CORE_TYPE_MIST2)) {
-    mouse_pos[0][X] += x;
-    mouse_pos[0][Y] -= y;  // ps2 y axis is reversed over usb
-    mouse_flags[0] |= 0x08 | (b&3); 
-  }
+	// 8 bit core expects ps2 like data
+	if((core_type == CORE_TYPE_8BIT) ||
+	   (core_type == CORE_TYPE_MIST2)) {
+		mouse_pos[0][X] += x;
+		mouse_pos[0][Y] -= y;  // ps2 y axis is reversed over usb
+		mouse_flags[0] |= 0x08 | (b&3); 
+	}
 
-  // send mouse data as mist expects it
-  if(core_type == CORE_TYPE_MIST)
-    ikbd_mouse(b, x, y);
+	// send mouse data as mist expects it
+	if(core_type == CORE_TYPE_MIST)
+		ikbd_mouse(b, x, y);
 
-  if(core_type == CORE_TYPE_ARCHIE) 
-    archie_mouse(b, x, y);
+	if(core_type == CORE_TYPE_ARCHIE) 
+		archie_mouse(b, x, y);
 }
 
 // check if this is a key that's supposed to be suppressed
@@ -1480,21 +1477,21 @@ static unsigned char is_emu_key(unsigned char c, unsigned alt) {
 #define EMU_BTN4  (3+(keyrah*4))  // left gui (usually windows key)
 
 unsigned short keycode(unsigned char in) {
-  if((core_type == CORE_TYPE_MINIMIG) ||
-     (core_type == CORE_TYPE_MINIMIG2)) 
-    return usb2amiga(in);
+	if((core_type == CORE_TYPE_MINIMIG) ||
+	   (core_type == CORE_TYPE_MINIMIG2)) 
+	return usb2amiga(in);
 
-  if(core_type == CORE_TYPE_MIST)
-    return usb2atari[in];
+	if(core_type == CORE_TYPE_MIST)
+		return usb2atari[in];
 
-  if(core_type == CORE_TYPE_ARCHIE)
-    return usb2archie[in];
+	if(core_type == CORE_TYPE_ARCHIE)
+		return usb2archie[in];
 
-  if((core_type == CORE_TYPE_8BIT) ||
-     (core_type == CORE_TYPE_MIST2))
-    return usb2ps2code(in);
+	if((core_type == CORE_TYPE_8BIT) ||
+	   (core_type == CORE_TYPE_MIST2))
+		return usb2ps2code(in);
 
-  return MISS;
+	return MISS;
 }
 
 void check_reset(unsigned short modifiers, char useKeys)
@@ -1534,59 +1531,59 @@ void check_reset(unsigned short modifiers, char useKeys)
 }
 
 unsigned short modifier_keycode(unsigned char index) {
-  /* usb modifer bits: 
-        0     1     2    3    4     5     6    7
-      LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
-  */
+	/* usb modifer bits:
+	        0     1     2    3    4     5     6    7
+	      LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
+	*/
 
-  if((core_type == CORE_TYPE_MINIMIG) ||
-     (core_type == CORE_TYPE_MINIMIG2)) {
-    static const unsigned short amiga_modifier[] = 
-      { 0x63, 0x60, 0x64, 0x66, 0x63, 0x61, 0x65, 0x67 };
-    return amiga_modifier[index];
-  }
+	if((core_type == CORE_TYPE_MINIMIG) ||
+	   (core_type == CORE_TYPE_MINIMIG2)) {
+		static const unsigned short amiga_modifier[] = 
+			{ 0x63, 0x60, 0x64, 0x66, 0x63, 0x61, 0x65, 0x67 };
+		return amiga_modifier[index];
+	}
 
-  if(core_type == CORE_TYPE_MIST) {
-    static const unsigned short atari_modifier[] = 
-      { 0x1d, 0x2a, 0x38, MISS, 0x1d, 0x36, 0x38, MISS };
-    return atari_modifier[index];
-  }
+	if(core_type == CORE_TYPE_MIST) {
+		static const unsigned short atari_modifier[] = 
+			{ 0x1d, 0x2a, 0x38, MISS, 0x1d, 0x36, 0x38, MISS };
+		return atari_modifier[index];
+	}
 
-  if((core_type == CORE_TYPE_8BIT) ||
-     (core_type == CORE_TYPE_MIST2)) {
-    static const unsigned short ps2_modifier[] = 
-      { 0x14, 0x12, 0x11, EXT|0x1f, EXT|0x14, 0x59, EXT|0x11, EXT|0x27 };
-    return ps2_modifier[index];
-  } 
+	if((core_type == CORE_TYPE_8BIT) ||
+	   (core_type == CORE_TYPE_MIST2)) {
+		static const unsigned short ps2_modifier[] = 
+			{ 0x14, 0x12, 0x11, EXT|0x1f, EXT|0x14, 0x59, EXT|0x11, EXT|0x27 };
+		return ps2_modifier[index];
+	}
 
-  if(core_type == CORE_TYPE_ARCHIE) {
-    static const unsigned short archie_modifier[] = 
-      { 0x36, 0x4c, 0x5e, MISS, 0x61, 0x58, 0x60, MISS };
-    return archie_modifier[index];
-  } 
+	if(core_type == CORE_TYPE_ARCHIE) {
+		static const unsigned short archie_modifier[] = 
+			{ 0x36, 0x4c, 0x5e, MISS, 0x61, 0x58, 0x60, MISS };
+		return archie_modifier[index];
+	}
 
-  return MISS;
+	return MISS;
 }
 
 void user_io_osd_key_enable(char on) {
-  iprintf("OSD is now %s\n", on?"visible":"invisible");
-  osd_is_visible = on;
+	iprintf("OSD is now %s\n", on?"visible":"invisible");
+	osd_is_visible = on;
 }
 
 static char key_used_by_osd(unsigned short s) {
-  // this key is only used to open the OSD and has no keycode
-  if((s & OSD_OPEN) && !(s & 0xff))  return true; 
+	// this key is only used to open the OSD and has no keycode
+	if((s & OSD_OPEN) && !(s & 0xff))  return true; 
 
-  // no keys are suppressed if the OSD is inactive
-  if(!osd_is_visible) return false;
+	// no keys are suppressed if the OSD is inactive
+	if(!osd_is_visible) return false;
 
-  // in atari mode eat all keys if the OSD is online,
-  // else none as it's up to the core to forward keys
-  // to the OSD
-  return((core_type == CORE_TYPE_MIST) ||
-	 (core_type == CORE_TYPE_MIST2) ||
-	 (core_type == CORE_TYPE_ARCHIE) ||
-	 (core_type == CORE_TYPE_8BIT));
+	// in atari mode eat all keys if the OSD is online,
+	// else none as it's up to the core to forward keys
+	// to the OSD
+	return((core_type == CORE_TYPE_MIST) ||
+	       (core_type == CORE_TYPE_MIST2) ||
+	       (core_type == CORE_TYPE_ARCHIE) ||
+	       (core_type == CORE_TYPE_8BIT));
 }
 
 static char kr_fn_table[] =
@@ -2025,23 +2022,23 @@ void add_modifiers(uint8_t mod, uint16_t* keys_ps2)
 }
 
 void user_io_key_remap(char *s) {
-  // s is a string containing two comma separated hex numbers
-  if((strlen(s) != 5) && (s[2]!=',')) {
-    ini_parser_debugf("malformed entry %s", s);
-    return;
-  }
+	// s is a string containing two comma separated hex numbers
+	if((strlen(s) != 5) && (s[2]!=',')) {
+		ini_parser_debugf("malformed entry %s", s);
+		return;
+	}
 
-  char i;
-  for(i=0;i<MAX_REMAP;i++) {
-    if(!key_remap_table[i][0]) {
-      key_remap_table[i][0] = strtol(s, NULL, 16);
-      key_remap_table[i][1] = strtol(s+3, NULL, 16);
-      
-      ini_parser_debugf("key remap entry %d = %02x,%02x", 
-			i, key_remap_table[i][0], key_remap_table[i][1]);
-      return;
-    }
-  }
+	char i;
+	for(i=0;i<MAX_REMAP;i++) {
+		if(!key_remap_table[i][0]) {
+			key_remap_table[i][0] = strtol(s, NULL, 16);
+			key_remap_table[i][1] = strtol(s+3, NULL, 16);
+
+			ini_parser_debugf("key remap entry %d = %02x,%02x", 
+			  i, key_remap_table[i][0], key_remap_table[i][1]);
+			return;
+		}
+	}
 }
 
 unsigned char user_io_ext_idx(fileTYPE *file, char* ext) {
@@ -2064,56 +2061,56 @@ extern unsigned char iSelectedEntry;
 
 // this should be moved into fat.c?
 void user_io_change_into_core_dir(void) {
-  char s[13];  // 8+3+'\0'
-  user_io_create_config_name(s);
-  
-  // try to change into subdir named after the core
-  strcpy(s+8, "   ");
-  iprintf("Trying to open work dir \"%s\"\n", s);
+	char s[13];  // 8+3+'\0'
+	user_io_create_config_name(s);
 
-  ScanDirectory(SCAN_INIT, "",  SCAN_DIR | FIND_DIR);
+	// try to change into subdir named after the core
+	strcpy(s+8, "   ");
+	iprintf("Trying to open work dir \"%s\"\n", s);
 
-  unsigned short last_StartCluster = 0;
+	ScanDirectory(SCAN_INIT, "",  SCAN_DIR | FIND_DIR);
 
-  // no return flag :(, so scan 10 times blindly...
-  for(;;) {
-    char res = 0;
+	unsigned short last_StartCluster = 0;
+
+	// no return flag :(, so scan 10 times blindly...
+	for(;;) {
+		char res = 0;
 
 #if 0
-    // debug
-    iprintf("new list nDirentries=%d iSelected=%d\n", nDirEntries, iSelectedEntry);
-    for(int i=0;i<nDirEntries;i++) {
-      iprintf("%11s %x\n", DirEntry[i].Name, DirEntry[i].StartCluster);
-    }
+		// debug
+		iprintf("new list nDirentries=%d iSelected=%d\n", nDirEntries, iSelectedEntry);
+		for(int i=0;i<nDirEntries;i++) {
+			iprintf("%11s %x\n", DirEntry[i].Name, DirEntry[i].StartCluster);
+		}
 #endif
 
-    for(int i=0;i<nDirEntries;i++) {
-      //iprintf("cmp %11s %11s\n", DirEntry[i].Name, s);
-      if(strncasecmp(DirEntry[i].Name, s, 11) == 0) {
-        ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
-        res = 1;
-        break;
-      }
-    }
-    // found directory: stop searching
-    if(res) { iprintf("ok\n"); break; }
+		for(int i=0;i<nDirEntries;i++) {
+			//iprintf("cmp %11s %11s\n", DirEntry[i].Name, s);
+			if(strncasecmp(DirEntry[i].Name, s, 11) == 0) {
+				ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
+				res = 1;
+				break;
+			}
+		}
+		// found directory: stop searching
+		if(res) { iprintf("ok\n"); break; }
 
-    // last search returned less than 8 entries: Stop searching since 
-    // there sure aren't more
-    if(nDirEntries != 8) 
-      break;
+		// last search returned less than 8 entries: Stop searching since 
+		// there sure aren't more
+		if(nDirEntries != 8) 
+			break;
 
-    // if 8 entries are returned check if the start cluster of the first entry
-    // is the same as the first one in the previous list. If it is, then this
-    // is the same list and we are done
-    if((nDirEntries == 8) && (DirEntry[0].StartCluster == last_StartCluster)) 
-      break;
+		// if 8 entries are returned check if the start cluster of the first entry
+		// is the same as the first one in the previous list. If it is, then this
+		// is the same list and we are done
+		if((nDirEntries == 8) && (DirEntry[0].StartCluster == last_StartCluster)) 
+			break;
 
-    last_StartCluster = DirEntry[0].StartCluster;
+		last_StartCluster = DirEntry[0].StartCluster;
 
-    // get next 8 directory entries
-    iSelectedEntry = MAXDIRENTRIES -1;
-    ScanDirectory(SCAN_NEXT_PAGE, "",  SCAN_DIR | FIND_DIR);
+		// get next 8 directory entries
+		iSelectedEntry = MAXDIRENTRIES -1;
+		ScanDirectory(SCAN_NEXT_PAGE, "",  SCAN_DIR | FIND_DIR);
 
-  }
+	}
 }
