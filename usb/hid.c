@@ -17,6 +17,7 @@
 
 static unsigned char kbd_led_state = 0;  // default: all leds off
 static unsigned char joysticks = 0;      // number of detected usb joysticks
+static unsigned char mice      = 0;      // number of detected usb mice
 
 // up to 8 buttons can be remapped
 #define MAX_JOYSTICK_BUTTON_REMAP 8
@@ -217,6 +218,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 							info->iface[info->bNumIfaces].ignore_boot_mode = true;
 
 						info->iface[info->bNumIfaces].device_type = HID_DEVICE_MOUSE;
+						info->iface[info->bNumIfaces].jindex = mice++;
 						break;
 
 					default:
@@ -454,8 +456,8 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
 	puts(__FUNCTION__);
 
 	uint8_t i;
-	// check if a joystick is released
 	for(i=0;i<info->bNumIfaces;i++) {
+		// check if a joystick is released
 		if(info->iface[i].device_type == HID_DEVICE_JOYSTICK) {
 			uint8_t c_jindex = hid_get_jindex(&info->iface[i]);
 			hid_debugf("releasing joystick #%d, renumbering", c_jindex);
@@ -489,6 +491,33 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
 			if (joysticks < 6)
 				StateUsbIdSet(0, 0, 0, joysticks);
 		}
+
+		// check if a mouse is released
+		if(info->iface[i].device_type == HID_DEVICE_MOUSE) {
+			uint8_t c_jindex = info->iface[i].jindex;
+			hid_debugf("releasing mouse #%d, renumbering", info->iface[i].jindex);
+			// search for all mouse interfaces on all hid devices
+			usb_device_t *dev = usb_get_devices();
+			uint8_t j;
+			for(j=0;j<USB_NUMDEVICES;j++) {
+				if(dev[j].bAddress && (dev[j].class == &usb_hid_class)) {
+					// search for mouse interfaces, decrease the index with a higher id
+					uint8_t k;
+					for(k=0;k<MAX_IFACES;k++) {
+						if(dev[j].hid_info.iface[k].device_type == HID_DEVICE_MOUSE) {
+							uint8_t jindex = dev[j].hid_info.iface[k].jindex;
+							if(jindex > c_jindex) {
+								hid_debugf("decreasing jindex of mouse #%d from %d to %d", j, 
+									jindex, jindex-1);
+								dev[j].hid_info.iface[k].jindex--;
+							}
+						}
+					}
+				}
+			}
+			mice--;
+		}
+
 	}
 
 	return 0;
@@ -614,7 +643,7 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 			// boot mouse needs at least three bytes
 			if(read >= 3)
 				// forward all three bytes to the user_io layer
-				user_io_mouse(0, buf[0], buf[1], buf[2], 0);
+				user_io_mouse(iface->jindex > 1 ? 1 : iface->jindex, buf[0], buf[1], buf[2], 0);
 		}
 		
 		if(iface->device_type == HID_DEVICE_KEYBOARD) {
@@ -679,7 +708,7 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 					if((int16_t)a[i] >  127) a[i] =  127;
 					if((int16_t)a[i] < -128) a[i] = -128;
 				}
-				user_io_mouse(0, btn, a[0], a[1], a[2]);
+				user_io_mouse(iface->jindex > 1 ? 1 : iface->jindex, btn, a[0], a[1], a[2]);
 			}
 
 			// ---------- process joystick -------------

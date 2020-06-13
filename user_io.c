@@ -990,11 +990,14 @@ void user_io_poll() {
 						mouse_pos[idx][Z] = 0;
 					}
 
-					spi_uio_cmd_cont(UIO_MOUSE);
-					spi8(x);
-					spi8(y);
-					spi8(mouse_flags[idx] & 0x03);
-					DisableIO();
+					if (!idx) {
+						// send the first mouse only with the old message
+						spi_uio_cmd_cont(UIO_MOUSE);
+						spi8(x);
+						spi8(y);
+						spi8(mouse_flags[idx] & 0x03);
+						DisableIO();
+					}
 
 					spi_uio_cmd_cont(UIO_MOUSE0_EXT + idx);
 					spi8(x);
