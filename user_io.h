@@ -63,6 +63,10 @@
 #define UIO_JOYSTICK4_EXT   0x64
 #define UIO_JOYSTICK5_EXT   0x65
 
+// extended mouse control (with wheel support)
+#define UIO_MOUSE0_EXT      0x70
+#define UIO_MOUSE1_EXT      0x71
+
 // codes as used by 8bit (atari 800, zx81) via SS2
 #define UIO_GET_STATUS  0x50 // removed
 #define UIO_SECTOR_SND  0x51 // removed
@@ -181,7 +185,7 @@ void user_io_eth_send_rx_frame(uint8_t *, uint16_t);
 void user_io_eth_receive_tx_frame(uint8_t *, uint16_t);
 
 // hooks from the usb layer
-void user_io_mouse(unsigned char b, char x, char y);
+void user_io_mouse(unsigned char idx, unsigned char b, char x, char y, char z);
 void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned short vid, unsigned short pid);
 char user_io_create_config_name(char *s);
 void user_io_digital_joystick(unsigned char, unsigned char);

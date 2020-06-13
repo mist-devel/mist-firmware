@@ -93,7 +93,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
   uint8_t report_complete = 0;
 
   // joystick/mouse components
-  int8_t axis[2] = { -1, -1};
+  int8_t axis[3] = { -1, -1, -1};
   uint8_t btns = 0;
   int8_t hat = -1;
 
@@ -186,7 +186,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 
 	  // handle found axes
 	  char c;
-	  for(c=0;c<2;c++) {
+	  for(c=0;c<3;c++) {
 	    if(axis[c] >= 0) {
 	      uint16_t cnt = bit_count + report_size * axis[c];
 	      hidp_debugf("  (%c-AXIS @ %d (byte %d, bit %d))", 'X'+c,
@@ -222,7 +222,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 	  bit_count += report_count * report_size;
 	  usage_count = 0;
 	  btns = 0;
-	  axis[0] = axis[1] = -1;
+	  axis[0] = axis[1] = axis[2] = -1;
 	  hat = -1;
 	  break;
 
@@ -391,11 +391,11 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 
 	    hidp_debugf(" -> Pointer");
 
-	  } else if((value == USAGE_X || value == USAGE_Y) && app_collection) {
+	  } else if((value == USAGE_X || value == USAGE_Y || value == USAGE_WHEEL) && app_collection) {
 	    // usage(x) and usage(y) are allowed within the app collection
 	    hidp_extreme_debugf(" -> axis usage");
 
-	    // we support x and y axis on mice and joysticks
+	    // we support x and y axis on mice and joysticks (+wheel on mice)
 	    if((conf->type == REPORT_TYPE_JOYSTICK) || (conf->type == REPORT_TYPE_MOUSE)) {
 	      if(value == USAGE_X) {
 		hidp_extreme_debugf("JOYSTICK/MOUSE: found x axis @ %d", usage_count);
@@ -404,6 +404,10 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 	      if(value == USAGE_Y) {
 		hidp_extreme_debugf("JOYSTICK/MOUSE: found y axis @ %d", usage_count);
 		axis[1] = usage_count;
+	      }
+	      if(value == USAGE_WHEEL) {
+		hidp_extreme_debugf("MOUSE: found wheel @ %d", usage_count);
+		axis[2] = usage_count;
 	      }
 	    }
 	  } else if((value == USAGE_HAT) && app_collection) {

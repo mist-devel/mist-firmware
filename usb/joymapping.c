@@ -464,7 +464,7 @@ bool virtual_joystick_keyboard ( uint16_t vjoy ) {
 				if (vjoy & JOY_RIGHT) a0 = 4;
 				if (vjoy & JOY_UP) a1 = -2;
 				if (vjoy & JOY_DOWN) a1 = 2;
-				user_io_mouse(but, a0, a1);
+				user_io_mouse(0, but, a0, a1, 0);
 			}
 	
 		}

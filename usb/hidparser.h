@@ -25,7 +25,7 @@ typedef struct {
 					uint16_t min;
 					uint16_t max;
 				} logical;
-      } axis[2];               // x and y axis
+      } axis[3];               // x and y axis + wheel
 
       struct {
 				uint8_t byte_offset;
