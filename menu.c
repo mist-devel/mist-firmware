@@ -2398,7 +2398,7 @@ void HandleUI(void)
 					iprintf("Saving config to %s\n", s);
 					if(FileNew(&file, s, 4)) {
 						 // finally write data
-						((unsigned long*)sector_buffer)[0] = user_io_8bit_set_status(0,0xffffffff);
+						((unsigned long*)sector_buffer)[0] = user_io_8bit_set_status(arc_get_default(),0xffffffff);
 						FileWrite(&file, sector_buffer); 
 						iprintf("Settings for %s written\n", s);
 					}
