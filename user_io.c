@@ -1209,57 +1209,80 @@ void user_io_poll() {
 		if(CheckTimer(mouse_timer)) {
 			mouse_timer = GetTimer(MOUSE_FREQ);
 
-			// has ps2 mouse data been updated in the meantime
-			if(mouse_flags[0] & 0x08) {
-				unsigned char ps2_mouse[3];
+			for (char idx=0; idx<2; idx++) {
+				// has ps2 mouse data been updated in the meantime
+				if(mouse_flags[idx] & 0x08) {
+					unsigned char ps2_mouse[4];
 
-				// PS2 format:
-				// YOvfl, XOvfl, dy8, dx8, 1, mbtn, rbtn, lbtn
-				// dx[7:0]
-				// dy[7:0]
-				ps2_mouse[0] = mouse_flags[0];
+					// PS2 format:
+					// YOvfl, XOvfl, dy8, dx8, 1, mbtn, rbtn, lbtn
+					// dx[7:0]
+					// dy[7:0]
+					// 0,0,btn5,btn,dz[3:0]
+					ps2_mouse[0] = mouse_flags[idx];
 
-				// ------ X axis -----------
-				// store sign bit in first byte
-				ps2_mouse[0] |= (mouse_pos[0][X] < 0)?0x10:0x00;
-				if(mouse_pos[0][X] < -255) {
-					// min possible value + overflow flag
-					ps2_mouse[0] |= 0x40;
-					ps2_mouse[1] = -128;
-				} else if(mouse_pos[0][X] > 255) {
-					// max possible value + overflow flag
-					ps2_mouse[0] |= 0x40;
-					ps2_mouse[1] = 255;
-				} else
-					ps2_mouse[1] = mouse_pos[0][X];
+					// ------ X axis -----------
+					// store sign bit in first byte
+					ps2_mouse[0] |= (mouse_pos[idx][X] < 0)?0x10:0x00;
+					if(mouse_pos[idx][X] < -255) {
+						// min possible value + overflow flag
+						ps2_mouse[0] |= 0x40;
+						ps2_mouse[1] = -128;
+					} else if(mouse_pos[idx][X] > 255) {
+						// max possible value + overflow flag
+						ps2_mouse[0] |= 0x40;
+						ps2_mouse[1] = 255;
+					} else
+						ps2_mouse[1] = mouse_pos[idx][X];
 
-				// ------ Y axis -----------
-				// store sign bit in first byte
-				ps2_mouse[0] |= (mouse_pos[0][Y] < 0)?0x20:0x00;
-				if(mouse_pos[0][Y] < -255) {
-					// min possible value + overflow flag
-					ps2_mouse[0] |= 0x80;
-					ps2_mouse[2] = -128;
-				} else if(mouse_pos[0][Y] > 255) {
-					// max possible value + overflow flag
-					ps2_mouse[0] |= 0x80;
-					ps2_mouse[2] = 255;
-				} else
-					ps2_mouse[2] = mouse_pos[0][Y];
+					// ------ Y axis -----------
+					// store sign bit in first byte
+					ps2_mouse[0] |= (mouse_pos[idx][Y] < 0)?0x20:0x00;
+					if(mouse_pos[idx][Y] < -255) {
+						// min possible value + overflow flag
+						ps2_mouse[0] |= 0x80;
+						ps2_mouse[2] = -128;
+					} else if(mouse_pos[idx][Y] > 255) {
+						// max possible value + overflow flag
+						ps2_mouse[0] |= 0x80;
+						ps2_mouse[2] = 255;
+					} else
+						ps2_mouse[2] = mouse_pos[idx][Y];
 
-				// collect movement info and send at predefined rate
-				if(!(ps2_mouse[0]==0x08 && ps2_mouse[1]==0 && ps2_mouse[2]==0) && user_io_dip_switch1())
-					iprintf("PS2 MOUSE: %x %d %d\n", ps2_mouse[0], ps2_mouse[1], ps2_mouse[2]);
+					// ------ Z axis -----------
+					ps2_mouse[3] = 0;
+					if(mouse_pos[idx][Z] < -8) {
+						// min possible value
+						ps2_mouse[3] = -8;
+					} else if(mouse_pos[idx][Z] > 7) {
+						// max possible value
+						ps2_mouse[3] = 7;
+					} else
+						ps2_mouse[3] = mouse_pos[idx][Z];
 
-				spi_uio_cmd_cont(UIO_MOUSE);
-				spi8(ps2_mouse[0]);
-				spi8(ps2_mouse[1]);
-				spi8(ps2_mouse[2]);
-				DisableIO();
+					// collect movement info and send at predefined rate
+					if(!(ps2_mouse[0]==0x08 && ps2_mouse[1]==0 && ps2_mouse[2]==0 && ps2_mouse[3]==0) && user_io_dip_switch1())
+						iprintf("PS2 MOUSE(%d): %x %d %d %d\n", idx, ps2_mouse[0], ps2_mouse[1], ps2_mouse[2], ps2_mouse[3]);
 
-				// reset counters
-				mouse_flags[0] = 0;
-				mouse_pos[0][X] = mouse_pos[0][Y] = 0;
+					// old message sends the movements for all mice
+					spi_uio_cmd_cont(UIO_MOUSE);
+					spi8(ps2_mouse[0]);
+					spi8(ps2_mouse[1]);
+					spi8(ps2_mouse[2]);
+					DisableIO();
+
+					// new message with Intellimouse PS2 message
+					spi_uio_cmd_cont(UIO_MOUSE0_EXT+idx);
+					spi8(ps2_mouse[0]);
+					spi8(ps2_mouse[1]);
+					spi8(ps2_mouse[2]);
+					spi8(ps2_mouse[3]);
+					DisableIO();
+
+					// reset counters
+					mouse_flags[idx] = 0;
+					mouse_pos[idx][X] = mouse_pos[idx][Y] = mouse_pos[idx][Z] = 0;
+				}
 			}
 		}
 	}
@@ -1427,9 +1450,10 @@ void user_io_mouse(unsigned char idx, unsigned char b, char x, char y, char z) {
 	// 8 bit core expects ps2 like data
 	if((core_type == CORE_TYPE_8BIT) ||
 	   (core_type == CORE_TYPE_MIST2)) {
-		mouse_pos[0][X] += x;
-		mouse_pos[0][Y] -= y;  // ps2 y axis is reversed over usb
-		mouse_flags[0] |= 0x08 | (b&3); 
+		mouse_pos[idx][X] += x;
+		mouse_pos[idx][Y] -= y;  // ps2 y axis is reversed over usb
+		mouse_pos[idx][Z] += z;
+		mouse_flags[idx] |= 0x08 | (b&3); 
 	}
 
 	// send mouse data as mist expects it
