@@ -32,7 +32,7 @@ void font_load() {
 				char row=i & 0x07;
 				if (row == 0) for(int j = 0; j < 8; j++) charfont[addr][j] = 0;
 				for(int j = 0; j < 8; j++) {
-					charfont[addr][8-j] |= (((sector_buffer[i] >> j) & 0x01) << row);
+					charfont[addr][7-j] |= (((sector_buffer[i] >> j) & 0x01) << row);
 				}
 
 				if(row == 7) addr++;
