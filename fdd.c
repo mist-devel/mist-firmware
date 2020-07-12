@@ -598,7 +598,8 @@ void WriteTrack(adfTYPE *drive)
     file.sector = drive->track * 11;
     sector = 0;
 
-    drive->track_prev = drive->track + 1; // just to force next read from the start of current track
+//    drive->track_prev = drive->track + 1; // This causes a read that directly follows a write to the previous track to return bad data.
+    drive->track_prev = -1; // just to force next read from the start of current track
 
     while (FindSync(drive))
     {
