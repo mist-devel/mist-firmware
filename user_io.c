@@ -22,6 +22,7 @@
 #include "tos.h"
 #include "errors.h"
 #include "arc_file.h"
+#include "utils.h"
 
 // up to 16 key can be remapped
 #define MAX_REMAP  16
@@ -79,6 +80,9 @@ char keyboard_leds = 0;
 bool caps_status = 0;
 bool num_status = 0;
 bool scrl_status = 0;
+
+#define RTC_FREQ 1000   // 1 s
+static unsigned long rtc_timer;
 
 #define VIDEO_KEEP_VALUE  0x87654321
 #define video_keep        (*(int*)0x0020FF10)
@@ -225,6 +229,26 @@ void user_io_set_core_mod(char mod) {
 void user_io_send_core_mod() {
 	iprintf("Sending core mod = %d\n", core_mod);
 	spi_uio_cmd8(UIO_SET_MOD, core_mod);
+}
+
+void user_io_send_rtc(void) {
+	uint8_t date[7]; //year,month,date,hour,min,sec,day
+	uint8_t i;
+
+	if (usb_rtc_get_time((uint8_t*)&date)) {
+		//iprintf("Sending time of day %u:%02u:%02u %u.%u.%u\n",
+		//  date[3], date[4], date[5], date[2], date[1], 1900 + date[0]);
+		spi_uio_cmd_cont(UIO_SET_RTC);
+		spi8(bin2bcd(date[5])); // sec
+		spi8(bin2bcd(date[4])); // min
+		spi8(bin2bcd(date[3])); // hour
+		spi8(bin2bcd(date[2])); // date
+		spi8(bin2bcd(date[1])); // month
+		spi8(bin2bcd(date[0]-100)); // year
+		spi8(bin2bcd(date[6])-1); //day 1-7 -> 0-6
+		spi8(0x40); // flag
+		DisableIO();
+	}
 }
 
 extern unsigned long iCurrentDirectory;    // cluster number of current directory, 0 for root
@@ -1289,6 +1313,18 @@ void user_io_poll() {
 
 	if(core_type == CORE_TYPE_ARCHIE) 
 		archie_poll();
+
+	if((core_type == CORE_TYPE_MINIMIG2) ||
+	   (core_type == CORE_TYPE_MIST2) ||
+	   (core_type == CORE_TYPE_ARCHIE) ||
+	   (core_type == CORE_TYPE_8BIT))
+	{
+		if(CheckTimer(rtc_timer))
+		{
+			rtc_timer = GetTimer(RTC_FREQ);
+			user_io_send_rtc();
+		}
+	}
 
 	if(CheckTimer(led_timer))
 	{

@@ -10,6 +10,7 @@
 #include "debug.h"
 #include "usb.h"
 #include "usbrtc.h"
+#include "utils.h"
 
 #define I2C_M_RD                0x01
 
@@ -195,14 +196,6 @@ static uint8_t usb_rtc_release(usb_device_t *dev) {
   return 0;
 }
 
-static uint8_t bcd2bin(uint8_t in) {
-  return 10*(in >> 4) + (in & 0x0f);
-}
-
-static uint8_t bin2bcd(int8_t in) {
-  return 16*(in/10) + (in % 10);
-}
-
 uint8_t usb_rtc_get_time(uint8_t *d) {
   uint8_t i;
   usb_device_t *devs = usb_get_devices(), *dev = NULL;
@@ -230,6 +223,7 @@ uint8_t usb_rtc_get_time(uint8_t *d) {
   d[3] = bcd2bin(time.hour_bcd);
   d[4] = bcd2bin(time.min_bcd);
   d[5] = bcd2bin(time.sec_bcd);
+  d[6] = time.day;
 
   return 1;
 }
@@ -255,6 +249,7 @@ uint8_t usb_rtc_set_time(uint8_t *d) {
   time.hour_bcd = bin2bcd(d[3]);
   time.min_bcd = bin2bcd(d[4]);
   time.sec_bcd = bin2bcd(d[5]);
+  time.day = d[3];
 
   if(!i2c_write_cmd_and_data(dev, DS1307_ADDR, 0, &time, sizeof(struct timeS))) {
     usbrtc_debugf("Error writing time");

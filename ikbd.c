@@ -32,6 +32,7 @@
 #include "ikbd.h"
 #include "debug.h"
 #include "usb.h"
+#include "utils.h"
 
 #define IKBD_AUTO_MS   20
 
@@ -81,7 +82,7 @@ static struct {
   } mouse;
 
   // ----- clock state ------
-  unsigned char date[6];
+  unsigned char date[7];
 
   unsigned int   tx_cnt;   // tx byte counter for debugging
 
@@ -123,14 +124,6 @@ static void enqueue(unsigned short b) {
 
   tx_queue[wptr] = b;
   wptr = (wptr+1)&(QUEUE_LEN-1);
-}
-
-unsigned char bcd2bin(unsigned char in) {
-  return 10*(in >> 4) + (in & 0x0f);
-}
-
-unsigned char bin2bcd(unsigned char in) {
-  return 16*(in/10) + (in % 10);
 }
 
 // convert internal joystick format into atari ikbd format

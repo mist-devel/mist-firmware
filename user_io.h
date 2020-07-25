@@ -54,6 +54,7 @@
 #define UIO_GET_KBD_LED 0x1f  // keyboard LEDs control
 #define UIO_SIO_OUT     0x20  // serial out
 #define UIO_SET_MOD     0x21  // send core variant from metadata (ARC) file
+#define UIO_SET_RTC     0x22  // send real-time-clock data
 
 // extended joystick control (32 bit value)
 #define UIO_JOYSTICK0_EXT   0x60
