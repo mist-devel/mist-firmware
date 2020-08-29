@@ -23,6 +23,7 @@
 #include "errors.h"
 #include "arc_file.h"
 #include "utils.h"
+#include "usb/joymapping.h"
 
 // up to 16 key can be remapped
 #define MAX_REMAP  16
@@ -921,6 +922,8 @@ void user_io_poll() {
 		if(!(joy0_state & JOY0_BTN1))  joy_map |= JOY_BTN1;
 		if(!(joy0_state & JOY0_BTN2))  joy_map |= JOY_BTN2;
 
+		joy_map = virtual_joystick_mapping(0x00db, 0x0000, joy_map);
+
 		uint8_t idx = joystick_renumber(0);
 		user_io_joystick(idx, joy_map);
 		StateJoySet(joy_map, idx); // send to OSD
@@ -937,6 +940,8 @@ void user_io_poll() {
 		if(!(joy1_state & JOY1_RIGHT)) joy_map |= JOY_RIGHT;
 		if(!(joy1_state & JOY1_BTN1))  joy_map |= JOY_BTN1;
 		if(!(joy1_state & JOY1_BTN2))  joy_map |= JOY_BTN2;
+
+		joy_map = virtual_joystick_mapping(0x00db, 0x0001, joy_map);
 
 		uint8_t idx = joystick_renumber(1);
 		user_io_joystick(idx, joy_map);
