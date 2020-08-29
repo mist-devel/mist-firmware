@@ -926,7 +926,7 @@ void user_io_poll() {
 
 		uint8_t idx = joystick_renumber(0);
 		user_io_joystick(idx, joy_map);
-		StateJoySet(joy_map, idx); // send to OSD
+		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : hid_get_joysticks()); // send to OSD
 	}
 
 	static int joy1_state = JOY1;
@@ -945,7 +945,7 @@ void user_io_poll() {
 
 		uint8_t idx = joystick_renumber(1);
 		user_io_joystick(idx, joy_map);
-		StateJoySet(joy_map, idx); // send to OSD
+		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : hid_get_joysticks() + 1); // send to OSD
 	}
 
 	user_io_send_buttons(0);
