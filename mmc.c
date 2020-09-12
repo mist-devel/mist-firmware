@@ -332,6 +332,7 @@ unsigned long MMC_GetCapacity()
 	  cmult|=(CSDData[10]>>7) & 1;
 	  ++result;
 	  result<<=cmult+2;
+	  result*=blocksize;	// Scale by the number of 512-byte chunks per block.
 	  return(result);
 	}
 }
