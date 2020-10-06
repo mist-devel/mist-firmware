@@ -63,6 +63,7 @@ mist_cfg_t mist_cfg = {
 
 minimig_cfg_t minimig_cfg = {
   .kick1x_memory_detection_patch = 0,
+  .clock_freq = 0,
   .conf_name = {"Default","1","2","3","4"}
 };
 
