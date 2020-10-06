@@ -104,6 +104,7 @@ const ini_var_t mist_ini_vars[] = {
   {"ROM", (void*)ini_rom_upload, CUSTOM_HANDLER, 0, 0, 1},
   // [MINIMIG_CONFIG]
   {"KICK1X_MEMORY_DETECTION_PATCH", (void*)(&(minimig_cfg.kick1x_memory_detection_patch)), UINT8, 0, 1, 2},
+  {"CLOCK_FREQ", (void*)(&(minimig_cfg.clock_freq)), UINT8, 0, 2, 2},
   {"CONF_DEFAULT", (void*)(&(minimig_cfg.conf_name[0])), STRING, 1, 10, 2},
   {"CONF_1", (void*)(&(minimig_cfg.conf_name[1])), STRING, 1, 10, 2},
   {"CONF_2", (void*)(&(minimig_cfg.conf_name[2])), STRING, 1, 10, 2},

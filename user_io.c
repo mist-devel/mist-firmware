@@ -290,6 +290,7 @@ void user_io_detect_core_type() {
 	case CORE_TYPE_MINIMIG2:
 		strcpy(core_name, "MINIMIG");
 		puts("Identified Minimig V2 core");
+		user_io_8bit_set_status(minimig_cfg.clock_freq << 1, 0xffffffff);
 		break;
 
 	case CORE_TYPE_PACE:
