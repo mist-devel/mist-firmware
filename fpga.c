@@ -934,6 +934,7 @@ void fpga_init(char *name) {
     puts("Running minimig setup");
     
     if(minimig_v2()) {
+      user_io_8bit_set_status(minimig_cfg.clock_freq << 1, 0xffffffff);
       EnableOsd();
       SPI(OSD_CMD_VERSION);
       char ver_beta   = SPI(0xff);
