@@ -96,6 +96,11 @@ char DirEntryInfo[MAXDIRENTRIES][5]; // disk number info of dir entries
 char DiskInfo[5]; // disk number info of selected entry
 
 
+extern char minimig_ver_beta;
+extern char minimig_ver_major;
+extern char minimig_ver_minor;
+extern char minimig_ver_minion;
+
 extern const char version[];
 const char *config_tos_mem[] =  {"512 kB", "1 MB", "2 MB", "4 MB", "8 MB", "14 MB", "--", "--" };
 const char *config_tos_wrprot[] =  {"none", "A:", "B:", "A: and B:"};
@@ -1955,7 +1960,13 @@ void HandleUI(void)
 		case MENU_MAIN1 :
 			menumask=0x70;	// b01110000 Floppy turbo, Harddisk options & Exit.
 			OsdSetTitle("Minimig",OSD_ARROW_RIGHT);
-			helptext=helptexts[HELPTEXT_MAIN];
+			// set helptext with core display on top of basic info
+			siprintf(helptext_custom, HELPTEXT_SPACER);
+			strcat(helptext_custom, OsdCoreName());
+			siprintf(s, "%s v%d.%d.%d", minimig_ver_beta ? " BETA" : "", minimig_ver_major, minimig_ver_minor, minimig_ver_minion);
+			strcat(helptext_custom, s);
+			strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
+			helptext=helptext_custom;
 
 			// floppy drive info
 			// We display a line for each drive that's active

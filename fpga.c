@@ -54,6 +54,11 @@ extern unsigned long iCurrentDirectory;
 extern char s[40];
 extern adfTYPE df[4];
 
+char minimig_ver_beta;
+char minimig_ver_major;
+char minimig_ver_minor;
+char minimig_ver_minion;
+
 char BootPrint(const char *text);
 
 #ifdef XILINX_CCLK
@@ -938,10 +943,10 @@ void fpga_init(char *name) {
       WaitTimer(100);
       EnableOsd();
       SPI(OSD_CMD_VERSION);
-      char ver_beta   = SPI(0xff);
-      char ver_major  = SPI(0xff);
-      char ver_minor  = SPI(0xff);
-      char ver_minion = SPI(0xff);
+      minimig_ver_beta   = SPI(0xff);
+      minimig_ver_major  = SPI(0xff);
+      minimig_ver_minor  = SPI(0xff);
+      minimig_ver_minion = SPI(0xff);
       DisableOsd();
       SPIN(); SPIN(); SPIN(); SPIN();
       SPI(OSD_CMD_RST);
@@ -959,7 +964,7 @@ void fpga_init(char *name) {
       BootInit();
       WaitTimer(500);
       char rtl_ver[45];
-      siprintf(rtl_ver, "**** MINIMIG-AGA%s v%d.%d.%d for MiST ****", ver_beta ? " BETA" : "", ver_major, ver_minor, ver_minion);
+      siprintf(rtl_ver, "**** MINIMIG-AGA%s v%d.%d.%d for MiST ****", minimig_ver_beta ? " BETA" : "", minimig_ver_major, minimig_ver_minor, minimig_ver_minion);
       BootPrintEx(rtl_ver);
       BootPrintEx(" ");
       BootPrintEx("MINIMIG-AGA for MiST by Rok Krajnc (rok.krajnc@gmail.com)");
