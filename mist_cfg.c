@@ -34,6 +34,7 @@ void mist_ini_parse()
   joy_key_map_init();
   data_io_rom_upload(NULL, 0);   // prepare upload
   memset(&mist_cfg, 0, sizeof(mist_cfg));
+  mist_cfg.mouse_speed = 100;
   minimig_cfg.kick1x_memory_detection_patch = 1;
   ini_parse(&mist_ini_cfg, user_io_get_core_name());
   data_io_rom_upload(NULL, 2);   // upload done
@@ -46,7 +47,8 @@ void mist_ini_parse()
 mist_cfg_t mist_cfg = { 
   .scandoubler_disable = 0,
   .csync_disable = 0,
-  .mouse_boot_mode = 0, 
+  .mouse_boot_mode = 0,
+  .mouse_speed = 100,
   .joystick_ignore_hat = 0,
   .joystick_ignore_osd = 0,
   .joystick_disable_shortcuts = 0,
@@ -89,6 +91,7 @@ const ini_var_t mist_ini_vars[] = {
   {"SCANDOUBLER_DISABLE", (void*)(&(mist_cfg.scandoubler_disable)), UINT8, 0, 1, 1},
   {"CSYNC_DISABLE", (void*)(&(mist_cfg.csync_disable)), UINT8, 0, 1, 1},
   {"MOUSE_BOOT_MODE", (void*)(&(mist_cfg.mouse_boot_mode)), UINT8, 0, 1, 1},
+  {"MOUSE_SPEED", (void*)(&(mist_cfg.mouse_speed)), UINT8, 10, 200, 1},
   {"JOYSTICK_IGNORE_HAT", (void*)(&(mist_cfg.joystick_ignore_hat)), UINT8, 0, 1, 1},
   {"JOYSTICK_DISABLE_SHORTCUTS", (void*)(&(mist_cfg.joystick_disable_shortcuts)), UINT8, 0, 1, 1},
   {"JOYSTICK_IGNORE_OSD", (void*)(&(mist_cfg.joystick_ignore_osd)), UINT8, 0, 1, 1},
