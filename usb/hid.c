@@ -670,6 +670,7 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 			uint8_t btn = 0, jmap = 0;
 			uint8_t btn_extra = 0;
 			int16_t a[3];
+			static int16_t rem[3];
 			uint8_t idx, i;
 
 			// skip report id if present
@@ -705,7 +706,12 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				// iprintf("mouse %d %d %x\n", (int16_t)a[0], (int16_t)a[1], btn);
 				// limit mouse movement to +/- 128
 				for(i=0;i<3;i++) {
-					if (i<2) a[i] = a[i]*mist_cfg.mouse_speed/100;
+					if (i<2) {
+						a[i] = a[i]*mist_cfg.mouse_speed+rem[i];
+						rem[i] = a[i];
+						a[i] /= 100;
+						rem[i] -= a[i]*100;
+					}
 					if((int16_t)a[i] >  127) a[i] =  127;
 					if((int16_t)a[i] < -128) a[i] = -128;
 				}
