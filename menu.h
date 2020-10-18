@@ -120,7 +120,7 @@ extern const char *config_scanline_msg[];
 extern const char *config_cpu_msg[];
 extern const char *config_hdf_msg[];
 extern const char *config_chipset_msg[];
-
+unsigned const char *config_memory_fast_txt();
 
 
 void InsertFloppy(adfTYPE *drive);

@@ -2633,10 +2633,7 @@ void HandleUI(void)
 			strcat(s, config_memory_slow_msg[config.memory >> 2 & 0x03]);
 			OsdWrite(2, s, menusub == 1,0);
 			strcpy(s, "      FAST  : ");
-			if (!(((config.cpu & 0x02) == 0x02) && ((config.memory >> 4 & 0x03) == 0x03)))
-				strcat(s, config_memory_fast_msg[config.memory >> 4 & 0x03]);
-			else
-				strcat(s, config_memory_fast_msg[(config.memory >> 4 & 0x03) + 1]);
+			strcat(s, config_memory_fast_txt());
 			OsdWrite(3, s, menusub == 2,0);
 
 			OsdWrite(4, "", 0,0);
@@ -3834,4 +3831,12 @@ void EjectAllFloppies() {
   // harddisk
   config.hardfile[0].present = 0;
   config.hardfile[1].present = 0;
+}
+
+unsigned const char *config_memory_fast_txt()
+{
+  if (!(((config.cpu & 0x02) == 0x02) && ((config.memory >> 4 & 0x03) == 0x03)))
+    return config_memory_fast_msg[config.memory >> 4 & 0x03];
+  else
+    return config_memory_fast_msg[(config.memory >> 4 & 0x03) + 1];
 }

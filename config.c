@@ -359,7 +359,7 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
     siprintf(cfg_str, "Chipset: %s", config_chipset_msg [(config.chipset >> 2) & (minimig_v1()?3:7)]); BootPrintEx(cfg_str);
     siprintf(cfg_str, "Memory:  CHIP: %s  FAST: %s  SLOW: %s%s", 
         config_memory_chip_msg[(config.memory >> 0) & 0x03],
-        config_memory_fast_msg[((config.memory >> 4) & 0x03) + (((config.cpu & 0x02) == 0x02) && ((config.memory >> 4 & 0x03) == 0x03))], // adjust msg for 68020/24MB
+        config_memory_fast_txt(),
         config_memory_slow_msg[(config.memory >> 2) & 0x03],
         minimig_cfg.kick1x_memory_detection_patch ? "  [Kick 1.x patch enabled]" : "");
     BootPrintEx(cfg_str);
@@ -492,7 +492,7 @@ void ApplyConfiguration(char reloadkickstart)
   BootPrint(s);
   siprintf(s, "Slow RAM size : %s", config_memory_slow_msg[config.memory >> 2 & 0x03]);
   BootPrint(s);
-  siprintf(s, "Fast RAM size : %s", config_memory_fast_msg[config.memory >> 4 & 0x03]);
+  siprintf(s, "Fast RAM size : %s", config_memory_fast_txt());
   BootPrint(s);
 
   siprintf(s, "Floppy drives : %u", config.floppy.drives + 1);
@@ -624,4 +624,3 @@ unsigned char SaveConfiguration(char *filename)
   }
   return(0);
 }
-
