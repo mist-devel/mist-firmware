@@ -139,6 +139,7 @@ char helptext_custom[320];
 
 const char* scanlines[]={"Off","25%","50%","75%"};
 const char* stereo[]={"Mono","Stereo"};
+const char* blend[]={"Off","On"};
 const char* atari_chipset[]={"ST","STE","MegaSTE","STEroids"};
 
 // file selection menu variables
@@ -1717,9 +1718,16 @@ void HandleUI(void)
 			strcpy(s, " YM-Audio:      ");
 			strcat(s, stereo[(tos_system_ctrl() & TOS_CONTROL_STEREO)?1:0]);
 			OsdWrite(5, s, menusub == 5,0);
-			OsdWrite(6, "", 0, 0);
-
-			OsdWrite(7, STD_EXIT, menusub == 6,0);
+			if(user_io_core_type() == CORE_TYPE_MIST) {
+				OsdWrite(6, "", 0, 0);
+				OsdWrite(7, STD_EXIT, menusub == 6,0);
+			} else {
+				strcpy(s, " Comp. blend:   ");
+				strcat(s, blend[(tos_system_ctrl() & TOS_CONTROL_BLEND)?1:0]);
+				OsdWrite(6, s, menusub == 6,0);
+				OsdWrite(7, STD_EXIT, menusub == 7,0);
+				menumask |= 0x80;
+			}
 
 			parentstate = menustate;
 			menustate = MENU_MIST_VIDEO2;
@@ -1777,6 +1785,15 @@ void HandleUI(void)
 					break;
 					
 				case 6:
+					if(user_io_core_type() == CORE_TYPE_MIST) {
+						menustate = MENU_MIST_MAIN1;
+						menusub = 3;
+					} else {
+						tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_BLEND);
+						menustate = MENU_MIST_VIDEO1;
+					}
+					break;
+				case 7:
 					menustate = MENU_MIST_MAIN1;
 					menusub = 3;
 					break;

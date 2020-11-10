@@ -80,6 +80,8 @@
 
 #define TOS_CONTROL_VIKING        0x10000000   // Viking graphics card
 
+#define TOS_CONTROL_BLEND         0x20000000   // Composite blending
+
 unsigned long tos_system_ctrl(void);
 
 void tos_upload_mist1(char *);
