@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // 2009-11-22 - read/write multiple implemented
 
+// 2020-11-14 - AMR: Simplified and combined read / readm + write / writem.  AROS IDE now works.
+
 
 #ifdef __GNUC__
 #include "AT91SAM7S256.h"
@@ -360,39 +362,41 @@ static inline void ATA_SetMultipleMode(unsigned char* tfr, unsigned char unit)
 
 
 // ATA_ReadSectors()
-static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count)
+static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, unsigned char multiple)
 {
   // Read Sectors (0x20)
   long lba;
+  int i;
+  int block_count;
+
+  lba=chs2lba(cylinder, head, sector, unit);
   hdd_debugf("IDE%d: read %d.%d.%d, %d", unit, cylinder, head, sector, sector_count);
-  switch(hdf[unit].type) {
-    case HDF_FILE | HDF_SYNTHRDB:
-    case HDF_FILE:
-      lba=chs2lba(cylinder, head, sector, unit);
-      if (hdf[unit].file.size) HardFileSeek(&hdf[unit], (lba+hdf[unit].offset) < 0 ? 0 : lba+hdf[unit].offset);
-      while (sector_count) {
-        // decrease sector count
-        if (sector_count!=1) {
-          if (sector == hdf[unit].sectors) {
-            sector = 1;
-            head++;
-            if (head == hdf[unit].heads) {
-              head = 0;
-              cylinder++;
-            }
-          } else {
-            sector++;
-          }
-        }
 
-        WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-        WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
+  while (sector_count)
+  {
+    block_count = multiple ? sector_count : 1;
+    if (block_count > hdf[unit].sectors_per_block)
+    block_count = hdf[unit].sectors_per_block;
 
-        // sector outside limit (fake rdb header) or to be modified sector of first partition
-        if (((lba+hdf[unit].offset)<0) || ((unit == 0) && (hdf[unit].type == HDF_FILE | HDF_SYNTHRDB) && (lba == 0))) {
-          if ((lba+hdf[unit].offset)<0) {
+    WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
+    while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
+
+    WriteStatus(IDE_STATUS_IRQ);
+
+    switch(hdf[unit].type)
+    {
+      case HDF_FILE | HDF_SYNTHRDB:
+      case HDF_FILE:
+      if (hdf[unit].file.size)
+      {
+        int blk=block_count;
+        // Deal with FakeRDB and the potential for a read_multiple to cross the boundary into actual data.
+        while(blk && (lba+hdf[unit].offset<0 || ((unit == 0) && (hdf[unit].type == HDF_FILE) && (lba == 0)))) {
+          if ((lba+hdf[unit].offset) < 0)
             FakeRDB(unit,lba);
-          } else {
+          else // Adjust flags of a real RDB if present.  Is this necessary? If it worked before it was accidental due to malformed "if"
+          {
+            HardFileSeek(&hdf[unit], lba + hdf[unit].offset);
             // read sector into buffer
             FileRead(&hdf[unit].file, sector_buffer);
             FileSeek(&hdf[unit].file, 1, SEEK_CUR);  // next sector
@@ -404,287 +408,145 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
             // adjust flags
             rdb->rdb_Flags=SWAP(0x12);
           }
-
+          FakeRDB(unit,lba);
           EnableFpga();
           spi8(CMD_IDE_DATA_WR); // write data command
           spi_n(0x00, 5);
           spi_block_write(sector_buffer);
           DisableFpga();
-
-          WriteStatus(sector_count==1 ? IDE_STATUS_IRQ|IDE_STATUS_END : IDE_STATUS_IRQ);
-        } else {
-          while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
-
-          WriteStatus(IDE_STATUS_IRQ);
-
-          if (hdf[unit].file.size) {
-            FileRead(&hdf[unit].file, 0);
-            FileSeek(&hdf[unit].file, 1, SEEK_CUR);  // next sector
-          }
+          ++lba;
+          --blk;
         }
-        lba++;
-        sector_count--; // decrease sector count
+        if(blk) // Any blocks left?
+        {
+          HardFileSeek(&hdf[unit], lba + hdf[unit].offset);
+          FileReadEx(&hdf[unit].file, 0, blk); // NULL enables direct transfer to the FPGA
+          lba+=blk;
+        }
       }
+      else
+        WriteStatus(IDE_STATUS_RDY|IDE_STATUS_ERR);
       break;
 
-    case HDF_CARD:
-    case HDF_CARDPART0:
-    case HDF_CARDPART1:
-    case HDF_CARDPART2:
-    case HDF_CARDPART3: {
-      WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
-      lba=chs2lba(cylinder, head, sector, unit)+hdf[unit].offset;
-      while (sector_count) {
-        // decrease sector count
-        if (sector_count!=1) {
-          if (sector == hdf[unit].sectors) {
-            sector = 1;
-            head++;
-            if (head == hdf[unit].heads) {
-              head = 0;
-              cylinder++;
-            }
-          } else {
-            sector++;
+      case HDF_CARD:
+      case HDF_CARDPART0:
+      case HDF_CARDPART1:
+      case HDF_CARDPART2:
+      case HDF_CARDPART3:
+        MMC_ReadMultiple(lba+hdf[unit].offset,0,block_count);
+        lba+=block_count;
+        break;
+    }
+
+    /* Advance CHS address - address of last read remains. */
+    while(block_count--)
+    {
+      if (sector_count!=1)
+      {
+        if (sector == hdf[unit].sectors)
+        {
+          sector = 1;
+          head++;
+          if (head == hdf[unit].heads)
+          {
+            head = 0;
+            cylinder++;
           }
         }
-        WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-
-        while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
-        WriteStatus(IDE_STATUS_IRQ);
-        MMC_Read(lba,0);
-        lba++;
-        sector_count--;
+        else
+        sector++;
       }
+      --sector_count;
     }
-    break;
+    /* Update task file with CHS address */
+    WriteTaskFile(0, tfr[2], sector, cylinder, (cylinder >> 8), (tfr[6] & 0xF0) | head);
+
   }
+  WriteStatus(IDE_STATUS_END);
 }
 
-// ATA_ReadMultipleSectors()
-static inline void ATA_ReadMultipleSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count)
+
+// ATA_WriteSectors()
+static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, char multiple)
 {
-      // Read Multiple Sectors (multiple sector transfer per IRQ)
-      unsigned short block_count;
-      long lba;
-      WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
-      hdd_debugf("IDE%d: read_multi %d.%d.%d, %d", unit, cylinder, head, sector, sector_count);
+  unsigned short i;
+  unsigned short block_count;
+  long lba=chs2lba(cylinder, head, sector, unit);
+
+  // write sectors
+  WriteStatus(IDE_STATUS_REQ); // pio out (class 2) command type
+  hdd_debugf("IDE%d: write %d.%d.%d, %d", unit, cylinder, head, sector, sector_count);
+
+  //if (hdf[unit].type>=HDF_CARDPART0)
+  lba+=hdf[unit].offset;
+  if (hdf[unit].file.size) {
+    // File size will be 0 in direct card modes
+    HardFileSeek(&hdf[unit], (lba>-1) ? lba : 0);
+  }
+
+  while (sector_count) {
+    block_count = multiple ? sector_count : 1;
+    if (block_count > hdf[unit].sectors_per_block)
+        block_count = hdf[unit].sectors_per_block;
+
+    while(block_count--)
+    {
+      while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
+      EnableFpga();
+      SPI(CMD_IDE_DATA_RD); // read data command
+      SPI(0x00);
+      SPI(0x00);
+      SPI(0x00);
+      SPI(0x00);
+      SPI(0x00);
+      for (i = 0; i < 512; i++) sector_buffer[i] = SPI(0xFF);
+      DisableFpga();
 
       switch(hdf[unit].type) {
         case HDF_FILE | HDF_SYNTHRDB:
         case HDF_FILE:
-          lba=chs2lba(cylinder, head, sector, unit);
-          if (hdf[unit].file.size) HardFileSeek(&hdf[unit], (lba+hdf[unit].offset) < 0 ? 0 : lba + hdf[unit].offset);
-          // FIXME - READM could cross the fake RDB -> real disk boundary.
-          // FIXME - but first we should make some attempt to generate fake RGB in multiple mode.
-
-          while (sector_count) {
-            while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
-            block_count = sector_count;
-            if (block_count > hdf[unit].sectors_per_block) block_count = hdf[unit].sectors_per_block;
-            WriteStatus(IDE_STATUS_IRQ);
-            if (hdf[unit].file.size) {
-              //FileReadEx(&hdf[unit].file, NULL, block_count); // NULL enables direct transfer to the FPGA
-              FileReadEx(&hdf[unit].file, 0, block_count); // NULL enables direct transfer to the FPGA
-            }
-            while (block_count--) {
-              if (sector_count!=1) {
-                if (sector == hdf[unit].sectors) {
-                  sector = 1;
-                  head++;
-                  if (head == hdf[unit].heads) {
-                    head = 0;
-                    cylinder++;
-                  }
-                } else {
-                  sector++;
-                }
-              }
-              sector_count--;
-            }
-            WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-            //WriteTaskFile(0, 0, sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
+          if (hdf[unit].file.size && (lba>-1)) {
+            // Don't attempt to write to fake RDB
+            FileWrite(&hdf[unit].file, sector_buffer);
+            FileSeek(&hdf[unit].file, 1, SEEK_CUR);
           }
-          //WriteTaskFile(0, 0, sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
+          lba++;
           break;
         case HDF_CARD:
         case HDF_CARDPART0:
         case HDF_CARDPART1:
         case HDF_CARDPART2:
-        case HDF_CARDPART3: {
-          long lba=chs2lba(cylinder, head, sector, unit)+hdf[unit].offset;
-          while (sector_count) {
-            while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
-            block_count = sector_count;
-            if (block_count > hdf[unit].sectors_per_block) block_count = hdf[unit].sectors_per_block;
-            WriteStatus(IDE_STATUS_IRQ);
-            MMC_ReadMultiple(lba,0,block_count);
-            lba+=block_count;
-            while (block_count--) {
-              if (sector_count!=1) {
-                if (sector == hdf[unit].sectors) {
-                  sector = 1;
-                  head++;
-                  if (head == hdf[unit].heads) {
-                    head = 0;
-                    cylinder++;
-                  }
-                } else {
-                  sector++;
-                }
-              }
-              sector_count--;
-            }
-            WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-            //WriteTaskFile(0, 0, sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-          }
-          //WriteTaskFile(0, 0, sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-        }
-        break;
+        case HDF_CARDPART3:
+          MMC_Write(lba,sector_buffer);
+          lba++;
+          break;
       }
-      WriteStatus(IDE_STATUS_END);
-}
 
-// ATA_WriteSectors()
-static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count)
-{
-      unsigned short i;
-      // write sectors
-      WriteStatus(IDE_STATUS_REQ); // pio out (class 2) command type
-      hdd_debugf("IDE%d: write %d.%d.%d, %d", unit, cylinder, head, sector, sector_count);
-      long lba=chs2lba(cylinder, head, sector, unit);
-      //if (hdf[unit].type>=HDF_CARDPART0)
-      lba+=hdf[unit].offset;
-      if (hdf[unit].file.size) {
-        // File size will be 0 in direct card modes
-        HardFileSeek(&hdf[unit], (lba>-1) ? lba : 0);
-      }
-      while (sector_count) {
-        while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
-        // decrease sector count
-        if (sector_count!=1) {
-          if (sector == hdf[unit].sectors) {
-            sector = 1;
-            head++;
-            if (head == hdf[unit].heads) {
-              head = 0;
-              cylinder++;
-            }
-          } else {
-            sector++;
+      // decrease sector count
+      if (sector_count!=1) {
+        if (sector == hdf[unit].sectors) {
+          sector = 1;
+          head++;
+          if (head == hdf[unit].heads) {
+            head = 0;
+            cylinder++;
           }
-        }
-        WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-        EnableFpga();
-        SPI(CMD_IDE_DATA_RD); // read data command
-        SPI(0x00);
-        SPI(0x00);
-        SPI(0x00);
-        SPI(0x00);
-        SPI(0x00);
-        for (i = 0; i < 512; i++) sector_buffer[i] = SPI(0xFF);
-        DisableFpga();
-        sector_count--; // decrease sector count
-        if (sector_count) {
-          WriteStatus(IDE_STATUS_IRQ);
         } else {
-          WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
-        }
-
-        switch(hdf[unit].type) {
-          case HDF_FILE | HDF_SYNTHRDB:
-          case HDF_FILE:
-            if (hdf[unit].file.size && (lba>-1)) {
-              // Don't attempt to write to fake RDB
-              FileWrite(&hdf[unit].file, sector_buffer);
-              FileSeek(&hdf[unit].file, 1, SEEK_CUR);
-            }
-            lba++;
-            break;
-          case HDF_CARD:
-          case HDF_CARDPART0:
-          case HDF_CARDPART1:
-          case HDF_CARDPART2:
-          case HDF_CARDPART3:
-            MMC_Write(lba,sector_buffer);
-            lba++;
-            break;
+          sector++;
         }
       }
+      sector_count--; // decrease sector count
+    }
+
+    WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
+
+    if (sector_count)
+        WriteStatus(IDE_STATUS_IRQ);
+    else
+        WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
+  }
 }
 
-// ATA_ReadMultipleSectors()
-static inline void ATA_WriteMultipleSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count)
-{
-      unsigned short i;
-      unsigned short block_count;
-      // write sectors
-      WriteStatus(IDE_STATUS_REQ); // pio out (class 2) command type
-      hdd_debugf("IDE%d: write multi %d.%d.%d, %d", unit, cylinder, head, sector, sector_count);
-      long lba=chs2lba(cylinder, head, sector, unit);
-      //if (hdf[unit].type>=HDF_CARDPART0)
-      lba+=hdf[unit].offset;
-      if (hdf[unit].file.size) {
-        // File size will be 0 in direct card modes
-        HardFileSeek(&hdf[unit], (lba>-1) ? lba : 0);
-      }
-      while (sector_count) {
-        block_count = sector_count;
-        if (block_count > hdf[unit].sectors_per_block) block_count = hdf[unit].sectors_per_block;
-        while (block_count) {
-          while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
-          // decrease sector count
-          if (sector_count!=1) {
-            if (sector == hdf[unit].sectors) {
-              sector = 1;
-              head++;
-              if (head == hdf[unit].heads) {
-                head = 0;
-                cylinder++;
-              }
-            } else {
-              sector++;
-            }
-          }
-          //WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-          EnableFpga();
-          SPI(CMD_IDE_DATA_RD); // read data command
-          SPI(0x00);
-          SPI(0x00);
-          SPI(0x00);
-          SPI(0x00);
-          SPI(0x00);
-          for (i = 0; i < 512; i++) sector_buffer[i] = SPI(0xFF);
-          DisableFpga();
-          switch(hdf[unit].type) {
-            case HDF_FILE | HDF_SYNTHRDB:
-            case HDF_FILE:
-              if (hdf[unit].file.size && (lba>-1)) {
-                FileWrite(&hdf[unit].file, sector_buffer);
-                FileSeek(&hdf[unit].file, 1, SEEK_CUR);
-              }
-              lba++;
-              break;
-            case HDF_CARD:
-            case HDF_CARDPART0:
-            case HDF_CARDPART1:
-            case HDF_CARDPART2:
-            case HDF_CARDPART3:
-              MMC_Write(lba,sector_buffer);
-              lba++;
-              break;
-          }
-          block_count--;  // decrease block count
-          sector_count--; // decrease sector count
-        }
-        WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
-        if (sector_count) {
-          WriteStatus(IDE_STATUS_IRQ);
-        } else {
-          WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
-        }
-      }
-}
 
 // HandleHDD()
 void HandleHDD(unsigned char c1, unsigned char c2)
@@ -738,13 +600,13 @@ void HandleHDD(unsigned char c1, unsigned char c2)
     } else if (tfr[7] == ACMD_SET_MULTIPLE_MODE) {
       ATA_SetMultipleMode(tfr, unit);
     } else if (tfr[7] == ACMD_READ_SECTORS) {
-      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count);
+      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count,0);
     } else if (tfr[7] == ACMD_READ_MULTIPLE) {
-      ATA_ReadMultipleSectors(tfr, sector, cylinder, head, unit, sector_count);
+      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count,1);
     } else if (tfr[7] == ACMD_WRITE_SECTORS) {
-      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count);
+      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count,0);
     } else if (tfr[7] == ACMD_WRITE_MULTIPLE) {
-      ATA_WriteMultipleSectors(tfr, sector, cylinder, head, unit, sector_count);
+      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count,1);
     } else {
       hdd_debugf("Unknown ATA command");
       hdd_debugf("IDE%d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X", unit, tfr[0], tfr[1], tfr[2], tfr[3], tfr[4], tfr[5], tfr[6], tfr[7]);
@@ -763,6 +625,7 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
   unsigned long total=0;
   unsigned long i, head, cyl, spt;
   unsigned long sptt[] = { 63, 127, 255, 0 };
+  unsigned long cyllimit=65535;
 
   switch(pHDF->type) {
     case (HDF_FILE | HDF_SYNTHRDB):
@@ -800,12 +663,14 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
             break;
         if (cyl < 32767 && head >= 5)
             break;
-        if (cyl <= 65535)  // Should there some head constraint here?
+        if (cyl <= cyllimit)  // Should there some head constraint here?
             break;
       }
     }
     if (head <= 16) break;
   }
+  if(pHDF->type == (HDF_FILE | HDF_SYNTHRDB))
+  ++cyl;	// Add an extra cylinder for the fake RDB
   pHDF->cylinders = (unsigned short)cyl;
   pHDF->heads = (unsigned short)head;
   pHDF->sectors = (unsigned short)spt;
