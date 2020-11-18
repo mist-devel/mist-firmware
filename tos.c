@@ -1,5 +1,6 @@
 #include "stdio.h"
 #include "string.h"
+#include "stdbool.h"
 #include "hardware.h"
 
 #include "menu.h"
@@ -14,6 +15,8 @@
 #include "ikbd.h"
 
 #define CONFIG_FILENAME  "MIST    CFG"
+
+extern bool eth_present;
 
 typedef struct {
   unsigned long system_ctrl;  // system control word
@@ -783,8 +786,14 @@ void tos_upload(char *name) {
 
   // let cpu run (release reset)
   config.system_ctrl &= ~TOS_CONTROL_CPU_RESET;
-  mist_set_control(config.system_ctrl);
 
+  // send ethernet config, too
+  if (eth_present)
+    config.system_ctrl |= TOS_CONTROL_ETHERNET;
+  else
+    config.system_ctrl &= ~TOS_CONTROL_ETHERNET;
+
+  mist_set_control(config.system_ctrl);
 }
 
 void tos_upload_mist2(char *name) {
@@ -1335,9 +1344,6 @@ void tos_config_load(char slot) {
       memcpy(&config, sector_buffer, sizeof(tos_config_t));
     }
   }
-
-  // ethernet is auto detected later
-  config.system_ctrl &= ~TOS_CONTROL_ETHERNET;
 }
 
 // save configuration
