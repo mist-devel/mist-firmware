@@ -375,7 +375,7 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
   while (sector_count)
   {
     block_count = multiple ? sector_count : 1;
-    if (block_count > hdf[unit].sectors_per_block)
+    if (multiple && block_count > hdf[unit].sectors_per_block)
     block_count = hdf[unit].sectors_per_block;
 
     WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
@@ -486,7 +486,7 @@ static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, u
 
   while (sector_count) {
     block_count = multiple ? sector_count : 1;
-    if (block_count > hdf[unit].sectors_per_block)
+    if (multiple && block_count > hdf[unit].sectors_per_block)
         block_count = hdf[unit].sectors_per_block;
 
     while(block_count--)
