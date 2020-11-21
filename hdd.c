@@ -630,11 +630,26 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
   switch(pHDF->type) {
     case (HDF_FILE | HDF_SYNTHRDB):
       if (pHDF->file.size == 0) return;
+      // For WinUAE generated hardfiles we have a fixed sectorspertrack of 32, number of heads and cylinders are variable.
+      // Make a first guess based on 1 head, then refine that guess until the geometry gives a plausible number of
+      // cylinders and also has the correct number of blocks.
       total = pHDF->file.size / 512;
-      pHDF->heads = 1;
       pHDF->sectors = 32;
-      pHDF->cylinders = total/32 + 1;  // Add a cylinder for the fake RDB.
-      return;
+      head=1;
+      cyl = total/32;
+      cyllimit-=1; // Need headroom for an RDB
+      while(head<16 && (cyl>cyllimit || (head*cyl*32)!=total))
+      {
+        ++head;
+        cyl=total/(32*head);
+      }
+      pHDF->heads = head;
+      pHDF->cylinders = cyl+1;	// Add a cylinder for the fake RDB.
+
+      if ((head*cyl*32)==total)	// Does the geometry match the size of the underlying hard file?
+        return;
+      // If not, fall back to regular hardfile geometry aproximations...
+			break;
     case HDF_FILE:
       if (pHDF->file.size == 0) return;
       total = pHDF->file.size / 512;
