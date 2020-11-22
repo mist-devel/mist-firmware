@@ -60,7 +60,8 @@ mist_cfg_t mist_cfg = {
   .reset_combo = 0,
   .ypbpr = 0,
   .keep_video_mode = 0,
-  .led_animation = 0
+  .led_animation = 0,
+  .amiga_mod_keys = 0
 };
 
 minimig_cfg_t minimig_cfg = {
@@ -107,6 +108,7 @@ const ini_var_t mist_ini_vars[] = {
   {"JOY_KEY_MAP", (void*)joystick_key_map, CUSTOM_HANDLER, 0, 0, 1},
 #endif
   {"ROM", (void*)ini_rom_upload, CUSTOM_HANDLER, 0, 0, 1},
+  {"AMIGA_MOD_KEYS", (void*)(&(mist_cfg.amiga_mod_keys)), UINT8, 0, 1, 1},
   // [MINIMIG_CONFIG]
   {"KICK1X_MEMORY_DETECTION_PATCH", (void*)(&(minimig_cfg.kick1x_memory_detection_patch)), UINT8, 0, 1, 2},
   {"CLOCK_FREQ", (void*)(&(minimig_cfg.clock_freq)), UINT8, 0, 2, 2},
