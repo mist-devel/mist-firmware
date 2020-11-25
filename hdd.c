@@ -408,7 +408,6 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
             // adjust flags
             rdb->rdb_Flags=SWAP(0x12);
           }
-          FakeRDB(unit,lba);
           EnableFpga();
           spi8(CMD_IDE_DATA_WR); // write data command
           spi_n(0x00, 5);
