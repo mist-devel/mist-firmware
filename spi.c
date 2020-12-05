@@ -281,3 +281,17 @@ void spi_uio_cmd32(unsigned char cmd, unsigned long parm) {
   SPI(parm>>24);
   DisableIO();
 }
+
+void spi_uio_cmd64(unsigned char cmd, unsigned long long parm) {
+  EnableIO();
+  SPI(cmd);
+  SPI(parm);
+  SPI(parm>>8);
+  SPI(parm>>16);
+  SPI(parm>>24);
+  SPI(parm>>32);
+  SPI(parm>>40);
+  SPI(parm>>48);
+  SPI(parm>>56);
+  DisableIO();
+}

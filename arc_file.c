@@ -9,7 +9,7 @@
 #define MAX_CONF_SIZE 512
 
 static char mod;
-static uint32_t conf_default;
+static uint64_t conf_default;
 static char rbfname[9];
 static char corename[9];
 static char conf[MAX_CONF_SIZE];
@@ -25,7 +25,7 @@ const ini_section_t arc_ini_sections[] = {
 // arc ini vars
 const ini_var_t arc_ini_vars[] = {
 	{"MOD", (void*)(&mod), UINT8, 0, 127, 1},
-	{"DEFAULT", (void*)(&conf_default), UINT32, 0, 0xffffffff, 1},
+	{"DEFAULT", (void*)(&conf_default), UINT64, 0, ~0, 1},
 	{"RBF", (void*)rbfname, STRING, 1, 8, 1},
 	{"NAME", (void*)corename, STRING, 1, 8, 1},
 	{"CONF", (void*)arc_set_conf, CUSTOM_HANDLER, 0, 0, 1},
@@ -86,7 +86,7 @@ char *arc_get_conf()
 	return conf;
 }
 
-uint32_t arc_get_default()
+uint64_t arc_get_default()
 {
 	return conf_default;
 }

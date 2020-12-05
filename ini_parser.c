@@ -251,6 +251,16 @@ void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
         if (*(int32_t*)(cfg->vars[var_id].var) > cfg->vars[var_id].max) *(int32_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
         if (*(int32_t*)(cfg->vars[var_id].var) < cfg->vars[var_id].min) *(int32_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
         break;
+      case UINT64:
+        *(uint64_t*)(cfg->vars[var_id].var) = strtoull(&(buf[i]), NULL, 0);
+        if (*(uint64_t*)(cfg->vars[var_id].var) > (uint64_t)cfg->vars[var_id].max) *(uint64_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
+        if (*(uint64_t*)(cfg->vars[var_id].var) < (uint64_t)cfg->vars[var_id].min) *(uint64_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
+        break;
+      case INT64:
+        *(int64_t*)(cfg->vars[var_id].var) = strtoll(&(buf[i]), NULL, 0);
+        if (*(int64_t*)(cfg->vars[var_id].var) > cfg->vars[var_id].max) *(int64_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
+        if (*(int64_t*)(cfg->vars[var_id].var) < cfg->vars[var_id].min) *(int64_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
+        break;
 #ifdef INI_ENABLE_FLOAT
       case FLOAT:
         *(float*)(cfg->vars[var_id].var) = strtof(&(buf[i]), NULL);

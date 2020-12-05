@@ -325,7 +325,7 @@ void user_io_detect_core_type() {
 		user_io_read_core_name();
 
 		// send a reset
-		user_io_8bit_set_status(UIO_STATUS_RESET, 0xffffffff);
+		user_io_8bit_set_status(UIO_STATUS_RESET, ~0);
 
 		// try to load config
 		user_io_create_config_name(s);
@@ -334,13 +334,13 @@ void user_io_detect_core_type() {
 
 			if (FileOpen(&file, s))  {
 				iprintf("Found config\n");
-				if(file.size <= 4) {
-					((unsigned long*)sector_buffer)[0] = 0;
+				if(file.size <= 8) {
+					((unsigned long long*)sector_buffer)[0] = 0;
 					FileRead(&file, sector_buffer);
-					user_io_8bit_set_status(((unsigned long*)sector_buffer)[0], 0xfffffffe);
+					user_io_8bit_set_status(((unsigned long long*)sector_buffer)[0], ~1);
 				}
 			} else {
-				user_io_8bit_set_status(arc_get_default(), 0xfffffffe);
+				user_io_8bit_set_status(arc_get_default(), ~1);
 			}
 
 			// check if there's a <core>.rom present
@@ -729,8 +729,8 @@ char *user_io_8bit_get_string(char index) {
 	return buffer;
 }
 
-unsigned long user_io_8bit_set_status(unsigned long new_status, unsigned long mask) {
-	static unsigned long status = 0;
+unsigned long long user_io_8bit_set_status(unsigned long long new_status, unsigned long long mask) {
+	static unsigned long long status = 0;
 
 	// if mask is 0 just return the current status 
 	if(mask) {
@@ -740,7 +740,7 @@ unsigned long user_io_8bit_set_status(unsigned long new_status, unsigned long ma
 		status |= new_status & mask;
 
 		spi_uio_cmd8(UIO_SET_STATUS, status);
-		spi_uio_cmd32(UIO_SET_STATUS2, status);
+		spi_uio_cmd64(UIO_SET_STATUS2, status);
 	}
 
 	return status;

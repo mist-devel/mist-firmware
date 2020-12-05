@@ -59,6 +59,7 @@ void spi_uio_cmd(unsigned char cmd);
 void spi_uio_cmd8(unsigned char cmd, unsigned char parm);
 void spi_uio_cmd8_cont(unsigned char cmd, unsigned char parm);
 void spi_uio_cmd32(unsigned char cmd, unsigned long parm);
+void spi_uio_cmd64(unsigned char cmd, unsigned long long parm);
   
 /* spi functions for max3421 */
 #define spi_max_start()  { *AT91C_PIOA_CODR = USB_SEL; }

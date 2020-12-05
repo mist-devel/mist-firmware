@@ -361,41 +361,42 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 }
 
 unsigned char getIdx(char *opt) {
-	if((opt[1]>='0') && (opt[1]<='9')) return opt[1]-'0';
-	if((opt[1]>='A') && (opt[1]<='V')) return opt[1]-'A'+10;
+	if((opt[1]>='0') && (opt[1]<='9')) return opt[1]-'0';    // bits 0-9
+	if((opt[1]>='A') && (opt[1]<='Z')) return opt[1]-'A'+10; // bits 10-35
+	if((opt[1]>='a') && (opt[1]<='z')) return opt[1]-'a'+36; // bits 36-61
 	return 0; // basically 0 cannot be valid because used as a reset. Thus can be used as a error.
 }
 
-unsigned long getStatus(char *opt, unsigned long status) {
+unsigned char getStatus(char *opt, unsigned long long status) {
 	char idx1 = getIdx(opt);
 	char idx2 = getIdx(opt+1);
-	unsigned long x = (status & (1<<idx1)) ? 1 : 0;
+	unsigned char x = (status & ((unsigned long long)1<<idx1)) ? 1 : 0;
 
 	if(idx2>idx1) {
 		x = status >> idx1;
-		x = x & ~(0xffffffff << (idx2 - idx1 + 1));
+		x = x & ~(~0 << (idx2 - idx1 + 1));
 	}
 
 	return x;
 }
 
-unsigned long setStatus(char *opt, unsigned long status, unsigned long value) {
+unsigned long long setStatus(char *opt, unsigned long long status, unsigned char value) {
 	unsigned char idx1 = getIdx(opt);
 	unsigned char idx2 = getIdx(opt+1);
-	unsigned long x = 1;
+	unsigned long long x = 1;
 
-	if(idx2>idx1) x = ~(0xffffffff << (idx2 - idx1 + 1));
+	if(idx2>idx1) x = ~(~0 << (idx2 - idx1 + 1));
 	x = x << idx1;
 
-	return (status & ~x) | ((value << idx1) & x);
+	return (status & ~x) | (((unsigned long long)value << idx1) & x);
 }
 
-unsigned long getStatusMask(char *opt) {
+unsigned long long getStatusMask(char *opt) {
 	char idx1 = getIdx(opt);
 	char idx2 = getIdx(opt+1);
-	unsigned long x = 1;
+	unsigned long long x = 1;
 
-	if(idx2>idx1) x = ~(0xffffffff << (idx2 - idx1 + 1));
+	if(idx2>idx1) x = ~(~0 << (idx2 - idx1 + 1));
 
 	//iprintf("grtStatusMask %d %d %x\n", idx1, idx2, x);
 
@@ -734,7 +735,7 @@ void HandleUI(void)
 			i = first_displayed_8bit + 1;
 			do {
 				char* pos;
-				unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+				unsigned long long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 
 				p = user_io_8bit_get_string(i);
 				menu_debugf("Option %d: %s\n", i, p);
@@ -835,7 +836,9 @@ void HandleUI(void)
 				// check for 'O'ption strings
 				if(currentpage_8bit == page && entry<7 && p && (p[0] == 'O')) {
 					if (entry == 0) first_displayed_8bit = i - 1;
-					unsigned long x = getStatus(p, status);
+					unsigned char x = getStatus(p, status);
+
+					menu_debugf("Option %s %llx %llx\n", p, x, status);
 
 					// get currently active option
 					substrcpy(s, p, 2+x);
@@ -844,7 +847,7 @@ void HandleUI(void)
 						// option's index is outside of available values.
 						// reset to 0.
 						x = 0;
-						user_io_8bit_set_status(setStatus(p, status, x), 0xffffffff);
+						user_io_8bit_set_status(setStatus(p, status, x), ~0);
 						substrcpy(s, p, 2+x);
 						l = strlen(s);
 					}
@@ -936,25 +939,25 @@ void HandleUI(void)
 							(p[0] == 'F')?MENU_8BIT_MAIN_FILE_SELECTED:MENU_8BIT_MAIN_IMAGE_SELECTED, 
 							MENU_8BIT_MAIN1, 1);
 						} else if(p[0] == 'O') {
-							unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
-							unsigned long x = getStatus(p, status) + 1;
+							unsigned long long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+							unsigned char x = getStatus(p, status) + 1;
 
-							//unsigned long mask = getStatusMask(p);
-							//unsigned long x2 = x;
+							//unsigned long long mask = getStatusMask(p);
+							//unsigned char x2 = x;
 
 							// check if next value available
 							substrcpy(s, p, 2+x);
 							if(!strlen(s)) x = 0;
 
-							//menu_debugf("Option %s %x %x %x %x\n", p, status, mask, x2, x);
+							//menu_debugf("Option %s %llx %llx %x %x\n", p, status, mask, x2, x);
 
-							user_io_8bit_set_status(setStatus(p, status, x), 0xffffffff);
+							user_io_8bit_set_status(setStatus(p, status, x), ~0);
 
 							menustate = MENU_8BIT_MAIN1;
 						} else if(p[0] == 'T') {
 							// determine which status bit is affected
-							unsigned long mask = 1<<getIdx(p);
-							unsigned long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
+							unsigned long long mask = 1<<getIdx(p);
+							unsigned long long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
 
 							menu_debugf("Option %s %x\n", p, status ^ mask);
 
@@ -1063,9 +1066,9 @@ void HandleUI(void)
 							// Save settings
 							user_io_create_config_name(s);
 							iprintf("Saving config to %s\n", s);
-							if(FileNew(&file, s, 4)) {
+							if(FileNew(&file, s, 8)) {
 							 // finally write data
-							 ((unsigned long*)sector_buffer)[0] = user_io_8bit_set_status(0,0);
+							 ((unsigned long long*)sector_buffer)[0] = user_io_8bit_set_status(0,0);
 							 FileWrite(&file, sector_buffer); 
 							 iprintf("Settings for %s written\n", s);
 							}
@@ -2424,9 +2427,9 @@ void HandleUI(void)
 				} else {
 					user_io_create_config_name(s);
 					iprintf("Saving config to %s\n", s);
-					if(FileNew(&file, s, 4)) {
+					if(FileNew(&file, s, 8)) {
 						 // finally write data
-						((unsigned long*)sector_buffer)[0] = user_io_8bit_set_status(arc_get_default(),0xffffffff);
+						((unsigned long long*)sector_buffer)[0] = user_io_8bit_set_status(arc_get_default(),~0);
 						FileWrite(&file, sector_buffer); 
 						iprintf("Settings for %s written\n", s);
 					}

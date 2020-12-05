@@ -170,7 +170,7 @@ char user_io_user_button();
 void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
 char *user_io_8bit_get_string(char);
-unsigned long user_io_8bit_set_status(unsigned long, unsigned long);
+unsigned long long user_io_8bit_set_status(unsigned long long, unsigned long long);
 void user_io_sd_set_config(void);
 char user_io_dip_switch1(void);
 char user_io_serial_status(serial_status_t *, uint8_t);
