@@ -376,7 +376,7 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
   {
     block_count = multiple ? sector_count : 1;
     if (multiple && block_count > hdf[unit].sectors_per_block)
-    block_count = hdf[unit].sectors_per_block;
+      block_count = hdf[unit].sectors_per_block;
 
     WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
     while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
@@ -648,7 +648,7 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
       if ((head*cyl*32)==total)	// Does the geometry match the size of the underlying hard file?
         return;
       // If not, fall back to regular hardfile geometry aproximations...
-			break;
+      break;
     case HDF_FILE:
       if (pHDF->file.size == 0) return;
       total = pHDF->file.size / 512;
