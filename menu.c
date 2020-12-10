@@ -789,7 +789,7 @@ void HandleUI(void)
 							entry++;
 						}
 					} else {
-						// 'P' is a prefix fo F,S,O,T
+						// 'P' is a prefix fo F,S,O,T,R
 						page = getIdx(p);
 						p+=2;
 						menu_debugf("P is prefix for: %s\n", p);
@@ -865,7 +865,21 @@ void HandleUI(void)
 					menuidx_8bit[entry] = i;
 					entry++;
 				}
-				
+
+				// check for 'R'AM strings
+				if(currentpage_8bit == page && entry<7 && p && (p[0] == 'R')) {
+					if (entry == 0) first_displayed_8bit = i - 1;
+
+					s[0] = ' ';
+					substrcpy(s+1, p, 1);
+					OsdWrite(entry, s, menusub == entry,0);
+
+					// add bit in menu mask
+					menumask = (menumask << 1) | 1;
+					menuidx_8bit[entry] = i;
+					entry++;
+				}
+
 				i++;
 			} while(p);
 
@@ -968,6 +982,32 @@ void HandleUI(void)
 							user_io_8bit_set_status(status, mask);
 
 							menustate = MENU_8BIT_MAIN1;
+						} else if(p[0] == 'R') {
+							menustate = MENU_8BIT_MAIN1;
+							int len = strtol(p+1,0,0);
+							menu_debugf("Option %s %d\n", p, len);
+							if (len) {
+								fileTYPE file;
+
+								user_io_create_config_name(s);
+								if(strlen(s) > 0) {
+									menu_debugf("Saving RAM file");
+									strcpy(s+8, "RAM");
+									if (FileOpen(&file, s)) {
+										menu_debugf("Existing RAM file size: %lu", file.size);
+									} else {
+										menu_debugf("Creating new RAM file");
+										strncpy(file.name, s, 11);
+										file.attributes = 0;
+										file.size = len;
+										if(!FileCreate(0, &file)) {
+											menu_debugf("File creation failed.");
+											break;
+										}
+									}
+									data_io_file_rx(&file, -1, len);
+								}
+							}
 						} else if(p[0] == 'P') {
 							currentpage_8bit = getIdx(p);
 							menusub = 0;

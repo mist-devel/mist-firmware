@@ -16,10 +16,10 @@
 #define DIO_FILE_RX     0x57
 #define DIO_FILE_RX_DAT 0x58
 
-void data_io_set_index(unsigned char index);
-void data_io_fill_tx(unsigned char, unsigned int, unsigned char);
-void data_io_file_tx(fileTYPE *, unsigned char);
-void data_io_file_rx(fileTYPE *, unsigned char, unsigned int);
+void data_io_set_index(char index);
+void data_io_fill_tx(unsigned char, unsigned int, char);
+void data_io_file_tx(fileTYPE *, char);
+void data_io_file_rx(fileTYPE *, char, unsigned int);
 
 // called when a rom entry is found in the mist.ini
 void data_io_rom_upload(char *s, char mode);

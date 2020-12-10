@@ -343,10 +343,15 @@ void user_io_detect_core_type() {
 				user_io_8bit_set_status(arc_get_default(), ~1);
 			}
 
-			// check if there's a <core>.rom present
+			// check if there's a <core>.rom present, send it via index 0
 			strcpy(s+8, "ROM");
 			if (FileOpenDir(&file, s, iCurrentDirectory) || FileOpen(&file, s))
 				data_io_file_tx(&file, 0);
+
+			// check if there's a <core>.ram present, send it via index -1
+			strcpy(s+8, "RAM");
+			if (FileOpen(&file, s))
+				data_io_file_tx(&file, -1);
 
 			// check if there's a <core>.vhd present
 			strcpy(s+8, "VHD");
