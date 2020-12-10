@@ -40,8 +40,8 @@ static void data_io_file_tx_prepare(fileTYPE *file, char index) {
   // send directory entry
   EnableFpga();
   SPI(DIO_FILE_INFO);
-  if (file && !index) {
-    // Synthesize a directory entry for index=0 (ROM)
+  if (file && (!index || index == -1)) {
+    // Synthesize a directory entry for index=0 and -1 (ROM,RAM)
     spi_write((void*)file, 11); // name+ext
     spi_write((void*)&file->attributes, 1);
     spi_n(0, 16);
