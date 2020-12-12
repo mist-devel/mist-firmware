@@ -413,11 +413,15 @@ int CompareDirEntries(DIRENTRY *pDirEntry1, char *pLFN1, DIRENTRY *pDirEntry2, c
     int len;
     int rc;
 
-    if ((pDirEntry1->Attributes & ATTR_DIRECTORY) && !(pDirEntry2->Attributes & ATTR_DIRECTORY)) // directories first
-       return -1;
+    if ((pDirEntry2->Attributes & ATTR_DIRECTORY)
+        && !(pDirEntry1->Attributes & ATTR_DIRECTORY) // directories first
+        || (pDirEntry2->Name[0] == '.' && pDirEntry2->Name[1] == '.')) // parent directory entry at top
+            return 1;
 
-    if (!(pDirEntry1->Attributes & ATTR_DIRECTORY) && (pDirEntry2->Attributes & ATTR_DIRECTORY)) // directories first
-       return 1;
+    if ((pDirEntry1->Attributes & ATTR_DIRECTORY)
+        && !(pDirEntry2->Attributes & ATTR_DIRECTORY) // directories first
+        || (pDirEntry1->Name[0] == '.' && pDirEntry1->Name[1] == '.')) // parent directory entry at top
+            return -1;
 
     len = 260;
     if (*pLFN1)
