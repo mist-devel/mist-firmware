@@ -1574,8 +1574,19 @@ void check_reset(unsigned short modifiers, char useKeys)
 		0x45,  // lctrl+lalt+ralt
 		0x89,  // lctrl+lgui+rgui
 		0x105, // lctrl+lalt+del
+		0x15,  // CtrlIzq+AltIzq+CtrlDcha
 	};
 
+        // Parche: usamos CTRL+ALT+CTRL para activar/desactivar el scandoubler
+	if((modifiers & ~2)==combo[3])
+	{
+	  mist_cfg.scandoubler_disable = !mist_cfg.scandoubler_disable;
+          uer_io_send_buttons(1);
+	  OsdDisableMenuButton(1);
+	  video_altered |= 1;
+	  video_sd_disable = mist_cfg.scandoubler_disable;
+	}
+	
 	if((modifiers & ~2)==combo[useKeys])
 	{
 		if(modifiers & 2) // with lshift - MiST reset
