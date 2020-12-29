@@ -1577,11 +1577,11 @@ void check_reset(unsigned short modifiers, char useKeys)
 		0x15,  // CtrlIzq+AltIzq+CtrlDcha
 	};
 
-        // Parche: usamos CTRL+ALT+CTRL para activar/desactivar el scandoubler
+        // Patch: to use shortcut CTRL + ALT + CTRL to enable / disable scandoubler
 	if((modifiers & ~2)==combo[3])
 	{
 	  mist_cfg.scandoubler_disable = !mist_cfg.scandoubler_disable;
-          uer_io_send_buttons(1);
+          user_io_send_buttons(1);
 	  OsdDisableMenuButton(1);
 	  video_altered |= 1;
 	  video_sd_disable = mist_cfg.scandoubler_disable;
