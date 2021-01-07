@@ -1499,7 +1499,7 @@ void user_io_mouse(unsigned char idx, unsigned char b, char x, char y, char z) {
 		mouse_pos[idx][X] += x;
 		mouse_pos[idx][Y] -= y;  // ps2 y axis is reversed over usb
 		mouse_pos[idx][Z] += z;
-		mouse_flags[idx] |= 0x08 | (b&3); 
+		mouse_flags[idx] |= 0x08 | (b&7);
 	}
 
 	// send mouse data as mist expects it
