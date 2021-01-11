@@ -66,16 +66,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                               "mov r0, r0\n\t" \
                               "mov r0, r0");
 
-unsigned char menustate = MENU_NONE1;
-unsigned char first_displayed_8bit = 0;
-unsigned char currentpage_8bit;
-unsigned char menuidx_8bit[8];
-unsigned char selected_drive_slot;
-unsigned char parentstate;
-unsigned char menusub = 0;
-unsigned char menusub_last = 0; //for when we allocate it dynamically and need to know last row
-unsigned int menumask = 0; // Used to determine which rows are selectable...
-unsigned long menu_timer = 0;
+static unsigned char menustate = MENU_NONE1;
+static unsigned char first_displayed_8bit = 0;
+static unsigned char currentpage_8bit;
+static unsigned char menuidx_8bit[8];
+static unsigned char selected_drive_slot;
+static unsigned char parentstate;
+static unsigned char menusub = 0;
+static unsigned char menusub_last = 0; //for when we allocate it dynamically and need to know last row
+static unsigned int menumask = 0; // Used to determine which rows are selectable...
+static unsigned char first_displayed_8bit_prev; // used to returing from a submenu page
+static unsigned char menusub_prev;
+static unsigned long menu_timer = 0;
 
 extern unsigned char drives;
 extern adfTYPE df[4];
@@ -613,9 +615,11 @@ void HandleUI(void)
 					}
 				}
 				menusub = 0;
+				menusub_prev = 0;
 				OsdClear();
 				OsdEnable(DISABLE_KEYBOARD);
 				first_displayed_8bit = 0;
+				first_displayed_8bit_prev = 0;
 				currentpage_8bit = 0;
 			}
 			break;
@@ -918,8 +922,8 @@ void HandleUI(void)
 			if (menu)
 				if (currentpage_8bit) {
 					currentpage_8bit = 0;
-					menusub = 0;
-					first_displayed_8bit = 0;
+					menusub = menusub_prev;
+					first_displayed_8bit = first_displayed_8bit_prev;
 					menustate = MENU_8BIT_MAIN1;
 				} else {
 					menustate = MENU_NONE1;
@@ -1010,7 +1014,9 @@ void HandleUI(void)
 							}
 						} else if(p[0] == 'P') {
 							currentpage_8bit = getIdx(p);
+							menusub_prev = menusub;
 							menusub = 0;
+							first_displayed_8bit_prev = first_displayed_8bit;
 							first_displayed_8bit = 0;
 							menu_debugf("Page switch to %d\n", currentpage_8bit);
 							menustate = MENU_8BIT_MAIN1;
