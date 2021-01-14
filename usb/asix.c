@@ -43,6 +43,8 @@ static const struct {
   { 0x2001, 0x1a02, ASIX_TYPE_AX88772 },
   // NoName Wii Adapter
   { 0x0b95, 0x7720, ASIX_TYPE_AX88772 },
+  // Asix Fast Ethernet Adapter AX88772A
+  { 0x0b95, 0x772A, ASIX_TYPE_AX88772 },
   // NoName Adapter 88772B
   { 0x0b95, 0x772B, ASIX_TYPE_AX88772 },
   // Apple USB Adapter A1277
