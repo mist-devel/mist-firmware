@@ -1623,14 +1623,9 @@ void HandleUI(void)
 			strcat(s, config_tos_mem[(tos_system_ctrl() >> 1)&7]);
 						OsdWrite(0, s, menusub == 0,0);
 
-			if(user_io_core_type() == CORE_TYPE_MIST) {
-				strcpy(s, " CPU:       ");
-				strcat(s, config_cpu_msg[(tos_system_ctrl() >> 4)&3]);
-				OsdWrite(1, s, menusub == 1, 0);
-			} else {
-				menumask &= 0xfd;
-				OsdWrite(1, "", 0, 0);
-			}
+			strcpy(s, " CPU:       ");
+			strcat(s, config_cpu_msg[(tos_system_ctrl() >> 4)&3]);
+			OsdWrite(1, s, menusub == 1, 0);
 
 			strcpy(s, " TOS:       ");
 			strcat(s, tos_get_image_name());
@@ -1672,7 +1667,7 @@ void HandleUI(void)
 					case 1: { // CPU
 						int cpu = (tos_system_ctrl() >> 4)&3;   // current cpu config
 						cpu = (cpu+1)&3;
-						if(cpu == 2) cpu = 3;                 // skip unused config
+						if(cpu == 2 || (user_io_core_type() == CORE_TYPE_MIST2 && cpu == 1)) cpu = 3; // skip unused config
 						tos_update_sysctrl((tos_system_ctrl() & ~0x30) | (cpu<<4) );
 						tos_reset(0);
 						menustate = MENU_MIST_SYSTEM1;
