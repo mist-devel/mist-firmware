@@ -55,36 +55,36 @@ unsigned short directory_cluster;       // first cluster of directory (0 if root
 unsigned short entries_per_cluster;     // number of directory entries per cluster
 
 // internal global variables
-unsigned char fattype;              	// volume format 
-unsigned char fat32;                  // volume format is FAT32
-unsigned long boot_sector;              // partition boot sector
-unsigned long fat_start;                // start LBA of first FAT table
-unsigned long data_start;               // start LBA of data field
-unsigned long root_directory_cluster;   // root directory cluster (used in FAT32)
-unsigned long root_directory_start;     // start LBA of directory table
-unsigned long root_directory_size;      // size of directory region in sectors
+unsigned char fattype;                  // volume format
+unsigned char fat32;                    // volume format is FAT32
+uint32_t      boot_sector;              // partition boot sector
+uint32_t      fat_start;                // start LBA of first FAT table
+uint32_t      data_start;               // start LBA of data field
+uint32_t      root_directory_cluster;   // root directory cluster (used in FAT32)
+uint32_t      root_directory_start;     // start LBA of directory table
+uint32_t      root_directory_size;      // size of directory region in sectors
 unsigned char fat_number;               // number of FAT tables
 unsigned char cluster_size;             // size of a cluster in sectors
-unsigned long cluster_mask;             // binary mask of cluster number
+uint32_t      cluster_mask;             // binary mask of cluster number
 unsigned short dir_entries;             // number of entry's in directory table
-unsigned long fat_size;                 // size of fat
+uint32_t      fat_size;                 // size of fat
 unsigned short info_sector;             // fat32 info sector
 
-struct PartitionEntry partitions[4];	// lbastart and sectors will be byteswapped as necessary
+struct PartitionEntry partitions[4];    // lbastart and sectors will be byteswapped as necessary
 int partitioncount;
 
 unsigned char sector_buffer[1024];       // sector buffer - room for two consecutive sectors...
 
 FATBUFFER fat_buffer;                   // buffer for caching fat entries
-unsigned long buffered_fat_index;       // index of buffered FAT sector
+uint32_t      buffered_fat_index;       // index of buffered FAT sector
 
 char DirEntryLFN[MAXDIRENTRIES][261];
 DIRENTRY DirEntry[MAXDIRENTRIES];
 unsigned char sort_table[MAXDIRENTRIES];
 unsigned char nDirEntries = 0;          // entries in DirEntry table
 unsigned char iSelectedEntry = 0;       // selected entry index
-unsigned long iCurrentDirectory = 0;    // cluster number of current directory, 0 for root
-unsigned long iPreviousDirectory = 0;   // cluster number of previous directory
+uint32_t      iCurrentDirectory = 0;    // cluster number of current directory, 0 for root
+uint32_t      iPreviousDirectory = 0;   // cluster number of previous directory
 
 // temporary storage buffers
 char t_DirEntryLFN[MAXDIRENTRIES][261];
@@ -128,7 +128,7 @@ void fat_switch_to_usb(void) {
 
 #pragma section_code_init
 // read sector of FAT if not already in the buffer
-RAMFUNC static char FatLoad(unsigned long index) {
+RAMFUNC static char FatLoad(uint32_t index) {
   // load fat sector
   if(buffered_fat_index != index) {
     if (!lread(fat_start + index, (unsigned char*)&fat_buffer)) {
@@ -141,8 +141,8 @@ RAMFUNC static char FatLoad(unsigned long index) {
   return 1;
 }
 
-RAMFUNC unsigned long NextCluster(unsigned long cluster) {
-  unsigned long fat_index = CLUSTER2SECTOR(cluster);
+RAMFUNC uint32_t NextCluster(uint32_t cluster) {
+  uint32_t fat_index = CLUSTER2SECTOR(cluster);
   unsigned short buffer_index = CLUSTER2OFFSET(cluster);
 
   if(!FatLoad(fat_index)) return(0);

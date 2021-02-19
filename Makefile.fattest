@@ -1,0 +1,17 @@
+PRJ = fattest
+SRC = fat_test.c fat.c
+
+OBJ = $(SRC:.c=.o)
+DEP = $(SRC:.c=.d)
+
+CFLAGS = -Wno-attributes
+CPPFLAGS  = -DFAT_TEST
+
+# Our target.
+all: $(PRJ)
+
+$(PRJ): $(OBJ)
+	$(CC) -o $@ $(OBJ)
+
+clean:
+	rm -f $(OBJ) $(PRJ)

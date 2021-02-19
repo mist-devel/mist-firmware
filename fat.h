@@ -7,8 +7,8 @@
 
 typedef struct
 {
-    unsigned long sector;
-    unsigned long index;
+    uint32_t sector;
+    uint32_t index;
 } entryTYPE;
 
 typedef struct
@@ -16,20 +16,20 @@ typedef struct
     char name[11];                 /* name of file */
     unsigned char attributes;      /* file attributes */
     entryTYPE     entry;           /* file entry location */
-    unsigned long sector;          /* sector index in file */
-    unsigned long size;            /* file size */
-    unsigned long cluster;         /* current cluster */
-    unsigned long start_cluster;   /* first cluster of file */
+    uint32_t      sector;          /* sector index in file */
+    uint32_t      size;            /* file size */
+    uint32_t      cluster;         /* current cluster */
+    uint32_t      start_cluster;   /* first cluster of file */
     unsigned char device;          /* device index (0=sd, 1=usb) */
-    long          cluster_change;  /* counter to keep track of file length changes */
+    int32_t       cluster_change;  /* counter to keep track of file length changes */
     char          long_name[261];
 }  fileTYPE;
 
 struct PartitionEntry
 {
 	unsigned char geometry[8];		// ignored
-	unsigned long startlba;
-	unsigned long sectors;
+	uint32_t      startlba;
+	uint32_t      sectors;
 } __attribute__ ((packed));
 
 struct MasterBootRecord
@@ -69,22 +69,22 @@ typedef struct
     unsigned short      ModifyTime;         /* last update time */
     unsigned short      ModifyDate;         /* last update date */
     unsigned short      StartCluster;       /* starting cluster of file */
-    unsigned long       FileSize;           /* size of file in bytes */
-} DIRENTRY;
+    uint32_t            FileSize;           /* size of file in bytes */
+}  __attribute__ ((packed)) DIRENTRY;
 
 typedef union {
     unsigned short fat16[256];
-    unsigned long  fat32[128];
+    uint32_t  fat32[128];
 } FATBUFFER;
 
 struct InfoSector {
-  unsigned long  magic;		/* Magic for info sector ('RRaA') */
+  uint32_t       magic;		/* Magic for info sector ('RRaA') */
   unsigned char  junk[0x1dc];
-  unsigned long  reserved1;	/* Nothing as far as I can tell */
-  unsigned long  signature;	/* 0x61417272 ('rrAa') */
-  unsigned long  free_clusters;	/* Free cluster count.  -1 if unknown */
-  unsigned long  next_cluster;	/* Most recently allocated cluster. */
-  unsigned long  reserved2[3];
+  uint32_t       reserved1;	/* Nothing as far as I can tell */
+  uint32_t       signature;	/* 0x61417272 ('rrAa') */
+  uint32_t       free_clusters;	/* Free cluster count.  -1 if unknown */
+  uint32_t       next_cluster;	/* Most recently allocated cluster. */
+  uint32_t       reserved2[3];
   unsigned short reserved3;
   unsigned short boot_sign;
 } __attribute__ ((packed));
@@ -96,7 +96,7 @@ struct InfoSector {
 // BEWARE, this buffer is also used and thus trashed by all other functions
 extern unsigned char sector_buffer[1024]; // sector buffer - room for 2 sectors, to ease reading data not sector-aligned...
 extern unsigned char cluster_size;
-extern unsigned long cluster_mask;
+extern uint32_t cluster_mask;
 extern unsigned char fat32;
 
 // constants
@@ -125,7 +125,7 @@ extern unsigned char fat32;
 
 // functions
 unsigned char FindDrive(void);
-unsigned long GetFATLink(unsigned long cluster);
+uint32_t      NextCluster(uint32_t cluster);
 unsigned char FileNextSector(fileTYPE *file) RAMFUNC;
 unsigned char FileNextSectorExpand(fileTYPE *file);
 unsigned char FileOpen(fileTYPE *file, const char *name);
