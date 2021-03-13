@@ -30,6 +30,7 @@ typedef struct {
   uint8_t ypbpr;
   uint8_t keep_video_mode;
   uint8_t led_animation;
+  uint8_t sdram64;
 } mist_cfg_t;
 
 

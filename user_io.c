@@ -799,6 +799,8 @@ void user_io_send_buttons(char force) {
 	}
 	if(mist_cfg.csync_disable) map |= CONF_CSYNC_DISABLE;
 
+	if(mist_cfg.sdram64) map |= CONF_SDRAM64;
+
 	if((map != key_map) || force) {
 		key_map = map;
 		spi_uio_cmd8(UIO_BUT_SW, map);
