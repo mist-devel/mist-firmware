@@ -31,7 +31,8 @@ unsigned char key_remap_table[MAX_REMAP][2];
 
 #define BREAK  0x8000
 
-static IDXFile sd_image[2];
+#define MAX_IMAGES 2
+static IDXFile sd_image[MAX_IMAGES];
 static char buffer[512];
 static uint8_t buffer_drive_index = 0;
 static uint32_t buffer_lba = 0xffffffff;
@@ -357,6 +358,15 @@ void user_io_detect_core_type() {
 			strcpy(s+8, "VHD");
 			if (FileOpen(&file, s))
 				user_io_file_mount(&file, 0);
+			else {
+				// check for <core>.HD0/1 files
+				strcpy(s+8, "HD ");
+				for (int i = 0; i < MAX_IMAGES; i++) {
+					s[10] = '0'+i;
+					if (FileOpen(&file, s))
+						user_io_file_mount(&file, i);
+				}
+			}
 
 		}
 
