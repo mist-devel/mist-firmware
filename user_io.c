@@ -33,6 +33,7 @@ unsigned char key_remap_table[MAX_REMAP][2];
 
 #define MAX_IMAGES 2
 static IDXFile sd_image[MAX_IMAGES];
+static char umounted; // 1st image is file or direct SD?
 static char buffer[512];
 static uint8_t buffer_drive_index = 0;
 static uint32_t buffer_lba = 0xffffffff;
@@ -160,7 +161,8 @@ static void PollAdc() {
 
 void user_io_init() {
 	// no sd card image selected, SD card accesses will go directly
-	// to the card
+	// to the card (first slot, and only until the first unmount)
+	umounted = 0;
 	sd_image[0].file.size = 0;
 	sd_image[1].file.size = 0;
 
@@ -649,6 +651,10 @@ static void kbd_fifo_poll() {
 	kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
 }
 
+char user_io_is_mounted(unsigned char index) {
+	return sd_image[index].file.size != 0;
+}
+
 void user_io_file_mount(fileTYPE *file, unsigned char index) {
 	if (file) {
 		iprintf("selected %.12s with %d bytes to slot %d\n", file->name, file->size, index);
@@ -659,6 +665,7 @@ void user_io_file_mount(fileTYPE *file, unsigned char index) {
 	} else {
 		iprintf("unmounting file in slot %d\n", index);
 		sd_image[index].file.size = 0;
+		if (!index) umounted = 1;
 	}
 	buffer_lba = 0xffffffff;
 
@@ -1174,7 +1181,7 @@ void user_io_poll() {
 							IDXSeek(&sd_image[drive_index], lba);
 							IDXWrite(&sd_image[drive_index], wr_buf);
 						}
-					} else
+					} else if (!drive_index && !umounted)
 						MMC_Write(lba, wr_buf);
 #else
 						hexdump(wr_buf, 512, 0);
@@ -1203,7 +1210,7 @@ void user_io_poll() {
 							IDXSeek(&sd_image[drive_index], lba);
 							IDXRead(&sd_image[drive_index], buffer);
 						}
-					} else {
+					} else if (!drive_index && !umounted) {
 						// sector read
 						// read sector from sd card if it is not already present in
 						// the buffer

@@ -175,6 +175,7 @@ unsigned long long user_io_8bit_set_status(unsigned long long, unsigned long lon
 void user_io_sd_set_config(void);
 char user_io_dip_switch1(void);
 char user_io_serial_status(serial_status_t *, uint8_t);
+char user_io_is_mounted(unsigned char index);
 void user_io_file_mount(fileTYPE *, unsigned char);
 char *user_io_get_core_name();
 void user_io_set_core_mod(char);

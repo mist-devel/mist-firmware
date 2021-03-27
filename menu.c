@@ -427,7 +427,7 @@ char* get_keycode_table()
 void HandleUI(void)
 {
 	char *p;
-	unsigned char i, c, m, up, down, select, menu, right, left, plus, minus;
+	unsigned char i, c, m, up, down, select, backsp, menu, right, left, plus, minus;
 	uint8_t mod;
 	unsigned long len;
 	static hardfileTYPE t_hardfile[2]; // temporary copy of former hardfile configuration
@@ -461,6 +461,7 @@ void HandleUI(void)
 	right = false;
 	plus=false;
 	minus=false;
+	backsp=false;
 	
 	switch (c)
 	{
@@ -508,20 +509,22 @@ void HandleUI(void)
 			break;
 		case KEY_ENTER :
 		case KEY_SPACE :
-				select = true;
-				break;
+			select = true;
+			break;
+		case KEY_BACK :
+			backsp = true;
 		case KEY_UP:
-				up = true;
-				break;
+			up = true;
+			break;
 		case KEY_DOWN:
-				down = true;
-				break;
+			down = true;
+			break;
 		case KEY_LEFT :
-				left = true;
-				break;
+			left = true;
+			break;
 		case KEY_RIGHT :
-				right = true;
-				break;
+			right = true;
+			break;
 		case KEY_KPPLUS :
 			plus=true;
 			break;
@@ -812,9 +815,17 @@ void HandleUI(void)
 						if(p[0] == 'F') strcpy(s, " Load *.");
 						else            strcpy(s, " Mount *.");
 					}
+
 					pos = s+strlen(s);
 					substrcpy(pos, p, 1);
 					strcpy(pos, GetExt(pos));
+					if (p[0] == 'S' && p[1] && p[2] == 'U') {
+						char slot = 0;
+						if (p[1]>='0' && p[1]<='9') slot = p[1]-'0';
+						if (user_io_is_mounted(slot)) {
+							s[0] = '\x1e';
+						}
+					}
 					OsdWrite(entry, s, menusub==entry, 0);
 
 					// add bit in menu mask
@@ -1023,8 +1034,22 @@ void HandleUI(void)
 						}
 					}
 				}
-			}
-			else if (right) {
+			} else if (backsp) {
+				if (menusub!=menusub_last && (menusub + first_displayed_8bit)) {
+					p = user_io_8bit_get_string(menuidx_8bit[menusub]);
+
+					if((p[0] == 'P') && (p[2] != ',')) p+=2;
+
+					if (p[0] == 'S' && p[1] && p[2] == 'U') {
+						char slot = 0;
+						if (p[1]>='0' && p[1]<='9') slot = p[1]-'0';
+						if (user_io_is_mounted(slot)) {
+							user_io_file_mount(0, slot);
+						}
+					}
+				}
+				menustate = MENU_8BIT_MAIN1;
+			} else if (right) {
 				menustate = MENU_8BIT_SYSTEM1;
 				menusub = 0;
 			} else if (menusub == 6 && menusub != menusub_last && down) {
