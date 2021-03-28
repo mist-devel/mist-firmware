@@ -513,6 +513,7 @@ void HandleUI(void)
 			break;
 		case KEY_BACK :
 			backsp = true;
+			break;
 		case KEY_UP:
 			up = true;
 			break;
