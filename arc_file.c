@@ -12,6 +12,7 @@ static char mod;
 static uint64_t conf_default;
 static char rbfname[9];
 static char corename[9];
+static char dirname[9];
 static char conf[MAX_CONF_SIZE];
 static int conf_ptr;
 
@@ -28,6 +29,7 @@ const ini_var_t arc_ini_vars[] = {
 	{"DEFAULT", (void*)(&conf_default), UINT64, 0, ~0, 1},
 	{"RBF", (void*)rbfname, STRING, 1, 8, 1},
 	{"NAME", (void*)corename, STRING, 1, 8, 1},
+	{"DIR", (void*)dirname, STRING, 1, 8, 1},
 	{"CONF", (void*)arc_set_conf, CUSTOM_HANDLER, 0, 0, 1},
 };
 
@@ -57,7 +59,7 @@ char arc_open(char *fname)
 	arc_reset();
 	mod = -1; // indicate error by default, valid ARC file will overrdide with the correct MOD value
 	ini_parse(&arc_ini_cfg, 0);
-	iprintf("arc conf=%s\n",conf);
+	iprintf("ARC CONF STR: %s\n",conf);
 	return mod;
 }
 
@@ -65,6 +67,7 @@ void arc_reset()
 {
 	memset(rbfname, 0, sizeof(rbfname));
 	memset(corename, 0, sizeof(rbfname));
+	memset(dirname, 0, sizeof(dirname));
 	conf[0] = 0;
 	conf_ptr = 0;
 	mod = 0;
@@ -79,6 +82,11 @@ char *arc_get_rbfname()
 char *arc_get_corename()
 {
 	return corename;
+}
+
+char *arc_get_dirname()
+{
+	return dirname;
 }
 
 char *arc_get_conf()

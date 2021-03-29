@@ -2154,10 +2154,15 @@ extern unsigned char iSelectedEntry;
 // this should be moved into fat.c?
 void user_io_change_into_core_dir(void) {
 	char s[13];  // 8+3+'\0'
-	user_io_create_config_name(s);
+	if (arc_get_dirname()[0]) {
+		strncpy(s, "           ", 11);
+		strncpy(s, arc_get_dirname(), strlen(arc_get_dirname()));
+	} else {
+		user_io_create_config_name(s);
+		strcpy(s+8, "   ");
+	}
 
 	// try to change into subdir named after the core
-	strcpy(s+8, "   ");
 	iprintf("Trying to open work dir \"%s\"\n", s);
 
 	ScanDirectory(SCAN_INIT, "",  SCAN_DIR | FIND_DIR);
