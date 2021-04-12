@@ -649,7 +649,10 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 		if(iface->device_type == HID_DEVICE_KEYBOARD) {
 			// boot kbd needs at least eight bytes
 			if(read >= 8) {
-				user_io_kbd(buf[0], buf+2, UIO_PRIORITY_KEYBOARD, iface->conf.vid, iface->conf.pid);
+				if (iface->conf.report_id)
+					user_io_kbd(buf[1], buf+3, UIO_PRIORITY_KEYBOARD, iface->conf.vid, iface->conf.pid);
+				else
+					user_io_kbd(buf[0], buf+2, UIO_PRIORITY_KEYBOARD, iface->conf.vid, iface->conf.pid);
 			}
 		}
 	}
