@@ -1800,6 +1800,32 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 
 	if(keyrah) keyrah_trans(&m, k);
 
+	if(mist_cfg.amiga_mod_keys) {
+		//  bit  0     1      2    3    4     5      6    7
+		//  key  LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
+		//       1     2      4    8    10    20     40   80
+		unsigned char m_in = m;
+		// swap RALT/RGUI & LALT/LGUI
+		m = ((m & 0x40) << 1) | ((m & 0x80) >> 1) | m & 0x20 | m & 0x10 | ((m & 0x8) >> 1) | ((m & 0x4) << 1) | m & 0x2;
+		// swap CAPSLOCK/LCTRL
+		for(char i=0;i<6;i++) {
+			if(k[i] == 0x39) {
+				m |= 0x1;
+				k[i] = 0;
+			}
+			if(m_in & 0x1) {
+				if(i<5) {
+					if(k[i] == 0) {
+						k[i] = 0x39;
+						m_in &= ~0x1;
+					}
+				} else {
+					k[i] = 0x39;
+				}
+			}
+		}
+	}
+
 	unsigned short reset_m = m;
 	for(char i=0;i<6;i++) if(k[i] == 0x4c) reset_m |= 0x100;
 	check_reset(reset_m, KEYRAH_ID ? 1 : mist_cfg.reset_combo);
