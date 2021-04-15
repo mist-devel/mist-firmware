@@ -48,6 +48,13 @@ SECTIONS
 
   . = ALIGN(4);
 
+  .text.startup :
+  {
+    *(.text.startup)
+  } >FLASH
+ 
+  . = ALIGN(4);
+
   /* .rodata section which is used for read-only data (constants) */
 
   .rodata :
