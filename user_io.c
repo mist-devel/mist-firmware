@@ -159,12 +159,18 @@ static void PollAdc() {
 	}
 }
 
-void user_io_init() {
+void user_io_reset() {
 	// no sd card image selected, SD card accesses will go directly
 	// to the card (first slot, and only until the first unmount)
 	umounted = 0;
 	sd_image[0].file.size = 0;
 	sd_image[1].file.size = 0;
+	core_mod = 0;
+}
+
+void user_io_init() {
+
+	user_io_reset();
 
 	if(video_keep != VIDEO_KEEP_VALUE) video_altered = 0;
 	video_keep = 0;

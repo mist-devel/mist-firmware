@@ -158,6 +158,7 @@ typedef struct {
   uint8_t fifo_stat;       // space in cores input fifo
 } __attribute__ ((packed)) serial_status_t;
 
+void user_io_reset();
 void user_io_init();
 void user_io_detect_core_type();
 unsigned char user_io_core_type();

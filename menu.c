@@ -3452,8 +3452,8 @@ void HandleUI(void)
 				strncpy(file.name, arc_get_rbfname(), strlen(arc_get_rbfname()));
 			}
 
+			user_io_reset();
 			user_io_set_core_mod(mod);
-
 			// reset fpga with core
 			fpga_init(file.name);
 
