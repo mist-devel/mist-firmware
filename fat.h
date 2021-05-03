@@ -4,6 +4,8 @@
 #include "spi.h"
 
 #define MAXDIRENTRIES 8
+// Sector buffer size for 4 consequitive sectors
+#define SECTOR_BUFFER_SIZE 4
 
 typedef struct
 {
@@ -94,7 +96,7 @@ struct InfoSector {
 
 // global sector buffer, data for read/write actions is stored here.
 // BEWARE, this buffer is also used and thus trashed by all other functions
-extern unsigned char sector_buffer[1024]; // sector buffer - room for 2 sectors, to ease reading data not sector-aligned...
+extern unsigned char sector_buffer[512 * SECTOR_BUFFER_SIZE]; // sector buffer
 extern unsigned char cluster_size;
 extern uint32_t cluster_mask;
 extern unsigned char fat32;

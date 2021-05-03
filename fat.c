@@ -46,10 +46,9 @@ JB:
 #include "usb.h"
 #include "fpga.h"
 
-#define MAX_FS  2
-
 // 
 typedef unsigned char (*rw_func_t)(unsigned long, unsigned char *);
+typedef unsigned char (*rw_multiple_func_t)(unsigned long, unsigned char *, unsigned long);
 
 unsigned short directory_cluster;       // first cluster of directory (0 if root)
 unsigned short entries_per_cluster;     // number of directory entries per cluster
@@ -73,7 +72,7 @@ unsigned short info_sector;             // fat32 info sector
 struct PartitionEntry partitions[4];    // lbastart and sectors will be byteswapped as necessary
 int partitioncount;
 
-unsigned char sector_buffer[1024];       // sector buffer - room for two consecutive sectors...
+unsigned char sector_buffer[512*SECTOR_BUFFER_SIZE];  // sector buffer
 
 FATBUFFER fat_buffer;                   // buffer for caching fat entries
 uint32_t      buffered_fat_index;       // index of buffered FAT sector
@@ -97,6 +96,7 @@ extern void ErrorMessage(const char *message, unsigned char code);
 
 // current read/write functions
 rw_func_t lread = MMC_Read;
+rw_multiple_func_t lread_multiple = MMC_ReadMultiple;
 rw_func_t lwrite = MMC_Write;
 
 int8_t fat_uses_mmc(void) {
@@ -117,6 +117,7 @@ int8_t fat_medium_present() {
 #ifdef USB_STORAGE
 void fat_switch_to_usb(void) {
   lread = usb_storage_read;
+  // TODO: lread_multiple
   lwrite = usb_storage_write; 
 }
 #endif
@@ -576,11 +577,12 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
     {
         for (iEntry = 0; iEntry < nEntries; iEntry++)
         {
-            if ((iEntry & 0xF) == 0) // first entry in sector, load the sector
+            if ((iEntry & (SECTOR_BUFFER_SIZE * 16 - 1)) == 0) // first entry in sector buffer, load the sector
             {
-                lread(iDirectorySector++, sector_buffer);
+                lread_multiple(iDirectorySector, sector_buffer, SECTOR_BUFFER_SIZE);
+                iDirectorySector += SECTOR_BUFFER_SIZE;
                 pEntry = (DIRENTRY*)sector_buffer;
-                for (i = 0; i < 16; i++)
+                for (i = 0; i < (SECTOR_BUFFER_SIZE * 16); i++)
                 {
                     if (pEntry->Attributes != ATTR_LFN)
                     {
