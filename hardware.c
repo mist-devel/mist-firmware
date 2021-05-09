@@ -326,7 +326,7 @@ void TIMER_wait(unsigned long ms) {
   WaitTimer(ms);
 }
 
-char mmc_inserted() {
+inline char mmc_inserted() {
   return !(*AT91C_PIOA_PDSR & SD_CD);
 }
 

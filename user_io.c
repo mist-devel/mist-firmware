@@ -38,8 +38,7 @@ static char buffer[512];
 static uint8_t buffer_drive_index = 0;
 static uint32_t buffer_lba = 0xffffffff;
 
-extern fileTYPE file;
-extern char s[40];
+extern char s[FF_LFN_BUF + 1];
 
 // mouse and keyboard emulation state
 typedef enum { EMU_NONE, EMU_MOUSE, EMU_JOY0, EMU_JOY1 } emu_mode_t;
@@ -163,8 +162,8 @@ void user_io_reset() {
 	// no sd card image selected, SD card accesses will go directly
 	// to the card (first slot, and only until the first unmount)
 	umounted = 0;
-	sd_image[0].file.size = 0;
-	sd_image[1].file.size = 0;
+	sd_image[0].valid = 0;
+	sd_image[1].valid = 0;
 	core_mod = 0;
 }
 
@@ -198,13 +197,15 @@ char minimig_v2() {
 	return(core_type == CORE_TYPE_MINIMIG2);
 }
 
-char user_io_create_config_name(char *s) {
+char user_io_create_config_name(char *s, const char *ext, char root) {
 	char *p = user_io_get_core_name();
 	if(p[0]) {
-		strcpy(s, p);
-		while(strlen(s) < 8) strcat(s, " ");
-		strcat(s, "CFG");
-
+		if (root) strcpy(s,"/"); else s[0] = 0;
+		strcat(s, p);
+		if (ext) {
+			strcat(s,".");
+			strcat(s,ext);
+		}
 		return 0;
 	}
 	return 1;
@@ -260,8 +261,6 @@ void user_io_send_rtc(void) {
 		DisableIO();
 	}
 }
-
-extern unsigned long iCurrentDirectory;    // cluster number of current directory, 0 for root
 
 void user_io_detect_core_type() {
 	core_name[0] = 0;
@@ -336,46 +335,60 @@ void user_io_detect_core_type() {
 		// send a reset
 		user_io_8bit_set_status(UIO_STATUS_RESET, ~0);
 
+		FIL file;
+		UINT br;
 		// try to load config
-		user_io_create_config_name(s);
-		if(strlen(s) > 0) {
-			iprintf("Loading config %.11s\n", s);
 
-			if (FileOpen(&file, s))  {
+		if(!user_io_create_config_name(s, "CFG", 1)) {
+			iprintf("Loading config %s\n", s);
+
+			if (f_open(&file, s, FA_READ) == FR_OK)  {
 				iprintf("Found config\n");
-				if(file.size <= 8) {
+				if(f_size(&file) <= 8) {
 					((unsigned long long*)sector_buffer)[0] = 0;
-					FileRead(&file, sector_buffer);
+					f_read(&file, sector_buffer, f_size(&file), &br);
 					user_io_8bit_set_status(((unsigned long long*)sector_buffer)[0], ~1);
 				}
+				f_close(&file);
 			} else {
 				user_io_8bit_set_status(arc_get_default(), ~1);
 			}
+		}
 
+		for (char root = 0; root <= 1; root++) {
 			// check if there's a <core>.rom present, send it via index 0
-			strcpy(s+8, "ROM");
-			if (FileOpenDir(&file, s, iCurrentDirectory) || FileOpen(&file, s))
-				data_io_file_tx(&file, 0);
-
-			// check if there's a <core>.ram present, send it via index -1
-			strcpy(s+8, "RAM");
-			if (FileOpen(&file, s))
-				data_io_file_tx(&file, -1);
-
-			// check if there's a <core>.vhd present
-			strcpy(s+8, "VHD");
-			if (FileOpen(&file, s))
-				user_io_file_mount(&file, 0);
-			else {
-				// check for <core>.HD0/1 files
-				strcpy(s+8, "HD ");
-				for (int i = 0; i < MAX_IMAGES; i++) {
-					s[10] = '0'+i;
-					if (FileOpen(&file, s))
-						user_io_file_mount(&file, i);
+			if (!user_io_create_config_name(s, "ROM", root)) {
+				iprintf("Looking for %s\n", s);
+				if (f_open(&file, s, FA_READ) == FR_OK) {
+					data_io_file_tx(&file, 0, "ROM");
+					f_close(&file);
+					break;
 				}
 			}
+		}
 
+		if(!user_io_create_config_name(s, "RAM", 1)) {
+			iprintf("Looking for %s\n", s);
+			// check if there's a <core>.ram present, send it via index -1
+			if (f_open(&file, s, FA_READ) == FR_OK) {
+				data_io_file_tx(&file, -1, "RAM");
+				f_close(&file);
+			}
+		}
+
+
+		// check if there's a <core>.vhd present
+		if(!user_io_create_config_name(s, "VHD", 1)) {
+			user_io_file_mount(s, 0);
+			if (!user_io_is_mounted(0)) {
+				// check for <core>.HD0/1 files
+				if(!user_io_create_config_name(s, "HD0", 1)) {
+					for (int i = 0; i < MAX_IMAGES; i++) {
+						s[strlen(s)-1] = '0'+i;
+						user_io_file_mount(s, i);
+					}
+				}
+			}
 		}
 
 		// release reset
@@ -658,19 +671,29 @@ static void kbd_fifo_poll() {
 }
 
 char user_io_is_mounted(unsigned char index) {
-	return sd_image[index].file.size != 0;
+	return sd_image[index].valid;
 }
 
-void user_io_file_mount(fileTYPE *file, unsigned char index) {
-	if (file) {
-		iprintf("selected %.12s with %d bytes to slot %d\n", file->name, file->size, index);
+void user_io_file_mount(const unsigned char *name, unsigned char index) {
+	FRESULT res;
+	if (name) {
+		if (sd_image[index].valid)
+			f_close(&sd_image[index].file);
 
-		memcpy(&sd_image[index].file, file, sizeof(fileTYPE));
-		// build index for fast random access
-		IDXIndex(&sd_image[index]);
+		res = f_open(&sd_image[index].file, name, FA_READ | FA_WRITE);
+		if (res == FR_OK) {
+			iprintf("selected %llu bytes to slot %d\n", f_size(&sd_image[index].file), index);
+
+			sd_image[index].valid = 1;
+			// build index for fast random access
+			IDXIndex(&sd_image[index]);
+		} else {
+			iprintf("error mounting %s (%d)\n", name, res);
+		}
 	} else {
 		iprintf("unmounting file in slot %d\n", index);
-		sd_image[index].file.size = 0;
+		if (sd_image[index].valid) f_close(&sd_image[index].file);
+		sd_image[index].valid = 0;
 		if (!index) umounted = 1;
 	}
 	buffer_lba = 0xffffffff;
@@ -679,7 +702,7 @@ void user_io_file_mount(fileTYPE *file, unsigned char index) {
 	EnableIO();
 	SPI(UIO_SET_SDINFO);
 	// use LE version, so following BYTE(s) may be used for size extension in the future.
-	spi32le(file ? file->size : 0);
+	spi32le(sd_image[index].valid ? f_size(&sd_image[index].file) : 0);
 	spi32le(0); // reserved for future expansion
 	spi32le(0); // reserved for future expansion
 	spi32le(0); // reserved for future expansion
@@ -1182,8 +1205,8 @@ void user_io_poll() {
 					DISKLED_ON;
 
 #if 1
-					if(sd_image[drive_index].file.size) {
-						if(((sd_image[drive_index].file.size-1) >> 9) >= lba) {
+					if(sd_image[drive_index].valid) {
+						if(((f_size(&sd_image[drive_index].file)-1) >> 9) >= lba) {
 							IDXSeek(&sd_image[drive_index], lba);
 							IDXWrite(&sd_image[drive_index], wr_buf);
 						}
@@ -1211,8 +1234,8 @@ void user_io_poll() {
 				// (C64 floppy does that ...)
 				if(buffer_lba != lba) {
 					DISKLED_ON;
-					if(sd_image[drive_index].file.size) {
-						if(((sd_image[drive_index].file.size-1) >> 9) >= lba) {
+					if(sd_image[drive_index].valid) {
+						if(((f_size(&sd_image[drive_index].file)-1) >> 9) >= lba) {
 							IDXSeek(&sd_image[drive_index], lba);
 							IDXRead(&sd_image[drive_index], buffer);
 						}
@@ -1241,9 +1264,9 @@ void user_io_poll() {
 				// just load the next sector now, so it may be prefetched
 				// for the next request already
 				DISKLED_ON;
-				if(sd_image[drive_index].file.size) {
+				if(sd_image[drive_index].valid) {
 					// but check if it would overrun on the file
-					if(((sd_image[drive_index].file.size-1) >> 9) > lba) {
+					if(((f_size(&sd_image[drive_index].file)-1) >> 9) > lba) {
 						IDXSeek(&sd_image[drive_index], lba+1);
 						IDXRead(&sd_image[drive_index], buffer);
 						buffer_lba = lba + 1;
@@ -1955,7 +1978,8 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 
 			if(pressed[i] && code != MISS)
 			{
-				iprintf("key 0x%X break: 0x%X\n", pressed[i], code);
+				if (user_io_dip_switch1())
+					iprintf("key 0x%X break: 0x%X\n", pressed[i], code);
 
 				for(j=0;j<6 && pressed[i] != k[j];j++);
 
@@ -2012,7 +2036,8 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 
 				if(j == 6)
 				{
-					iprintf("key 0x%X make: 0x%X\n", k[i], code);
+					if (user_io_dip_switch1())
+						iprintf("key 0x%X make: 0x%X\n", k[i], code);
 
 					// If OSD is visible, then all keys are sent into the OSD
 					// using Amiga key codes since the OSD itself uses Amiga key codes
@@ -2165,12 +2190,14 @@ void user_io_key_remap(char *s) {
 	}
 }
 
-unsigned char user_io_ext_idx(fileTYPE *file, char* ext) {
+unsigned char user_io_ext_idx(const char *name, const char* ext) {
 	unsigned char idx = 0;
 	int len = strlen(ext);
-	
+
+	const char *nameext = GetExtension(name);
+	if (!nameext) return 0;
 	while((len>3) && *ext) {
-		if(!strncmp(file->name+8,ext,3)) return idx;
+		if(!strncmp(nameext,ext,3)) return idx;
 		if(strlen(ext)<=3) break;
 		idx++;
 		ext +=3;
@@ -2179,67 +2206,16 @@ unsigned char user_io_ext_idx(fileTYPE *file, char* ext) {
 	return 0;
 }
 
-extern unsigned char nDirEntries;
-extern DIRENTRY DirEntry[MAXDIRENTRIES];
-extern unsigned char iSelectedEntry;
-
-// this should be moved into fat.c?
 void user_io_change_into_core_dir(void) {
-	char s[13];  // 8+3+'\0'
-	if (arc_get_dirname()[0]) {
-		strncpy(s, "           ", 11);
-		strncpy(s, arc_get_dirname(), strlen(arc_get_dirname()));
-	} else {
-		user_io_create_config_name(s);
-		strcpy(s+8, "   ");
-	}
 
+	if (arc_get_dirname()[0]) {
+		strcpy(s, "/");
+		strcat(s, arc_get_dirname());
+	} else {
+		user_io_create_config_name(s, 0, 1);
+	}
 	// try to change into subdir named after the core
 	iprintf("Trying to open work dir \"%s\"\n", s);
+	ChangeDirectoryName(s);
 
-	ScanDirectory(SCAN_INIT, "",  SCAN_DIR | FIND_DIR);
-
-	unsigned short last_StartCluster = 0;
-
-	// no return flag :(, so scan 10 times blindly...
-	for(;;) {
-		char res = 0;
-
-#if 0
-		// debug
-		iprintf("new list nDirentries=%d iSelected=%d\n", nDirEntries, iSelectedEntry);
-		for(int i=0;i<nDirEntries;i++) {
-			iprintf("%11s %x\n", DirEntry[i].Name, DirEntry[i].StartCluster);
-		}
-#endif
-
-		for(int i=0;i<nDirEntries;i++) {
-			//iprintf("cmp %11s %11s\n", DirEntry[i].Name, s);
-			if(strncasecmp(DirEntry[i].Name, s, 11) == 0) {
-				ChangeDirectory(DirEntry[i].StartCluster + (fat32 ? (DirEntry[i].HighCluster & 0x0FFF) << 16 : 0));
-				res = 1;
-				break;
-			}
-		}
-		// found directory: stop searching
-		if(res) { iprintf("ok\n"); break; }
-
-		// last search returned less than 8 entries: Stop searching since 
-		// there sure aren't more
-		if(nDirEntries != 8) 
-			break;
-
-		// if 8 entries are returned check if the start cluster of the first entry
-		// is the same as the first one in the previous list. If it is, then this
-		// is the same list and we are done
-		if((nDirEntries == 8) && (DirEntry[0].StartCluster == last_StartCluster)) 
-			break;
-
-		last_StartCluster = DirEntry[0].StartCluster;
-
-		// get next 8 directory entries
-		iSelectedEntry = MAXDIRENTRIES -1;
-		ScanDirectory(SCAN_NEXT_PAGE, "",  SCAN_DIR | FIND_DIR);
-
-	}
 }

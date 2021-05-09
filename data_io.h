@@ -18,8 +18,8 @@
 
 void data_io_set_index(char index);
 void data_io_fill_tx(unsigned char, unsigned int, char);
-void data_io_file_tx(fileTYPE *, char);
-void data_io_file_rx(fileTYPE *, char, unsigned int);
+void data_io_file_tx(FIL*, char, const char*);
+void data_io_file_rx(FIL*, char, unsigned int);
 
 // called when a rom entry is found in the mist.ini
 void data_io_rom_upload(char *s, char mode);

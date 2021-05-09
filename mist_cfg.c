@@ -12,7 +12,7 @@
 #include "usb/hid.h"
 #include "usb/joymapping.h"
 
-extern fileTYPE ini_file;
+extern FIL ini_file;
 
 // call data_io_rom_upload but reload sector_buffer afterwards since the io
 // operations in data_io_rom_upload may have overwritten the buffer
@@ -21,7 +21,7 @@ void ini_rom_upload(char *s) {
 #ifndef INI_PARSER_TEST
   data_io_rom_upload(s, 1);
 
-  FileRead(&ini_file, sector_buffer);
+  FileReadBlock(&ini_file, sector_buffer);
 #endif
 }
 
@@ -130,9 +130,8 @@ const ini_cfg_t mist_ini_cfg = {
 #ifdef INI_PARSER_TEST
   "test.ini",
 #else
-  "MIST    INI",
+  "/MIST.INI",
 #endif
-  0,
   mist_ini_sections,
   mist_ini_vars,
   (int)(sizeof(mist_ini_sections) / sizeof(ini_section_t)),

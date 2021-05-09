@@ -18,23 +18,30 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "fat.h"
+#include "fat_compat.h"
+
+#define SZ_TBL 1024
+#define HDD_IMAGES 2
 
 typedef struct
 {
-	fileTYPE file;
-        unsigned long  index[1024];
-        unsigned long  index_size;
+	char valid;
+	FIL file;
+	DWORD clmt[SZ_TBL];
 } IDXFile;
 
+extern IDXFile hdd_image[HDD_IMAGES];
+
 static inline unsigned char IDXRead(IDXFile *file, unsigned char *pBuffer) {
-  return FileRead(&(file->file), pBuffer);
+  UINT br;
+  return f_read(&(file->file), pBuffer, 512, &br);
 }
 
 static inline unsigned char IDXWrite(IDXFile *file, unsigned char *pBuffer) {
-  return FileWrite(&(file->file), pBuffer);
+  UINT bw;
+  return f_write(&(file->file), pBuffer, 512, &bw);
 }
-  
+
 unsigned char IDXOpen(IDXFile *file, const char *name);
 unsigned char IDXSeek(IDXFile *file, unsigned long lba);
 void IDXIndex(IDXFile *pIDXF);

@@ -33,9 +33,6 @@ const ini_var_t arc_ini_vars[] = {
 	{"CONF", (void*)arc_set_conf, CUSTOM_HANDLER, 0, 0, 1},
 };
 
-
-extern unsigned long iCurrentDirectory;    // cluster number of current directory, 0 for root
-
 void arc_set_conf(char *c)
 {
 	if ((conf_ptr+strlen(c))<MAX_CONF_SIZE-1) {
@@ -50,7 +47,6 @@ char arc_open(char *fname)
 	ini_cfg_t arc_ini_cfg;
 
 	arc_ini_cfg.filename = fname;
-	arc_ini_cfg.dir = iCurrentDirectory;
 	arc_ini_cfg.sections = arc_ini_sections;
 	arc_ini_cfg.vars = arc_ini_vars;
 	arc_ini_cfg.nsections = (int)(sizeof(arc_ini_sections) / sizeof(ini_section_t));

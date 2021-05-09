@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "string.h"
 #include "errors.h"
 #include "hardware.h"
-#include "fat.h"
+#include "fat_compat.h"
 #include "firmware.h"
 
 /* polynomial 0xEDB88320 */
@@ -72,7 +72,7 @@ unsigned long CalculateCRC32(unsigned long crc, unsigned char *pBuffer, unsigned
     return crc;  
 }
 
-unsigned char CheckFirmware(fileTYPE *file, char *name)
+unsigned char CheckFirmware(char *name)
 {
     UPGRADE *pUpgrade = (UPGRADE*)sector_buffer;
     unsigned long crc;
@@ -80,17 +80,18 @@ unsigned char CheckFirmware(fileTYPE *file, char *name)
     unsigned long rom_size;
     unsigned long rom_crc;
     unsigned long read_size;
+    FIL file;
 
     Error = ERROR_FILE_NOT_FOUND;
-    if (FileOpen(file, name))
+    if (f_open(&file, name, FA_READ) == FR_OK)
     {
         Error = ERROR_INVALID_DATA;
-        iprintf("Upgrade file size     : %lu\r", file->size);
+        iprintf("Upgrade file size     : %lu\r", f_size(&file));
         iprintf("Upgrade header size   : %lu\r", (unsigned long)sizeof(UPGRADE));
 
-        if (file->size >= sizeof(UPGRADE))
+        if (f_size(&file) >= sizeof(UPGRADE))
         {
-            FileRead(file, sector_buffer);
+            FileReadBlock(&file, sector_buffer);
             crc = ~CalculateCRC32(-1, sector_buffer, sizeof(UPGRADE) - 4);
             iprintf("Upgrade ROM size      : %lu\r", pUpgrade->rom.size);
             iprintf("Upgrade header CRC    : %08lX\r", pUpgrade->crc);
@@ -99,7 +100,7 @@ unsigned char CheckFirmware(fileTYPE *file, char *name)
             {
                 if (strncmp((const char*)pUpgrade->id, "MNMGUPG", 7) == 0 && pUpgrade->id[7] == 0)
                 {
-                    if (pUpgrade->rom.size == file->size - sizeof(UPGRADE))
+                    if (pUpgrade->rom.size == f_size(&file) - sizeof(UPGRADE))
                     {
                         rom_size = pUpgrade->rom.size;
                         rom_crc = pUpgrade->rom.crc;
@@ -113,8 +114,7 @@ unsigned char CheckFirmware(fileTYPE *file, char *name)
                             else
                                read_size = size;
 
-                            FileNextSector(file);
-                            FileRead(file, sector_buffer);
+                            FileReadBlock(&file, sector_buffer);
                             crc = CalculateCRC32(crc, sector_buffer, read_size);
                             size -= read_size;
                         }
@@ -122,33 +122,36 @@ unsigned char CheckFirmware(fileTYPE *file, char *name)
                         iprintf("ROM CRC from header   : %08lX\r", rom_crc);
                         if (~crc == rom_crc)
                         { // upgrade file CRC is OK so go back to the beginning of the file
-                            FileSeek(file, 0, SEEK_SET);
+                            f_close(&file);
                             Error = ERROR_NONE;
                             return 1;
                         }
                         else iprintf("ROM CRC mismatch! from header: %08lX, calculated: %08lX\r", rom_crc, ~crc);
                     }
-                    else iprintf("ROM size mismatch! from header: %lu, from file: %lu\r", pUpgrade->rom.size, file->size-sizeof(UPGRADE));
+                    else iprintf("ROM size mismatch! from header: %lu, from file: %lu\r", pUpgrade->rom.size, f_size(&file)-sizeof(UPGRADE));
                 }
                 else iprintf("Invalid upgrade file header!\r");
             }
             else iprintf("Header CRC mismatch! from header: %08lX, calculated: %08lX\r", pUpgrade->crc, crc);
         }
-        else iprintf("Upgrade file size too small: %lu\r", file->size);
+        else iprintf("Upgrade file size too small: %lu\r", f_size(&file));
+        f_close(&file);
     }
     else iprintf("Cannot open firmware file!\r");
     return 0;
 }
 
-char *GetFirmwareVersion(fileTYPE *file, char *name) {
+char *GetFirmwareVersion(char *name) {
   static char v[16];
+  FIL file;
 
-  if ((!FileOpen(file, name) || file->size < sizeof(UPGRADE))) 
+  if ((f_open(&file, name, FA_READ) != FR_OK) || (f_size(&file) < sizeof(UPGRADE)))
     return NULL;
 
-  FileRead(file, sector_buffer);
+  FileReadBlock(&file, sector_buffer);
   strncpy(v, ((UPGRADE*)sector_buffer)->version, 16);
   v[15] = 0;
+  f_close(&file);
 
   return v;
 }
@@ -159,7 +162,7 @@ char *GetFirmwareVersion(fileTYPE *file, char *name) {
 #define GCC_OPTIMZES_TOO_MUCH
 
 #pragma section_code_init
-RAMFUNC void WriteFirmware(fileTYPE *file, char *name)
+RAMFUNC void WriteFirmware(char *name)
 {
     unsigned long read_size;
     unsigned long i;
@@ -167,20 +170,31 @@ RAMFUNC void WriteFirmware(fileTYPE *file, char *name)
     unsigned long page;
     unsigned long *pSrc;
     unsigned long *pDst;
-    unsigned long size;
+    FSIZE_t size;
+    FIL file;
+    static DWORD clmt[99];
 
+
+    // Since the file may have changed in the meantime, it needs to be
+    // opened again...
+    if (f_open(&file, name, FA_READ) != FR_OK) return;
+    clmt[0] = 99;
+    file.cltbl = clmt;
+    if ((f_lseek(&file, CREATE_LINKMAP) != FR_OK) ||
+        (f_lseek(&file, sizeof(UPGRADE)) != FR_OK) ||
+        (f_tell(&file) != sizeof(UPGRADE))) {
+        f_close(&file);
+        return;
+    }
+    size = f_size(&file) - sizeof(UPGRADE);
     // All interrupts have to be disabled.
     asm volatile ("mrs r12, CPSR; orr r12, r12, #0xC0; msr CPSR_c, r12"
         : /* No outputs */
         : /* No inputs */
         : "r12", "cc");
 
-    // Since the file may have changed in the meantime, it needs to be
-    // opened again...
-    if (!FileOpen(file, name)) 
-        return;
-
-    size = file->size - sizeof(UPGRADE);
+    // Hack to foul FatFs to not handle a final partial sector (to avoid a memcpy)
+    //file.obj.objsize = (file.obj.objsize + 511) & 0xfffffe00;
     page = 0;
     pDst = 0;
 
@@ -198,21 +212,20 @@ RAMFUNC void WriteFirmware(fileTYPE *file, char *name)
     while (size)
     {
         if (size > 512)
-	    read_size = 512;
+            read_size = 512;
         else
-	    read_size = size;
+            read_size = size;
 
         // On _any_ error the upgrade will fail :-(
         // then the firmware needs to be upgraded by another way!
-        FileNextSector(file); 
-        FileRead(file, sector_buffer);
+        FileReadNextBlock(&file, sector_buffer);
 
 #ifndef GCC_OPTIMZES_TOO_MUCH  // the latest gcc 4.8.0 calls memset for this
-	// it doesn't hurt to not do this at all
+        // it doesn't hurt to not do this at all
 
         // fill the rest of buffer
-	for (i = read_size; i < 512; i++)
-	  sector_buffer[i] = 0xFF;
+        for (i = read_size; i < 512; i++)
+            sector_buffer[i] = 0xFF;
 #endif
 
         // programming time: 13.2 ms per disk sector (512B)
@@ -220,53 +233,32 @@ RAMFUNC void WriteFirmware(fileTYPE *file, char *name)
         k = 2;
         while (k--)
         {
-			if(size & 2048) DISKLED_ON
-				else DISKLED_OFF;
+            if(size & 2048) DISKLED_ON
+            else DISKLED_OFF;
 
 #ifndef GCC_OPTIMZES_TOO_MUCH  // the latest gcc 4.8.0 calls memcpy for this
-		i = 256 / 4;
-		while (i--)
-		  *pDst++ = *pSrc++;
+            i = 256 / 4;
+            while (i--)
+                *pDst++ = *pSrc++;
 #else
-		i = 256 / 8;
-		while (i--) {
-		  *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++;
-		}
+            i = 256 / 8;
+            while (i--) {
+                *pDst++ = *pSrc++;
+                *pDst++ = *pSrc++;
+            }
 
-#if 0
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-		  *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++; *pDst++ = *pSrc++;
-#endif
 #endif
 
-                while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
-                *AT91C_MC_FCR = 0x5A << 24 | page << 8 | AT91C_MC_FCMD_START_PROG; // key: 0x5A
-                while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
-                page++;
+            while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
+            *AT91C_MC_FCR = 0x5A << 24 | page << 8 | AT91C_MC_FCMD_START_PROG; // key: 0x5A
+            while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
+            page++;
         }
 
         size -= read_size;
     }
 
-	DISKLED_OFF;
+    DISKLED_OFF;
     *AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
     for(;;);
 }

@@ -4,9 +4,8 @@
 #include "AT91SAM7S256.h"
 #include <inttypes.h>
 
-#define RAMFUNC __attribute__ ((long_call, section (".ramsection")))
-
 #include "hardware.h"
+#include "attrs.h"
 
 /* main init functions */
 void spi_init(void);
@@ -39,8 +38,8 @@ void spi_n(unsigned char value, unsigned short cnt);
 /* block transfer functions */
 RAMFUNC void spi_block_read(char *addr);
 RAMFUNC void spi_read(char *addr, uint16_t len);
-void spi_block_write(char *addr);
-void spi_write(char *addr, uint16_t len);
+void spi_block_write(const char *addr);
+void spi_write(const char *addr, uint16_t len);
 void spi_block(unsigned short num);
 
 /* OSD related SPI functions */

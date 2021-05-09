@@ -33,14 +33,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "errors.h"
 #include "hardware.h"
-#include "fat.h"
+#include "fat_compat.h"
 #include "fdd.h"
 #include "config.h"
 #include "debug.h"
 
 #ifdef __GNUC__
 #define SPIN
-extern fileTYPE file;
 #endif
 
 unsigned char drives = 0; // number of active drives reported by FPGA (may change only during reset)
@@ -191,16 +190,13 @@ void ReadTrack(adfTYPE *drive)
     { // track step or track 0, start at beginning of track
         drive->track_prev = drive->track;
         sector = 0;
-        file.cluster = drive->cache[drive->track];
-        file.sector = drive->track * SECTOR_COUNT;
         drive->sector_offset = sector;
-        drive->cluster_offset = file.cluster;
+        f_lseek(&drive->file, drive->track * SECTOR_COUNT * 512);
     }
     else
     { // same track, start at next sector in track
         sector = drive->sector_offset;
-        file.cluster = drive->cluster_offset;
-        file.sector = (drive->track * SECTOR_COUNT) + sector;
+        f_lseek(&drive->file, (drive->track * SECTOR_COUNT + sector) * 512);
     }
 
     EnableFpga();
@@ -217,7 +213,7 @@ void ReadTrack(adfTYPE *drive)
 
     while (1)
     {
-        FileRead(&file, sector_buffer);
+        FileReadBlock(&drive->file, sector_buffer);
 
         EnableFpga();
 
@@ -273,18 +269,16 @@ void ReadTrack(adfTYPE *drive)
         sector++;
         if (sector < SECTOR_COUNT)
         {
-            FileNextSector(&file);
+            //FileNextSector(&file);
         }
         else // go to the start of current track
         {
             sector = 0;
-            file.cluster = drive->cache[drive->track];
-            file.sector = drive->track * SECTOR_COUNT;
+            f_lseek(&drive->file, (drive->track * SECTOR_COUNT) * 512);
         }
 
         // remember current sector and cluster
         drive->sector_offset = sector;
-        drive->cluster_offset = file.cluster;
     }
 }
 
@@ -360,42 +354,42 @@ unsigned char GetHeader(unsigned char *pTrack, unsigned char *pSector)
                 break;
             }
 
-			SPIN;
+            SPIN;
 
             c = SPI(0);
             checksum[0] = c;
             c1 = (c & 0x55) << 1;
-			SPIN;
+            SPIN;
             c = SPI(0);
             checksum[1] = c;
             c2 = (c & 0x55) << 1;
 
-			SPIN;
+            SPIN;
 
             c = SPI(0);
             checksum[2] = c;
             c3 = (c & 0x55) << 1;
-			SPIN;
+            SPIN;
             c = SPI(0);
             checksum[3] = c;
             c4 = (c & 0x55) << 1;
 
-			SPIN;
+            SPIN;
 
             c = SPI(0);
             checksum[0] ^= c;
             c1 |= c & 0x55;
-			SPIN;
+            SPIN;
             c = SPI(0);
             checksum[1] ^= c;
             c2 |= c & 0x55;
 
-			SPIN;
+            SPIN;
 
             c = SPI(0);
             checksum[2] ^= c;
             c3 |= c & 0x55;
-			SPIN;
+            SPIN;
             c = SPI(0);
             checksum[3] ^= c;
             c4 |= c & 0x55;
@@ -420,10 +414,10 @@ unsigned char GetHeader(unsigned char *pTrack, unsigned char *pSector)
 
             for (i = 0; i < 8; i++)
             {
-				SPIN;
+                SPIN;
                 checksum[0] ^= SPI(0);
                 checksum[1] ^= SPI(0);
-				SPIN;
+                SPIN;
                 checksum[2] ^= SPI(0);
                 checksum[3] ^= SPI(0);
             }
@@ -433,19 +427,19 @@ unsigned char GetHeader(unsigned char *pTrack, unsigned char *pSector)
             checksum[2] &= 0x55;
             checksum[3] &= 0x55;
 
-			SPIN;
+            SPIN;
 
             c1 = ((SPI(0)) & 0x55) << 1;
             c2 = ((SPI(0)) & 0x55) << 1;
-			SPIN;
+            SPIN;
             c3 = ((SPI(0)) & 0x55) << 1;
             c4 = ((SPI(0)) & 0x55) << 1;
 
-			SPIN;
+            SPIN;
 
             c1 |= (SPI(0)) & 0x55;
             c2 |= (SPI(0)) & 0x55;
-			SPIN;
+            SPIN;
             c3 |= (SPI(0)) & 0x55;
             c4 |= (SPI(0)) & 0x55;
 
@@ -496,19 +490,19 @@ unsigned char GetData(void)
 
         if (n >= 0x204)
         {
-			SPIN;
+            SPIN;
 
             c1 = ((SPI(0)) & 0x55) << 1;
             c2 = ((SPI(0)) & 0x55) << 1;
-			SPIN;
+            SPIN;
             c3 = ((SPI(0)) & 0x55) << 1;
             c4 = ((SPI(0)) & 0x55) << 1;
 
-			SPIN;
+            SPIN;
 
             c1 |= (SPI(0)) & 0x55;
             c2 |= (SPI(0)) & 0x55;
-			SPIN;
+            SPIN;
             c3 |= (SPI(0)) & 0x55;
             c4 |= (SPI(0)) & 0x55;
 
@@ -522,14 +516,14 @@ unsigned char GetData(void)
             p = sector_buffer;
             do
             {
-				SPIN;
+                SPIN;
                 c = SPI(0);
                 checksum[0] ^= c;
                 *p++ = (c & 0x55) << 1;
                 c = SPI(0);
                 checksum[1] ^= c;
                 *p++ = (c & 0x55) << 1;
-				SPIN;
+                SPIN;
                 c = SPI(0);
                 checksum[2] ^= c;
                 *p++ = (c & 0x55) << 1;
@@ -544,14 +538,14 @@ unsigned char GetData(void)
             p = sector_buffer;
             do
             {
-				SPIN;
+                SPIN;
                 c = SPI(0);
                 checksum[0] ^= c;
                 *p++ |= c & 0x55;
                 c = SPI(0);
                 checksum[1] ^= c;
                 *p++ |= c & 0x55;
-				SPIN;
+                SPIN;
                 c = SPI(0);
                 checksum[2] ^= c;
                 *p++ |= c & 0x55;
@@ -594,8 +588,7 @@ void WriteTrack(adfTYPE *drive)
     unsigned char Sector;
 
     // setting file pointer to begining of current track
-    file.cluster = drive->cache[drive->track];
-    file.sector = drive->track * 11;
+    f_lseek(&drive->file, drive->track * 11 * 512);
     sector = 0;
 
 //    drive->track_prev = drive->track + 1; // This causes a read that directly follows a write to the previous track to return bad data.
@@ -611,13 +604,11 @@ void WriteTrack(adfTYPE *drive)
                 {
                     if (sector < Sector)
                     {
-                        FileNextSector(&file);
                         sector++;
                     }
                     else
                     {
-                        file.cluster = drive->cache[drive->track];
-                        file.sector = drive->track * 11;
+                        f_lseek(&drive->file, drive->track * SECTOR_COUNT * 512);
                         sector = 0;
                     }
                 }
@@ -625,7 +616,7 @@ void WriteTrack(adfTYPE *drive)
                 if (GetData())
                 {
                     if (drive->status & DSK_WRITABLE)
-                        FileWrite(&file, sector_buffer);
+                        FileWriteBlock(&drive->file, sector_buffer);
                     else
                     {
                         Error = 30;
@@ -642,6 +633,7 @@ void WriteTrack(adfTYPE *drive)
             ErrorMessage("  WriteTrack", Error);
         }
     }
+    f_sync(&drive->file);
 }
 
 void UpdateDriveStatus(void)

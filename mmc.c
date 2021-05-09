@@ -38,7 +38,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "spi.h"
 
 #include "mmc.h"
-#include "fat.h"
+#include "fat_compat.h"
 
 // variables
 static unsigned char crc;
@@ -51,7 +51,7 @@ static void MMC_CRC(unsigned char c) RAMFUNC;
 static unsigned char MMC_Command(unsigned char cmd, unsigned long arg) RAMFUNC;
 static unsigned char MMC_CMD12(void);
 
-unsigned char MMC_CheckCard() {
+RAMFUNC unsigned char MMC_CheckCard() {
   // check for removal of card
   if((CardType != CARDTYPE_NONE) && !mmc_inserted()) {
     CardType = CARDTYPE_NONE;
@@ -398,7 +398,7 @@ unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, un
 }
 
 // write 512-byte block
-unsigned char MMC_Write(unsigned long lba, unsigned char *pWriteBuffer)
+unsigned char MMC_Write(unsigned long lba, const unsigned char *pWriteBuffer)
 {
     unsigned long i;
 

@@ -14,7 +14,7 @@
 #include "debug.h"
 #include "xmodem.h"
 #include "hardware.h"
-#include "fat.h"
+#include "fat_compat.h"
 #include "user_io.h"
 #include "data_io.h"
 
@@ -32,7 +32,7 @@ static unsigned long timer;
 static char filename[11];  // a 8+3 filename
 static unsigned long filelen;
 
-static fileTYPE file;
+static FIL file;
 static unsigned char *sector_ptr;
 static unsigned short sector_count;
 
@@ -97,7 +97,7 @@ void xmodem_rx_byte(unsigned char byte) {
       if(state == X_NAME) {
 	// start xmodem only if filename and file length were given
 	if(filename[0] && filelen) {
-	  if(!FileNew(&file, filename, filelen)) {
+	  if(FileOpenCompat(&file, filename, FA_READ | FA_WRITE | FA_OPEN_ALWAYS) != FR_OK) {
 	    iprintf("XMODEM: file creation failed\n");
 	    state = IDLE;
 	  } else {
@@ -121,10 +121,10 @@ void xmodem_rx_byte(unsigned char byte) {
 	  if(!filename[0] || !p || strncmp(p, filename+8, 3) != 0)
 	    iprintf("UPLOAD: Core reports file type '%s', but given was '%.3s'\n", p, filename+8);
 	  else {
-	    if(!FileOpen(&file, filename))
+	    if(FileOpenCompat(&file, filename, FA_READ | FA_WRITE))
 	      iprintf("UPLOAD: File open failed\n");
 	    else 
-	      data_io_file_tx(&file, 1);
+	      data_io_file_tx(&file, 1, 0);
 	  }
 	}
 	state = IDLE;
@@ -180,12 +180,12 @@ void xmodem_rx_byte(unsigned char byte) {
 
       // partially filled sector in buffer?
       if(sector_count) 
-	if(!FileWrite(&file, sector_buffer))
+	if(FileWriteBlock(&file, sector_buffer) != FR_OK)
 	  iprintf("XMODEM: write failed\n");
       
       // close file
       // end writing file, so cluster chain may be trimmed
-      if(!FileWriteEnd(&file))
+      if(f_close(&file) != FR_OK)
 	iprintf("XMODEM: End chain failed\n");
     }
     break;
@@ -225,17 +225,17 @@ void xmodem_rx_byte(unsigned char byte) {
       state = CHK;
 
     if(filelen && (++sector_count == 512)) {
-      if(!FileWrite(&file, sector_buffer))
+      if(FileWriteBlock(&file, sector_buffer) != FR_OK)
 	iprintf("XMODEM: write failed\n");
 
       // still more than 512 bytes expected?
       if(filelen > 512) {
 	filelen -= 512;
 
-	if(!FileNextSectorExpand(&file))
-          iprintf("XMODEM: File next sector failed\n");
-      } else {
-	filelen = 0;
+//	if(!FileNextSectorExpand(&file))
+//          iprintf("XMODEM: File next sector failed\n");
+//      } else {
+//	filelen = 0;
       }
 
       sector_count = 0;

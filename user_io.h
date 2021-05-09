@@ -7,7 +7,7 @@
 #define USER_IO_H
 
 #include <inttypes.h>
-#include "fat.h"
+#include "fat_compat.h"
 
 #define UIO_STATUS      0x00
 #define UIO_BUT_SW      0x01
@@ -177,7 +177,7 @@ void user_io_sd_set_config(void);
 char user_io_dip_switch1(void);
 char user_io_serial_status(serial_status_t *, uint8_t);
 char user_io_is_mounted(unsigned char index);
-void user_io_file_mount(fileTYPE *, unsigned char);
+void user_io_file_mount(const unsigned char*, unsigned char);
 char *user_io_get_core_name();
 void user_io_set_core_mod(char);
 
@@ -191,7 +191,7 @@ void user_io_eth_receive_tx_frame(uint8_t *, uint16_t);
 // hooks from the usb layer
 void user_io_mouse(unsigned char idx, unsigned char b, char x, char y, char z);
 void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned short vid, unsigned short pid);
-char user_io_create_config_name(char *s);
+char user_io_create_config_name(char *s, const char *ext, char root);
 void user_io_digital_joystick(unsigned char, unsigned char);
 void user_io_digital_joystick_ext(unsigned char, uint16_t);
 void user_io_analog_joystick(unsigned char, char, char);
@@ -201,7 +201,7 @@ void user_io_send_buttons(char);
 void user_io_key_remap(char *);
 void add_modifiers(uint8_t mod, uint16_t* keys_ps2);
 
-unsigned char user_io_ext_idx(fileTYPE *, char*);
+unsigned char user_io_ext_idx(const char*, const char*);
 
 void user_io_change_into_core_dir(void);
 

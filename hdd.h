@@ -4,6 +4,7 @@
 #ifndef __HDD_H__
 #define __HDD_H__
 
+#include "idxfile.h"
 
 // defines
 #define CMD_IDECMD  0x04
@@ -51,27 +52,22 @@ typedef struct
 {
     unsigned char enabled; // 0: Disabled, 1: Hard file, 2: MMC (entire card), 3-6: Partition 1-4 of MMC card
     unsigned char present;
-    char name[8];
-    char long_name[16];
+    char name[64];
 } hardfileTYPE;
 
 typedef struct
 {
   int             type; // are we using a file, the entire SD card or a partition on the SD card?
-  fileTYPE        file;
+  IDXFile         *idxfile;
   unsigned short  cylinders;
   unsigned short  heads;
   unsigned short  sectors;
   unsigned short  sectors_per_block;
   unsigned short  partition; // partition no.
   long            offset; // if a partition, the lba offset of the partition.  Can be negative if we've synthesized an RDB.
-  unsigned long   index[1024];
-  unsigned long   index_size;
 } hdfTYPE;
 
 // variables
-extern char debugmsg[40];
-extern char debugmsg2[40];
 extern hardfileTYPE *hardfile[2];
 extern hdfTYPE hdf[2];
 

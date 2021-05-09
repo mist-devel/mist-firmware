@@ -43,7 +43,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "errors.h"
 #include "hardware.h"
 #include "mmc.h"
-#include "fat.h"
+#include "fat_compat.h"
 #include "osd.h"
 #include "fpga.h"
 #include "fdd.h"
@@ -65,7 +65,7 @@ const char version[] = {"$VER:ATH" VDATE};
 extern hdfTYPE hdf[2];
 
 unsigned char Error;
-char s[40];
+char s[FF_LFN_BUF + 1];
 
 void FatalError(unsigned long error) {
   unsigned long i;
@@ -161,7 +161,7 @@ int main(void)
     if (!FindDrive())
         FatalError(2);
 
-    ChangeDirectory(DIRECTORY_ROOT);
+    ChangeDirectoryName("/");
 
     arc_reset();
 

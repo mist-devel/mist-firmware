@@ -9,8 +9,7 @@
 #include "hardware.h"
 #include "osd.h"
 #include "spi.h"
-#include "fat.h"
-#include "rafile.h"
+#include "fat_compat.h"
 
 // TODO!
 #define SPIN() asm volatile ( "mov r0, r0\n\t" \
@@ -180,20 +179,20 @@ void BootClearScreen(int adr, int size)
 //// BootUploadLogo() ////
 void BootUploadLogo()
 {
-  RAFile file;
+  FIL file;
   int x,y;
   int i=0;
   int adr;
 
-  if (RAOpen(&file, LOGO_FILE)) {
-    RARead(&file, sector_buffer, 512);
+  if (FileOpenCompat(&file, LOGO_FILE, FA_READ) == FR_OK) {
+    FileReadBlock(&file, sector_buffer);
     mem_upload_init(SCREEN_BPL1+LOGO_OFFSET);
     adr = SCREEN_BPL1+LOGO_OFFSET;
     for (y=0; y<LOGO_HEIGHT; y++) {
       for (x=0; x<LOGO_WIDTH/16; x++) {
         if (i == 512) {
           mem_upload_fini();
-          RARead(&file, sector_buffer, 512);
+          FileReadBlock(&file, sector_buffer);
           mem_upload_init(adr);
           i = 0;
         }
@@ -215,7 +214,7 @@ void BootUploadLogo()
       for (x=0; x<LOGO_WIDTH/16; x++) {
         if (i == 512) {
           mem_upload_fini();
-          RARead(&file, sector_buffer, 512);
+          FileReadBlock(&file, sector_buffer);
           mem_upload_init(adr);
           i = 0;
         }
@@ -229,6 +228,7 @@ void BootUploadLogo()
       adr = SCREEN_BPL2+LOGO_OFFSET+(y+1)*(SCREEN_WIDTH/8);
     }
     mem_upload_fini();
+    f_close(&file);
   }
 }
 
@@ -236,19 +236,19 @@ void BootUploadLogo()
 //// BootUploadBall() ////
 void BootUploadBall()
 {
-  RAFile file;
+  FIL file;
   int x;
   int i=0;
   int adr;
 
-  if (RAOpen(&file, BALL_FILE)) {
-    RARead(&file, sector_buffer, 512);
+  if (FileOpenCompat(&file, BALL_FILE, FA_READ) == FR_OK) {
+    FileReadBlock(&file, sector_buffer);
     mem_upload_init(BALL_ADDRESS);
     adr = BALL_ADDRESS;
     for (x=0; x<BALL_SIZE/2; x++) {
       if (i == 512) {
         mem_upload_fini();
-        RARead(&file, sector_buffer, 512);
+        FileReadBlock(&file, sector_buffer);
         mem_upload_init(adr);
         i = 0;
       }
@@ -258,6 +258,7 @@ void BootUploadBall()
       adr += 2;
     }
     mem_upload_fini();
+    f_close(&file);
   }
 }
 
@@ -265,19 +266,19 @@ void BootUploadBall()
 //// BootUploadCopper() ////
 void BootUploadCopper()
 {
-  RAFile file;
+  FIL file;
   int x;
   int i=0;
   int adr;
 
-  if (RAOpen(&file, COPPER_FILE)) {
-    RARead(&file, sector_buffer, 512);
+  if (FileOpenCompat(&file, COPPER_FILE, FA_READ) == FR_OK) {
+    FileReadBlock(&file, sector_buffer);
     mem_upload_init(COPPER_ADDRESS);
     adr = COPPER_ADDRESS;
     for (x=0; x<COPPER_SIZE/2; x++) {
       if (i == 512) {
         mem_upload_fini();
-        RARead(&file, sector_buffer, 512);
+        FileReadBlock(&file, sector_buffer);
         mem_upload_init(adr);
         i = 0;
       }
@@ -287,6 +288,7 @@ void BootUploadCopper()
       adr += 2;
     }
     mem_upload_fini();
+    f_close(&file);
   } else {
     mem_upload_init(COPPER_ADDRESS);
     mem_write16(0x00e0); mem_write16(0x0008);

@@ -13,7 +13,7 @@
 #include "ini_parser.h"
 #ifndef INI_PARSER_TEST
 #include "debug.h"
-#include "fat.h"
+#include "fat_compat.h"
 #endif
 
 //// defines ////
@@ -55,7 +55,7 @@ FILE* ini_fp = NULL;
 char  sector_buffer[INI_BUF_SIZE] = {0};
 int   ini_size=0;
 #else
-fileTYPE ini_file;
+FIL   ini_file;
 #endif
 
 int ini_pt = 0;
@@ -63,20 +63,20 @@ int ini_pt = 0;
 //// ini_getch() ////
 char ini_getch()
 {
+  UINT br;
   if (!(ini_pt&0x1ff)) {
     // reload buffer
     #ifdef INI_PARSER_TEST
     fread(sector_buffer, sizeof(char), INI_BUF_SIZE, ini_fp);
     #else
-    if (ini_pt) FileNextSector(&ini_file);
-    FileRead(&ini_file, sector_buffer);
+    f_read(&ini_file, sector_buffer, 512, &br);
     #endif
   }
 
   #ifdef INI_PARSER_TEST
   if (ini_pt >= ini_size) return 0;
   #else
-  if (ini_pt >= ini_file.size) return 0;
+  if (ini_pt >= f_size(&ini_file)) return 0;
   #endif
   else return sector_buffer[(ini_pt++)&0x1ff];
 }
@@ -273,7 +273,7 @@ void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
         break;
       case CUSTOM_HANDLER:
         ((custom_handler_t*)(cfg->vars[var_id].var))(&(buf[i]));
-	break;
+        break;
     }
     return (void*)(&(cfg->vars[var_id].var));
   }
@@ -295,8 +295,7 @@ void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
   #ifdef INI_PARSER_TEST
   if ((ini_fp = fopen(cfg->filename, "rb")) == NULL) { 
   #else
-  memset(&ini_file, 0, sizeof(ini_file));
-  if (!FileOpenDir(&ini_file, cfg->filename, cfg->dir)) {
+  if (f_open(&ini_file, cfg->filename, FA_READ)) {
   #endif
     ini_parser_debugf("Can't open file %s !", cfg->filename);
     return;
@@ -312,7 +311,7 @@ void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
   #ifdef INI_PARSER_TEST
   ini_parser_debugf("Opened file %s with size %d bytes.", cfg->filename, ini_size);
   #else
-  ini_parser_debugf("Opened file %s with size %d bytes.", cfg->filename, ini_file.size);
+  ini_parser_debugf("Opened file %s with size %d bytes.", cfg->filename, f_size(&ini_file));
   #endif
 
   ini_pt = 0;

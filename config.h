@@ -1,11 +1,5 @@
-#include "fat.h"
+#include "fat_compat.h"
 #include "hdd.h"
-
-typedef struct
-{
-    char name[8];
-    char long_name[16];
-} kickstartTYPE;
 
 typedef struct
 {
@@ -23,7 +17,7 @@ typedef struct
 {
     char          id[8];
     unsigned long version;
-    kickstartTYPE kickstart;
+    char          kickstart[64];
     filterTYPE    filter;
     unsigned char memory;
     unsigned char chipset;
@@ -31,16 +25,13 @@ typedef struct
     unsigned char disable_ar3;
     unsigned char enable_ide;
     unsigned char scanlines;
-	unsigned char pad1;
+    unsigned char pad1;
     hardfileTYPE  hardfile[2];
     unsigned char cpu;
-	unsigned char   autofire;
+    unsigned char   autofire;
 } configTYPE;
 
-extern fileTYPE file;	// Temporary file available for use by other modules, to avoid repeated memory usage.
-						// Shouldn't be considered persistent.
-
-extern configTYPE config; 
+extern configTYPE config;
 extern char DebugMode;
 
 char UploadKickstart(char *name);

@@ -27,11 +27,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //#include "stdbool.h"
 #include <stdlib.h>
 #include <inttypes.h>
+#include <ctype.h>
 #include "stdio.h"
 #include "string.h"
 #include "errors.h"
 #include "mmc.h"
-#include "fat.h"
+#include "fat_compat.h"
 #include "osd.h"
 #include "state.h"
 #include "fpga.h"
@@ -83,20 +84,17 @@ extern unsigned char drives;
 extern adfTYPE df[4];
 
 extern configTYPE config;
-extern fileTYPE file;
-extern char s[40];
+extern char s[FF_LFN_BUF + 1];
 
 extern unsigned char fat32;
 
-extern DIRENTRY DirEntry[MAXDIRENTRIES];
+extern FILINFO  DirEntries[MAXDIRENTRIES];
 extern unsigned char sort_table[MAXDIRENTRIES];
 extern unsigned char nDirEntries;
 extern unsigned char iSelectedEntry;
-extern unsigned long iCurrentDirectory;
-extern char DirEntryLFN[MAXDIRENTRIES][261];
 char DirEntryInfo[MAXDIRENTRIES][5]; // disk number info of dir entries
 char DiskInfo[5]; // disk number info of selected entry
-
+char *SelectedName;
 
 extern char minimig_ver_beta;
 extern char minimig_ver_major;
@@ -166,6 +164,11 @@ char* GetExt(char *ext) {
 	return extlist+1;
 }
 
+void ResetMenu()
+{
+	strcpy(fs_pFileExt, "xxx");
+}
+
 void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect, unsigned char MenuCancel, char chdir)
 {
 	// this function displays file selection menu
@@ -174,7 +177,7 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 
 	if (strncmp(pFileExt, fs_pFileExt, 12) != 0) // check desired file extension
 	{ // if different from the current one go to the root directory and init entry buffer
-		ChangeDirectory(DIRECTORY_ROOT);
+		ChangeDirectoryName("/");
 
 		// for 8 bit cores try to 
 		if(((user_io_core_type() == CORE_TYPE_8BIT) || (user_io_core_type() == CORE_TYPE_ARCHIE)) && chdir)
@@ -234,7 +237,7 @@ void siprintbinary(char* buffer, size_t const size, void const * const ptr)
 	return;
 }
 
-void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) {	
+void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) {
 	// helper to get joystick status (both USB or DB9)
 	uint16_t vjoy;
 	memset(joy_string, '\0', sizeof(joy_string));
@@ -671,9 +674,8 @@ void HandleUI(void)
 				switch(menusub) {
 					case 0:  // Floppy 0
 					case 1:  // Floppy 1
-						if(archie_floppy_is_inserted(menusub)) {
+						if(user_io_is_mounted(menusub)) {
 							archie_set_floppy(menusub, NULL);
-							user_io_file_mount(NULL, menusub);
 							menustate = MENU_ARCHIE_MAIN1;
 						} else
 							SelectFile("ADF", SCAN_DIR | SCAN_LFN, MENU_ARCHIE_MAIN_FILE_SELECTED, MENU_ARCHIE_MAIN1, 1);
@@ -711,15 +713,13 @@ void HandleUI(void)
 
 		case MENU_ARCHIE_MAIN_FILE_SELECTED : // file successfully selected
 			if(menusub == 0) {
-				archie_set_floppy(0, &file);
-				user_io_file_mount(&file, 0);
+				archie_set_floppy(0, SelectedName);
 			}
 			if(menusub == 1) {
-				archie_set_floppy(1, &file);
-				user_io_file_mount(&file, 1);
+				archie_set_floppy(1, SelectedName);
 			}
-			if(menusub == 2) archie_set_rom(&file);
-			if(menusub == 3) archie_set_cmos(&file);
+			if(menusub == 2) archie_set_rom(SelectedName);
+			if(menusub == 3) archie_set_cmos(SelectedName);
 			menustate = MENU_ARCHIE_MAIN1;
 			break;
 
@@ -1003,25 +1003,16 @@ void HandleUI(void)
 							int len = strtol(p+1,0,0);
 							menu_debugf("Option %s %d\n", p, len);
 							if (len) {
-								fileTYPE file;
+								FIL file;
 
-								user_io_create_config_name(s);
-								if(strlen(s) > 0) {
+								if (!user_io_create_config_name(s, "RAM", 1)) {
 									menu_debugf("Saving RAM file");
-									strcpy(s+8, "RAM");
-									if (FileOpen(&file, s)) {
-										menu_debugf("Existing RAM file size: %lu", file.size);
+									if (f_open(&file, s, FA_READ | FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
+										data_io_file_rx(&file, -1, len);
+										f_close(&file);
 									} else {
-										menu_debugf("Creating new RAM file");
-										strncpy(file.name, s, 11);
-										file.attributes = 0;
-										file.size = len;
-										if(!FileCreate(0, &file)) {
-											menu_debugf("File creation failed.");
-											break;
-										}
+										ErrorMessage("Error saving RAM file", 0);
 									}
-									data_io_file_rx(&file, -1, len);
 								}
 							}
 						} else if(p[0] == 'P') {
@@ -1070,17 +1061,21 @@ void HandleUI(void)
 			}
 			break;
 
-		case MENU_8BIT_MAIN_FILE_SELECTED : // file successfully selected
+		case MENU_8BIT_MAIN_FILE_SELECTED : {// file successfully selected
+			FIL file;
 			// this assumes that further file entries only exist if the first one also exists
-			data_io_file_tx(&file, user_io_ext_idx(&file, fs_pFileExt)<<6 | (menusub+1));
+			if (f_open(&file, SelectedName, FA_READ) == FR_OK) {
+				data_io_file_tx(&file, user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | (menusub+1), GetExtension(SelectedName));
+				f_close(&file);
+			}
 			// close menu afterwards
 			menustate = MENU_NONE1;
 			break;
-
+		}
 		case MENU_8BIT_MAIN_IMAGE_SELECTED :
-			iprintf("Image selected: %s\n", file.name);
-			data_io_set_index(user_io_ext_idx(&file, fs_pFileExt)<<6 | (menusub+1));
-			user_io_file_mount(&file, selected_drive_slot);
+			iprintf("Image selected: %s\n", SelectedName);
+			data_io_set_index(user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | (menusub+1));
+			user_io_file_mount(SelectedName, selected_drive_slot);
 			// select image for SD card
 			menustate = MENU_NONE1;
 			break;
@@ -1136,13 +1131,19 @@ void HandleUI(void)
 							menusub = 0;
 						} else {
 							// Save settings
-							user_io_create_config_name(s);
-							iprintf("Saving config to %s\n", s);
-							if(FileNew(&file, s, 8)) {
-							 // finally write data
-							 ((unsigned long long*)sector_buffer)[0] = user_io_8bit_set_status(0,0);
-							 FileWrite(&file, sector_buffer); 
-							 iprintf("Settings for %s written\n", s);
+							FIL file;
+							UINT br;
+							if (!user_io_create_config_name(s, "CFG", 1)) {;
+								iprintf("Saving config to %s\n", s);
+								if(f_open(&file, s, FA_READ | FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
+									// finally write data
+									((unsigned long long*)sector_buffer)[0] = user_io_8bit_set_status(0,0);
+									if (f_write(&file, sector_buffer, 8, &br) == FR_OK)
+										iprintf("Settings for %s written\n", s);
+									else
+										ErrorMessage("Error writing settings\n", 0);
+									f_close(&file);
+								}
 							}
 							menustate = MENU_8BIT_MAIN1;
 							menusub = 0;
@@ -1550,7 +1551,7 @@ void HandleUI(void)
 			break;
 
 		case MENU_MIST_MAIN_FILE_SELECTED : // file successfully selected
-			tos_insert_disk(0, &file);
+			tos_insert_disk(0, SelectedName);
 			menustate = MENU_MIST_MAIN1;
 			break;
 
@@ -1630,13 +1631,14 @@ void HandleUI(void)
 			break;
 
 		case MENU_MIST_STORAGE_FILE_SELECTED : // file successfully selected
-			// floppy/hdd      
-			if(menusub < 2)
-				tos_insert_disk(menusub, &file);
-			else {
+			// floppy/hdd
+			if(menusub < 2) {
+				iprintf("Insert image %s for disk %d\n", SelectedName, menusub);
+				tos_insert_disk(menusub, SelectedName);
+			} else {
 				char disk_idx = menusub - (tos_get_direct_hdd()?1:2);
 				iprintf("Insert image for disk %d\n", disk_idx);
-				tos_insert_disk(disk_idx, &file);
+				tos_insert_disk(disk_idx, SelectedName);
 			}
 			menustate = MENU_MIST_STORAGE1;
 			break;
@@ -1740,11 +1742,11 @@ void HandleUI(void)
 	
 		case MENU_MIST_SYSTEM_FILE_SELECTED : // file successfully selected
 			if(menusub == 2) {
-				tos_upload(file.name);
+				tos_upload(SelectedName);
 				menustate = MENU_MIST_SYSTEM1;
 			}
 			if(menusub == 3) {
-				tos_load_cartridge(file.name);
+				tos_load_cartridge(SelectedName);
 				menustate = MENU_MIST_SYSTEM1;
 			}
 			break;
@@ -2166,7 +2168,7 @@ void HandleUI(void)
 
 		case MENU_FILE_SELECTED : // file successfully selected
 
-			InsertFloppy(&df[menusub]);
+			InsertFloppy(&df[menusub], SelectedName);
 			menustate = MENU_MAIN1;
 			menusub++;
 			if (menusub > drives)
@@ -2322,10 +2324,11 @@ void HandleUI(void)
 			{
 				if (iCurrentDirectory) // if not root directory
 				{
-					ScanDirectory(SCAN_INIT, fs_pFileExt, fs_Options);
-					ChangeDirectory(DirEntry[sort_table[iSelectedEntry]].StartCluster + (fat32 ? (DirEntry[sort_table[iSelectedEntry]].HighCluster & 0x0FFF) << 16 : 0));
+					ChangeDirectoryName("..");
 					if (ScanDirectory(SCAN_INIT_FIRST, fs_pFileExt, fs_Options))
 						ScanDirectory(SCAN_INIT_NEXT, fs_pFileExt, fs_Options);
+					else
+						ScanDirectory(SCAN_INIT, fs_pFileExt, fs_Options);
 
 					menustate = MENU_FILE_SELECT1;
 				}
@@ -2359,14 +2362,14 @@ void HandleUI(void)
 			{ // find an entry beginning with given character
 				if (nDirEntries)
 				{
-					if (DirEntry[sort_table[iSelectedEntry]].Attributes & ATTR_DIRECTORY)
+					if (DirEntries[sort_table[iSelectedEntry]].fattrib & AM_DIR)
 					{ // it's a directory
-						if (i < DirEntry[sort_table[iSelectedEntry]].Name[0])
+						if (tolower(i) < tolower(DirEntries[sort_table[iSelectedEntry]].fname[0]))
 						{
 							if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE))
 								ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR);
 						}
-						else if (i > DirEntry[sort_table[iSelectedEntry]].Name[0])
+						else if (tolower(i) > tolower(DirEntries[sort_table[iSelectedEntry]].fname[0]))
 						{
 							if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR))
 							ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE);
@@ -2380,12 +2383,12 @@ void HandleUI(void)
 					}
 					else
 					{ // it's a file
-						if (i < DirEntry[sort_table[iSelectedEntry]].Name[0])
+						if (tolower(i) < tolower(DirEntries[sort_table[iSelectedEntry]].fname[0]))
 						{
 							if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR))
 								ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE);
 						}
-						else if (i > DirEntry[sort_table[iSelectedEntry]].Name[0])
+						else if (tolower(i) > tolower(DirEntries[sort_table[iSelectedEntry]].fname[0]))
 						{
 							if (!ScanDirectory(i, fs_pFileExt, fs_Options | FIND_FILE))
 								ScanDirectory(i, fs_pFileExt, fs_Options | FIND_DIR);
@@ -2403,11 +2406,11 @@ void HandleUI(void)
 
 			if (select)
 			{
-				if (DirEntry[sort_table[iSelectedEntry]].Attributes & ATTR_DIRECTORY)
+				if (DirEntries[sort_table[iSelectedEntry]].fattrib & AM_DIR)
 				{
-					ChangeDirectory(DirEntry[sort_table[iSelectedEntry]].StartCluster + (fat32 ? (DirEntry[sort_table[iSelectedEntry]].HighCluster & 0x0FFF) << 16 : 0));
+					ChangeDirectoryName(DirEntries[sort_table[iSelectedEntry]].fname);
 					{
-						if (strncmp((char*)DirEntry[sort_table[iSelectedEntry]].Name, "..", 2) == 0)
+						if (strncmp((char*)DirEntries[sort_table[iSelectedEntry]].fname, "..", 2) == 0)
 						{ // parent dir selected
 							if (ScanDirectory(SCAN_INIT_FIRST, fs_pFileExt, fs_Options))
 								ScanDirectory(SCAN_INIT_NEXT, fs_pFileExt, fs_Options);
@@ -2424,26 +2427,8 @@ void HandleUI(void)
 				{
 					if (nDirEntries)
 					{
-						file.long_name[0] = 0;
-						len = strlen(DirEntryLFN[sort_table[iSelectedEntry]]);
-						if ((len > 4) && !fs_ShowExt)
-							if (DirEntryLFN[sort_table[iSelectedEntry]][len-4] == '.')
-								len -= 4; // remove extension
-
-						if (len > sizeof(file.long_name))
-							len = sizeof(file.long_name);
-
-						strncpy(file.name, (const char*)DirEntry[sort_table[iSelectedEntry]].Name, sizeof(file.name));
-						memset(file.long_name, 0, sizeof(file.long_name));
-						strncpy(file.long_name, DirEntryLFN[sort_table[iSelectedEntry]], len);
+						SelectedName = (char*) &DirEntries[sort_table[iSelectedEntry]].fname;
 						strncpy(DiskInfo, DirEntryInfo[iSelectedEntry], sizeof(DiskInfo));
-
-						file.size = DirEntry[sort_table[iSelectedEntry]].FileSize;
-						file.attributes = DirEntry[sort_table[iSelectedEntry]].Attributes;
-						file.start_cluster = DirEntry[sort_table[iSelectedEntry]].StartCluster + (fat32 ? (DirEntry[sort_table[iSelectedEntry]].HighCluster & 0x0FFF) << 16 : 0);
-						file.cluster = file.start_cluster;
-						file.sector = 0;
-
 						menustate = fs_MenuSelect;
 					}
 				}
@@ -2492,13 +2477,17 @@ void HandleUI(void)
 					menustate = MENU_NONE1;
 					OsdReset(RESET_NORMAL);
 				} else {
-					user_io_create_config_name(s);
-					iprintf("Saving config to %s\n", s);
-					if(FileNew(&file, s, 8)) {
+					FIL file;
+					UINT br;
+					if (!user_io_create_config_name(s, "CFG", 1)) {
+						iprintf("Saving config to %s\n", s);
+						if(f_open(&file, s, FA_READ | FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
 						 // finally write data
-						((unsigned long long*)sector_buffer)[0] = user_io_8bit_set_status(arc_get_default(),~0);
-						FileWrite(&file, sector_buffer); 
-						iprintf("Settings for %s written\n", s);
+							((unsigned long long*)sector_buffer)[0] = user_io_8bit_set_status(arc_get_default(),~0);
+							f_write(&file, sector_buffer, 8, &br);
+							iprintf("Settings for %s written\n", s);
+							f_close(&file);
+						}
 					}
 					menustate = MENU_8BIT_MAIN1;
 					menusub = 0;
@@ -2726,10 +2715,7 @@ void HandleUI(void)
 			OsdWrite(4, "", 0,0);
 
 			strcpy(s, "      ROM   : ");
-			if (config.kickstart.long_name[0])
-					strncat(s, config.kickstart.long_name, sizeof(config.kickstart.long_name));
-			else
-					strncat(s, config.kickstart.name, sizeof(config.kickstart.name));
+			strncat(s, config.kickstart, sizeof(config.kickstart));
 			OsdWrite(5, s, menusub == 3,0);
 
 			strcpy(s, "      HRTmon: ");
@@ -2834,10 +2820,7 @@ void HandleUI(void)
 			if (config.hardfile[0].present)
 			{
 				strcpy(s, "                                ");
-				if (config.hardfile[0].long_name[0])
-					strncpy(&s[14], config.hardfile[0].long_name, sizeof(config.hardfile[0].long_name));
-				else
-					strncpy(&s[14], config.hardfile[0].name, sizeof(config.hardfile[0].name));
+				strncpy(&s[14], config.hardfile[0].name, sizeof(config.hardfile[0].name));
 			}
 			else
 				strcpy(s, "       ** file not found **");
@@ -2855,10 +2838,7 @@ void HandleUI(void)
 			OsdWrite(4, s, config.enable_ide ? (menusub == 3) : 0 ,config.enable_ide==0);
 			if (config.hardfile[1].present) {
 				strcpy(s, "                                ");
-				if (config.hardfile[1].long_name[0])
-					strncpy(&s[14], config.hardfile[1].long_name, sizeof(config.hardfile[0].long_name));
-				else
-					strncpy(&s[14], config.hardfile[1].name, sizeof(config.hardfile[0].name));
+				strncpy(&s[14], config.hardfile[1].name, sizeof(config.hardfile[0].name));
 			}
 			else
 				strcpy(s, "       ** file not found **");
@@ -2941,73 +2921,46 @@ void HandleUI(void)
 		/******************************************************************/
 		/* hardfile selected menu                                         */
 		/******************************************************************/
-		case MENU_HARDFILE_SELECTED :
+		case MENU_HARDFILE_SELECTED : {
+			char idx;
 			if (menusub == 2) // master drive selected
-			{
-				// Read RDB from selected drive and determine type...
-				memcpy((void*)config.hardfile[0].name, (void*)file.name, sizeof(config.hardfile[0].name));
-				memcpy((void*)config.hardfile[0].long_name, (void*)file.long_name, sizeof(config.hardfile[0].long_name));
-				switch(GetHDFFileType(file.name))
-				{
-					case HDF_FILETYPE_RDB:
-						config.hardfile[0].enabled=HDF_FILE;
-						config.hardfile[0].present = 1;
-						menustate = MENU_SETTINGS_HARDFILE1;
-						break;
-					case HDF_FILETYPE_DOS:
-						config.hardfile[0].enabled=HDF_FILE|HDF_SYNTHRDB;
-						config.hardfile[0].present = 1;
-						menustate = MENU_SETTINGS_HARDFILE1;
-						break;
-					case HDF_FILETYPE_UNKNOWN:
-						config.hardfile[0].present = 1;
-						if(config.hardfile[0].enabled==HDF_FILE)	// Warn if we can't detect the type
-							menustate=MENU_SYNTHRDB1;
-						else
-							menustate=MENU_SYNTHRDB2_1;
-						menusub=0;
-						break;
-					case HDF_FILETYPE_NOTFOUND:
-					default:
-						config.hardfile[0].present = 0;
-						menustate = MENU_SETTINGS_HARDFILE1;
-						break;
-				}
-			}
+				idx = 0;
+			else if (menusub == 4) // slave drive selected
+				idx = 1;
+			else // invalid
+				break;
 
-			if (menusub == 4) // slave drive selected
+			// Read RDB from selected drive and determine type...
+			strncpy(config.hardfile[idx].name, SelectedName, sizeof(config.hardfile[idx].name));
+			config.hardfile[idx].name[sizeof(config.hardfile[idx].name)-1] = 0;
+			switch(GetHDFFileType(SelectedName))
 			{
-				memcpy((void*)config.hardfile[1].name, (void*)file.name, sizeof(config.hardfile[1].name));
-				memcpy((void*)config.hardfile[1].long_name, (void*)file.long_name, sizeof(config.hardfile[1].long_name));
-				switch(GetHDFFileType(file.name))
-				{
-					case HDF_FILETYPE_RDB:
-						config.hardfile[1].enabled=HDF_FILE;
-						config.hardfile[1].present = 1;
-						menustate = MENU_SETTINGS_HARDFILE1;
-						break;
-					case HDF_FILETYPE_DOS:
-						config.hardfile[1].enabled=HDF_FILE|HDF_SYNTHRDB;
-						config.hardfile[1].present = 1;
-						menustate = MENU_SETTINGS_HARDFILE1;
-						break;
-					case HDF_FILETYPE_UNKNOWN:
-						config.hardfile[1].present = 1;
-						if(config.hardfile[1].enabled==HDF_FILE)	// Warn if we can't detect the type...
-							menustate=MENU_SYNTHRDB1;
-						else
-							menustate=MENU_SYNTHRDB2_1;
-						menusub=0;
-						break;
-					case HDF_FILETYPE_NOTFOUND:
-					default:
-						config.hardfile[1].present = 0;
-						menustate = MENU_SETTINGS_HARDFILE1;
-						break;
-				}
+				case HDF_FILETYPE_RDB:
+					config.hardfile[idx].enabled=HDF_FILE;
+					config.hardfile[idx].present = 1;
+					menustate = MENU_SETTINGS_HARDFILE1;
+					break;
+				case HDF_FILETYPE_DOS:
+					config.hardfile[idx].enabled=HDF_FILE|HDF_SYNTHRDB;
+					config.hardfile[idx].present = 1;
+					menustate = MENU_SETTINGS_HARDFILE1;
+					break;
+				case HDF_FILETYPE_UNKNOWN:
+					config.hardfile[idx].present = 1;
+					if(config.hardfile[idx].enabled==HDF_FILE) // Warn if we can't detect the type
+						menustate=MENU_SYNTHRDB1;
+					else
+						menustate=MENU_SYNTHRDB2_1;
+					menusub=0;
+					break;
+				case HDF_FILETYPE_NOTFOUND:
+				default:
+					config.hardfile[idx].present = 0;
+					menustate = MENU_SETTINGS_HARDFILE1;
+					break;
 			}
 			break;
-
+		}
 		 // check if hardfile configuration has changed
 		case MENU_HARDFILE_EXIT :
 
@@ -3278,14 +3231,14 @@ void HandleUI(void)
 			{
 				if (menusub == 0)
 				{
-					memcpy((void*)config.kickstart.name, (void*)file.name, sizeof(config.kickstart.name));
-					memcpy((void*)config.kickstart.long_name, (void*)file.long_name, sizeof(config.kickstart.long_name));
+					strncpy(config.kickstart, SelectedName, sizeof(config.kickstart));
+					config.kickstart[sizeof(config.kickstart) - 1] = 0;
 					if(minimig_v1()) {
 						OsdDisable();
 						OsdReset(RESET_BOOTLOADER);
 						ConfigChipset(config.chipset | CONFIG_TURBO);
 						ConfigFloppy(config.floppy.drives, CONFIG_FLOPPY2X);
-						if (UploadKickstart(config.kickstart.name)) {
+						if (UploadKickstart(config.kickstart)) {
 							BootExit();
 						}
 						ConfigChipset(config.chipset); // restore CPU speed mode
@@ -3301,7 +3254,7 @@ void HandleUI(void)
 						SPI(rstval);
 						DisableOsd();
 						SPIN(); SPIN(); SPIN(); SPIN();
-						UploadKickstart(config.kickstart.name);
+						UploadKickstart(config.kickstart);
 						EnableOsd();
 						SPI(OSD_CMD_RST);
 						rstval = (SPI_RST_USR | SPI_RST_CPU);
@@ -3345,7 +3298,7 @@ void HandleUI(void)
 			//OsdWrite(0, "", 0, 0);
 			siprintf(s, "   ARM  s/w ver. %s", version + 5);
 			OsdWrite(0, s, 0, 0);
-			char *v = GetFirmwareVersion(&file, "FIRMWAREUPG");
+			char *v = GetFirmwareVersion("/FIRMWARE.UPG");
 			if(v) {
 				siprintf(s, "   FILE s/w ver. %s", v);
 				OsdWrite(1, s, 0, 0);
@@ -3396,7 +3349,7 @@ void HandleUI(void)
 			}
 			else if (select) {
 				if (fat_uses_mmc() && (menusub == 0)) {
-					if (CheckFirmware(&file, "FIRMWAREUPG"))
+					if (CheckFirmware("/FIRMWARE.UPG"))
 						menustate = MENU_FIRMWARE_UPDATE1;
 					else
 						menustate = MENU_FIRMWARE_UPDATE_ERROR1;
@@ -3432,30 +3385,29 @@ void HandleUI(void)
 
 			// reset minimig boot text position
 			BootHome();
-			
+
 			//remember core name loaded
-			if (strlen(file.long_name)>0)
-				OsdCoreNameSet(file.long_name);
-			else
-				OsdCoreNameSet(file.name);
+			OsdCoreNameSet(SelectedName);
 
 			char mod = 0;
+			const char *extension = GetExtension(SelectedName);
+			char *rbfname = SelectedName;
 			arc_reset();
 
-			if (!strncasecmp(&file.name[8],"ARC",3)) {
-				mod = arc_open(file.name);
+			if (extension && !strncasecmp(extension,"ARC",3)) {
+				mod = arc_open(SelectedName);
 				if(mod < 0 || !strlen(arc_get_rbfname())) { // error
 					menustate = MENU_NONE1;
 					break;
 				}
-				strncpy(file.name, "        RBF", 11);
-				strncpy(file.name, arc_get_rbfname(), strlen(arc_get_rbfname()));
+				strcpy(s, arc_get_rbfname());
+				strcat(s, ".RBF");
+				rbfname = (char*) &s;
 			}
-
 			user_io_reset();
 			user_io_set_core_mod(mod);
 			// reset fpga with core
-			fpga_init(file.name);
+			fpga_init(rbfname);
 
 			// De-init joysticks to allow re-ordering for new core
 			StateReset();
@@ -3527,7 +3479,7 @@ void HandleUI(void)
 
 		case MENU_FIRMWARE_UPDATING2 :
 
-			WriteFirmware(&file, "FIRMWAREUPG");
+			WriteFirmware("/FIRMWARE.UPG");
 			Error = ERROR_UPDATE_FAILED;
 			menustate = MENU_FIRMWARE_UPDATE_ERROR1;
 			menusub = 0;
@@ -3610,20 +3562,20 @@ void ScrollLongName(void)
 	static int len;
 	int max_len;
 
-	if (DirEntryLFN[k][0]) // && CheckTimer(scroll_timer)) // scroll if long name and timer delay elapsed
+	if (DirEntries[k].fname[0]) // && CheckTimer(scroll_timer)) // scroll if long name and timer delay elapsed
 	{
 		// FIXME - yuk, we don't want to do this every frame!
-		len = strlen(DirEntryLFN[k]); // get name length
+		len = strlen(DirEntries[k].fname); // get name length
 
 		if((len > 4) && !fs_ShowExt)
-			if (DirEntryLFN[k][len - 4] == '.')
+			if (DirEntries[k].fname[len - 4] == '.')
 				len -= 4; // remove extension
 
 		max_len = 30; // number of file name characters to display (one more required for scrolling)
-		if (DirEntry[k].Attributes & ATTR_DIRECTORY)
+		if (DirEntries[k].fattrib & AM_DIR)
 			max_len = 23; // number of directory name characters to display
 
-		ScrollText(iSelectedEntry,DirEntryLFN[k],len,max_len,1,2);
+		ScrollText(iSelectedEntry,DirEntries[k].fname,len,max_len,1,2);
 	}
 }
 
@@ -3707,7 +3659,7 @@ void PrintDirectory(void)
 
     s[32] = 0; // set temporary string length to OSD line length
 
-	ScrollReset();
+    ScrollReset();
 
     for (i = 0; i < 8; i++)
     {
@@ -3715,16 +3667,14 @@ void PrintDirectory(void)
         if (i < nDirEntries)
         {
             k = sort_table[i]; // ordered index in storage buffer
-            lfn = DirEntryLFN[k]; // long file name pointer
+            lfn = DirEntries[k].fname; // long file name pointer
             DirEntryInfo[i][0] = 0; // clear disk number info buffer
 
-            if (lfn[0]) // item has long name
-            {
-                len = strlen(lfn); // get name length
-                info = NULL; // no disk info
+            len = strlen(lfn); // get name length
+            info = NULL; // no disk info
 
-                if (!(DirEntry[k].Attributes & ATTR_DIRECTORY)) // if a file
-                {
+            if (!(DirEntries[k].fattrib & AM_DIR)) // if a file
+            {
                 if((len > 4) && !fs_ShowExt)
                     if (lfn[len-4] == '.')
                         len -= 4; // remove extension
@@ -3733,38 +3683,20 @@ void PrintDirectory(void)
 
                 if (info != NULL)
                    memcpy(DirEntryInfo[i], info, 5); // copy disk number info if present
-                }
-
-                if (len > 30)
-                    len = 30; // trim display length if longer than 30 characters
-
-                if (i != iSelectedEntry && info != NULL)
-                { // display disk number info for not selected items
-                    strncpy(s + 1, lfn, 30-6); // trimmed name
-                    strncpy(s + 1+30-5, info, 5); // disk number
-                }
-                else
-                    strncpy(s + 1, lfn, len); // display only name
-            }
-            else  // no LFN
-            {
-                strncpy(s + 1, (const char*)DirEntry[k].Name, 8); // if no LFN then display base name (8 chars)
-                if(((DirEntry[k].Attributes & ATTR_DIRECTORY) || fs_ShowExt) && DirEntry[k].Extension[0] != ' ')
-                {
-                    p = (char*)&DirEntry[k].Name[7];
-                    j = 8;
-                    do
-                    {
-                        if (*p-- != ' ')
-                            break;
-                    } while (--j);
-
-                    s[1 + j++] = '.';
-                    strncpy(s + 1 + j, (const char*)DirEntry[k].Extension, 3); // if no LFN then display base name (8 chars)
-                }
             }
 
-            if (DirEntry[k].Attributes & ATTR_DIRECTORY) // mark directory with suffix
+            if (len > 30)
+                len = 30; // trim display length if longer than 30 characters
+
+            if (i != iSelectedEntry && info != NULL)
+            { // display disk number info for not selected items
+                strncpy(s + 1, lfn, 30-6); // trimmed name
+                strncpy(s + 1+30-5, info, 5); // disk number
+            }
+            else
+                strncpy(s + 1, lfn, len); // display only name
+
+            if (DirEntries[k].fattrib & AM_DIR) // mark directory with suffix
                 strcpy(&s[22], " <DIR>");
         }
         else
@@ -3792,25 +3724,25 @@ void _strncpy(char* pStr1, const char* pStr2, size_t nCount)
 }
 
 void inserttestfloppy() { 
-  char name[] = "AUTO    ADF";
+  char name[] = "/AUTOX.ADF";
   int i;
 
   for(i=0;i<4;i++) {
-    name[4] = '0'+i;
-    
-    if (FileOpen(&file, name) != 0)
-      InsertFloppy(&df[i]);
+    name[5] = '0'+i;
+    InsertFloppy(&df[i], name);
   }
 }
 
 // insert floppy image pointed to to by global <file> into <drive>
-void InsertFloppy(adfTYPE *drive)
+void InsertFloppy(adfTYPE *drive, const unsigned char *name)
 {
     unsigned char i, j;
     unsigned long tracks;
 
+    if (f_open(&drive->file, name, FA_READ | FA_WRITE) != FR_OK)
+        return;
     // calculate number of tracks in the ADF image file
-    tracks = file.size / (512*11);
+    tracks = f_size(&drive->file) / (512*11);
     if (tracks > MAX_TRACKS)
     {
         menu_debugf("UNSUPPORTED ADF SIZE!!! Too many tracks: %lu\r", tracks);
@@ -3818,22 +3750,8 @@ void InsertFloppy(adfTYPE *drive)
     }
     drive->tracks = (unsigned char)tracks;
 
-    // fill index cache
-    for (i = 0; i < tracks; i++) // for every track get its start position within image file
-    {
-        drive->cache[i] = file.cluster; // start of the track within image file
-        for (j = 0; j < 11; j++)
-            FileNextSector(&file); // advance by track length (11 sectors)
-    }
-
     // copy image file name into drive struct
-    if (file.long_name[0]) // file has long name
-        _strncpy(drive->name, file.long_name, sizeof(drive->name)); // copy long name
-    else
-    {
-        strncpy(drive->name, file.name, 8); // copy base name
-        memset(&drive->name[8], ' ', sizeof(drive->name) - 8); // fill the rest of the name with spaces
-    }
+    _strncpy(drive->name, name, sizeof(drive->name));
 
     if (DiskInfo[0]) // if selected file has valid disk number info then copy it to its name in drive struct
     {
@@ -3843,22 +3761,17 @@ void InsertFloppy(adfTYPE *drive)
 
     // initialize the rest of drive struct
     drive->status = DSK_INSERTED;
-    if (!(file.attributes & ATTR_READONLY)) // read-only attribute
+    if (!(drive->file.obj.attr & AM_RDO)) // read-only attribute
         drive->status |= DSK_WRITABLE;
 
-    drive->cluster_offset = drive->cache[0];
     drive->sector_offset = 0;
     drive->track = 0;
     drive->track_prev = -1;
 
     // some debug info
-    if (file.long_name[0])
-        menu_debugf("Inserting floppy: \"%s\"\r", file.long_name);
-    else
-        menu_debugf("Inserting floppy: \"%.11s\"\r", file.name);
-
-    menu_debugf("file attributes: 0x%02X\r", file.attributes);
-    menu_debugf("file size: %lu (%lu KB)\r", file.size, file.size >> 10);
+    menu_debugf("Inserting floppy: \"%s\"\r", name);
+    menu_debugf("file attributes: 0x%02X\r", drive->file.fattr);
+    menu_debugf("file size: %llu (%llu KB)\r", f_size(&drive->file), f_size(&drive->file) >> 10);
     menu_debugf("drive tracks: %u\r", drive->tracks);
     menu_debugf("drive status: 0x%02X\r", drive->status);
 }

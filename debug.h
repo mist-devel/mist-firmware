@@ -49,6 +49,13 @@
 #define bit8_debugf(...)
 #endif
 
+// ------------ Archie debugging ------------
+#if 0
+#define archie_debugf(a, ...) iprintf("\033[1;31mARCHIE: " a "\033[0m\n", ##__VA_ARGS__)
+#else
+#define archie_debugf(...)
+#endif
+
 // ------------ usb debugging -----------
 
 #if 0

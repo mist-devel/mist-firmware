@@ -112,7 +112,7 @@ RAMFUNC void spi_block_read(char *addr) {
   spi_read(addr, 512);
 }
 
-void spi_write(char *addr, uint16_t len) {
+void spi_write(const char *addr, uint16_t len) {
   // use SPI PDC (DMA transfer)
   *AT91C_SPI_TPR = (unsigned long)addr;
   *AT91C_SPI_TCR = len;
@@ -124,7 +124,7 @@ void spi_write(char *addr, uint16_t len) {
   *AT91C_SPI_PTCR = AT91C_PDC_TXTDIS; // disable transmitter
 }
 
-void spi_block_write(char *addr) {
+void spi_block_write(const char *addr) {
   spi_write(addr, 512);
 }
 

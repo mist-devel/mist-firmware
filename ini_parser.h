@@ -36,7 +36,6 @@ typedef struct {
 
 typedef struct {
   const char* filename;
-  unsigned long dir;
   const ini_section_t* sections;
   const ini_var_t* vars;
   int nsections;

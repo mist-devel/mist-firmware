@@ -7,7 +7,7 @@
 #include "hardware.h"
 #include "mmc.h"
 #include "boot.h"
-#include "fat.h"
+#include "fat_compat.h"
 #include "osd.h"
 #include "fpga.h"
 #include "fdd.h"
@@ -20,12 +20,10 @@
 #include "misc_cfg.h"
 
 configTYPE config;
-fileTYPE file;
-extern char s[40];
+extern char s[FF_LFN_BUF + 1];
 char configfilename[12];
 char DebugMode=0;
 unsigned char romkey[3072];
-RAFile romfile;
 
 
 // TODO fix SPIN macros all over the place!
@@ -67,97 +65,98 @@ void ClearVectorTable(void)
 //// UploadKickstart() ////
 char UploadKickstart(char *name)
 {
-  int keysize=0;
-  char filename[12];
+  FSIZE_t keysize=0;
+  UINT br;
+  FIL romfile, keyfile;
 
-  strncpy(filename, name, 8); // copy base name
-  strcpy(&filename[8], "ROM"); // add extension
+  ChangeDirectoryName("/");
 
   BootPrint("Checking for Amiga Forever key file:");
-  if(FileOpen(&file,"ROM     KEY")) {
-    keysize=file.size;
-    if(file.size<sizeof(romkey)) {
-      int c=0;
-      while(c<keysize) {
-        FileRead(&file, &romkey[c]);
-        c+=512;
-        FileNextSector(&file);
-      }
+  if(FileOpenCompat(&keyfile,"ROM     KEY", FA_READ) == FR_OK) {
+    keysize=f_size(&keyfile);
+    if(keysize<sizeof(romkey)) {
+      f_read(&keyfile, romkey, keysize, &br);
       BootPrint("Loaded Amiga Forever key file");
     } else {
       BootPrint("Amiga Forever keyfile is too large!");
     }
+    f_close(&keyfile);
   }
   BootPrint("Loading file: ");
-  BootPrint(filename);
+  BootPrint(name);
 
-  if (RAOpen(&romfile, filename)) {
-    if (romfile.size == 0x100000) {
+  if (f_open(&romfile, name, FA_READ) == FR_OK) {
+    if (f_size(&romfile) == 0x100000) {
       // 1MB Kickstart ROM
       BootPrint("Uploading 1MB Kickstart ...");
-      SendFileV2(&romfile, NULL, 0, 0xe00000, romfile.size>>10);
-      SendFileV2(&romfile, NULL, 0, 0xf80000, romfile.size>>10);
+      SendFileV2(&romfile, NULL, 0, 0xe00000, f_size(&romfile)>>10);
+      SendFileV2(&romfile, NULL, 0, 0xf80000, f_size(&romfile)>>10);
       ClearVectorTable();
+      f_close(&romfile);
       return(1);
-    } else if(romfile.size == 0x80000) {
+    } else if(f_size(&romfile) == 0x80000) {
       // 512KB Kickstart ROM
       BootPrint("Uploading 512KB Kickstart ...");
       if (minimig_v1()) {
         PrepareBootUpload(0xF8, 0x08);
         SendFile(&romfile);
       } else {
-        SendFileV2(&romfile, NULL, 0, 0xf80000, romfile.size>>9);
-        RAOpen(&romfile, filename);
-        SendFileV2(&romfile, NULL, 0, 0xe00000, romfile.size>>9);
+        SendFileV2(&romfile, NULL, 0, 0xf80000, f_size(&romfile)>>9);
+        f_rewind(&romfile);
+        SendFileV2(&romfile, NULL, 0, 0xe00000, f_size(&romfile)>>9);
         ClearVectorTable();
       }
+      f_close(&romfile);
       return(1);
-    } else if ((romfile.size == 0x8000b) && keysize) {
+    } else if ((f_size(&romfile) == 0x8000b) && keysize) {
       // 512KB Kickstart ROM
       BootPrint("Uploading 512 KB Kickstart (Probably Amiga Forever encrypted...)");
       if (minimig_v1()) {
         PrepareBootUpload(0xF8, 0x08);
         SendFileEncrypted(&romfile,romkey,keysize);
       } else {
-        SendFileV2(&romfile, romkey, keysize, 0xf80000, romfile.size>>9);
-        RAOpen(&romfile, filename);
-        SendFileV2(&romfile, romkey, keysize, 0xe00000, romfile.size>>9);
+        SendFileV2(&romfile, romkey, keysize, 0xf80000, f_size(&romfile)>>9);
+        f_rewind(&romfile);
+        SendFileV2(&romfile, romkey, keysize, 0xe00000, f_size(&romfile)>>9);
         ClearVectorTable();
       }
+      f_close(&romfile);
       return(1);
-    } else if (romfile.size == 0x40000) {
+    } else if (f_size(&romfile) == 0x40000) {
       // 256KB Kickstart ROM
       BootPrint("Uploading 256 KB Kickstart...");
       if (minimig_v1()) {
         PrepareBootUpload(0xF8, 0x04);
         SendFile(&romfile);
       } else {
-        SendFileV2(&romfile, NULL, 0, 0xf80000, romfile.size>>9);
-        RAOpen(&romfile, filename);
-        SendFileV2(&romfile, NULL, 0, 0xfc0000, romfile.size>>9);
+        SendFileV2(&romfile, NULL, 0, 0xf80000, f_size(&romfile)>>9);
+        f_rewind(&romfile);
+        SendFileV2(&romfile, NULL, 0, 0xfc0000, f_size(&romfile)>>9);
         ClearVectorTable();
         ClearKickstartMirrorE0();
       }
+      f_close(&romfile);
       return(1);
-    } else if ((romfile.size == 0x4000b) && keysize) {
+    } else if ((f_size(&romfile) == 0x4000b) && keysize) {
       // 256KB Kickstart ROM
       BootPrint("Uploading 256 KB Kickstart (Probably Amiga Forever encrypted...");
       if (minimig_v1()) {
         PrepareBootUpload(0xF8, 0x04);
         SendFileEncrypted(&romfile,romkey,keysize);
       } else {
-        SendFileV2(&romfile, romkey, keysize, 0xf80000, romfile.size>>9);
-        RAOpen(&romfile, filename);
-        SendFileV2(&romfile, romkey, keysize, 0xfc0000, romfile.size>>9);
+        SendFileV2(&romfile, romkey, keysize, 0xf80000, f_size(&romfile)>>9);
+        f_rewind(&romfile);
+        SendFileV2(&romfile, romkey, keysize, 0xfc0000, f_size(&romfile)>>9);
         ClearVectorTable();
         ClearKickstartMirrorE0();
       }
+      f_close(&romfile);
       return(1);
     } else {
       BootPrint("Unsupported ROM file size!");
     }
   } else {
-    siprintf(s, "No \"%s\" file!", filename);
+    siprintf(s, "No \"%s\" file!", name);
     BootPrint(s);
   }
   return(0);
@@ -167,26 +166,30 @@ char UploadKickstart(char *name)
 //// UploadActionReplay() ////
 char UploadActionReplay()
 {
+  FIL romfile;
+
   if(minimig_v1()) {
-    if (RAOpen(&romfile, "AR3     ROM")) {
-      if (romfile.file.size == 0x40000) {
+    if (FileOpenCompat(&romfile, "AR3     ROM", FA_READ) == FR_OK) {
+      if (f_size(&romfile) == 0x40000) {
         // 256 KB Action Replay 3 ROM
         BootPrint("\nUploading Action Replay ROM...");
         PrepareBootUpload(0x40, 0x04);
         SendFile(&romfile);
         ClearMemory(0x440000, 0x40000);
+        f_close(&romfile);
         return(1);
       } else {
         BootPrint("\nUnsupported AR3.ROM file size!!!");
         /* FatalError(6); */
+        f_close(&romfile);
         return(0);
       }
     }
   } else {
-    if (RAOpen(&romfile, "HRTMON  ROM")) {
+    if (FileOpenCompat(&romfile, "HRTMON  ROM", FA_READ)== FR_OK) {
       int adr, data;
       puts("Uploading HRTmon ROM... ");
-      SendFileV2(&romfile, NULL, 0, 0xa10000, (romfile.file.size+511)>>9);
+      SendFileV2(&romfile, NULL, 0, 0xa10000, (f_size(&romfile)+511)>>9);
       // HRTmon config
       adr = 0xa10000 + 20;
       spi_osd_cmd32le_cont(OSD_CMD_WR, adr);
@@ -253,6 +256,7 @@ char UploadActionReplay()
       SPIN(); SPIN(); SPIN(); SPIN();
       DisableOsd();
       SPIN(); SPIN(); SPIN(); SPIN();
+      f_close(&romfile);
       return(1);
     } else {
       puts("\rhrtmon.rom not found!\r");
@@ -276,11 +280,13 @@ void SetConfigurationFilename(int config)
 //// ConfigurationExists() ////
 unsigned char ConfigurationExists(char *filename)
 {
+  FIL file;
   if(!filename) {
     // use slot-based filename if none provided
     filename=configfilename;
   }
-  if (FileOpen(&file, filename)) {
+  if (FileOpenCompat(&file, filename, FA_READ) == FR_OK) {
+    f_close(&file);
     return(1);
   }
   return(0);
@@ -294,6 +300,7 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
   char updatekickstart=0;
   char result=0;
   unsigned char key, i;
+  FIL file;
 
   if(!filename) {
     // use slot-based filename if none provided
@@ -301,11 +308,11 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
   }
 
   // load configuration data
-  if (FileOpen(&file, filename)) {
+  if (FileOpenCompat(&file, filename, FA_READ) == FR_OK) {
     BootPrint("Opened configuration file\n");
-    iprintf("Configuration file size: %lu\r", file.size);
-    if (file.size == sizeof(config)) {
-      FileRead(&file, sector_buffer);
+    iprintf("Configuration file size: %lu\r", f_size(&file));
+    if (f_size(&file) == sizeof(config)) {
+      FileReadBlock(&file, sector_buffer);
       configTYPE *tmpconf=(configTYPE *)&sector_buffer;
       // check file id and version
       if (strncmp(tmpconf->id, config_id, sizeof(config.id)) == 0) {
@@ -313,7 +320,7 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
         if(tmpconf->floppy.drives<=4) {
           // If either the old config and new config have a different kickstart file,
           // or this is the first boot, we need to upload a kickstart image.
-          if(strncmp(tmpconf->kickstart.name,config.kickstart.name,8)!=0) {
+          if(strncmp(tmpconf->kickstart,config.kickstart,sizeof(config.kickstart))!=0) {
             updatekickstart=true;
           }
           memcpy((void*)&config, (void*)sector_buffer, sizeof(config));
@@ -325,8 +332,9 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
         BootPrint("Wrong configuration file format!\n");
       }
     } else {
-      iprintf("Wrong configuration file size: %lu (expected: %lu)\r", file.size, sizeof(config));
+      iprintf("Wrong configuration file size: %lu (expected: %lu)\r", f_size(&file), sizeof(config));
     }
+    f_close(&file);
   }
   if(!result) {
     BootPrint("Can not open configuration file!\n");
@@ -334,8 +342,7 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
     // set default configuration
     memset((void*)&config, 0, sizeof(config));  // Finally found default config bug - params were reversed!
     strncpy(config.id, config_id, sizeof(config.id));
-    strncpy(config.kickstart.name, "KICK    ", sizeof(config.kickstart.name));
-    config.kickstart.long_name[0] = 0;
+    strncpy(config.kickstart, "KICK.ROM", sizeof(config.kickstart));
     config.memory = 0x15;
     config.cpu = 0;
     config.chipset = 0;
@@ -344,9 +351,7 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
     config.enable_ide=0;
     config.hardfile[0].enabled = 1;
     strncpy(config.hardfile[0].name, "HARDFILE", sizeof(config.hardfile[0].name));
-    config.hardfile[0].long_name[0]=0;
     strncpy(config.hardfile[1].name, "HARDFILE", sizeof(config.hardfile[1].name));
-    config.hardfile[1].long_name[0]=0;
     config.hardfile[1].enabled = 2;  // Default is access to entire SD card
     updatekickstart=true;
     BootPrint("Defaults set\n");
@@ -411,13 +416,13 @@ void ApplyConfiguration(char reloadkickstart)
       ConfigFloppy(1, CONFIG_FLOPPY2X); // set floppy speed
       OsdReset(RESET_BOOTLOADER);
 
-      if (!UploadKickstart(config.kickstart.name)) {
-        strcpy(config.kickstart.name, "KICK    ");
-        if (!UploadKickstart(config.kickstart.name)) {
-          strcpy(config.kickstart.name, "AROS    ");
-          if (!UploadKickstart(config.kickstart.name)) {
+      if (!UploadKickstart(config.kickstart)) {
+        strcpy(config.kickstart, "KICK.ROM");
+        if (!UploadKickstart(config.kickstart)) {
+          strcpy(config.kickstart, "AROS.ROM");
+          if (!UploadKickstart(config.kickstart)) {
             FatalError(6);
-          }  
+          }
         }
       }
 
@@ -435,53 +440,31 @@ void ApplyConfiguration(char reloadkickstart)
   hardfile[1] = &config.hardfile[1];
 
   // Whether or not we uploaded a kickstart image we now need to set various parameters from the config.
-  if(OpenHardfile(0)) {
-    switch(hdf[0].type) {
-      // Customise message for SD card acces
-      case (HDF_FILE | HDF_SYNTHRDB):
-        siprintf(s, "\nHardfile 0 (with fake RDB): %.8s.%.3s", hdf[0].file.name, &hdf[0].file.name[8]);
-        break;
-      case HDF_FILE:
-        siprintf(s, "\nHardfile 0: %.8s.%.3s", hdf[0].file.name, &hdf[0].file.name[8]);
-        break;
-      case HDF_CARD:
-        siprintf(s, "\nHardfile 0: using entire SD card");
-        break;
-      default:
-        siprintf(s, "\nHardfile 0: using SD card partition %d",hdf[0].type-HDF_CARD);  // Number from 1
-        break;
+  for (int i = 0; i <= 1; i++) {
+    if(OpenHardfile(i)) {
+      switch(hdf[i].type) {
+        // Customise message for SD card acces
+        case (HDF_FILE | HDF_SYNTHRDB):
+          siprintf(s, "\nHardfile %d (with fake RDB): %s", i, hardfile[i]->name);
+          break;
+        case HDF_FILE:
+          siprintf(s, "\nHardfile %d: %s", i, hardfile[i]->name);
+          break;
+        case HDF_CARD:
+          siprintf(s, "\nHardfile %d: using entire SD card", i);
+          break;
+        default:
+          siprintf(s, "\nHardfile %d: using SD card partition %d", i, hdf[i].type-HDF_CARD);  // Number from 1
+          break;
+      }
+      BootPrint(s);
+      siprintf(s, "CHS: %u.%u.%u", hdf[i].cylinders, hdf[i].heads, hdf[i].sectors);
+      BootPrint(s);
+      siprintf(s, "Size: %lu MB", ((((unsigned long) hdf[i].cylinders) * hdf[i].heads * hdf[i].sectors) >> 11));
+      BootPrint(s);
+      siprintf(s, "Offset: %ld", hdf[i].offset);
+      BootPrint(s);
     }
-    BootPrint(s);
-    siprintf(s, "CHS: %u.%u.%u", hdf[0].cylinders, hdf[0].heads, hdf[0].sectors);
-    BootPrint(s);
-    siprintf(s, "Size: %lu MB", ((((unsigned long) hdf[0].cylinders) * hdf[0].heads * hdf[0].sectors) >> 11));
-    BootPrint(s);
-    siprintf(s, "Offset: %ld", hdf[0].offset);
-    BootPrint(s);
-  }
-
-  if(OpenHardfile(1)) {
-    switch(hdf[1].type) {
-      case (HDF_FILE | HDF_SYNTHRDB):
-        siprintf(s, "\nHardfile 1 (with fake RDB): %.8s.%.3s", hdf[1].file.name, &hdf[1].file.name[8]);
-        break;
-      case HDF_FILE:
-        siprintf(s, "\nHardfile 1: %.8s.%.3s", hdf[1].file.name, &hdf[1].file.name[8]);
-        break;
-      case HDF_CARD:
-        siprintf(s, "\nHardfile 1: using entire SD card");
-        break;
-      default:
-        siprintf(s, "\nHardfile 1: using SD card partition %d",hdf[1].type-HDF_CARD);  // Number from 1
-        break;
-    }
-    BootPrint(s);
-    siprintf(s, "CHS: %u.%u.%u", hdf[1].cylinders, hdf[1].heads, hdf[1].sectors);
-    BootPrint(s);
-    siprintf(s, "Size: %lu MB", ((((unsigned long) hdf[1].cylinders) * hdf[1].heads * hdf[1].sectors) >> 11));
-    BootPrint(s);
-    siprintf(s, "Offset: %ld", hdf[1].offset);
-    BootPrint(s);
   }
 
   ConfigIDE(config.enable_ide, config.hardfile[0].present && config.hardfile[0].enabled, config.hardfile[1].present && config.hardfile[1].enabled);
@@ -554,9 +537,9 @@ void ApplyConfiguration(char reloadkickstart)
       DisableOsd();
       SPIN(); SPIN(); SPIN(); SPIN();
       UploadActionReplay();
-      if (!UploadKickstart(config.kickstart.name)) {
-        strcpy(config.kickstart.name, "KICK    ");
-        if (!UploadKickstart(config.kickstart.name)) {
+      if (!UploadKickstart(config.kickstart)) {
+        strcpy(config.kickstart, "KICK.ROM");
+        if (!UploadKickstart(config.kickstart)) {
           FatalError(6);
         }
       }
@@ -581,46 +564,27 @@ void ApplyConfiguration(char reloadkickstart)
 //// SaveConfiguration() ////
 unsigned char SaveConfiguration(char *filename)
 {
+  FIL file;
+  UINT bw;
+
   if(!filename) {
     // use slot-based filename if none provided
     filename=configfilename;
   }
 
   // save configuration data
-  if (FileOpen(&file, filename)) {
-    iprintf("Configuration file size: %lu\r", file.size);
-    if (file.size != sizeof(config)) {
-      file.size = sizeof(config);
-      if (!UpdateEntry(&file)) {
-        return(0);
-      }
+  if (FileOpenCompat(&file, filename, FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
+    iprintf("Configuration file size: %llu (expected: %lu) \r", f_size(&file), sizeof(config));
+    if (f_size(&file) != sizeof(config)) {
+      //f_truncate(&file);
     }
-
-    memset((void*)&sector_buffer, 0, sizeof(sector_buffer));
-    memcpy((void*)&sector_buffer, (void*)&config, sizeof(config));
-    FileWrite(&file, sector_buffer);
-    return(1);
-  } else {
-    iprintf("Configuration file not found!\r");
-    iprintf("Trying to create a new one...\r");
-    strncpy(file.name, filename, 11);
-    file.attributes = 0;
-    file.size = sizeof(config);
-    if (FileCreate(0, &file)) {
-      iprintf("File created.\r");
-      iprintf("Trying to write new data...\r");
-      memset((void*)sector_buffer, 0, sizeof(sector_buffer));
-      memcpy((void*)sector_buffer, (void*)&config, sizeof(config));
-
-      if (FileWrite(&file, sector_buffer)) {
-        iprintf("File written successfully.\r");
-        return(1);
-      } else {
-        iprintf("File write failed!\r");
-      }
-    } else {
-      iprintf("File creation failed!\r");
+    if (f_write(&file, &config, sizeof(config), &bw) == FR_OK) {
+      f_close(&file);
+      iprintf("File written successfully.\r");
+      return(1);
     }
+    iprintf("File write failed!\r");
+    f_close(&file);
   }
   return(0);
 }

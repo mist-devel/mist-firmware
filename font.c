@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "fat.h"
+#include "fat_compat.h"
 #include "charrom.h"
 
 unsigned char charfont[128][8];
@@ -10,14 +10,14 @@ unsigned char charfont[128][8];
 void font_load() {
 	memcpy(&charfont, &charrom, 128*8);
 
-	fileTYPE file;
-	if(FileOpen(&file,"SYSTEM  FNT")) {
+	FIL file;
+	if(f_open(&file, "/SYSTEM.FNT", FA_READ) == FR_OK) {
 		iprintf("Loading SYSTEM.FNT\n");
 		unsigned char addr;
-		if(file.size == 1024) {
+		if(f_size(&file) == 1024) {
 			// full
 			addr=0;
-		} else if(file.size == 768) {
+		} else if(f_size(&file) == 768) {
 			//32-127
 			addr=32;
 		} else {
@@ -27,7 +27,7 @@ void font_load() {
 
 		// load and convert SYSTEM.FNT
 		for(int s = 0; s < 2; s++) {
-			FileRead(&file, sector_buffer);
+			FileReadBlock(&file, sector_buffer);
 			for(int i = 0; i < 512; i++) {
 				char row=i & 0x07;
 				if (row == 0) for(int j = 0; j < 8; j++) charfont[addr][j] = 0;
@@ -38,7 +38,7 @@ void font_load() {
 				if(row == 7) addr++;
 				if(addr == 128) return;
 			}
-			FileNextSector(&file);
 		}
+		f_close(&file);
 	}
 }

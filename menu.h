@@ -123,7 +123,8 @@ extern const char *config_chipset_msg[];
 unsigned const char *config_memory_fast_txt();
 
 
-void InsertFloppy(adfTYPE *drive);
+void ResetMenu();
+void InsertFloppy(adfTYPE *drive, const unsigned char *name);
 void HandleUI(void);
 void PrintDirectory(void);
 void ScrollLongName(void);
