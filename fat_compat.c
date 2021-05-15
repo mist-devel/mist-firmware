@@ -5,6 +5,7 @@
 #include "fat_compat.h"
 #include "fpga.h"
 #include "attrs.h"
+#include "utils.h"
 
 #include "FatFs/ff.h"
 
@@ -245,22 +246,6 @@ static unsigned char t_sort_table[MAXDIRENTRIES];
 static DIR           dir;
 static FILINFO       fil;
 static unsigned char nNewEntries = 0;      // indicates if a new entry has been found (used in scroll mode)
-
-FAST static int _strnicmp(const char *s1, const char *s2, size_t n)
-{
-	char c1, c2;
-	int v;
-
-	do
-	{
-		c1 = *s1++;
-		c2 = *s2++;
-		v = (unsigned int)tolower(c1) - (unsigned int)tolower(c2);
-	}
-	while (v == 0 && c1 != '\0' && --n > 0);
-
-	return v;
-}
 
 FAST static int CompareDirEntries(FILINFO *pDirEntry1, FILINFO *pDirEntry2)
 {
