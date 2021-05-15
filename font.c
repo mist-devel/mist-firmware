@@ -7,6 +7,14 @@
 
 unsigned char charfont[128][8];
 
+char char_row(char c, char row) {
+	char r=0;
+	for(int i=0;i<8;i++) {
+		r |= (((charfont[c & 0x7f][7-i]>>row) & 0x01)<<i);
+	}
+	return r;
+}
+
 void font_load() {
 	memcpy(&charfont, &charrom, 128*8);
 

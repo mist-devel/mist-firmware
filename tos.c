@@ -14,6 +14,7 @@
 #include "mmc.h"
 #include "ikbd.h"
 #include "idxfile.h"
+#include "font.h"
 
 #define CONFIG_FILENAME  "MIST    CFG"
 
@@ -645,17 +646,6 @@ static void tos_color_test() {
 #endif
 }
 
-extern unsigned char charfont[128][8];
-
-static char tos_writechar(char c, char l) {
-    char r=0;
-    for(int i=0;i<8;i++) {
-        r |= (((charfont[c & 0x7f][7-i]>>l) & 0x01)<<i);
-    }
-    return r;
-
-}
-
 static void tos_write(char *str) {
   static int y = 0;
   int l;
@@ -675,8 +665,8 @@ static void tos_write(char *str) {
     // 16 pixel lines
     for(l=0;l<16;l++) {
       char *p = str, *f=buffer;
-      while(*p)	*f++ = tos_writechar(*p++, l>>1);
-      while(f < buffer+c) *f++ = tos_writechar(' ', l>>1);
+      while(*p)	*f++ = char_row(*p++, l>>1);
+      while(f < buffer+c) *f++ = char_row(' ', l>>1);
 
       mist_memory_set_address(VIDEO_BASE_ADDRESS + 80*(y+l), 1, 0);
       mist_memory_write(buffer, c/2);
