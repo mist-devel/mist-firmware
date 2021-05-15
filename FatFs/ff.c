@@ -620,7 +620,7 @@ FAST static WORD ld_word (const BYTE* ptr)	/*	 Load a 2-byte little-endian word 
 	return rv;
 }
 
-static DWORD ld_dword (const BYTE* ptr)	/* Load a 4-byte little-endian word */
+FAST static DWORD ld_dword (const BYTE* ptr)	/* Load a 4-byte little-endian word */
 {
 	DWORD rv;
 
@@ -2019,7 +2019,7 @@ static void gen_numname (
 /* FAT-LFN: Calculate checksum of an SFN entry                           */
 /*-----------------------------------------------------------------------*/
 
-static BYTE sum_sfn (
+FAST static BYTE sum_sfn (
 	const BYTE* dir		/* Pointer to the SFN entry */
 )
 {
@@ -2272,7 +2272,7 @@ static void create_xdir (
 #define DIR_READ_FILE(dp) dir_read(dp, 0)
 #define DIR_READ_LABEL(dp) dir_read(dp, 1)
 
-static FRESULT dir_read (
+FAST static FRESULT dir_read (
 	DIR* dp,		/* Pointer to the directory object */
 	int vol			/* Filtered by 0:file/directory or 1:volume label */
 )

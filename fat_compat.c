@@ -239,11 +239,12 @@ unsigned char sort_table[MAXDIRENTRIES];
 unsigned char nDirEntries = 0;          // entries in DirEntry table
 unsigned char iSelectedEntry = 0;       // selected entry index
 
-FILINFO       t_DirEntries[MAXDIRENTRIES];
-unsigned char t_sort_table[MAXDIRENTRIES];
+static FILINFO       t_DirEntries[MAXDIRENTRIES];
+static unsigned char t_sort_table[MAXDIRENTRIES];
 
-DIR           dir;
-FILINFO       fil;
+static DIR           dir;
+static FILINFO       fil;
+static unsigned char nNewEntries = 0;      // indicates if a new entry has been found (used in scroll mode)
 
 FAST static int _strnicmp(const char *s1, const char *s2, size_t n)
 {
@@ -261,7 +262,7 @@ FAST static int _strnicmp(const char *s1, const char *s2, size_t n)
 	return v;
 }
 
-static int CompareDirEntries(FILINFO *pDirEntry1, FILINFO *pDirEntry2)
+FAST static int CompareDirEntries(FILINFO *pDirEntry1, FILINFO *pDirEntry2)
 {
 	int rc;
 
@@ -277,7 +278,7 @@ static int CompareDirEntries(FILINFO *pDirEntry1, FILINFO *pDirEntry2)
 	return(rc);
 }
 
-static char CompareExt(const char *fileName, const char *extension)
+FAST static char CompareExt(const char *fileName, const char *extension)
 {
 	char found = 0;
 	const char *fileExt = GetExtension(fileName);
@@ -300,7 +301,7 @@ static char CompareExt(const char *fileName, const char *extension)
 	return found;
 }
 
-const char *GetExtension(const char *fileName) {
+FAST const char *GetExtension(const char *fileName) {
 	const char *fileExt = 0;
 	int len = strlen(fileName);
 
@@ -313,6 +314,19 @@ const char *GetExtension(const char *fileName) {
 	return fileExt;
 }
 
+FAST static void SortTempTable(char prev) {
+	unsigned char x;
+	for (int i = nNewEntries - 1; i > 0; i--) {// one pass bubble-sorting (table is already sorted, only the new item must be placed in order)
+		if ((prev * CompareDirEntries(&t_DirEntries[t_sort_table[i]], &t_DirEntries[t_sort_table[i-1]])) > 0) {
+			x = t_sort_table[i];
+			t_sort_table[i] = t_sort_table[i-1];
+			t_sort_table[i-1] = x;
+		}
+		else
+			break; // don't check further entries as they are already sorted
+	}
+}
+
 //mode: SCAN_INIT, SCAN_PREV, SCAN_NEXT, SCAN_PREV_PAGE, SCAN_NEXT_PAGE
 char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 
@@ -323,7 +337,6 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 	char initial = 1;
 	int i;
 	unsigned char x;
-	unsigned char nNewEntries = 0;      // indicates if a new entry has been found (used in scroll mode)
 
 	if (mode == SCAN_INIT || mode == SCAN_INIT_FIRST)
 	{
@@ -380,6 +393,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 	}
 
 	f_rewinddir(&dir);
+	nNewEntries = 0;
 	while (1) {
 		if (initial && fs.cdir && options & (SCAN_DIR | SCAN_SYSDIR)) {
 			fil.fattrib = AM_DIR;
@@ -429,6 +443,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 
 					DirEntries[0] = fil; // add the entry at the top of the buffer
 					rc = 1; // indicate to the caller that the directory entry has been found
+					break;
 				}
 			} else if (mode == SCAN_INIT_NEXT) {
 				// scan the directory table and return next MAXDIRENTRIES-1 alphabetically sorted entries (first entry is in the buffer)
@@ -495,19 +510,10 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 						t_DirEntries[nNewEntries] = fil;
 						t_sort_table[nNewEntries] = nNewEntries; // init sorting table
 						nNewEntries++;
-					} else {
-						if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[MAXDIRENTRIES-1]]) < 0) {// compare new entr
-							t_DirEntries[t_sort_table[MAXDIRENTRIES-1]] = fil;
-						}
-					}
-					for (i = nNewEntries - 1; i > 0; i--) {// one pass bubble-sorting (table is already sorted, only the new item must be placed in order)
-						if (CompareDirEntries(&t_DirEntries[t_sort_table[i]], &t_DirEntries[t_sort_table[i-1]]) < 0) {
-							x = t_sort_table[i];
-							t_sort_table[i] = t_sort_table[i-1];
-							t_sort_table[i-1] = x;
-						}
-						else
-							break; // don't check further entries as they are already sorted
+						SortTempTable(-1);
+					} else if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[MAXDIRENTRIES-1]]) < 0) {// compare new entr
+						t_DirEntries[t_sort_table[MAXDIRENTRIES-1]] = fil;
+						SortTempTable(-1);
 					}
 				}
 			} else if (mode == SCAN_PREV_PAGE) {
@@ -517,19 +523,10 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 						t_DirEntries[nNewEntries] = fil;
 						t_sort_table[nNewEntries] = nNewEntries; // init sorting table
 						nNewEntries++;
-					} else {
-						if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[MAXDIRENTRIES-1]]) > 0) {// compare new entry
-							t_DirEntries[t_sort_table[MAXDIRENTRIES-1]] = fil;
-						}
-					}
-					for (i = nNewEntries - 1; i > 0; i--) {// one pass bubble-sorting (table is already sorted, only the new item must be placed in order)
-						if (CompareDirEntries(&t_DirEntries[t_sort_table[i]], &t_DirEntries[t_sort_table[i-1]]) > 0) {
-							x = t_sort_table[i];
-							t_sort_table[i] = t_sort_table[i-1];
-							t_sort_table[i-1] = x;
-						}
-						else
-							break; // don't check further entries as they are already sorted
+						SortTempTable(1);
+					} else if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[MAXDIRENTRIES-1]]) > 0) {// compare new entry
+						t_DirEntries[t_sort_table[MAXDIRENTRIES-1]] = fil;
+						SortTempTable(1);
 					}
 				}
 			} else if ((mode >= '0' && mode <= '9') || (mode >= 'A' && mode <= 'Z')) {// find first entry beginning with given character
@@ -545,19 +542,10 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 						t_DirEntries[nNewEntries] = fil;
 						t_sort_table[nNewEntries] = nNewEntries; // init sorting table
 						nNewEntries++;
-					} else {
-						if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[MAXDIRENTRIES-1]]) < 0) { // compare new entry with the last already found
-							t_DirEntries[t_sort_table[MAXDIRENTRIES-1]] = fil;
-						}
-					}
-
-					for (i = nNewEntries - 1; i > 0; i--) {// one pass bubble-sorting (table is already sorted, only the new item must be placed in order)
-						if (CompareDirEntries(&t_DirEntries[t_sort_table[i]], &t_DirEntries[t_sort_table[i-1]]) < 0) {// compare items and swap if necessary
-							x = t_sort_table[i];
-							t_sort_table[i] = t_sort_table[i-1];
-							t_sort_table[i-1] = x;
-						} else
-							break; // don't check further entries as they are already sorted
+						SortTempTable(-1);
+					} else if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[MAXDIRENTRIES-1]]) < 0) { // compare new entry with the last already found
+						t_DirEntries[t_sort_table[MAXDIRENTRIES-1]] = fil;
+						SortTempTable(-1);
 					}
 				}
 			}
