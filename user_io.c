@@ -703,7 +703,7 @@ void user_io_file_mount(const unsigned char *name, unsigned char index) {
 	SPI(UIO_SET_SDINFO);
 	// use LE version, so following BYTE(s) may be used for size extension in the future.
 	spi32le(sd_image[index].valid ? f_size(&sd_image[index].file) : 0);
-	spi32le(0); // reserved for future expansion
+	spi32le(sd_image[index].valid ? f_size(&sd_image[index].file) >> 32: 0);
 	spi32le(0); // reserved for future expansion
 	spi32le(0); // reserved for future expansion
 	DisableIO();
