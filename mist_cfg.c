@@ -20,7 +20,7 @@ extern FIL ini_file;
 void ini_rom_upload(char *s) {
 #ifndef INI_PARSER_TEST
   data_io_rom_upload(s, 1);
-
+  f_lseek(&ini_file, (((f_tell(&ini_file)+511)>>9)-1)<<9);
   FileReadBlock(&ini_file, sector_buffer);
 #endif
 }

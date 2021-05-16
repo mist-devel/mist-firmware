@@ -61,7 +61,7 @@ FIL   ini_file;
 int ini_pt = 0;
 
 //// ini_getch() ////
-char ini_getch()
+static char ini_getch()
 {
   UINT br;
   if (!(ini_pt&0x1ff)) {
@@ -83,7 +83,7 @@ char ini_getch()
 
 
 //// ini_putch() ////
-int ini_putch(char c)
+static int ini_putch(char c)
 {
   static int ini_pt = 0;
 
@@ -103,7 +103,7 @@ int ini_putch(char c)
 
 
 //// ini_findch() ////
-char ini_findch(char c)
+static char ini_findch(char c)
 {
   char t;
   do {
@@ -114,7 +114,7 @@ char ini_findch(char c)
 
 
 //// ini_getline() ////
-int ini_getline(char* line)
+static int ini_getline(char* line)
 {
   char c;
   char ignore=0;
@@ -134,7 +134,7 @@ int ini_getline(char* line)
 
 
 //// ini_putline() ////
-int ini_putline(char* line)
+static int ini_putline(char* line)
 {
   int ini_pt, i=0;
 
@@ -146,7 +146,7 @@ int ini_putline(char* line)
 }
 
 //// ini_get_section() ////
-int ini_get_section(const ini_cfg_t* cfg, char* buf, const char* alter_section)
+static int ini_get_section(const ini_cfg_t* cfg, char* buf, const char* alter_section)
 {
   int i=0;
 
@@ -191,7 +191,7 @@ int ini_get_section(const ini_cfg_t* cfg, char* buf, const char* alter_section)
 
 
 //// ini_get_var() ////
-void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
+static void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
 {
   int i=0, j=0;
   int var_id = -1;
@@ -295,7 +295,7 @@ void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
   #ifdef INI_PARSER_TEST
   if ((ini_fp = fopen(cfg->filename, "rb")) == NULL) { 
   #else
-  if (f_open(&ini_file, cfg->filename, FA_READ)) {
+  if (f_open(&ini_file, cfg->filename, FA_READ) != FR_OK) {
   #endif
     ini_parser_debugf("Can't open file %s !", cfg->filename);
     return;
@@ -311,7 +311,7 @@ void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
   #ifdef INI_PARSER_TEST
   ini_parser_debugf("Opened file %s with size %d bytes.", cfg->filename, ini_size);
   #else
-  ini_parser_debugf("Opened file %s with size %d bytes.", cfg->filename, f_size(&ini_file));
+  ini_parser_debugf("Opened file %s with size %llu bytes.", cfg->filename, f_size(&ini_file));
   #endif
 
   ini_pt = 0;
@@ -338,6 +338,8 @@ void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
   #ifdef INI_PARSER_TEST
   // close file
   fclose(ini_fp);
+  #else
+  f_close(&ini_file);
   #endif
 }
 

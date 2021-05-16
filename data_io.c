@@ -218,8 +218,8 @@ void data_io_rom_upload(char *rname, char mode) {
   // try to change into core dir. Stay in root if that doesn't exist
   user_io_change_into_core_dir();
 
-  strncpy(fname, rname, sizeof(fname)-4);
-  fname[sizeof(fname)-5] = 0;
+  strncpy(fname, rname, sizeof(fname)-5);
+  fname[sizeof(fname)-6] = 0;
   strcat(fname,".ROM");
   iprintf("rom upload '%s'\n", fname);
 
