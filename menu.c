@@ -149,7 +149,7 @@ unsigned char fs_Options;
 unsigned char fs_MenuSelect;
 unsigned char fs_MenuCancel;
 
-char* GetExt(char *ext) {
+static char* GetExt(char *ext) {
 	static char extlist[32];
 	char *p = extlist;
 
@@ -169,7 +169,11 @@ void ResetMenu()
 	strcpy(fs_pFileExt, "xxx");
 }
 
-void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect, unsigned char MenuCancel, char chdir)
+static void PrintDirectory(void);
+static void ScrollLongName(void);
+static void InsertFloppy(adfTYPE *drive, const unsigned char *name);
+
+static void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect, unsigned char MenuCancel, char chdir)
 {
 	// this function displays file selection menu
 
@@ -220,7 +224,7 @@ static void substrcpy(char *d, char *s, char idx) {
 
 // prints input as a string of binary (on/off) values
 // assumes big endian, returns using special characters (checked box/unchecked box)
-void siprintbinary(char* buffer, size_t const size, void const * const ptr)
+static void siprintbinary(char* buffer, size_t const size, void const * const ptr)
 {
 	unsigned char *b = (unsigned char*) ptr;
 	unsigned char byte;
@@ -237,7 +241,7 @@ void siprintbinary(char* buffer, size_t const size, void const * const ptr)
 	return;
 }
 
-void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) {
+static void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) {
 	// helper to get joystick status (both USB or DB9)
 	uint16_t vjoy;
 	memset(joy_string, '\0', sizeof(joy_string));
@@ -273,7 +277,7 @@ void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) 
 	return;
 }
 
-void get_joystick_state_usb( char *s, unsigned char joy_num ) {
+static void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	/* USB specific - current "raw" state 
 	  (in reverse binary format to correspont to MIST.INI mapping entries)
 	*/
@@ -312,11 +316,11 @@ void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	return;
 }
 			
-void append_joystick_usbid ( char *usb_id, unsigned int usb_vid, unsigned int usb_pid ) {
+static void append_joystick_usbid ( char *usb_id, unsigned int usb_vid, unsigned int usb_pid ) {
 	siprintf(usb_id, "VID:%04X PID:%04X", usb_vid, usb_pid);
 }		
 		
-void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
+static void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	/*
 	Builds a string containing the USB VID/PID information of a joystick
 	*/
@@ -365,14 +369,14 @@ void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	return;
 }
 
-unsigned char getIdx(char *opt) {
+static unsigned char getIdx(char *opt) {
 	if((opt[1]>='0') && (opt[1]<='9')) return opt[1]-'0';    // bits 0-9
 	if((opt[1]>='A') && (opt[1]<='Z')) return opt[1]-'A'+10; // bits 10-35
 	if((opt[1]>='a') && (opt[1]<='z')) return opt[1]-'a'+36; // bits 36-61
 	return 0; // basically 0 cannot be valid because used as a reset. Thus can be used as a error.
 }
 
-unsigned char getStatus(char *opt, unsigned long long status) {
+static unsigned char getStatus(char *opt, unsigned long long status) {
 	char idx1 = getIdx(opt);
 	char idx2 = getIdx(opt+1);
 	unsigned char x = (status & ((unsigned long long)1<<idx1)) ? 1 : 0;
@@ -385,7 +389,7 @@ unsigned char getStatus(char *opt, unsigned long long status) {
 	return x;
 }
 
-unsigned long long setStatus(char *opt, unsigned long long status, unsigned char value) {
+static unsigned long long setStatus(char *opt, unsigned long long status, unsigned char value) {
 	unsigned char idx1 = getIdx(opt);
 	unsigned char idx2 = getIdx(opt+1);
 	unsigned long long x = 1;
@@ -396,7 +400,7 @@ unsigned long long setStatus(char *opt, unsigned long long status, unsigned char
 	return (status & ~x) | (((unsigned long long)value << idx1) & x);
 }
 
-unsigned long long getStatusMask(char *opt) {
+static unsigned long long getStatusMask(char *opt) {
 	char idx1 = getIdx(opt);
 	char idx2 = getIdx(opt+1);
 	unsigned long long x = 1;
@@ -408,7 +412,7 @@ unsigned long long getStatusMask(char *opt) {
 	return x << idx1;
 }
 
-char* get_keycode_table()
+static char* get_keycode_table()
 {
 	switch(user_io_core_type())
 	{
@@ -3553,7 +3557,7 @@ void HandleUI(void)
 }
 
 
-void ScrollLongName(void)
+static void ScrollLongName(void)
 {
 	// this function is called periodically when file selection window is displayed
 	// it checks if predefined period of time has elapsed and scrolls the name if necessary
@@ -3580,7 +3584,7 @@ void ScrollLongName(void)
 }
 
 
-char* GetDiskInfo(char* lfn, long len)
+static char* GetDiskInfo(char* lfn, long len)
 {
 // extracts disk number substring form file name
 // if file name contains "X of Y" substring where X and Y are one or two digit number
@@ -3647,7 +3651,7 @@ char* GetDiskInfo(char* lfn, long len)
 }
 
 // print directory contents
-void PrintDirectory(void)
+static void PrintDirectory(void)
 {
     unsigned char i;
     unsigned char k;
@@ -3709,7 +3713,7 @@ void PrintDirectory(void)
     }
 }
 
-void _strncpy(char* pStr1, const char* pStr2, size_t nCount)
+static void _strncpy(char* pStr1, const char* pStr2, size_t nCount)
 {
 // customized strncpy() function to fill remaing destination string part with spaces
 
@@ -3723,7 +3727,7 @@ void _strncpy(char* pStr1, const char* pStr2, size_t nCount)
         *pStr1++ = ' '; // fill remaining space with spaces
 }
 
-void inserttestfloppy() { 
+static void inserttestfloppy() {
   char name[] = "/AUTOX.ADF";
   int i;
 
@@ -3734,7 +3738,7 @@ void inserttestfloppy() {
 }
 
 // insert floppy image pointed to to by global <file> into <drive>
-void InsertFloppy(adfTYPE *drive, const unsigned char *name)
+static void InsertFloppy(adfTYPE *drive, const unsigned char *name)
 {
     unsigned char i, j;
     unsigned long tracks;

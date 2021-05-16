@@ -29,7 +29,6 @@ unsigned long CalculateCRC32(unsigned long crc, unsigned char *pBuffer, unsigned
    int i, j;
    unsigned long byte, mask;
 
-   i = 0;
    while (nSize--) {
       byte = *pBuffer++;            // Get next byte.
       crc = crc ^ byte;
@@ -37,7 +36,6 @@ unsigned long CalculateCRC32(unsigned long crc, unsigned char *pBuffer, unsigned
          mask = -(crc & 1);
          crc = (crc >> 1) ^ (0xEDB88320 & mask);
       }
-      i = i + 1;
    }
    return crc;
 }

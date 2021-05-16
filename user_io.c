@@ -237,7 +237,7 @@ void user_io_set_core_mod(char mod) {
 	core_mod = mod;
 }
 
-void user_io_send_core_mod() {
+static void user_io_send_core_mod() {
 	iprintf("Sending core mod = %d\n", core_mod);
 	spi_uio_cmd8(UIO_SET_MOD, core_mod);
 }
@@ -399,7 +399,7 @@ void user_io_detect_core_type() {
 }
 
 
-unsigned short usb2amiga( unsigned  char k ) {
+static unsigned short usb2amiga( unsigned  char k ) {
 	//  replace MENU key by RGUI to allow using Right Amiga on reduced keyboards
 	// (it also disables the use of Menu for OSD)
 	if (mist_cfg.key_menu_as_rgui && k==0x65) {
@@ -408,7 +408,7 @@ unsigned short usb2amiga( unsigned  char k ) {
 	return usb2ami[k];
 }
 
-unsigned short usb2ps2code( unsigned char k) {
+static unsigned short usb2ps2code( unsigned char k) {
 	//  replace MENU key by RGUI e.g. to allow using RGUI on reduced keyboards without physical key
 	// (it also disables the use of Menu for OSD)
 	if (mist_cfg.key_menu_as_rgui && k==0x65) {
@@ -554,7 +554,7 @@ uint8_t user_io_sd_get_status(uint32_t *lba, uint8_t *drive_index) {
 }
 
 // read 8 bit keyboard LEDs status from FPGA
-uint8_t user_io_kbdled_get_status(void) {
+static uint8_t user_io_kbdled_get_status(void) {
 	uint8_t c;
 
 	spi_uio_cmd_cont(UIO_GET_KBD_LED);
@@ -627,7 +627,7 @@ static uint8_t joystick_renumber(uint8_t j) {
 	return j;
 }
 
-void user_io_joystick_emu() {
+static void user_io_joystick_emu() {
 	// iprintf("joystick_emu_fixed_index: %d\n", mist_cfg.joystick_emu_fixed_index);
 	// joystick emulation also follows renumbering if requested (default)
 	if(emu_mode == EMU_JOY0) user_io_joystick(mist_cfg.joystick_emu_fixed_index ? 0 : joystick_renumber(0), emu_state);
@@ -844,7 +844,7 @@ void user_io_send_buttons(char force) {
 	}
 }
 
-void set_kbd_led(unsigned char led, bool on)
+static void set_kbd_led(unsigned char led, bool on)
 {
 	if(led & HID_LED_CAPS_LOCK)
 	{
@@ -1597,7 +1597,7 @@ static unsigned char is_emu_key(unsigned char c, unsigned alt) {
 #define EMU_BTN3  (2+(keyrah*4))  // left alt
 #define EMU_BTN4  (3+(keyrah*4))  // left gui (usually windows key)
 
-unsigned short keycode(unsigned char in) {
+static unsigned short keycode(unsigned char in) {
 	if((core_type == CORE_TYPE_MINIMIG) ||
 	   (core_type == CORE_TYPE_MINIMIG2)) 
 	return usb2amiga(in);
@@ -1615,7 +1615,7 @@ unsigned short keycode(unsigned char in) {
 	return MISS;
 }
 
-void check_reset(unsigned short modifiers, char useKeys)
+static void check_reset(unsigned short modifiers, char useKeys)
 {
 	unsigned short combo[] =
 	{

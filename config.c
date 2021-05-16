@@ -32,7 +32,7 @@ unsigned char romkey[3072];
                               "mov r0, r0\n\t" \
                               "mov r0, r0")
 
-void ClearKickstartMirrorE0(void)
+static void ClearKickstartMirrorE0(void)
 {
   spi_osd_cmd32le_cont(OSD_CMD_WR, 0x00e00000);
   for (int i = 0; i < (0x80000 / 4); i++) {
@@ -47,7 +47,7 @@ void ClearKickstartMirrorE0(void)
   SPIN(); SPIN(); SPIN(); SPIN();
 }
 
-void ClearVectorTable(void)
+static void ClearVectorTable(void)
 {
   spi_osd_cmd32le_cont(OSD_CMD_WR, 0x00000000);
   for (int i = 0; i < 256; i++) {
@@ -292,6 +292,7 @@ unsigned char ConfigurationExists(char *filename)
   return(0);
 }
 
+static void ApplyConfiguration(char reloadkickstart);
 
 //// LoadConfiguration() ////
 unsigned char LoadConfiguration(char *filename, int printconfig)
@@ -406,7 +407,7 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
 
 
 //// ApplyConfiguration() ////
-void ApplyConfiguration(char reloadkickstart)
+static void ApplyConfiguration(char reloadkickstart)
 {
   ConfigCPU(config.cpu);
 

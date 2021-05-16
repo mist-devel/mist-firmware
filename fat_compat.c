@@ -13,10 +13,6 @@ unsigned char sector_buffer[512*SECTOR_BUFFER_SIZE];  // sector buffer
 struct PartitionEntry partitions[4];    // lbastart and sectors will be byteswapped as necessary
 int partitioncount;
 
-// external functions
-extern unsigned long GetTimer(unsigned long);
-extern void ErrorMessage(const char *message, unsigned char code);
-
 FATFS fs;
 
 uint32_t      iPreviousDirectory = 0;

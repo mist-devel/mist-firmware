@@ -49,7 +49,7 @@ void BootHome() {
 }
 
 //// BootEnableMem() ////
-void BootEnableMem()
+static void BootEnableMem()
 {
   // TEMP enable 1MB memory
   spi_osd_cmd8(OSD_CMD_MEM, 0x5);
@@ -64,7 +64,7 @@ void BootEnableMem()
 }
 
 //// BootClearScreen() ////
-void BootClearScreen(int adr, int size)
+static void BootClearScreen(int adr, int size)
 {
   int i;
   mem_upload_init(adr);
@@ -77,7 +77,7 @@ void BootClearScreen(int adr, int size)
 
 
 //// BootUploadLogo() ////
-void BootUploadLogo()
+static void BootUploadLogo()
 {
   FIL file;
   int x,y;
@@ -134,7 +134,7 @@ void BootUploadLogo()
 
 
 //// BootUploadBall() ////
-void BootUploadBall()
+static void BootUploadBall()
 {
   FIL file;
   int x;
@@ -164,7 +164,7 @@ void BootUploadBall()
 
 
 //// BootUploadCopper() ////
-void BootUploadCopper()
+static void BootUploadCopper()
 {
   FIL file;
   int x;
@@ -203,7 +203,7 @@ void BootUploadCopper()
 
 
 //// BootCustomInit() ////
-void BootCustomInit()
+static void BootCustomInit()
 {
   //move.w #$0000,$dff1fc  ; FMODE, slow fetch mode for AGA compatibility
   mem_upload_init(0xdff1fc);

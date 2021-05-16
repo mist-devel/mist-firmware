@@ -124,13 +124,8 @@ unsigned const char *config_memory_fast_txt();
 
 
 void ResetMenu();
-void InsertFloppy(adfTYPE *drive, const unsigned char *name);
 void HandleUI(void);
-void PrintDirectory(void);
-void ScrollLongName(void);
 void InfoMessage(char *message);
-void ShowSplash();
-void HideSplash();
 void EjectAllFloppies();
 
 #endif
