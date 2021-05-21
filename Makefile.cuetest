@@ -1,0 +1,17 @@
+PRJ = cuetest
+SRC = cue_test.c cue_parser.c
+
+OBJ = $(SRC:.c=.o)
+DEP = $(SRC:.c=.d)
+
+CFLAGS = -Wno-attributes -g -I.
+CPPFLAGS  = -DCUE_PARSER_TEST
+
+# Our target.
+all: $(PRJ)
+
+$(PRJ): $(OBJ)
+	$(CC) -o $@ $(OBJ)
+
+clean:
+	rm -f $(OBJ) $(PRJ)

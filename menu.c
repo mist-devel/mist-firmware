@@ -831,6 +831,11 @@ void HandleUI(void)
 							s[0] = '\x1e';
 						}
 					}
+					if (p[0] == 'S' && p[1] == 'C') {
+						if (user_io_is_cue_mounted())
+							s[0] = '\x1f';
+					}
+
 					OsdWrite(entry, s, menusub==entry, 0);
 
 					// add bit in menu mask
@@ -970,7 +975,7 @@ void HandleUI(void)
 							substrcpy(ext, p, 1);
 							while(strlen(ext) < 3) strcat(ext, " ");
 							SelectFile(ext, SCAN_DIR | SCAN_LFN, 
-							(p[0] == 'F')?MENU_8BIT_MAIN_FILE_SELECTED:MENU_8BIT_MAIN_IMAGE_SELECTED, 
+							(p[0] == 'F')?MENU_8BIT_MAIN_FILE_SELECTED:(p[1] == 'C')?MENU_8BIT_CUE_FILE_SELECTED:MENU_8BIT_MAIN_IMAGE_SELECTED, 
 							MENU_8BIT_MAIN1, 1);
 						} else if(p[0] == 'O') {
 							unsigned long long status = user_io_8bit_set_status(0,0);  // 0,0 gets status
@@ -1037,11 +1042,18 @@ void HandleUI(void)
 					if((p[0] == 'P') && (p[2] != ',')) p+=2;
 
 					if (p[0] == 'S' && p[1] && p[2] == 'U') {
+						// umount image
 						char slot = 0;
 						if (p[1]>='0' && p[1]<='9') slot = p[1]-'0';
 						if (user_io_is_mounted(slot)) {
 							user_io_file_mount(0, slot);
 						}
+					}
+
+					if (p[0] == 'S' && p[1] == 'C') {
+						// umount cue
+						if (user_io_is_cue_mounted())
+							user_io_cue_mount(NULL);
 					}
 				}
 				menustate = MENU_8BIT_MAIN1;
@@ -1074,6 +1086,15 @@ void HandleUI(void)
 			}
 			// close menu afterwards
 			menustate = MENU_NONE1;
+			break;
+		}
+		case MENU_8BIT_CUE_FILE_SELECTED : {
+			char res;
+			menustate = MENU_NONE1;
+			iprintf("Cue file selected: %s\n", SelectedName);
+			data_io_set_index(user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | (menusub+1));
+			res = user_io_cue_mount(SelectedName);
+			if (res) ErrorMessage("Error mounting CD image!", res);
 			break;
 		}
 		case MENU_8BIT_MAIN_IMAGE_SELECTED :
@@ -1137,6 +1158,8 @@ void HandleUI(void)
 							// Save settings
 							FIL file;
 							UINT br;
+							menustate = MENU_8BIT_MAIN1;
+							menusub = 0;
 							if (!user_io_create_config_name(s, "CFG", 1)) {;
 								iprintf("Saving config to %s\n", s);
 								if(f_open(&file, s, FA_READ | FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
@@ -1149,8 +1172,6 @@ void HandleUI(void)
 									f_close(&file);
 								}
 							}
-							menustate = MENU_8BIT_MAIN1;
-							menusub = 0;
 						}
 						break;
 					case 4:

@@ -6,7 +6,7 @@
 #include "FatFs/ff.h"
 
 #define MAXDIRENTRIES 8
-#define SECTOR_BUFFER_SIZE 1
+#define SECTOR_BUFFER_SIZE 2352
 
 struct PartitionEntry
 {
@@ -77,13 +77,10 @@ struct InfoSector {
 
 // global sector buffer, data for read/write actions is stored here.
 // BEWARE, this buffer is also used and thus trashed by all other functions
-extern unsigned char sector_buffer[512 * SECTOR_BUFFER_SIZE]; // sector buffer
+extern unsigned char sector_buffer[SECTOR_BUFFER_SIZE]; // sector buffer
 extern unsigned char cluster_size;
 extern uint32_t cluster_mask;
 extern unsigned char fat32;
-
-// constants
-#define DIRECTORY_ROOT 0
 
 // scanning flags
 #define SCAN_INIT  0       // start search from beginning of directory

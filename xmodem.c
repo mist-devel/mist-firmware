@@ -20,7 +20,7 @@
 
 typedef enum { IDLE, X_NAME, EXP_SOH1, EXP_SOH, BLKNO, DATA, CHK, U_NAME } state_t;
 
-extern unsigned char sector_buffer[512 * SECTOR_BUFFER_SIZE];
+extern unsigned char sector_buffer[SECTOR_BUFFER_SIZE];
 
 static state_t state = IDLE;
 

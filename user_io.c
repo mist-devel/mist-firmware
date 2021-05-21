@@ -10,6 +10,7 @@
 #include "user_io.h"
 #include "data_io.h"
 #include "archie.h"
+#include "pcecd.h"
 #include "cdc_control.h"
 #include "usb.h"
 #include "debug.h"
@@ -22,6 +23,7 @@
 #include "tos.h"
 #include "errors.h"
 #include "arc_file.h"
+#include "cue_parser.h"
 #include "utils.h"
 #include "usb/joymapping.h"
 
@@ -34,6 +36,7 @@ unsigned char key_remap_table[MAX_REMAP][2];
 #define MAX_IMAGES 2
 static IDXFile sd_image[MAX_IMAGES];
 static char umounted; // 1st image is file or direct SD?
+static char cue_valid = 0;
 static char buffer[512];
 static uint8_t buffer_drive_index = 0;
 static uint32_t buffer_lba = 0xffffffff;
@@ -162,6 +165,7 @@ void user_io_reset() {
 	// no sd card image selected, SD card accesses will go directly
 	// to the card (first slot, and only until the first unmount)
 	umounted = 0;
+	cue_valid = 0;
 	sd_image[0].valid = 0;
 	sd_image[1].valid = 0;
 	core_mod = 0;
@@ -670,6 +674,34 @@ static void kbd_fifo_poll() {
 	kbd_fifo_r = (kbd_fifo_r + 1)&(KBD_FIFO_SIZE-1);
 }
 
+
+char user_io_is_cue_mounted() {
+	return cue_valid;
+}
+
+char user_io_cue_mount(const unsigned char *name) {
+	char res = CUE_RES_OK;
+	cue_valid = 0;
+	if (name) {
+		res = cue_parse(name, &sd_image[1]);
+		if (res == CUE_RES_OK) cue_valid = 1;
+	}
+
+	// send mounted image size first then notify about mounting
+	EnableIO();
+	SPI(UIO_SET_SDINFO);
+	// use LE version, so following BYTE(s) may be used for size extension in the future.
+	spi32le(cue_valid ? f_size(&toc.file->file) : 0);
+	spi32le(cue_valid ? f_size(&toc.file->file) >> 32 : 0);
+	spi32le(0); // reserved for future expansion
+	spi32le(0); // reserved for future expansion
+	DisableIO();
+
+	// notify core of possible sd image change
+	spi_uio_cmd8(UIO_SET_SDSTAT, 1);
+	return res;
+}
+
 char user_io_is_mounted(unsigned char index) {
 	return sd_image[index].valid;
 }
@@ -1131,6 +1163,9 @@ void user_io_poll() {
 		}
 		DisableIO();
 	}
+
+	if((core_type == CORE_TYPE_8BIT) && !strcmp(user_io_get_core_name(), "TGFX16"))
+		pcecd_poll();
 
 	// sd card emulation
 	if((core_type == CORE_TYPE_8BIT) ||

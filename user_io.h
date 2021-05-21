@@ -178,6 +178,8 @@ char user_io_dip_switch1(void);
 char user_io_serial_status(serial_status_t *, uint8_t);
 char user_io_is_mounted(unsigned char index);
 void user_io_file_mount(const unsigned char*, unsigned char);
+char user_io_is_cue_mounted();
+char user_io_cue_mount(const unsigned char*);
 char *user_io_get_core_name();
 void user_io_set_core_mod(char);
 

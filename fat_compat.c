@@ -9,8 +9,8 @@
 
 #include "FatFs/ff.h"
 
-unsigned char sector_buffer[512*SECTOR_BUFFER_SIZE];  // sector buffer
-struct PartitionEntry partitions[4];    // lbastart and sectors will be byteswapped as necessary
+unsigned char sector_buffer[SECTOR_BUFFER_SIZE]; // sector buffer for one CDDA sector (or 4 SD sector)
+struct PartitionEntry partitions[4];             // lbastart and sectors will be byteswapped as necessary
 int partitioncount;
 
 FATFS fs;
