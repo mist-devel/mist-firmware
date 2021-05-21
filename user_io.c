@@ -680,7 +680,8 @@ void user_io_file_mount(const unsigned char *name, unsigned char index) {
 		if (sd_image[index].valid)
 			f_close(&sd_image[index].file);
 
-		res = f_open(&sd_image[index].file, name, FA_READ | FA_WRITE);
+		res = IDXOpen(&sd_image[index], name, FA_READ | FA_WRITE);
+		if (res != FR_OK) res = IDXOpen(&sd_image[index], name, FA_READ);
 		if (res == FR_OK) {
 			iprintf("selected %llu bytes to slot %d\n", f_size(&sd_image[index].file), index);
 

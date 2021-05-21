@@ -42,7 +42,8 @@ static inline unsigned char IDXWrite(IDXFile *file, unsigned char *pBuffer) {
   return f_write(&(file->file), pBuffer, 512, &bw);
 }
 
-unsigned char IDXOpen(IDXFile *file, const char *name);
+unsigned char IDXOpen(IDXFile *file, const char *name, char mode);
+void IDXClose(IDXFile *file);
 unsigned char IDXSeek(IDXFile *file, unsigned long lba);
 void IDXIndex(IDXFile *pIDXF);
 

@@ -700,7 +700,7 @@ unsigned char OpenHardfile(unsigned char unit)
     case HDF_FILE | HDF_SYNTHRDB:
     case HDF_FILE:
       hdf[unit].type=hardfile[unit]->enabled;
-        if (f_open(&hdf[unit].idxfile->file, hardfile[unit]->name, FA_READ | FA_WRITE) == FR_OK) {
+        if (IDXOpen(hdf[unit].idxfile, hardfile[unit]->name, FA_READ | FA_WRITE) == FR_OK) {
           IDXIndex(hdf[unit].idxfile);
           GetHardfileGeometry(&hdf[unit]);
           hdd_debugf("HARDFILE %d:", unit);

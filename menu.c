@@ -3740,11 +3740,14 @@ static void inserttestfloppy() {
 // insert floppy image pointed to to by global <file> into <drive>
 static void InsertFloppy(adfTYPE *drive, const unsigned char *name)
 {
-    unsigned char i, j;
+    unsigned char i, j, readonly = false;
     unsigned long tracks;
 
-    if (f_open(&drive->file, name, FA_READ | FA_WRITE) != FR_OK)
-        return;
+    if (f_open(&drive->file, name, FA_READ | FA_WRITE) != FR_OK) {
+        readonly = true;
+        if (f_open(&drive->file, name, FA_READ) != FR_OK)
+            return;
+    }
     // calculate number of tracks in the ADF image file
     tracks = f_size(&drive->file) / (512*11);
     if (tracks > MAX_TRACKS)
@@ -3765,7 +3768,7 @@ static void InsertFloppy(adfTYPE *drive, const unsigned char *name)
 
     // initialize the rest of drive struct
     drive->status = DSK_INSERTED;
-    if (!(drive->file.obj.attr & AM_RDO)) // read-only attribute
+    if (!readonly) // read-only attribute
         drive->status |= DSK_WRITABLE;
 
     drive->sector_offset = 0;
@@ -3774,7 +3777,7 @@ static void InsertFloppy(adfTYPE *drive, const unsigned char *name)
 
     // some debug info
     menu_debugf("Inserting floppy: \"%s\"\r", name);
-    menu_debugf("file attributes: 0x%02X\r", drive->file.fattr);
+    menu_debugf("file readonly: 0x%u\r", readonly);
     menu_debugf("file size: %llu (%llu KB)\r", f_size(&drive->file), f_size(&drive->file) >> 10);
     menu_debugf("drive tracks: %u\r", drive->tracks);
     menu_debugf("drive status: 0x%02X\r", drive->status);

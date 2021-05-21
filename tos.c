@@ -1149,7 +1149,7 @@ void tos_select_hdd_image(char i, const unsigned char *name) {
   config.system_ctrl &= ~(TOS_ACSI0_ENABLE<<i);
 
   if(name && name[0]) {
-    if (IDXOpen(&hdd_image[i], name) == FR_OK) {
+    if (IDXOpen(&hdd_image[i], name, FA_READ | FA_WRITE) == FR_OK) {
       IDXIndex(&hdd_image[i]);
       disk_inserted[i+2] = 1;
       config.system_ctrl |= (TOS_ACSI0_ENABLE<<i);

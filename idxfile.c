@@ -20,8 +20,12 @@ void IDXIndex(IDXFile *pIDXF) {
     }
 }
 
-unsigned char IDXOpen(IDXFile *file, const char *name) {
-  return f_open(&(file->file), name, FA_READ | FA_WRITE);
+unsigned char IDXOpen(IDXFile *file, const char *name, char mode) {
+  return f_open(&(file->file), name, mode);
+}
+
+void IDXClose(IDXFile *file) {
+  f_close(&(file->file));
 }
 
 unsigned char IDXSeek(IDXFile *file, unsigned long lba) {
