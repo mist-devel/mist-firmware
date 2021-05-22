@@ -150,7 +150,7 @@ DRESULT disk_write (
 	case DEV_MMC :
 		// translate the arguments here
 		while (count) {
-			result = MMC_Write(sector, buff);
+			result = MMC_Write(sector++, buff);
 			if (!result) return RES_ERROR;
 			count--;
 			buff += 512;
