@@ -66,13 +66,13 @@ static void data_io_file_tx_send(FIL *file) {
   while(bytes2send) {
     iprintf(".");
 
-    unsigned short c, chunk = (bytes2send>512)?512:bytes2send;
+    unsigned short c, chunk = (bytes2send>2048)?2048:bytes2send;
     char *p;
 
     if (rom_direct_upload) {
       // upload directly from the SD-Card if the core supports that
       bytes2send = (file->obj.objsize + 511) & 0xfffffe00;
-      file->obj.objsize = bytes2send;
+      file->obj.objsize = bytes2send; // hack to foul FatFs think the last block is a full sector
       f_read(file, 0, bytes2send, &br);
       bytes2send = 0;
     } else {
@@ -81,6 +81,7 @@ static void data_io_file_tx_send(FIL *file) {
       EnableFpga();
       SPI(DIO_FILE_TX_DAT);
 
+//      spi_write(sector_buffer, chunk); // DMA -- too fast for some cores
       for(p = sector_buffer, c=0;c < chunk;c++)
         SPI(*p++);
 
@@ -150,7 +151,7 @@ static void data_io_file_rx_receive(FIL *file, unsigned int len) {
   while(bytes2receive) {
     iprintf(".");
 
-    unsigned short c, chunk = (bytes2receive>512)?512:bytes2receive;
+    unsigned short c, chunk = (bytes2receive>2048)?2048:bytes2receive;
     char *p;
 
     EnableFpga();
