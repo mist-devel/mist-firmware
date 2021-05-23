@@ -30,6 +30,7 @@ RAMFUNC void DisableCard();
 unsigned char spi_in();
 void spi8(unsigned char parm);
 void spi16(unsigned short parm);
+void spi16le(unsigned short parm);
 void spi24(unsigned long parm);
 void spi32(unsigned long parm);
 void spi32le(unsigned long parm);

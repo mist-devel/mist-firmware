@@ -41,10 +41,18 @@ static void data_io_file_tx_prepare(FIL *file, char index, const char *ext) {
   SPI(DIO_FILE_INFO);
 
   FSIZE_t fsize = f_size(file);
-  spi_n(0, 8); // name
+  spi_n(0, 8);                      // name
   spi8(e[0]);spi8(e[1]);spi8(e[2]); // ext
-  spi_n(0, 1); // attr
-  spi_n(0, 16);
+  spi8(file->obj.attr);             // attr
+  spi8(0);                          // unsigned char       LowerCase;          /* NT VFAT lower case flags */
+  spi8(0);                          // unsigned char       CreateHundredth;    /* hundredth of seconds in CTime */
+  spi16(0);                         // unsigned short      CreateTime;         /* create time */
+  spi16(0);                         // unsigned short      CreateDate;         /* create date */
+  spi16(0);                         // unsigned short      AccessDate;         /* access date */
+  spi16le(file->obj.sclust >> 16);  // unsigned short      HighCluster;        /* high bytes of cluster number */
+  spi16(0);                         // unsigned short      ModifyTime;         /* last update time */
+  spi16(0);                         // unsigned short      ModifyDate;         /* last update date */
+  spi16le(file->obj.sclust);        // unsigned short      StartCluster;       /* starting cluster of file */
   spi_write((void*)&fsize, 4);
 
   DisableFpga();

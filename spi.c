@@ -180,6 +180,11 @@ void spi16(unsigned short parm) {
   SPI(parm >> 0);
 }
 
+void spi16le(unsigned short parm) {
+  SPI(parm >> 0);
+  SPI(parm >> 8);
+}
+
 void spi24(unsigned long parm) {
   SPI(parm >> 16);
   SPI(parm >> 8);
