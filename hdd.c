@@ -745,23 +745,25 @@ unsigned char OpenHardfile(unsigned char unit)
 unsigned char GetHDFFileType(char *filename)
 {
   FIL rdbfile;
+  unsigned char res = HDF_FILETYPE_NOTFOUND;
 
   if (f_open(&rdbfile,filename, FA_READ) == FR_OK) {
+    res = HDF_FILETYPE_UNKNOWN;
     int i;
     for(i=0;i<16;++i) {
-      FileReadBlock(&rdbfile,sector_buffer);
-      if (sector_buffer[0]=='R' && sector_buffer[1]=='D' && sector_buffer[2]=='S' && sector_buffer[3]=='K')
-        return(HDF_FILETYPE_RDB);
-      if (sector_buffer[0]=='D' && sector_buffer[1]=='O' && sector_buffer[2]=='S')
-        return(HDF_FILETYPE_DOS);
-      if (sector_buffer[0]=='P' && sector_buffer[1]=='F' && sector_buffer[2]=='S')
-        return(HDF_FILETYPE_DOS);
-      if (sector_buffer[0]=='S' && sector_buffer[1]=='F' && sector_buffer[2]=='S')
-        return(HDF_FILETYPE_DOS);
+      if (FileReadBlock(&rdbfile,sector_buffer) != FR_OK) break;
+      if (sector_buffer[0]=='R' && sector_buffer[1]=='D' && sector_buffer[2]=='S' && sector_buffer[3]=='K') {
+        res = HDF_FILETYPE_RDB;
+        break;
+      }
+      if ((sector_buffer[0]=='D' && sector_buffer[1]=='O' && sector_buffer[2]=='S') ||
+          (sector_buffer[0]=='P' && sector_buffer[1]=='F' && sector_buffer[2]=='S') ||
+          (sector_buffer[0]=='S' && sector_buffer[1]=='F' && sector_buffer[2]=='S')) {
+        res = HDF_FILETYPE_DOS;
+        break;
+      }
     }
-    f_close(&rdbfile);
-    return(HDF_FILETYPE_UNKNOWN);
   }
-  return(HDF_FILETYPE_NOTFOUND);
+  f_close(&rdbfile);
+  return(res);
 }
-
