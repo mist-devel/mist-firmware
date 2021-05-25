@@ -364,7 +364,7 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
   int block_count;
 
   lba=chs2lba(cylinder, head, sector, unit);
-  hdd_debugf("IDE%d: read %d.%d.%d, %d", unit, cylinder, head, sector, sector_count);
+  hdd_debugf("IDE%d: read %d.%d.%d (%d), %d", unit, cylinder, head, sector, lba, sector_count);
 
   while (sector_count)
   {
@@ -687,7 +687,14 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
 // HardFileSeek()
 unsigned char HardFileSeek(hdfTYPE *pHDF, unsigned long lba)
 {
-  return (f_lseek(&pHDF->idxfile->file, lba * 512) == FR_OK);
+  FSIZE_t seek_pos = (FSIZE_t) lba << 9;
+  FRESULT res;
+  res = f_lseek(&pHDF->idxfile->file, seek_pos);
+  if (res != FR_OK || f_tell(&pHDF->idxfile->file) != seek_pos) {
+    hdd_debugf("Seek error: %llu, %llu", seek_pos, f_tell(&pHDF->idxfile->file));
+    return 0;
+  }
+  return 1;
 }
 
 

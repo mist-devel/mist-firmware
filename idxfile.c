@@ -29,5 +29,5 @@ void IDXClose(IDXFile *file) {
 }
 
 unsigned char IDXSeek(IDXFile *file, unsigned long lba) {
-  return f_lseek(&(file->file), lba * 512);
+  return f_lseek(&(file->file), (FSIZE_t) lba << 9);
 }
