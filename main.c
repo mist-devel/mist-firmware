@@ -60,6 +60,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "mist_cfg.h"
 #include "cdc_enumerate.h"
 
+#ifndef _WANT_IO_LONG_LONG
+#error "newlib lacks support of long long type in IO functions. Please use a toolchain that was compiled with option --enable-newlib-io-long-long."
+#endif
+
 const char version[] = {"$VER:ATH" VDATE};
 
 extern hdfTYPE hdf[2];
