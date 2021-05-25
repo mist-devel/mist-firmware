@@ -53,7 +53,7 @@ static void data_io_file_tx_prepare(FIL *file, char index, const char *ext) {
   spi16(0);                         // unsigned short      ModifyTime;         /* last update time */
   spi16(0);                         // unsigned short      ModifyDate;         /* last update date */
   spi16le(file->obj.sclust);        // unsigned short      StartCluster;       /* starting cluster of file */
-  spi_write((void*)&fsize, 4);
+  spi32le(fsize);
 
   DisableFpga();
 
@@ -244,6 +244,7 @@ void data_io_rom_upload(char *rname, char mode) {
 
     //    user_io_file_tx(&f, 0);
     data_io_file_tx_send(&file);
+    f_close(&file);
   } else
     iprintf("Error opening file %s (%d)!\n", fname, res);
 
