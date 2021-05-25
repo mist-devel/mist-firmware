@@ -489,7 +489,7 @@ static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, u
       SPI(0x00);
       SPI(0x00);
       SPI(0x00);
-      for (i = 0; i < 512; i++) sector_buffer[i] = SPI(0xFF);
+      spi_block_read(sector_buffer);
       DisableFpga();
 
       switch(hdf[unit].type) {
