@@ -224,6 +224,7 @@ void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
   }
 
   pBuffer[47] = 0x8010; // maximum sectors per block in Read/Write Multiple command
+  pBuffer[49] = 0x0200; // support LBA addressing
   pBuffer[53] = 1;
   pBuffer[54] = hdf[unit].cylinders;
   pBuffer[55] = hdf[unit].heads;
@@ -234,9 +235,12 @@ void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
 
 
 // chs2lba()
-unsigned long chs2lba(unsigned short cylinder, unsigned char head, unsigned short sector, unsigned char unit)
+unsigned long chs2lba(unsigned short cylinder, unsigned char head, unsigned short sector, unsigned char unit, char lbamode)
 {
-  return(cylinder * hdf[unit].heads + head) * hdf[unit].sectors + sector - 1;
+  if (lbamode){
+    return ((head<<24) + (cylinder<<8) + sector);
+  }else
+    return (cylinder * hdf[unit].heads + head) * hdf[unit].sectors + sector - 1;
 }
 
 
@@ -356,15 +360,15 @@ static inline void ATA_SetMultipleMode(unsigned char* tfr, unsigned char unit)
 
 
 // ATA_ReadSectors()
-static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, unsigned char multiple)
+static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, unsigned char multiple, char lbamode)
 {
   // Read Sectors (0x20)
   long lba;
   int i;
   int block_count;
 
-  lba=chs2lba(cylinder, head, sector, unit);
-  hdd_debugf("IDE%d: read %d.%d.%d (%d), %d", unit, cylinder, head, sector, lba, sector_count);
+  lba=chs2lba(cylinder, head, sector, unit, lbamode);
+  hdd_debugf("IDE%d: read %s, %d.%d.%d:%d, %d", unit, (lbamode ? "LBA" : "CHS"), cylinder, head, sector, lba, sector_count);
 
   while (sector_count)
   {
@@ -450,6 +454,11 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
       }
       --sector_count;
     }
+    if (lbamode) {
+      sector = lba & 0xff;
+      cylinder = lba >> 8;
+      head = lba >> 24;
+    }
     /* Update task file with CHS address */
     WriteTaskFile(0, tfr[2], sector, cylinder, (cylinder >> 8), (tfr[6] & 0xF0) | head);
 
@@ -459,15 +468,15 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
 
 
 // ATA_WriteSectors()
-static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, char multiple)
+static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, char multiple, char lbamode)
 {
   unsigned short i;
   unsigned short block_count;
-  long lba=chs2lba(cylinder, head, sector, unit);
+  long lba=chs2lba(cylinder, head, sector, unit, lbamode);
 
   // write sectors
   WriteStatus(IDE_STATUS_REQ); // pio out (class 2) command type
-  hdd_debugf("IDE%d: write %d.%d.%d, %d", unit, cylinder, head, sector, sector_count);
+  hdd_debugf("IDE%d: write %s, %d.%d.%d:%d, %d", unit, (lbamode ? "LBA" : "CHS"), cylinder, head, sector, lba, sector_count);
 
   lba+=hdf[unit].offset;
   if (hdf[unit].type & HDF_FILE) {
@@ -530,6 +539,12 @@ static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, u
     if (hdf[unit].type & HDF_FILE)
       f_sync(&hdf[unit].idxfile->file);
 
+    if (lbamode) {
+      sector = lba & 0xff;
+      cylinder = lba >> 8;
+      head = lba >> 24;
+    }
+
     WriteTaskFile(0, tfr[2], sector, (unsigned char)cylinder, (unsigned char)(cylinder >> 8), (tfr[6] & 0xF0) | head);
 
     if (sector_count)
@@ -551,6 +566,7 @@ void HandleHDD(unsigned char c1, unsigned char c2)
   unsigned char  head;
   unsigned char  unit;
   unsigned short sector_count;
+  unsigned char  lbamode;
 
   if (c1 & CMD_IDECMD) {
     DISKLED_ON;
@@ -578,6 +594,7 @@ void HandleHDD(unsigned char c1, unsigned char c2)
     sector = tfr[3];
     cylinder = tfr[4] | (tfr[5] << 8);
     head = tfr[6] & 0x0F;
+    lbamode = tfr[6] & 0x40;
     sector_count = tfr[2];
     if (sector_count == 0) sector_count = 0x100;
 
@@ -592,13 +609,13 @@ void HandleHDD(unsigned char c1, unsigned char c2)
     } else if (tfr[7] == ACMD_SET_MULTIPLE_MODE) {
       ATA_SetMultipleMode(tfr, unit);
     } else if (tfr[7] == ACMD_READ_SECTORS) {
-      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count,0);
+      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count, 0, lbamode);
     } else if (tfr[7] == ACMD_READ_MULTIPLE) {
-      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count,1);
+      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count, 1, lbamode);
     } else if (tfr[7] == ACMD_WRITE_SECTORS) {
-      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count,0);
+      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count ,0, lbamode);
     } else if (tfr[7] == ACMD_WRITE_MULTIPLE) {
-      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count,1);
+      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count, 1, lbamode);
     } else {
       hdd_debugf("Unknown ATA command");
       hdd_debugf("IDE%d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X", unit, tfr[0], tfr[1], tfr[2], tfr[3], tfr[4], tfr[5], tfr[6], tfr[7]);
