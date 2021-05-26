@@ -342,7 +342,7 @@ static void pcecd_command() {
 			break;
 
 		case 2:
-			track = command[2];
+			track = bcd2bin(command[2]);
 			new_lba = toc.tracks[track - 1].start + 150;
 			LBA2MSF(new_lba, &msf);
 
