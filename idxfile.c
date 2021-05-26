@@ -13,7 +13,8 @@ void IDXIndex(IDXFile *pIDXF) {
     file->cltbl = pIDXF->clmt;
     res = f_lseek(file, CREATE_LINKMAP);
     if (res != FR_OK) {
-      iprintf("Error indexing\n");
+      iprintf("Error indexing (%d), continuing without indices\n", res);
+      file->cltbl = 0;
     } else {
       time = GetTimer(0) - time;
       iprintf("File indexed in %lu ms, index size = %d\n", time >> 16, pIDXF->clmt[0]);
