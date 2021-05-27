@@ -437,6 +437,8 @@ static void ApplyConfiguration(char reloadkickstart)
     ConfigFloppy(config.floppy.drives, config.floppy.speed);
   }
 
+  char idxfail = 0;
+
   hardfile[0] = &config.hardfile[0];
   hardfile[1] = &config.hardfile[1];
 
@@ -465,8 +467,11 @@ static void ApplyConfiguration(char reloadkickstart)
       BootPrint(s);
       siprintf(s, "Offset: %ld", hdf[i].offset);
       BootPrint(s);
+      if (hdf[i].type & HDF_FILE && !hdf[i].idxfile->file.cltbl) idxfail = 1;
     }
   }
+  if (idxfail)
+    BootPrintEx("Warning! Indexing failed for a hardfile, continuing without indices.");
 
   ConfigIDE(config.enable_ide, config.hardfile[0].present && config.hardfile[0].enabled, config.hardfile[1].present && config.hardfile[1].enabled);
 
