@@ -72,14 +72,8 @@ extern hardfileTYPE *hardfile[2];
 extern hdfTYPE hdf[2];
 
 // functions
-void IdentifyDevice(unsigned short *pBuffer, unsigned char unit);
-unsigned long chs2lba(unsigned short cylinder, unsigned char head, unsigned short sector, unsigned char unit, char lbamode);
-void WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned char sector_number, unsigned char cylinder_low, unsigned char cylinder_high, unsigned char drive_head);
-void WriteStatus(unsigned char status);
 void HandleHDD(unsigned char c1, unsigned char c2);
 void GetHardfileGeometry(hdfTYPE *hdf);
-void BuildHardfileIndex(hdfTYPE *hdf);
-unsigned char HardFileSeek(hdfTYPE *hdf, unsigned long lba);
 unsigned char OpenHardfile(unsigned char unit);
 unsigned char GetHDFFileType(char *filename);
 

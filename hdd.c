@@ -166,7 +166,7 @@ static void FakeRDB(int unit,int block)
 
 // IdentifiyDevice()
 // builds Identify Device struct
-void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
+static void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
 {
   char *p, i, x;
   unsigned long total_sectors = hdf[unit].cylinders * hdf[unit].heads * hdf[unit].sectors;
@@ -235,7 +235,7 @@ void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
 
 
 // chs2lba()
-unsigned long chs2lba(unsigned short cylinder, unsigned char head, unsigned short sector, unsigned char unit, char lbamode)
+static unsigned long chs2lba(unsigned short cylinder, unsigned char head, unsigned short sector, unsigned char unit, char lbamode)
 {
   if (lbamode){
     return ((head<<24) + (cylinder<<8) + sector);
@@ -244,8 +244,22 @@ unsigned long chs2lba(unsigned short cylinder, unsigned char head, unsigned shor
 }
 
 
+// HardFileSeek()
+static unsigned char HardFileSeek(hdfTYPE *pHDF, unsigned long lba)
+{
+  FSIZE_t seek_pos = (FSIZE_t) lba << 9;
+  FRESULT res;
+  res = f_lseek(&pHDF->idxfile->file, seek_pos);
+  if (res != FR_OK || f_tell(&pHDF->idxfile->file) != seek_pos) {
+    hdd_debugf("Seek error: %llu, %llu", seek_pos, f_tell(&pHDF->idxfile->file));
+    return 0;
+  }
+  return 1;
+}
+
+
 // WriteTaskFile()
-void WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned char sector_number, unsigned char cylinder_low, unsigned char cylinder_high, unsigned char drive_head)
+static void WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned char sector_number, unsigned char cylinder_low, unsigned char cylinder_high, unsigned char drive_head)
 {
   EnableFpga();
 
@@ -277,7 +291,7 @@ void WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned cha
 
 
 // WriteStatus()
-void WriteStatus(unsigned char status)
+static void WriteStatus(unsigned char status)
 {
   EnableFpga();
 
@@ -700,19 +714,6 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
   pHDF->sectors = (unsigned short)spt;
 }
 
-
-// HardFileSeek()
-unsigned char HardFileSeek(hdfTYPE *pHDF, unsigned long lba)
-{
-  FSIZE_t seek_pos = (FSIZE_t) lba << 9;
-  FRESULT res;
-  res = f_lseek(&pHDF->idxfile->file, seek_pos);
-  if (res != FR_OK || f_tell(&pHDF->idxfile->file) != seek_pos) {
-    hdd_debugf("Seek error: %llu, %llu", seek_pos, f_tell(&pHDF->idxfile->file));
-    return 0;
-  }
-  return 1;
-}
 
 
 // OpenHardfile()
