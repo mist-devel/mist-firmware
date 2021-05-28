@@ -170,6 +170,8 @@ static char CheckDisk() {
 	return 1;
 }
 
+static unsigned long pcecd_read_timer = 0;
+
 static void pcecd_run() {
 
 	if (pcecdd.state == PCECD_STATE_READ) {
@@ -193,6 +195,9 @@ static void pcecd_run() {
 			PendStatus(MAKE_STATUS(PCECD_STATUS_CHECK_COND, 0));
 			return;
 		}
+
+		if(!CheckTimer(pcecd_read_timer)) return;
+		pcecd_read_timer = GetTimer(13);
 
 		pcecdd.can_read_next = 0;
 
