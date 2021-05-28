@@ -286,11 +286,12 @@ FAST const char *GetExtension(const char *fileName) {
 	const char *fileExt = 0;
 	int len = strlen(fileName);
 
-	while(len-- > 1) {
+	while(len > 2) {
 		if (fileName[len-2] == '.') {
 			fileExt = &fileName[len-1];
 			break;
 		}
+		len--;
 	}
 	return fileExt;
 }
