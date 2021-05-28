@@ -20,9 +20,10 @@ FAST int _strnicmp(const char *s1, const char *s2, size_t n)
     {
     c1 = *s1++;
     c2 = *s2++;
+    if (!c1) break;
     v = (unsigned int)tolower(c1) - (unsigned int)tolower(c2);
     }
-  while (v == 0 && c1 != '\0' && --n > 0);
+  while (v == 0 && --n > 0);
 
   return v;
 }
