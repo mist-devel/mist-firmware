@@ -162,7 +162,7 @@ RAMFUNC void WriteFirmware(char *name)
         : "r12", "cc");
 
     // Hack to foul FatFs to not handle a final partial sector (to avoid a memcpy)
-    //file.obj.objsize = (file.obj.objsize + 511) & 0xfffffe00;
+    file.obj.objsize = (file.obj.objsize + 511) & 0xfffffe00;
     page = 0;
     pDst = 0;
 
