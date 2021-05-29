@@ -30,6 +30,7 @@ void font_load() {
 			addr=32;
 		} else {
 			iprintf("Invalid SYSTEM.FNT size!\n");
+			f_close(&file);
 			return;
 		}
 

@@ -153,6 +153,7 @@ char UploadKickstart(char *name)
       f_close(&romfile);
       return(1);
     } else {
+      f_close(&romfile);
       BootPrint("Unsupported ROM file size!");
     }
   } else {
