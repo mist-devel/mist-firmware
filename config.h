@@ -17,7 +17,7 @@ typedef struct
 {
     char          id[8];
     unsigned long version;
-    char          kickstart[64];
+    char          kickstart[80];
     filterTYPE    filter;
     unsigned char memory;
     unsigned char chipset;
