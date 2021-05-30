@@ -6,8 +6,16 @@
 
 //#define CUEFILE "Golden Axe.cue"
 //#define CUEFILE "Golden Axe (Japan).cue"
-#define CUEFILE "[TGXCD1042] [Mixed mode CD] [--].cue"
+//#define CUEFILE "[TGXCD1042] [Mixed mode CD] [--].cue"
 //#define CUEFILE "Sherlock Holmes Consulting Detective (USA).cue"
+#define CUEFILE "Space Ava 201.cue"
+
+void iprintf(const char *format, ...) {
+    va_list arg;
+    va_start(arg, format);
+    vprintf(format, arg);
+    va_end(arg);
+}
 
 void cue_parser_debugf(char *str, const char *format, ...) {
     va_list arg;

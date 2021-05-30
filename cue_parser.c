@@ -212,7 +212,7 @@ char cue_parse(const char *filename, IDXFile *image)
               toc.tracks[track-1].sector_size = 2352;
               toc.tracks[track-1].type = SECTOR_DATA;
             } else if (!strcmp(word, TOKEN_MODE1_2048)) {
-              toc.tracks[track-1].sector_size = 2352;
+              toc.tracks[track-1].sector_size = 2048;
               toc.tracks[track-1].type = SECTOR_DATA;
             } else {
               error = CUE_RES_INVALID;
