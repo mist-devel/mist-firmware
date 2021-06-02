@@ -33,8 +33,6 @@ unsigned char key_remap_table[MAX_REMAP][2];
 
 #define BREAK  0x8000
 
-#define MAX_IMAGES 2
-static IDXFile sd_image[MAX_IMAGES];
 static char umounted; // 1st image is file or direct SD?
 static char cue_valid = 0;
 static char buffer[512];
@@ -168,6 +166,8 @@ void user_io_reset() {
 	cue_valid = 0;
 	sd_image[0].valid = 0;
 	sd_image[1].valid = 0;
+	sd_image[2].valid = 0;
+	sd_image[3].valid = 0;
 	core_mod = 0;
 }
 
@@ -387,7 +387,7 @@ void user_io_detect_core_type() {
 			if (!user_io_is_mounted(0)) {
 				// check for <core>.HD0/1 files
 				if(!user_io_create_config_name(s, "HD0", 1)) {
-					for (int i = 0; i < MAX_IMAGES; i++) {
+					for (int i = 0; i < SD_IMAGES; i++) {
 						s[strlen(s)-1] = '0'+i;
 						user_io_file_mount(s, i);
 					}
@@ -545,7 +545,7 @@ uint8_t user_io_sd_get_status(uint32_t *lba, uint8_t *drive_index) {
 	*drive_index = 0;
 	spi_uio_cmd_cont(UIO_GET_SDSTAT);
 	c = spi_in();
-	if ((c & 0xf0) == 0x60) *drive_index = spi_in() & 0x01;
+	if ((c & 0xf0) == 0x60) *drive_index = spi_in() & 0x03;
 	s = spi_in();
 	s = (s<<8) | spi_in();
 	s = (s<<8) | spi_in();
@@ -683,7 +683,7 @@ char user_io_cue_mount(const unsigned char *name) {
 	char res = CUE_RES_OK;
 	cue_valid = 0;
 	if (name) {
-		res = cue_parse(name, &sd_image[1]);
+		res = cue_parse(name, &sd_image[3]);
 		if (res == CUE_RES_OK) cue_valid = 1;
 	}
 
@@ -702,31 +702,39 @@ char user_io_cue_mount(const unsigned char *name) {
 	return res;
 }
 
+static inline char sd_index(unsigned char index) {
+	unsigned char retval = index;
+	if (core_type == CORE_TYPE_ARCHIE)
+		return (index + 2);
+	else
+		return index;
+}
+
 char user_io_is_mounted(unsigned char index) {
-	return sd_image[index].valid;
+	return sd_image[sd_index(index)].valid;
 }
 
 void user_io_file_mount(const unsigned char *name, unsigned char index) {
 	FRESULT res;
 	if (name) {
-		if (sd_image[index].valid)
-			f_close(&sd_image[index].file);
+		if (sd_image[sd_index(index)].valid)
+			f_close(&sd_image[sd_index(index)].file);
 
-		res = IDXOpen(&sd_image[index], name, FA_READ | FA_WRITE);
-		if (res != FR_OK) res = IDXOpen(&sd_image[index], name, FA_READ);
+		res = IDXOpen(&sd_image[sd_index(index)], name, FA_READ | FA_WRITE);
+		if (res != FR_OK) res = IDXOpen(&sd_image[sd_index(index)], name, FA_READ);
 		if (res == FR_OK) {
-			iprintf("selected %llu bytes to slot %d\n", f_size(&sd_image[index].file), index);
+			iprintf("selected %llu bytes to slot %d\n", f_size(&sd_image[sd_index(index)].file), index);
 
-			sd_image[index].valid = 1;
+			sd_image[sd_index(index)].valid = 1;
 			// build index for fast random access
-			IDXIndex(&sd_image[index]);
+			IDXIndex(&sd_image[sd_index(index)]);
 		} else {
 			iprintf("error mounting %s (%d)\n", name, res);
 		}
 	} else {
 		iprintf("unmounting file in slot %d\n", index);
-		if (sd_image[index].valid) f_close(&sd_image[index].file);
-		sd_image[index].valid = 0;
+		if (sd_image[sd_index(index)].valid) f_close(&sd_image[sd_index(index)].file);
+		sd_image[sd_index(index)].valid = 0;
 		if (!index) umounted = 1;
 	}
 	buffer_lba = 0xffffffff;
@@ -735,8 +743,8 @@ void user_io_file_mount(const unsigned char *name, unsigned char index) {
 	EnableIO();
 	SPI(UIO_SET_SDINFO);
 	// use LE version, so following BYTE(s) may be used for size extension in the future.
-	spi32le(sd_image[index].valid ? f_size(&sd_image[index].file) : 0);
-	spi32le(sd_image[index].valid ? f_size(&sd_image[index].file) >> 32: 0);
+	spi32le(sd_image[sd_index(index)].valid ? f_size(&sd_image[sd_index(index)].file) : 0);
+	spi32le(sd_image[sd_index(index)].valid ? f_size(&sd_image[sd_index(index)].file) >> 32: 0);
 	spi32le(0); // reserved for future expansion
 	spi32le(0); // reserved for future expansion
 	DisableIO();
@@ -1181,50 +1189,50 @@ void user_io_poll() {
 		if((c & 0xf0) == 0x50 || (c & 0xf0) == 0x60) {
 
 #if 0
-		// debug: If the io controller reports and non-sdhc card, then
-		// the core should never set the sdhc flag
-		if((c & 3) && !MMC_IsSDHC() && (c & 0x04))
-			iprintf("WARNING: SDHC access to non-sdhc card\n");
+			// debug: If the io controller reports and non-sdhc card, then
+			// the core should never set the sdhc flag
+			if((c & 3) && !MMC_IsSDHC() && (c & 0x04))
+				iprintf("WARNING: SDHC access to non-sdhc card\n");
 #endif
 
-		// check if core requests configuration
-		if(c & 0x08) {
-			iprintf("core requests SD config\n");
-			user_io_sd_set_config();
-		}
+			// check if core requests configuration
+			if(c & 0x08) {
+				iprintf("core requests SD config\n");
+				user_io_sd_set_config();
+			}
 
-		// check if system is trying to access a sdhc card from 
-		// a sd/mmc setup
+			// check if system is trying to access a sdhc card from 
+			// a sd/mmc setup
 
-		// check if an SDHC card is inserted
-		if(MMC_IsSDHC()) {
-			static char using_sdhc = 1;
+			// check if an SDHC card is inserted
+			if(MMC_IsSDHC()) {
+				static char using_sdhc = 1;
 
-			// SD request and 
-			if((c & 0x03) && !(c & 0x04)) {
-				if(using_sdhc) {
-					// we have not been using sdhc so far? 
-					// -> complain!
-					ErrorMessage(" This core does not support\n"
-					             " SDHC cards. Using them may\n"
-					             " lead to data corruption.\n\n"
-					            " Please use an SD card <2GB!", 0);
-					using_sdhc = 0;
-				}
-			} else
-				// SDHC request from core is always ok
-				using_sdhc = 1;
-		}
+				// SD request and 
+				if((c & 0x03) && !(c & 0x04)) {
+					if(using_sdhc) {
+						// we have not been using sdhc so far? 
+						// -> complain!
+						ErrorMessage(" This core does not support\n"
+						             " SDHC cards. Using them may\n"
+						             " lead to data corruption.\n\n"
+						            " Please use an SD card <2GB!", 0);
+						using_sdhc = 0;
+					}
+				} else
+					// SDHC request from core is always ok
+					using_sdhc = 1;
+			}
 
-		// Write to file/SD Card
-		if((c & 0x03) == 0x02) {
-			// only write if the inserted card is not sdhc or
-			// if the core uses sdhc
-			if((!MMC_IsSDHC()) || (c & 0x04)) {
-				uint8_t wr_buf[512];
+			// Write to file/SD Card
+			if((c & 0x03) == 0x02) {
+				// only write if the inserted card is not sdhc or
+				// if the core uses sdhc
+				if((!MMC_IsSDHC()) || (c & 0x04)) {
+					uint8_t wr_buf[512];
 
-				if(user_io_dip_switch1())
-					iprintf("SD WR %d\n", lba);
+					if(user_io_dip_switch1())
+						iprintf("SD WR %d\n", lba);
 
 					// if we write the sector stored in the read buffer, then
 					// invalidate the cache
@@ -1241,26 +1249,26 @@ void user_io_poll() {
 					DISKLED_ON;
 
 #if 1
-					if(sd_image[drive_index].valid) {
-						if(((f_size(&sd_image[drive_index].file)-1) >> 9) >= lba) {
-							IDXSeek(&sd_image[drive_index], lba);
-							IDXWrite(&sd_image[drive_index], wr_buf);
+					if(sd_image[sd_index(drive_index)].valid) {
+						if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> 9) >= lba) {
+							IDXSeek(&sd_image[sd_index(drive_index)], lba);
+							IDXWrite(&sd_image[sd_index(drive_index)], wr_buf);
 						}
 					} else if (!drive_index && !umounted)
 						MMC_Write(lba, wr_buf);
 #else
-						hexdump(wr_buf, 512, 0);
+					hexdump(wr_buf, 512, 0);
 #endif
 
 					DISKLED_OFF;
+				}
 			}
-		}
 
-		// Read from file/SD Card
-		if((c & 0x03) == 0x01) {
+			// Read from file/SD Card
+			if((c & 0x03) == 0x01) {
 
-			if(user_io_dip_switch1())
-				iprintf("SD RD %d\n", lba);
+				if(user_io_dip_switch1())
+					iprintf("SD RD %d\n", lba);
 
 				// invalidate cache if it stores data from another drive
 				if (drive_index != buffer_drive_index)
@@ -1270,10 +1278,10 @@ void user_io_poll() {
 				// (C64 floppy does that ...)
 				if(buffer_lba != lba) {
 					DISKLED_ON;
-					if(sd_image[drive_index].valid) {
-						if(((f_size(&sd_image[drive_index].file)-1) >> 9) >= lba) {
-							IDXSeek(&sd_image[drive_index], lba);
-							IDXRead(&sd_image[drive_index], buffer);
+					if(sd_image[sd_index(drive_index)].valid) {
+						if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> 9) >= lba) {
+							IDXSeek(&sd_image[sd_index(drive_index)], lba);
+							IDXRead(&sd_image[sd_index(drive_index)], buffer);
 						}
 					} else if (!drive_index && !umounted) {
 						// sector read
@@ -1300,11 +1308,11 @@ void user_io_poll() {
 				// just load the next sector now, so it may be prefetched
 				// for the next request already
 				DISKLED_ON;
-				if(sd_image[drive_index].valid) {
+				if(sd_image[sd_index(drive_index)].valid) {
 					// but check if it would overrun on the file
-					if(((f_size(&sd_image[drive_index].file)-1) >> 9) > lba) {
-						IDXSeek(&sd_image[drive_index], lba+1);
-						IDXRead(&sd_image[drive_index], buffer);
+					if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> 9) > lba) {
+						IDXSeek(&sd_image[sd_index(drive_index)], lba+1);
+						IDXRead(&sd_image[sd_index(drive_index)], buffer);
 						buffer_lba = lba + 1;
 					}
 				} else {

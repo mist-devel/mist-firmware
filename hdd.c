@@ -327,9 +327,10 @@ static inline void ATA_Diagnostic(unsigned char* tfr)
 
 
 // ATA_IdentifyDevice()
-static inline void ATA_IdentifyDevice(unsigned char* tfr, unsigned char unit, unsigned short* id)
+static inline void ATA_IdentifyDevice(unsigned char* tfr, unsigned char unit)
 {
   int i;
+  unsigned short *id = (unsigned short *)sector_buffer;
   // Identify Device (0xec)
   hdd_debugf("IDE%d: Identify Device", unit);
   IdentifyDevice(id, unit);
@@ -572,7 +573,6 @@ static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, u
 // HandleHDD()
 void HandleHDD(unsigned char c1, unsigned char c2)
 {
-  unsigned short id[256];
   unsigned char  tfr[8];
   unsigned short i;
   unsigned short sector;
@@ -617,7 +617,7 @@ void HandleHDD(unsigned char c1, unsigned char c2)
     } else if (tfr[7] == ACMD_DIAGNOSTIC) {
       ATA_Diagnostic(tfr);
     } else if (tfr[7] == ACMD_IDENTIFY_DEVICE) {
-      ATA_IdentifyDevice(tfr, unit, id);
+      ATA_IdentifyDevice(tfr, unit);
     } else if (tfr[7] == ACMD_INITIALIZE_DEVICE_PARAMETERS) {
       ATA_Initialize(tfr, unit);
     } else if (tfr[7] == ACMD_SET_MULTIPLE_MODE) {
@@ -719,7 +719,7 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
 // OpenHardfile()
 unsigned char OpenHardfile(unsigned char unit)
 {
-  hdf[unit].idxfile = &hdd_image[unit];
+  hdf[unit].idxfile = &sd_image[unit];
 
   switch(hardfile[unit]->enabled) {
     case HDF_FILE | HDF_SYNTHRDB:

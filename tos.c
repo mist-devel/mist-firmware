@@ -258,7 +258,7 @@ static void handle_acsi(unsigned char *buffer) {
   // ACSI 0 is only supported for direct IO
   if( ((target < 2) && disk_inserted[target+2]) ||
       ((target == 0) && hdd_direct)) {
-    unsigned long blocks = f_size(&hdd_image[target].file) / 512;
+    unsigned long blocks = f_size(&sd_image[target+2].file) / 512;
 
     // if in hdd direct mode then hdd_direct contains device sizee
     if(hdd_direct && target==0) blocks = hdd_direct;
@@ -333,8 +333,8 @@ static void handle_acsi(unsigned char *buffer) {
                 tos_debugf("ACSI: direct read %ld", lba);
               MMC_ReadMultiple(lba, 0, length);
             } else {
-              IDXSeek(&hdd_image[target], lba);
-              FileReadBlockEx(&hdd_image[target].file, 0, length);
+              IDXSeek(&sd_image[target+2], lba);
+              FileReadBlockEx(&sd_image[target+2].file, 0, length);
             }
           } else {
             while(length) {
@@ -343,8 +343,8 @@ static void handle_acsi(unsigned char *buffer) {
                   tos_debugf("ACSI: direct read %ld", lba);
                 MMC_Read(lba++, sector_buffer);
               } else {
-                IDXSeek(&hdd_image[target], lba);
-                FileReadBlock(&hdd_image[target].file, sector_buffer);
+                IDXSeek(&sd_image[target+2], lba);
+                FileReadBlock(&sd_image[target+2].file, sector_buffer);
                 lba++;
               }
               // hexdump(sector_buffer, 32, 0);
@@ -391,8 +391,8 @@ static void handle_acsi(unsigned char *buffer) {
                 tos_debugf("ACSI: direct write %ld", lba);
               MMC_Write(lba++, sector_buffer);
             } else {
-              IDXSeek(&hdd_image[target], lba);
-              FileWriteBlock(&hdd_image[target].file, sector_buffer);
+              IDXSeek(&sd_image[target+2], lba);
+              FileWriteBlock(&sd_image[target+2].file, sector_buffer);
               lba++;
             }
             length--;
@@ -1143,14 +1143,14 @@ void tos_select_hdd_image(char i, const unsigned char *name) {
     config.acsi_img[i][0] = 0;
   // try to open harddisk image
   if (disk_inserted[i+2]) {
-    f_close(&hdd_image[i].file);
+    f_close(&sd_image[i+2].file);
     disk_inserted[i+2] = 0;
   }
   config.system_ctrl &= ~(TOS_ACSI0_ENABLE<<i);
 
   if(name && name[0]) {
-    if (IDXOpen(&hdd_image[i], name, FA_READ | FA_WRITE) == FR_OK) {
-      IDXIndex(&hdd_image[i]);
+    if (IDXOpen(&sd_image[i+2], name, FA_READ | FA_WRITE) == FR_OK) {
+      IDXIndex(&sd_image[i+2]);
       disk_inserted[i+2] = 1;
       config.system_ctrl |= (TOS_ACSI0_ENABLE<<i);
     }

@@ -21,7 +21,7 @@
 #include "fat_compat.h"
 
 #define SZ_TBL 1024
-#define HDD_IMAGES 2
+#define SD_IMAGES 4
 
 typedef struct
 {
@@ -30,7 +30,15 @@ typedef struct
 	DWORD clmt[SZ_TBL];
 } IDXFile;
 
-extern IDXFile hdd_image[HDD_IMAGES];
+// sd_image slots:
+// Minimig:  0-3 - IDE
+// Atari ST: 0-1 - FDD
+//           2-3 - ACSI
+// Archie:   0-1 - IDE
+//           2-3 - FDD
+// 8 bit:    0-3 - Block access
+
+extern IDXFile sd_image[SD_IMAGES];
 
 static inline unsigned char IDXRead(IDXFile *file, unsigned char *pBuffer) {
   UINT br;
