@@ -174,12 +174,15 @@ static unsigned long pcecd_read_timer = 0;
 
 static void pcecd_run() {
 
-	if (pcecdd.state == PCECD_STATE_READ) {
 
-		if (pcecdd.latency > 0) {
-			pcecdd.latency--;
-			return;
-		}
+	if (pcecdd.latency > 0) {
+		if(!CheckTimer(pcecd_read_timer)) return;
+		pcecd_read_timer = GetTimer(13);
+		pcecdd.latency--;
+		return;
+	}
+
+	if (pcecdd.state == PCECD_STATE_READ) {
 
 		if (pcecdd.index >= toc.last) {
 			pcecdd.state = PCECD_STATE_IDLE;
@@ -252,6 +255,7 @@ static void pcecd_run() {
 		{
 			if (pcecdd.CDDAMode == PCECD_CDDAMODE_LOOP) {
 				pcecdd.lba = pcecdd.CDDAStart;
+				pcecdd.latency = 2; // some time to seek back
 			}
 			else {
 				pcecdd.state = PCECD_STATE_IDLE;
@@ -262,11 +266,6 @@ static void pcecd_run() {
 			}
 
 			pcecd_debugf("playback reached the end %d\n", pcecdd.lba);
-		}
-	} else if (pcecdd.state == PCECD_STATE_PLAY) {
-		if (pcecdd.latency > 0) {
-			pcecdd.latency--;
-			return;
 		}
 	}
 }
