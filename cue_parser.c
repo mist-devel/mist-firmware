@@ -286,6 +286,7 @@ char cue_parse(const char *filename, IDXFile *image)
     toc.last = 0;
   } else {
     toc.last = track;
+    toc.end = toc.tracks[track-1].end;
   }
 
   iprintf("Tracks in the CUE file %s : %d\n", filename, toc.last);
