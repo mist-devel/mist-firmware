@@ -38,7 +38,8 @@
 #define OSD_CMD_MEM       0x24
 #define OSD_CMD_VID       0x34
 #define OSD_CMD_FLP       0x44
-#define OSD_CMD_HDD       0x54
+#define OSD_CMD_HDD0      0x54
+#define OSD_CMD_HDD1      0x58
 #define OSD_CMD_JOY       0x64
 #define OSD_CMD_OSD_WR    0x0c
 #define OSD_CMD_WR        0x1c

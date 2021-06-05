@@ -23,10 +23,10 @@ typedef struct
     unsigned char chipset;
     floppyTYPE    floppy;
     unsigned char disable_ar3;
-    unsigned char enable_ide;
+    unsigned char enable_ide[2];
     unsigned char scanlines;
     unsigned char pad1;
-    hardfileTYPE  hardfile[2];
+    hardfileTYPE  hardfile[HARDFILES];
     unsigned char cpu;
     unsigned char   autofire;
 } configTYPE;

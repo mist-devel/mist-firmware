@@ -47,6 +47,8 @@
 #define HDF_FILETYPE_RDB      2
 #define HDF_FILETYPE_DOS      3
 
+#define HARDFILES 4
+
 // types
 typedef struct
 {
@@ -68,8 +70,8 @@ typedef struct
 } hdfTYPE;
 
 // variables
-extern hardfileTYPE *hardfile[2];
-extern hdfTYPE hdf[2];
+extern hardfileTYPE *hardfile[HARDFILES];
+extern hdfTYPE hdf[HARDFILES];
 
 // functions
 void HandleHDD(unsigned char c1, unsigned char c2);

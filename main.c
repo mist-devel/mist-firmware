@@ -66,8 +66,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 const char version[] = {"$VER:ATH" VDATE};
 
-extern hdfTYPE hdf[2];
-
 unsigned char Error;
 char s[FF_LFN_BUF + 1];
 

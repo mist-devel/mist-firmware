@@ -215,7 +215,7 @@ char UploadActionReplay()
       data = 0xff; // key, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
-      data = config.enable_ide ? 0xff : 0; // ide, 1 byte
+      data = config.enable_ide[0] ? 0xff : 0; // ide, 1 byte
       SPI((data>>0)&0xff);
       SPIN(); SPIN(); SPIN(); SPIN();
       data = 0xff; // a1200, 1 byte
@@ -312,7 +312,7 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
   // load configuration data
   if (FileOpenCompat(&file, filename, FA_READ) == FR_OK) {
     BootPrint("Opened configuration file\n");
-    iprintf("Configuration file size: %lu\r", f_size(&file));
+    iprintf("Configuration file size: %llu\r", f_size(&file));
     if (f_size(&file) == sizeof(config)) {
       FileReadBlock(&file, sector_buffer);
       configTYPE *tmpconf=(configTYPE *)&sector_buffer;
@@ -350,7 +350,8 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
     config.chipset = 0;
     config.floppy.speed=CONFIG_FLOPPY2X;
     config.floppy.drives=1;
-    config.enable_ide=0;
+    config.enable_ide[0]=0;
+    config.enable_ide[1]=0;
     config.hardfile[0].enabled = 1;
     strncpy(config.hardfile[0].name, "HARDFILE", sizeof(config.hardfile[0].name));
     strncpy(config.hardfile[1].name, "HARDFILE", sizeof(config.hardfile[1].name));
@@ -440,11 +441,11 @@ static void ApplyConfiguration(char reloadkickstart)
 
   char idxfail = 0;
 
-  hardfile[0] = &config.hardfile[0];
-  hardfile[1] = &config.hardfile[1];
+  for (int i = 0; i < HARDFILES; i++)
+    hardfile[i] = &config.hardfile[i];
 
   // Whether or not we uploaded a kickstart image we now need to set various parameters from the config.
-  for (int i = 0; i <= 1; i++) {
+  for (int i = 0; i < HARDFILES; i++) {
     if(OpenHardfile(i)) {
       switch(hdf[i].type) {
         // Customise message for SD card acces
@@ -474,7 +475,8 @@ static void ApplyConfiguration(char reloadkickstart)
   if (idxfail)
     BootPrintEx("Warning! Indexing failed for a hardfile, continuing without indices.");
 
-  ConfigIDE(config.enable_ide, config.hardfile[0].present && config.hardfile[0].enabled, config.hardfile[1].present && config.hardfile[1].enabled);
+  ConfigIDE(config.enable_ide[0],        config.hardfile[0].present && config.hardfile[0].enabled, config.hardfile[1].present && config.hardfile[1].enabled);
+  ConfigIDE(config.enable_ide[1] | 0x02, config.hardfile[2].present && config.hardfile[2].enabled, config.hardfile[3].present && config.hardfile[3].enabled);
 
   siprintf(s, "CPU clock     : %s", config.chipset & 0x01 ? "turbo" : "normal");
   BootPrint(s);
@@ -492,12 +494,14 @@ static void ApplyConfiguration(char reloadkickstart)
 
   BootPrint("");
 
-  siprintf(s, "\nA600 IDE HDC is %s.", config.enable_ide ? "enabled" : "disabled");
+  siprintf(s, "\nA600 IDE HDC is %s/%s.", config.enable_ide[0] ? "enabled" : "disabled", config.enable_ide[1] ? "enabled" : "disabled");
   BootPrint(s);
-  siprintf(s, "Master HDD is %s.", config.hardfile[0].present ? config.hardfile[0].enabled ? "enabled" : "disabled" : "not present");
-  BootPrint(s);
-  siprintf(s, "Slave HDD is %s.", config.hardfile[1].present ? config.hardfile[1].enabled ? "enabled" : "disabled" : "not present");
-  BootPrint(s);
+  for (int i = 0; i < HARDFILES; i++) {
+    siprintf(s, "%s %s HDD is %s.",
+      (i & 0x02) ? "Secondary" : "Primary", (i & 0x01) ? "Slave" : "Master",
+      config.hardfile[i].present ? config.hardfile[i].enabled ? "enabled" : "disabled" : "not present");
+    BootPrint(s);
+  }
 
 #if 0
   if (cluster_size < 64) {

@@ -568,8 +568,8 @@ void ConfigIDE(unsigned char gayle, unsigned char master, unsigned char slave)
 {
     if(minimig_v1())
       spi_osd_cmd(MM1_OSDCMDCFGIDE | (slave ? 4 : 0) | (master ? 2 : 0) | (gayle ? 1 : 0));
-    else 
-      spi_osd_cmd8(OSD_CMD_HDD, (slave ? 4 : 0) | (master ? 2 : 0) | (gayle ? 1 : 0));
+    else
+      spi_osd_cmd8(OSD_CMD_HDD0 + ((gayle >> 1) << 2), (slave ? 4 : 0) | (master ? 2 : 0) | ((gayle & 0x01)));
 }
 
 void ConfigAutofire(unsigned char autofire)

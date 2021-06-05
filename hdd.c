@@ -44,10 +44,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define SWAP(a) ((((a)&0x000000ff)<<24)|(((a)&0x0000ff00)<<8)|(((a)&0x00ff0000)>>8)|(((a)&0xff000000)>>24))
 
-hardfileTYPE  *hardfile[2];
+hardfileTYPE  *hardfile[HARDFILES];
 
 // hardfile structure
-hdfTYPE hdf[2];
+hdfTYPE hdf[HARDFILES];
 
 static void SwapBytes(char *c, unsigned int len)
 {
@@ -581,6 +581,7 @@ void HandleHDD(unsigned char c1, unsigned char c2)
   unsigned char  unit;
   unsigned short sector_count;
   unsigned char  lbamode;
+  unsigned char  cs1;
 
   if (c1 & CMD_IDECMD) {
     DISKLED_ON;
@@ -592,11 +593,12 @@ void HandleHDD(unsigned char c1, unsigned char c2)
     SPI(0x00);
     SPI(0x00);
     for (i = 0; i < 8; i++) {
-      SPI(0);
+      tfr[i] = SPI(0);
+      if (i == 6) cs1 = tfr[i] & 0x01;
       tfr[i] = SPI(0);
     }
     DisableFpga();
-    unit = tfr[6] & 0x10 ? 1 : 0; // master/slave selection
+    unit = (cs1 << 1) | ((tfr[6] & 0x10) >> 4); // primary/secondary/master/slave selection
     if (0) hdd_debugf("IDE%d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X", unit, tfr[0], tfr[1], tfr[2], tfr[3], tfr[4], tfr[5], tfr[6], tfr[7]);
 
     if (!hardfile[unit]->present) {
