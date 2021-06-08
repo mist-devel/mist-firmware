@@ -110,28 +110,6 @@ void __init_hardware(void)
     AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_PIOA;
 }
 
-void hexdump(void *data, uint16_t size, uint16_t offset) {
-  uint8_t i, b2c;
-  uint16_t n=0;
-  char *ptr = data;
-
-  if(!size) return;
-
-  while(size>0) {
-    iprintf("%04x: ", n + offset);
-
-    b2c = (size>16)?16:size;
-    for(i=0;i<b2c;i++)      iprintf("%02x ", 0xff&ptr[i]);
-    iprintf("  ");
-    for(i=0;i<(16-b2c);i++) iprintf("   ");
-    for(i=0;i<b2c;i++)      iprintf("%c", isprint(ptr[i])?ptr[i]:'.');
-    iprintf("\n");
-    ptr  += b2c;
-    size -= b2c;
-    n    += b2c;
-  }
-}
-
 // A buffer of 256 bytes makes index handling pretty trivial
 volatile static unsigned char tx_buf[256];
 volatile static unsigned char tx_rptr, tx_wptr;

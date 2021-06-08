@@ -7,7 +7,7 @@
 
 #include "cdc_enumerate.h"
 #include "cdc_control.h"
-#include "hardware.h"
+#include "utils.h"
 #include "user_io.h"
 #include "tos.h"
 #include "debug.h"

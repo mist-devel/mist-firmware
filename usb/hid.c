@@ -8,6 +8,7 @@
 #include "hidparser.h"
 #include "debug.h"
 #include "joymapping.h"
+#include "../utils.h"
 #include "../user_io.h"
 #include "../hardware.h"
 #include "../mist_cfg.h"

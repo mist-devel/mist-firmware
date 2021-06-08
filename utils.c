@@ -1,4 +1,6 @@
+#include <stdio.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <ctype.h>
 #include "utils.h"
 #include "attrs.h"
@@ -26,4 +28,26 @@ FAST int _strnicmp(const char *s1, const char *s2, size_t n)
   while (v == 0 && --n > 0);
 
   return v;
+}
+
+void hexdump(void *data, uint16_t size, uint16_t offset) {
+  uint8_t i, b2c;
+  uint16_t n=0;
+  char *ptr = data;
+
+  if(!size) return;
+
+  while(size>0) {
+    iprintf("%04x: ", n + offset);
+
+    b2c = (size>16)?16:size;
+    for(i=0;i<b2c;i++)      iprintf("%02x ", 0xff&ptr[i]);
+    iprintf("  ");
+    for(i=0;i<(16-b2c);i++) iprintf("   ");
+    for(i=0;i<b2c;i++)      iprintf("%c", isprint(ptr[i])?ptr[i]:'.');
+    iprintf("\n");
+    ptr  += b2c;
+    size -= b2c;
+    n    += b2c;
+  }
 }
