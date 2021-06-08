@@ -11,7 +11,9 @@ void IDXIndex(IDXFile *pIDXF) {
 
     pIDXF->clmt[0] = SZ_TBL;
     file->cltbl = pIDXF->clmt;
+    DISKLED_ON
     res = f_lseek(file, CREATE_LINKMAP);
+    DISKLED_OFF
     if (res != FR_OK) {
       iprintf("Error indexing (%d), continuing without indices\n", res);
       file->cltbl = 0;
