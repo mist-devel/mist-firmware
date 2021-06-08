@@ -58,7 +58,7 @@ int   ini_size=0;
 FIL   ini_file;
 #endif
 
-int ini_pt = 0;
+static int ini_pt = 0;
 
 //// ini_getch() ////
 static char ini_getch()
@@ -83,9 +83,9 @@ static char ini_getch()
 
 
 //// ini_putch() ////
-static int ini_putch(char c)
+static void ini_putch(char c)
 {
-  static int ini_pt = 0;
+  UINT bw;
 
   sector_buffer[ini_pt++] = c;
 
@@ -95,10 +95,9 @@ static int ini_putch(char c)
     #ifdef INI_PARSER_TEST
     fwrite(sector_buffer, sizeof(char), INI_BUF_SIZE, ini_fp);
     #else
-    //#error
+    f_write(&ini_file, sector_buffer, INI_BUF_SIZE, &bw);
     #endif
   }
-  return ini_pt;
 }
 
 
@@ -134,15 +133,14 @@ static int ini_getline(char* line)
 
 
 //// ini_putline() ////
-static int ini_putline(char* line)
+static void ini_putline(char* line)
 {
-  int ini_pt, i=0;
+  int i=0;
 
   while(i<(INI_LINE_SIZE-1)) {
     if (!line[i]) break;
-    ini_pt = ini_putch(line[i++]);
+    ini_putch(line[i++]);
   }
-  return ini_pt;
 }
 
 //// ini_get_section() ////
@@ -347,14 +345,15 @@ void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
 //// ini_save() ////
 void ini_save(const ini_cfg_t* cfg)
 {
-  int section, var, ini_pt;
+  int section, var;
   char line[INI_LINE_SIZE] = {0};
 
+  ini_pt = 0;
   // open ini file
   #ifdef INI_PARSER_TEST
   if ((ini_fp = fopen(cfg->filename, "wb")) == NULL) {
   #else
-  { //#error
+  if (f_open(&ini_file, cfg->filename, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
   #endif
     ini_parser_debugf("Can't open file %s !", cfg->filename);
     return;
@@ -364,19 +363,28 @@ void ini_save(const ini_cfg_t* cfg)
   for (section=0; section<cfg->nsections; section++) {
     ini_parser_debugf("writing section %s ...", cfg->sections[section].name);
     siprintf(line, "[%s]\n", cfg->sections[section].name);
-    ini_pt = ini_putline(line);
+
+    ini_putline(line);
     // loop over vars
     for (var=0; var<cfg->nvars; var++) {
       if (cfg->vars[var].section_id == cfg->sections[section].id) {
         ini_parser_debugf("writing var %s", cfg->vars[var].name);
         switch (cfg->vars[var].type) {
           case UINT8:
+            siprintf(line, "%s=%u\n", cfg->vars[var].name, *(uint8_t*)(cfg->vars[var].var));
+            break;
           case UINT16:
+            siprintf(line, "%s=%u\n", cfg->vars[var].name, *(uint16_t*)(cfg->vars[var].var));
+            break;
           case UINT32:
             siprintf(line, "%s=%u\n", cfg->vars[var].name, *(uint32_t*)(cfg->vars[var].var));
             break;
           case INT8:
+            siprintf(line, "%s=%d\n", cfg->vars[var].name, *(int8_t*)(cfg->vars[var].var));
+            break;
           case INT16:
+            siprintf(line, "%s=%d\n", cfg->vars[var].name, *(int16_t*)(cfg->vars[var].var));
+            break;
           case INT32:
             siprintf(line, "%s=%d\n", cfg->vars[var].name, *(int32_t*)(cfg->vars[var].var));
             break;
@@ -389,9 +397,10 @@ void ini_save(const ini_cfg_t* cfg)
             siprintf(line, "%s=\"%s\"\n", cfg->vars[var].name, (char*)(cfg->vars[var].var));
             break;
         }
-        ini_pt = ini_putline(line);
+        ini_putline(line);
       }
     }
+
   }
 
   // in case the buffer is not written yet, write it now
@@ -399,8 +408,16 @@ void ini_save(const ini_cfg_t* cfg)
     #ifdef INI_PARSER_TEST
     fwrite(sector_buffer, sizeof(char), ini_pt, ini_fp);
     #else
-    //#error
+    UINT bw;
+    f_write(&ini_file, sector_buffer, ini_pt, &bw);
     #endif
   }
+
+  #ifdef INI_PARSER_TEST
+  fclose(ini_fp);
+  #else
+  f_close(&ini_file);
+  #endif
+
 }
 
