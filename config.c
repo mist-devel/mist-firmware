@@ -8,6 +8,7 @@
 #include "mmc.h"
 #include "boot.h"
 #include "fat_compat.h"
+#include "ini_parser.h"
 #include "osd.h"
 #include "fpga.h"
 #include "fdd.h"
@@ -20,11 +21,39 @@
 #include "misc_cfg.h"
 
 configTYPE config;
+static configTYPE tmpconf;
 extern char s[FF_LFN_BUF + 1];
-char configfilename[12];
+static char configfilename[13];
 char DebugMode=0;
-unsigned char romkey[3072];
+static unsigned char romkey[3072];
 
+static const ini_section_t config_ini_sections[] = {
+  {1, "MINIMIG"}
+};
+
+static const ini_var_t config_ini_vars[] = {
+  {"KICKSTART",   (void*)tmpconf.kickstart, STRING, 1, 79, 1},
+  {"FILTER_LO",   (void*)&tmpconf.filter.lores, UINT8, 0, 3, 1},
+  {"FILTER_HI",   (void*)&tmpconf.filter.hires, UINT8, 0, 3, 1},
+  {"MEMORY",      (void*)&tmpconf.memory, UINT8, 0, 127, 1},
+  {"CHIPSET",     (void*)&tmpconf.chipset, UINT8, 0, 127, 1},
+  {"FLOPPY_SPD",  (void*)&tmpconf.floppy.speed, UINT8, 0, 1, 1},
+  {"FLOPPY_CNT",  (void*)&tmpconf.floppy.drives, UINT8, 0, 4, 1},
+  {"AR3_DISABLE", (void*)&tmpconf.disable_ar3, UINT8, 0, 1, 1},
+  {"IDE0_ENABLE", (void*)&tmpconf.enable_ide[0], UINT8, 0, 1, 1},
+  {"IDE1_ENABLE", (void*)&tmpconf.enable_ide[1], UINT8, 0, 1, 1},
+  {"SCANLINES",   (void*)&tmpconf.scanlines, UINT8, 0, 2, 1},
+  {"HDD0_ENABLE", (void*)&tmpconf.hardfile[0].enabled, UINT8, 0, 255, 1},
+  {"HDD0",        (void*)tmpconf.hardfile[0].name, STRING, 1, 63, 1},
+  {"HDD1_ENABLE", (void*)&tmpconf.hardfile[1].enabled, UINT8, 0, 255, 1},
+  {"HDD1",        (void*)tmpconf.hardfile[1].name, STRING, 1, 63, 1},
+  {"HDD2_ENABLE", (void*)&tmpconf.hardfile[2].enabled, UINT8, 0, 255, 1},
+  {"HDD2",        (void*)tmpconf.hardfile[2].name, STRING, 1, 63, 1},
+  {"HDD3_ENABLE", (void*)&tmpconf.hardfile[3].enabled, UINT8, 0, 255, 1},
+  {"HDD3",        (void*)tmpconf.hardfile[3].name, STRING, 1, 63, 1},
+  {"CPU",         (void*)&tmpconf.cpu, UINT8, 0, 3, 1},
+  {"AUTOFIRE",    (void*)&tmpconf.autofire, UINT8, 0, 7, 1}
+};
 
 // TODO fix SPIN macros all over the place!
 #define SPIN() asm volatile ( "mov r0, r0\n\t" \
@@ -272,9 +301,9 @@ char UploadActionReplay()
 void SetConfigurationFilename(int config)
 {
   if(config)
-    siprintf(configfilename,"MINIMIG%dCFG",config);
+    siprintf(configfilename,"/MINIMIG%d.CFG",config);
   else
-    strcpy(configfilename,"MINIMIG CFG");
+    strcpy(configfilename,"/MINIMIG.CFG");
 }
 
 
@@ -286,7 +315,7 @@ unsigned char ConfigurationExists(char *filename)
     // use slot-based filename if none provided
     filename=configfilename;
   }
-  if (FileOpenCompat(&file, filename, FA_READ) == FR_OK) {
+  if (f_open(&file, filename, FA_READ) == FR_OK) {
     f_close(&file);
     return(1);
   }
@@ -298,10 +327,10 @@ static void ApplyConfiguration(char reloadkickstart);
 //// LoadConfiguration() ////
 unsigned char LoadConfiguration(char *filename, int printconfig)
 {
-  static const char config_id[] = "MNMGCFG0";
   char updatekickstart=0;
   char result=0;
   unsigned char key, i;
+  ini_cfg_t config_ini_cfg;
   FIL file;
 
   if(!filename) {
@@ -309,41 +338,33 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
     filename=configfilename;
   }
 
-  // load configuration data
-  if (FileOpenCompat(&file, filename, FA_READ) == FR_OK) {
-    BootPrint("Opened configuration file\n");
-    iprintf("Configuration file size: %llu\r", f_size(&file));
-    if (f_size(&file) == sizeof(config)) {
-      FileReadBlock(&file, sector_buffer);
-      configTYPE *tmpconf=(configTYPE *)&sector_buffer;
-      // check file id and version
-      if (strncmp(tmpconf->id, config_id, sizeof(config.id)) == 0) {
-        // A few more sanity checks...
-        if(tmpconf->floppy.drives<=4) {
-          // If either the old config and new config have a different kickstart file,
-          // or this is the first boot, we need to upload a kickstart image.
-          if(strncmp(tmpconf->kickstart,config.kickstart,sizeof(config.kickstart))!=0) {
-            updatekickstart=true;
-          }
-          memcpy((void*)&config, (void*)sector_buffer, sizeof(config));
-          result=1; // We successfully loaded the config.
-        } else {
-          BootPrint("Config file sanity check failed!\n");
-        }
-      } else {
-        BootPrint("Wrong configuration file format!\n");
-      }
-    } else {
-      iprintf("Wrong configuration file size: %lu (expected: %lu)\r", f_size(&file), sizeof(config));
+  memset((void*)&tmpconf, 0, sizeof(config));  // Finally found default config bug - params were reversed!
+
+  config_ini_cfg.filename = filename;
+  config_ini_cfg.sections = config_ini_sections;
+  config_ini_cfg.vars = config_ini_vars;
+  config_ini_cfg.nsections = (int)(sizeof(config_ini_sections) / sizeof(ini_section_t));
+  config_ini_cfg.nvars =  (int)(sizeof(config_ini_vars) / sizeof(ini_var_t));
+
+  ini_parse(&config_ini_cfg, 0);
+
+  if(tmpconf.floppy.drives<=4 && tmpconf.kickstart[0]) {
+    // If either the old config and new config have a different kickstart file,
+    // or this is the first boot, we need to upload a kickstart image.
+    if(strncmp(tmpconf.kickstart,config.kickstart,sizeof(config.kickstart))!=0) {
+      updatekickstart=true;
     }
-    f_close(&file);
+    memcpy((void*)&config, (void*)&tmpconf, sizeof(config));
+    result=1; // We successfully loaded the config.
+  } else {
+    BootPrint("Config file sanity check failed!\n");
   }
+
   if(!result) {
     BootPrint("Can not open configuration file!\n");
     BootPrint("Setting config defaults\n");
     // set default configuration
     memset((void*)&config, 0, sizeof(config));  // Finally found default config bug - params were reversed!
-    strncpy(config.id, config_id, sizeof(config.id));
     strncpy(config.kickstart, "KICK.ROM", sizeof(config.kickstart));
     config.memory = 0x15;
     config.cpu = 0;
@@ -575,6 +596,7 @@ static void ApplyConfiguration(char reloadkickstart)
 //// SaveConfiguration() ////
 unsigned char SaveConfiguration(char *filename)
 {
+  ini_cfg_t config_ini_cfg;
   FIL file;
   UINT bw;
 
@@ -583,19 +605,14 @@ unsigned char SaveConfiguration(char *filename)
     filename=configfilename;
   }
 
-  // save configuration data
-  if (FileOpenCompat(&file, filename, FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
-    iprintf("Configuration file size: %llu (expected: %lu) \r", f_size(&file), sizeof(config));
-    if (f_size(&file) != sizeof(config)) {
-      //f_truncate(&file);
-    }
-    if (f_write(&file, &config, sizeof(config), &bw) == FR_OK) {
-      f_close(&file);
-      iprintf("File written successfully.\r");
-      return(1);
-    }
-    iprintf("File write failed!\r");
-    f_close(&file);
-  }
+  config_ini_cfg.filename = filename;
+  config_ini_cfg.sections = config_ini_sections;
+  config_ini_cfg.vars = config_ini_vars;
+  config_ini_cfg.nsections = (int)(sizeof(config_ini_sections) / sizeof(ini_section_t));
+  config_ini_cfg.nvars =  (int)(sizeof(config_ini_vars) / sizeof(ini_var_t));
+  memcpy((void*)&tmpconf, (void*)&config, sizeof(config));
+
+  ini_save(&config_ini_cfg);
+
   return(0);
 }

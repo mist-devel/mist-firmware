@@ -15,8 +15,6 @@ typedef struct
 
 typedef struct
 {
-    char          id[8];
-    unsigned long version;
     char          kickstart[80];
     filterTYPE    filter;
     unsigned char memory;
@@ -28,12 +26,11 @@ typedef struct
     unsigned char pad1;
     hardfileTYPE  hardfile[HARDFILES];
     unsigned char cpu;
-    unsigned char   autofire;
+    unsigned char autofire;
 } configTYPE;
 
 extern configTYPE config;
 extern char DebugMode;
-
 char UploadKickstart(char *name);
 char UploadActionReplay();
 void SetConfigurationFilename(int config);	// Set configuration filename by slot number
