@@ -117,7 +117,7 @@ void ShiftFpga(unsigned char data)
 
 // Xilinx FPGA configuration
 // was before unsigned char ConfigureFpga(void)
-RAMFUNC unsigned char ConfigureFpga(char *name)
+unsigned char ConfigureFpga(char *name)
 {
     unsigned long  t;
     unsigned long  n;
@@ -245,7 +245,7 @@ static inline void ShiftFpga(unsigned char data)
 }
 
 // Altera FPGA configuration
-RAMFUNC unsigned char ConfigureFpga(char *name)
+unsigned char ConfigureFpga(char *name)
 {
     unsigned long i;
     unsigned char *ptr;
