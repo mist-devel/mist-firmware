@@ -1328,13 +1328,9 @@ void tos_config_save(char slot) {
   if (slot) filename[4] = '0'+slot;
 
   // save configuration data
-  if (FileOpenCompat(&file, filename, FA_WRITE | FA_OPEN_ALWAYS) != FR_OK) {
+  if (FileOpenCompat(&file, filename, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
     tos_debugf("Config file opening/creating failed.");
     return;
-  }
-
-  if(f_size(&file) != sizeof(tos_config_t)) {
-    //f_truncate(&file)
   }
 
   // finally write the config

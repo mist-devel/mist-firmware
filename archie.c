@@ -23,6 +23,8 @@ static archie_config_t config;
 
 static char floppy_name[MAX_FLOPPY][64];
 
+extern char s[FF_LFN_BUF + 1];
+
 enum state { STATE_HRST, STATE_RAK1, STATE_RAK2, STATE_IDLE, 
 	     STATE_WAIT4ACK1, STATE_WAIT4ACK2, STATE_HOLD_OFF } kbd_state;
 
@@ -87,11 +89,7 @@ void archie_save_config(void) {
   UINT bw;
 
   // save configuration data
-  if (FileOpenCompat(&file, CONFIG_FILENAME, FA_WRITE | FA_OPEN_ALWAYS) == FR_OK)  {
-    archie_debugf("Existing conf file size: %llu", f_size(&file));
-    if(f_size(&file) != sizeof(archie_config_t)) {
-      //f_truncate(&file);
-    }
+  if (FileOpenCompat(&file, CONFIG_FILENAME, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK)  {
     f_write(&file, &config, sizeof(archie_config_t), &bw);
     f_close(&file);
   }
@@ -112,8 +110,9 @@ void archie_save_cmos() {
   FIL file;
 
   archie_debugf("Saving CMOS file");
-  if (FileOpenCompat(&file, config.cmos_img, FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
-    archie_debugf("Existing CMOS file size: %lu", f_size(&file));
+  strcpy(s, "/");
+  strcat(s, config.cmos_img);
+  if (f_open(&file, s, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
     data_io_file_rx(&file, 0x03, 256);
     f_close(&file);
   }
