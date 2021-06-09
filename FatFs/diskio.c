@@ -9,7 +9,8 @@
 
 #include "ff.h"			/* Obtains integer types */
 #include "diskio.h"		/* Declarations of disk functions */
-
+#include "usb.h"
+#include "usbrtc.h"
 #include "../mmc.h"
 
 /* Definitions of physical drive number for each drive */
@@ -207,3 +208,18 @@ DRESULT disk_ioctl (
 	return RES_PARERR;
 }
 
+DWORD get_fattime()
+{
+	uint8_t date[7]; //year,month,date,hour,min,sec,day
+	DWORD   fattime = ((DWORD)(FF_NORTC_YEAR - 1980) << 25 | (DWORD)FF_NORTC_MON << 21 | (DWORD)FF_NORTC_MDAY << 16);
+
+	if (usb_rtc_get_time((uint8_t*)&date)) {
+		fattime = ((date[0] - 80) << 25) |
+		          ((date[1] & 0x0f) << 21) |
+		          ((date[2] & 0x1f) << 16) |
+		          ((date[3] & 0x1f) << 11) |
+		          ((date[4] & 0x3f) << 5) |
+		          ((date[5] >> 1) & 0x1f);
+	}
+	return fattime;
+}
