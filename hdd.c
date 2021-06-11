@@ -571,7 +571,7 @@ static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, u
 
 
 // HandleHDD()
-void HandleHDD(unsigned char c1, unsigned char c2)
+void HandleHDD(unsigned char c1, unsigned char c2, unsigned char cs1ena)
 {
   unsigned char  tfr[8];
   unsigned short i;
@@ -581,7 +581,7 @@ void HandleHDD(unsigned char c1, unsigned char c2)
   unsigned char  unit;
   unsigned short sector_count;
   unsigned char  lbamode;
-  unsigned char  cs1;
+  unsigned char  cs1 = 0;
 
   if (c1 & CMD_IDECMD) {
     DISKLED_ON;
@@ -594,7 +594,7 @@ void HandleHDD(unsigned char c1, unsigned char c2)
     SPI(0x00);
     for (i = 0; i < 8; i++) {
       tfr[i] = SPI(0);
-      if (i == 6) cs1 = tfr[i] & 0x01;
+      if (i == 6 && cs1ena) cs1 = tfr[i] & 0x01;
       tfr[i] = SPI(0);
     }
     DisableFpga();

@@ -99,7 +99,7 @@ void HandleFpga(void) {
   DisableFpga();
   
   HandleFDD(c1, c2);
-  HandleHDD(c1, c2);
+  HandleHDD(c1, c2, 1);
   
   UpdateDriveStatus();
 }

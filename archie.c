@@ -471,7 +471,7 @@ void archie_handle_hdd(void) {
   SPI(0);
   DisableFpga();
 
-  HandleHDD(c1, 0);
+  HandleHDD(c1, 0, 0);
 }
 
 void archie_poll(void) {
