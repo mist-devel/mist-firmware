@@ -26,9 +26,12 @@ LIBDIR   =
 # Commandline options for each tool.
 # for ESA11 add -DEMIST
 DFLAGS  = -I. -Iusb -DMIST
-CFLAGS  = $(DFLAGS) -c -fno-common -O2 --std=gnu99 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
+CFLAGS  = $(DFLAGS) -c -mthumb -fno-common -O2 --std=gnu99 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
+CFLAGS-firmware.o += -marm
+CFLAGS-spi.o += -marm
+CFLAGS += $(CFLAGS-$@)
 AFLAGS  = -ahls -mapcs-32
-LFLAGS  = -nostartfiles -Wl,-Map,$(PRJ).map -T$(LINKMAP) $(LIBDIR)
+LFLAGS  = -mthumb -nostartfiles -Wl,-Map,$(PRJ).map -T$(LINKMAP) $(LIBDIR)
 CPFLAGS = --output-target=ihex
 
 MKUPG = mkupg
