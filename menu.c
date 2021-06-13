@@ -135,7 +135,7 @@ const char *helptexts[]={
 
 // one screen width
 const char* HELPTEXT_SPACER= "                                ";
-char helptext_custom[320];
+char helptext_custom[450]; // spacer(32) + corename(64) + minimig version(16) + helptexts[x](335)
 
 const char* scanlines[]={"Off","25%","50%","75%"};
 const char* stereo[]={"Mono","Stereo"};
@@ -775,7 +775,7 @@ void HandleUI(void)
 					char x = p[1];
 
 					// get version string
-					strcpy(s, OsdCoreName());
+					strcpy(s, OsdCoreName()); // max 65
 					strcat(s," ");
 					substrcpy(s+strlen(s), p, 1);
 					OsdCoreNameSet(s);
@@ -932,7 +932,7 @@ void HandleUI(void)
 			parentstate=MENU_8BIT_MAIN1;
 
 			// set helptext with core display on top of basic info
-			siprintf(helptext_custom, HELPTEXT_SPACER);
+			strcpy(helptext_custom, HELPTEXT_SPACER);
 			strcat(helptext_custom, OsdCoreName());
 			strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
 			helptext=helptext_custom;
@@ -2076,7 +2076,7 @@ void HandleUI(void)
 			menumask=0xF0;	// b11110000 Floppy turbo, Harddisk options & Exit.
 			OsdSetTitle("Minimig",OSD_ARROW_RIGHT);
 			// set helptext with core display on top of basic info
-			siprintf(helptext_custom, HELPTEXT_SPACER);
+			strcpy(helptext_custom, HELPTEXT_SPACER);
 			strcat(helptext_custom, OsdCoreName());
 			siprintf(s, "%s v%d.%d.%d", minimig_ver_beta ? " BETA" : "", minimig_ver_major, minimig_ver_minor, minimig_ver_minion);
 			strcat(helptext_custom, s);

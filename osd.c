@@ -737,11 +737,15 @@ unsigned char OsdKeyGet() {
   return osd_key;
 }
 
-
-/* core currently loaded */
-static char lastcorename[261+10] = "CORE";
+/*
+   core currently loaded
+   core name + version string (8bit) or
+   filename(until fits into the buffer)
+*/
+static char lastcorename[65] = "CORE";
 void OsdCoreNameSet(const char* str) {
-	siprintf(lastcorename, "%s", str);
+	strncpy(lastcorename, str, sizeof(lastcorename));
+	lastcorename[sizeof(lastcorename)-1] = 0;
 }
 char* OsdCoreName() {
 	return lastcorename;
