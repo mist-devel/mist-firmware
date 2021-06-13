@@ -51,7 +51,7 @@ static const ini_var_t config_ini_vars[] = {
   {"HDD2",        (void*)tmpconf.hardfile[2].name, STRING, 1, 63, 1},
   {"HDD3_ENABLE", (void*)&tmpconf.hardfile[3].enabled, UINT8, 0, 255, 1},
   {"HDD3",        (void*)tmpconf.hardfile[3].name, STRING, 1, 63, 1},
-  {"CPU",         (void*)&tmpconf.cpu, UINT8, 0, 3, 1},
+  {"CPU",         (void*)&tmpconf.cpu, UINT8, 0, 15, 1},
   {"AUTOFIRE",    (void*)&tmpconf.autofire, UINT8, 0, 7, 1}
 };
 
