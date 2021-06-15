@@ -201,10 +201,12 @@ char minimig_v2() {
 	return(core_type == CORE_TYPE_MINIMIG2);
 }
 
-char user_io_create_config_name(char *s, const char *ext, char root) {
-	char *p = user_io_get_core_name();
+char user_io_create_config_name(char *s, const char *ext, char flags) {
+	char *p = 0;
+	if (flags & CONFIG_VHD) p = arc_get_vhdname();
+	if (!p || !*p) p = user_io_get_core_name();
 	if(p[0]) {
-		if (root) strcpy(s,"/"); else s[0] = 0;
+		if (flags & CONFIG_ROOT) strcpy(s,"/"); else s[0] = 0;
 		strcat(s, p);
 		if (ext) {
 			strcat(s,".");
@@ -343,7 +345,7 @@ void user_io_detect_core_type() {
 		UINT br;
 		// try to load config
 
-		if(!user_io_create_config_name(s, "CFG", 1)) {
+		if(!user_io_create_config_name(s, "CFG", CONFIG_ROOT)) {
 			iprintf("Loading config %s\n", s);
 
 			if (f_open(&file, s, FA_READ) == FR_OK)  {
@@ -371,7 +373,7 @@ void user_io_detect_core_type() {
 			}
 		}
 
-		if(!user_io_create_config_name(s, "RAM", 1)) {
+		if(!user_io_create_config_name(s, "RAM", CONFIG_ROOT)) {
 			iprintf("Looking for %s\n", s);
 			// check if there's a <core>.ram present, send it via index -1
 			if (f_open(&file, s, FA_READ) == FR_OK) {
@@ -382,13 +384,15 @@ void user_io_detect_core_type() {
 
 
 		// check if there's a <core>.vhd present
-		if(!user_io_create_config_name(s, "VHD", 1)) {
+		if(!user_io_create_config_name(s, "VHD", CONFIG_ROOT | CONFIG_VHD)) {
+			iprintf("Looking for %s\n", s);
 			user_io_file_mount(s, 0);
 			if (!user_io_is_mounted(0)) {
 				// check for <core>.HD0/1 files
-				if(!user_io_create_config_name(s, "HD0", 1)) {
+				if(!user_io_create_config_name(s, "HD0", CONFIG_ROOT | CONFIG_VHD)) {
 					for (int i = 0; i < SD_IMAGES; i++) {
 						s[strlen(s)-1] = '0'+i;
+						iprintf("Looking for %s\n", s);
 						user_io_file_mount(s, i);
 					}
 				}
@@ -2256,7 +2260,7 @@ void user_io_change_into_core_dir(void) {
 		strcpy(s, "/");
 		strcat(s, arc_get_dirname());
 	} else {
-		user_io_create_config_name(s, 0, 1);
+		user_io_create_config_name(s, 0, CONFIG_ROOT);
 	}
 	// try to change into subdir named after the core
 	iprintf("Trying to open work dir \"%s\"\n", s);

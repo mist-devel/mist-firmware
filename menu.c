@@ -1015,7 +1015,7 @@ void HandleUI(void)
 							if (len) {
 								FIL file;
 
-								if (!user_io_create_config_name(s, "RAM", 1)) {
+								if (!user_io_create_config_name(s, "RAM", CONFIG_ROOT)) {
 									menu_debugf("Saving RAM file");
 									if (f_open(&file, s, FA_READ | FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
 										data_io_file_rx(&file, -1, len);
@@ -1161,7 +1161,7 @@ void HandleUI(void)
 							UINT br;
 							menustate = MENU_8BIT_MAIN1;
 							menusub = 0;
-							if (!user_io_create_config_name(s, "CFG", 1)) {;
+							if (!user_io_create_config_name(s, "CFG", CONFIG_ROOT)) {;
 								iprintf("Saving config to %s\n", s);
 								if(f_open(&file, s, FA_READ | FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
 									// finally write data
@@ -2515,7 +2515,7 @@ void HandleUI(void)
 				} else {
 					FIL file;
 					UINT br;
-					if (!user_io_create_config_name(s, "CFG", 1)) {
+					if (!user_io_create_config_name(s, "CFG", CONFIG_ROOT)) {
 						iprintf("Saving config to %s\n", s);
 						if(f_open(&file, s, FA_READ | FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
 						 // finally write data

@@ -12,6 +12,7 @@ void arc_reset();
 char *arc_get_rbfname();
 char *arc_get_corename();
 char *arc_get_dirname();
+char *arc_get_vhdname();
 char *arc_get_conf();
 uint64_t arc_get_default();
 
