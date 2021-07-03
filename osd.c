@@ -236,7 +236,7 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
   int arrowmask=arrow;
   if(n==7 && (arrow & OSD_ARROW_RIGHT))
     linelimit-=22;
-  
+
   if(stipple) {
     stipplemask=0x55;
     stipple=0xff;
@@ -248,10 +248,10 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
     spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
   else
     spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
-  
+
   if(invert)
     invert=255;
-  
+
   i = 0;
   // send all characters in string to OSD
   while (1) {
@@ -263,7 +263,7 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
       spi16(0xffff);  // left white border
 
       for(j=0;j<8;j++)
-	spi_n(255^*p++, 2);
+          spi_n(255^*p++, 2);
 
       spi16(0xffff);  // right white border
       spi16(0x0000);  // blue gap
@@ -285,31 +285,31 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
       if(*s++ == 0) break;
     } else {
       b = *s++;
-      
-      if (b == 0) // end of string
-	break;
-      
-      else if (b == 0x0d || b == 0x0a) { // cariage return / linefeed, go to next line
-	// increment line counter
-	if (++n >= linelimit)
-	  n = 0;
 
-	// send new line number to OSD
-	DisableOsd();
-	
-	if(!minimig_v2())
-	  spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
-	else 
-	  spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
+      if (b == 0) // end of string
+        break;
+
+      else if (b == 0x0d || b == 0x0a) { // cariage return / linefeed, go to next line
+        // increment line counter
+        if (++n >= linelimit)
+          n = 0;
+
+        // send new line number to OSD
+        DisableOsd();
+
+        if(!minimig_v2())
+          spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
+        else
+          spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
       }
       else if(i<(linelimit-8)) { // normal character
-	unsigned char c;
-	p = &charfont[b][0];
-	for(c=0;c<8;c++) {
-	  spi8(((*p++<<offset)&stipplemask)^invert);
-	  stipplemask^=stipple;
-	}
-	i += 8;
+        unsigned char c;
+        p = &charfont[b][0];
+        for(c=0;c<8;c++) {
+          spi8(((*p++<<offset)&stipplemask)^invert);
+          stipplemask^=stipple;
+        }
+        i += 8;
       }
     }
   }
@@ -327,7 +327,7 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
     spi24(0x00);
     i+=22;
   }
-  
+
   // deselect OSD SPI device
   DisableOsd();
 }
@@ -337,38 +337,38 @@ void OsdDrawLogo(unsigned char n, char row,char superimpose) {
   unsigned short i;
   const unsigned char *p;
   int linelimit=OSDLINELEN;
-  
+
   // select buffer and line to write to
   if(!minimig_v2())
     spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
   else
     spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
-  
+
   const unsigned char *lp=logodata[row];
   int bytes=sizeof(logodata[0]);
   if(row>=(sizeof(logodata)/bytes))
     lp=0;
   i = 0;
   // send all characters in string to OSD
-  
+
   if(superimpose) {
     char *bg=framebuffer[n];
     while (bytes) {
       if(i==0) {	// Render sidestripe
-	unsigned char j;
-	p = &titlebuffer[(7-n)*8];
-	spi16(0xffff);
-	for(j=0;j<8;j++) spi_n(255^*p++, 2);
-	spi16(0xffff);
-	spi16(0x0000);
-	i += 22;
+        unsigned char j;
+        p = &titlebuffer[(7-n)*8];
+        spi16(0xffff);
+        for(j=0;j<8;j++) spi_n(255^*p++, 2);
+        spi16(0xffff);
+        spi16(0x0000);
+        i += 22;
       }
-      if(i>=linelimit)
-	break;
+      if(i>=linelimit) 
+        break;
       if(lp)
-	spi8(*lp++ | *bg++);
+        spi8(*lp++ | *bg++);
       else
-	spi8(*bg++);
+        spi8(*bg++);
       --bytes;
       ++i;
     }
@@ -377,20 +377,20 @@ void OsdDrawLogo(unsigned char n, char row,char superimpose) {
   } else {
     while (bytes) {
       if(i==0) { // Render sidestripe
-	unsigned char b;
-	p = &titlebuffer[(7-n)*8];
-	spi16(0xffff);
-	for(b=0;b<8;b++) spi_n(255^*p++, 2);
-	spi16(0xffff);
-	spi16(0x0000);
-	i += 22;
+        unsigned char b;
+        p = &titlebuffer[(7-n)*8];
+        spi16(0xffff);
+        for(b=0;b<8;b++) spi_n(255^*p++, 2);
+        spi16(0xffff);
+        spi16(0x0000);
+        i += 22;
       }
       if(i>=linelimit)
-	break;
+        break;
       if(lp)
-	spi8(*lp++);
+        spi8(*lp++);
       else
-	spi8(0);
+        spi8(0);
       --bytes;
       ++i;
     }
@@ -411,25 +411,25 @@ void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned
   // width : printed text length in pixels
   // offset : scroll offset in pixels counting from the start of the string (0-7)
   // invert : invertion flag
-  
+
   const unsigned char *p;
   int i,j;
-  
+
   // select buffer and line to write to
   if(!minimig_v2())
     spi_osd_cmd_cont(MM1_OSDCMDWRITE | line);
   else 
     spi_osd_cmd32_cont(OSD_CMD_OSD_WR, line);
-  
+
   if(invert)
     invert=0xff;
-  
+
   p = &titlebuffer[(7-line)*8];
   if(start>2) {
     spi16(0xffff);
     start-=2;
   }
-  
+
   i=start>16 ? 16 : start;
   for(j=0;j<(i/2);++j)
     spi_n(255^*p++, 2);
@@ -437,7 +437,7 @@ void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned
   if(i&1)
     spi8(255^*p);
   start-=i;
-  
+
   if(start>2) {
     spi16(0xffff);
     start-=2;
@@ -445,7 +445,7 @@ void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned
 
   while (start--)
     spi8(0x00);
-  
+
   if (offset) {
     width -= 8 - offset;
     p = &charfont[*text++][offset];
@@ -647,16 +647,13 @@ unsigned char OsdGetCtrl(void)
     // currently no key pressed
     if(!c) {
       static unsigned char last_but = 0;
-	  if(!disable_menu)
-	  {
-		unsigned char but = CheckButton();
-		if(!but && last_but) c = KEY_MENU;
-		last_but = but;
-      }
-	  else
-	  {
-		last_but = 0;
-	  }
+        if(!disable_menu) {
+          unsigned char but = CheckButton();
+          if(!but && last_but) c = KEY_MENU;
+          last_but = but;
+        } else {
+          last_but = 0;
+        }
     }
 
     return(c);
@@ -664,7 +661,7 @@ unsigned char OsdGetCtrl(void)
 
 void OsdDisableMenuButton(unsigned char disable)
 {
-	disable_menu = disable;
+    disable_menu = disable;
 }
 
 unsigned char GetASCIIKey(unsigned char keycode)
@@ -683,8 +680,8 @@ void ScrollText(char n, const char *str, int len, int max_len, unsigned char inv
     #define BLANKSPACE 10 // number of spaces between the end and start of repeated name
 
     long offset;
-	if(!max_len)
-		max_len=30;
+    if(!max_len)
+        max_len=30;
 
     if (str && str[0] && CheckTimer(scroll_timer)) // scroll if long name and timer delay elapsed
     {
@@ -693,8 +690,8 @@ void ScrollText(char n, const char *str, int len, int max_len, unsigned char inv
         scroll_offset++; // increase scroll position (1 pixel unit)
         memset(s, ' ', 32); // clear buffer
 
-		if(!len)
-	        len = strlen(str); // get name length
+        if(!len)
+            len = strlen(str); // get name length
 
         if (len + len_offset > max_len) // scroll name if longer than display size
         {
@@ -705,8 +702,8 @@ void ScrollText(char n, const char *str, int len, int max_len, unsigned char inv
 
             len -= offset; // remaining number of characters in the name
 
-			if(len>max_len)
-				len=max_len;
+            if(len>max_len)
+                len=max_len;
 
             if (len > 0)
                 strncpy(s, &str[offset], len); // copy name substring
