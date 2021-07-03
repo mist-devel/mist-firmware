@@ -257,7 +257,7 @@ const unsigned short usb2atari[] = {
   NUM_LOCK_TOGGLE | 4   // 6f: F20
 };
 
-// keycode translation table for ps2 emulation
+// keycode translation table for ps2 emulation (scan set 2,3)
 const unsigned short usb2ps2[] = {
   MISS,  // 00: NoEvent
   MISS,  // 01: Overrun Error
@@ -366,6 +366,122 @@ const unsigned short usb2ps2[] = {
   0x77,  // 68: Num Lock
   0x7e,  // 69: Scroll Lock
   0x18,  // 6a: F15
+  EXT | 0x70,  // 6b: insert (for keyrah)
+  NUM_LOCK_TOGGLE | 1,  // 6c: F17
+  NUM_LOCK_TOGGLE | 2,  // 6d: F18
+  NUM_LOCK_TOGGLE | 3,  // 6e: F19
+  NUM_LOCK_TOGGLE | 4   // 6f: F20
+};
+
+// keycode translation table for ps2 emulation (scan set 1)
+const unsigned short usb2ps2_set1[] = {
+  MISS,  // 00: NoEvent
+  MISS,  // 01: Overrun Error
+  MISS,  // 02: POST fail
+  MISS,  // 03: ErrorUndefined
+  0x1e,  // 04: a
+  0x30,  // 05: b
+  0x2e,  // 06: c
+  0x20,  // 07: d
+  0x12,  // 08: e
+  0x21,  // 09: f
+  0x22,  // 0a: g
+  0x23,  // 0b: h
+  0x17,  // 0c: i
+  0x24,  // 0d: j
+  0x25,  // 0e: k
+  0x26,  // 0f: l
+  0x32,  // 10: m
+  0x31,  // 11: n
+  0x18,  // 12: o
+  0x19,  // 13: p
+  0x10,  // 14: q
+  0x13,  // 15: r
+  0x1f,  // 16: s
+  0x14,  // 17: t
+  0x16,  // 18: u
+  0x2f,  // 19: v
+  0x11,  // 1a: w
+  0x2d,  // 1b: x
+  0x15,  // 1c: y
+  0x2c,  // 1d: z
+  0x02,  // 1e: 1
+  0x03,  // 1f: 2
+  0x04,  // 20: 3
+  0x05,  // 21: 4
+  0x06,  // 22: 5
+  0x07,  // 23: 6
+  0x08,  // 24: 7
+  0x09,  // 25: 8
+  0x0a,  // 26: 9
+  0x0b,  // 27: 0
+  0x1c,  // 28: Return
+  0x01,  // 29: Escape
+  0x0e,  // 2a: Backspace
+  0x0f,  // 2b: Tab
+  0x39,  // 2c: Space
+  0x0c,  // 2d: -
+  0x0d,  // 2e: =
+  0x1a,  // 2f: [
+  0x1b,  // 30: ]
+  0x2b,  // 31: backslash
+  MISS,  // 32: Europe 1
+  0x27,  // 33: ; 
+  0x28,  // 34: '
+  0x29,  // 35: `
+  0x33,  // 36: ,
+  0x34,  // 37: .
+  0x35,  // 38: /
+  0x3a,  // 39: Caps Lock
+  0x3b,  // 3a: F1
+  0x3c,  // 3b: F2
+  0x3d,  // 3c: F3
+  0x3e,  // 3d: F4
+  0x3f,  // 3e: F5
+  0x40,  // 3f: F6
+  0x41,  // 40: F7
+  0x42,  // 41: F8
+  0x43,  // 42: F9
+  0x44,  // 43: F10
+  0x45,  // 44: F11
+  OSD_OPEN | 0x07,  // 45: F12 (OSD)
+  EXT | 0x37, // 46: Print Screen
+  NUM_LOCK_TOGGLE,  // 47: Scroll Lock
+  0x45,  // 48: Pause (special key handled inside user_io)
+  EXT | 0x52, // 49: Insert
+  EXT | 0x47, // 4a: Home
+  EXT | 0x49, // 4b: Page Up
+  EXT | 0x4b, // 4c: Delete
+  EXT | 0x4f, // 4d: End
+  EXT | 0x51, // 4e: Page Down
+  EXT | 0x4d, // 4f: Right Arrow
+  EXT | 0x4b, // 50: Left Arrow
+  EXT | 0x50, // 51: Down Arrow
+  EXT | 0x48, // 52: Up Arrow
+  NUM_LOCK_TOGGLE,  // 53: Num Lock
+  EXT | 0x35, // 54: KP /
+  0x37,  // 55: KP *
+  0x4a,  // 56: KP -
+  0x4e,  // 57: KP +
+  EXT | 0x1c, // 58: KP Enter
+  0x4f,  // 59: KP 1
+  0x50,  // 5a: KP 2
+  0x51,  // 5b: KP 3
+  0x4b,  // 5c: KP 4
+  0x4c,  // 5d: KP 5
+  0x4d,  // 5e: KP 6
+  0x47,  // 5f: KP 7
+  0x48,  // 60: KP 8
+  0x49,  // 61: KP 9
+  0x52,  // 62: KP 0
+  0x53,  // 63: KP .
+  MISS,  // 64: Europe 2
+  OSD_OPEN | EXT | 0x2f, // 65: App
+  MISS, // 66: Power
+  MISS,  // 67: KP =
+  0x45,  // 68: Num Lock
+  0x46,  // 69: Scroll Lock
+  MISS,  // 6a: F15
   EXT | 0x70,  // 6b: insert (for keyrah)
   NUM_LOCK_TOGGLE | 1,  // 6c: F17
   NUM_LOCK_TOGGLE | 2,  // 6d: F18

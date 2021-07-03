@@ -33,6 +33,8 @@
 #define UIO_ETH_FRM_IN  0x0b
 #define UIO_ETH_FRM_OUT 0x0c
 #define UIO_SERIAL_STAT 0x0d
+#define UIO_KEYBOARD_IN 0x0e  // PS2 keyboard cmd
+#define UIO_MOUSE_IN    0x0f  // PS2 mouse cmd
 
 #define UIO_JOYSTICK2   0x10  // also used by minimig and 8 bit
 #define UIO_JOYSTICK3   0x11  // -"-

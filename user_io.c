@@ -93,6 +93,13 @@ static unsigned long rtc_timer;
 #define video_sd_disable  (*(uint8_t*)0x0020FF15)
 #define video_ypbpr       (*(uint8_t*)0x0020FF16)
 
+typedef enum { PS2_KBD_IDLE, PS2_KBD_SCAN_GETSET, PS2_KBD_TYPEMATIC_SET, PS2_KBD_LED_SET } ps2_kbd_state_t;
+static ps2_kbd_state_t ps2_kbd_state;
+static char ps2_kbd_scan_set = 2;
+
+typedef enum { PS2_MOUSE_IDLE, PS2_MOUSE_SETRESOLUTION, PS2_MOUSE_SETSAMPLERATE } ps2_mouse_state_t;
+static ps2_mouse_state_t ps2_mouse_state;
+
 // set by OSD code to suppress forwarding of those keys to the core which
 // may be in use by an active OSD
 static char osd_is_visible = false;
@@ -169,6 +176,9 @@ void user_io_reset() {
 	sd_image[2].valid = 0;
 	sd_image[3].valid = 0;
 	core_mod = 0;
+	ps2_kbd_state = PS2_KBD_IDLE;
+	ps2_kbd_scan_set = 2;
+	ps2_mouse_state = PS2_MOUSE_IDLE;
 }
 
 void user_io_init() {
@@ -422,7 +432,7 @@ static unsigned short usb2ps2code( unsigned char k) {
 	if (mist_cfg.key_menu_as_rgui && k==0x65) {
 		return EXT | 0x27;
 	}
-	return usb2ps2[k];
+	return (ps2_kbd_scan_set == 1) ? usb2ps2_set1[k] : usb2ps2[k];
 }
 
 void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
@@ -910,6 +920,132 @@ static void set_kbd_led(unsigned char led, bool on)
 	}
 }
 
+static void handle_ps2_kbd_commands()
+{
+	unsigned char c, cmd;
+	spi_uio_cmd_cont(UIO_KEYBOARD_IN);
+	c = spi_in();
+	cmd = spi_in();
+	DisableIO();
+	if (c == UIO_KEYBOARD_IN) { // receiving echo of the command code shows the core supports this message
+		iprintf("PS2 keyboard cmd: %02x\n", cmd);
+		switch (ps2_kbd_state) {
+			case PS2_KBD_IDLE:
+				switch (cmd) {
+					case 0xFF: // reset
+						ps2_kbd_scan_set = 2;
+						spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+						spi_uio_cmd8(UIO_KEYBOARD, 0xAA); // BAT successful
+						break;
+					case 0xF2: // read ID
+						spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+						spi_uio_cmd8(UIO_KEYBOARD, 0xAB); // ID1
+						spi_uio_cmd8(UIO_KEYBOARD, 0x83); // ID2
+						break;
+					case 0xF0: // scan get/set
+						spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+						ps2_kbd_state = PS2_KBD_SCAN_GETSET;
+						break;
+					case 0xF3: // typematic set
+						spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+						ps2_kbd_state = PS2_KBD_TYPEMATIC_SET;
+						break;
+					case 0xED: // set LEDs
+						spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+						ps2_kbd_state = PS2_KBD_LED_SET;
+						break;
+					case 0xEE: // echo
+						spi_uio_cmd8(UIO_KEYBOARD, 0xEE); // ACK
+						break;
+					case 0xF4: // enable scanning
+						// TODO: handle the message
+						spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+						break;
+					case 0xF5: // disable scanning
+						// TODO: handle the message
+						spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+						break;
+					case 0xF6: // set default parameters
+						ps2_kbd_scan_set = 2;
+						spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+						break;
+				}
+				break;
+			case PS2_KBD_SCAN_GETSET:
+				if (cmd<=3) {
+					spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+					if (!cmd) // get
+						spi_uio_cmd8(UIO_KEYBOARD, ps2_kbd_scan_set);
+					else // set
+						ps2_kbd_scan_set = cmd;
+					ps2_kbd_state = PS2_KBD_IDLE;
+				} else {
+					spi_uio_cmd8(UIO_KEYBOARD, 0xFE); // RESEND
+				}
+				break;
+			case PS2_KBD_TYPEMATIC_SET:
+				// TODO: handle the message
+				spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+				ps2_kbd_state = PS2_KBD_IDLE;
+				break;
+			case PS2_KBD_LED_SET:
+				// TODO: handle the message
+				spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
+				ps2_kbd_state = PS2_KBD_IDLE;
+				break;
+		}
+	}
+}
+
+static void handle_ps2_mouse_commands()
+{
+	unsigned char c, cmd;
+	spi_uio_cmd_cont(UIO_MOUSE_IN);
+	c = spi_in();
+	cmd = spi_in();
+	DisableIO();
+	if (c == UIO_MOUSE_IN) { // receiving echo of the command code shows the core supports this message
+		iprintf("PS2 mouse cmd: %02x\n", cmd);
+		switch (ps2_mouse_state) {
+			case PS2_MOUSE_IDLE:
+				switch (cmd) {
+					case 0xFF: // reset
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xAA); // BAT successful
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0);
+						break;
+					case 0xF6: // set defaults;
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						break;
+					case 0xE8: // set resolution
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						ps2_mouse_state = PS2_MOUSE_SETRESOLUTION;
+						break;
+					case 0xF2: // get device ID
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0x00); // Normal PS2 mouse
+						break;
+					case 0xF4: // enable data reporting
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						break;
+					case 0xF3: // set sample rate
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						ps2_mouse_state = PS2_MOUSE_SETSAMPLERATE;
+						break;
+				}
+				break;
+			case PS2_MOUSE_SETRESOLUTION:
+					spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+					ps2_mouse_state = PS2_MOUSE_IDLE;
+					break;
+			case PS2_MOUSE_SETSAMPLERATE:
+					spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+					ps2_mouse_state = PS2_MOUSE_IDLE;
+					break;
+		}
+	}
+}
+
 void user_io_poll() {
 
 	// check of core has changed from a good one to a not supported on
@@ -1236,7 +1372,7 @@ void user_io_poll() {
 					uint8_t wr_buf[512];
 
 					if(user_io_dip_switch1())
-						iprintf("SD WR %d\n", lba);
+						iprintf("SD WR (%d) %d\n", drive_index, lba);
 
 					// if we write the sector stored in the read buffer, then
 					// invalidate the cache
@@ -1272,7 +1408,7 @@ void user_io_poll() {
 			if((c & 0x03) == 0x01) {
 
 				if(user_io_dip_switch1())
-					iprintf("SD RD %d\n", lba);
+					iprintf("SD RD (%d) %d\n", drive_index, lba);
 
 				// invalidate cache if it stores data from another drive
 				if (drive_index != buffer_drive_index)
@@ -1415,6 +1551,12 @@ void user_io_poll() {
 				}
 			}
 		}
+	}
+
+	if(core_type == CORE_TYPE_8BIT)
+	{
+		handle_ps2_kbd_commands();
+		handle_ps2_mouse_commands();
 	}
 
 	if(core_type == CORE_TYPE_ARCHIE) 
@@ -1566,7 +1708,10 @@ static void send_keycode(unsigned short code) {
 				spi8(0xe0);
  
 			if(code & BREAK)  // prepend break code if required
-				spi8(0xf0);
+				if (ps2_kbd_scan_set == 1)
+					code |= 0x80;
+				else
+					spi8(0xf0);
 
 			spi8(code & 0xff);  // send code itself
 		}
@@ -1722,7 +1867,9 @@ unsigned short modifier_keycode(unsigned char index) {
 	   (core_type == CORE_TYPE_MIST2)) {
 		static const unsigned short ps2_modifier[] = 
 			{ 0x14, 0x12, 0x11, EXT|0x1f, EXT|0x14, 0x59, EXT|0x11, EXT|0x27 };
-		return ps2_modifier[index];
+		static const unsigned short ps2_modifier_set1[] = 
+			{ 0x1d, 0x2a, 0x38, MISS, EXT|0x1d, 0x36, EXT|0x38, MISS };
+		return (ps2_kbd_scan_set == 1) ? ps2_modifier_set1[index] : ps2_modifier[index];
 	}
 
 	if(core_type == CORE_TYPE_ARCHIE) {
