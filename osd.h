@@ -41,6 +41,7 @@
 #define OSD_CMD_HDD0      0x54
 #define OSD_CMD_HDD1      0x58
 #define OSD_CMD_JOY       0x64
+#define OSD_CMD_FEATURES  0x74
 #define OSD_CMD_OSD_WR    0x0c
 #define OSD_CMD_WR        0x1c
 #define OSD_CMD_VERSION   0x88
@@ -121,6 +122,7 @@ void ConfigChipset(unsigned char chipset);
 void ConfigFloppy(unsigned char drives, unsigned char speed);
 void ConfigIDE(unsigned char gayle, unsigned char master, unsigned char slave);
 void ConfigAutofire(unsigned char autofire);
+void ConfigFeatures(unsigned char audiofiltermode, unsigned char powerledoffstate);
 unsigned char OsdGetCtrl(void);
 void OsdDisableMenuButton(unsigned char disable);
 unsigned char GetASCIIKey(unsigned char c);

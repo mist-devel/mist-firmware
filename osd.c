@@ -580,6 +580,12 @@ void ConfigAutofire(unsigned char autofire)
       spi_osd_cmd8(OSD_CMD_JOY, autofire & 0x07);
 }
 
+void ConfigFeatures(unsigned char audiofiltermode, unsigned char powerledoffstate)
+{
+    if(!minimig_v1())
+      spi_osd_cmd8(OSD_CMD_FEATURES, ((powerledoffstate & 0x01) << 2) | (audiofiltermode & 0x03));
+}
+
 static unsigned char disable_menu = 0;
 
 // get key status

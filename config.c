@@ -32,27 +32,29 @@ static const ini_section_t config_ini_sections[] = {
 };
 
 static const ini_var_t config_ini_vars[] = {
-  {"KICKSTART",   (void*)tmpconf.kickstart, STRING, 1, 79, 1},
-  {"FILTER_LO",   (void*)&tmpconf.filter.lores, UINT8, 0, 3, 1},
-  {"FILTER_HI",   (void*)&tmpconf.filter.hires, UINT8, 0, 3, 1},
-  {"MEMORY",      (void*)&tmpconf.memory, UINT8, 0, 127, 1},
-  {"CHIPSET",     (void*)&tmpconf.chipset, UINT8, 0, 127, 1},
-  {"FLOPPY_SPD",  (void*)&tmpconf.floppy.speed, UINT8, 0, 1, 1},
-  {"FLOPPY_CNT",  (void*)&tmpconf.floppy.drives, UINT8, 0, 4, 1},
-  {"AR3_DISABLE", (void*)&tmpconf.disable_ar3, UINT8, 0, 1, 1},
-  {"IDE0_ENABLE", (void*)&tmpconf.enable_ide[0], UINT8, 0, 1, 1},
-  {"IDE1_ENABLE", (void*)&tmpconf.enable_ide[1], UINT8, 0, 1, 1},
-  {"SCANLINES",   (void*)&tmpconf.scanlines, UINT8, 0, 2, 1},
-  {"HDD0_ENABLE", (void*)&tmpconf.hardfile[0].enabled, UINT8, 0, 255, 1},
-  {"HDD0",        (void*)tmpconf.hardfile[0].name, STRING, 1, 63, 1},
-  {"HDD1_ENABLE", (void*)&tmpconf.hardfile[1].enabled, UINT8, 0, 255, 1},
-  {"HDD1",        (void*)tmpconf.hardfile[1].name, STRING, 1, 63, 1},
-  {"HDD2_ENABLE", (void*)&tmpconf.hardfile[2].enabled, UINT8, 0, 255, 1},
-  {"HDD2",        (void*)tmpconf.hardfile[2].name, STRING, 1, 63, 1},
-  {"HDD3_ENABLE", (void*)&tmpconf.hardfile[3].enabled, UINT8, 0, 255, 1},
-  {"HDD3",        (void*)tmpconf.hardfile[3].name, STRING, 1, 63, 1},
-  {"CPU",         (void*)&tmpconf.cpu, UINT8, 0, 15, 1},
-  {"AUTOFIRE",    (void*)&tmpconf.autofire, UINT8, 0, 7, 1}
+  {"KICKSTART",        (void*)tmpconf.kickstart, STRING, 1, 79, 1},
+  {"FILTER_LO",        (void*)&tmpconf.filter.lores, UINT8, 0, 3, 1},
+  {"FILTER_HI",        (void*)&tmpconf.filter.hires, UINT8, 0, 3, 1},
+  {"MEMORY",           (void*)&tmpconf.memory, UINT8, 0, 127, 1},
+  {"CHIPSET",          (void*)&tmpconf.chipset, UINT8, 0, 127, 1},
+  {"FLOPPY_SPD",       (void*)&tmpconf.floppy.speed, UINT8, 0, 1, 1},
+  {"FLOPPY_CNT",       (void*)&tmpconf.floppy.drives, UINT8, 0, 4, 1},
+  {"AR3_DISABLE",      (void*)&tmpconf.disable_ar3, UINT8, 0, 1, 1},
+  {"IDE0_ENABLE",      (void*)&tmpconf.enable_ide[0], UINT8, 0, 1, 1},
+  {"IDE1_ENABLE",      (void*)&tmpconf.enable_ide[1], UINT8, 0, 1, 1},
+  {"SCANLINES",        (void*)&tmpconf.scanlines, UINT8, 0, 2, 1},
+  {"HDD0_ENABLE",      (void*)&tmpconf.hardfile[0].enabled, UINT8, 0, 255, 1},
+  {"HDD0",             (void*)tmpconf.hardfile[0].name, STRING, 1, 63, 1},
+  {"HDD1_ENABLE",      (void*)&tmpconf.hardfile[1].enabled, UINT8, 0, 255, 1},
+  {"HDD1",             (void*)tmpconf.hardfile[1].name, STRING, 1, 63, 1},
+  {"HDD2_ENABLE",      (void*)&tmpconf.hardfile[2].enabled, UINT8, 0, 255, 1},
+  {"HDD2",             (void*)tmpconf.hardfile[2].name, STRING, 1, 63, 1},
+  {"HDD3_ENABLE",      (void*)&tmpconf.hardfile[3].enabled, UINT8, 0, 255, 1},
+  {"HDD3",             (void*)tmpconf.hardfile[3].name, STRING, 1, 63, 1},
+  {"CPU",              (void*)&tmpconf.cpu, UINT8, 0, 15, 1},
+  {"AUTOFIRE",         (void*)&tmpconf.autofire, UINT8, 0, 7, 1},
+  {"AUDIOFILTERMODE",  (void*)&tmpconf.features.audiofiltermode, UINT8, 0, 2, 1},
+  {"POWERLEDOFFSTATE", (void*)&tmpconf.features.powerledoffstate, UINT8, 0, 1, 1}
 };
 
 // TODO fix SPIN macros all over the place!
@@ -377,6 +379,8 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
     strncpy(config.hardfile[0].name, "HARDFILE", sizeof(config.hardfile[0].name));
     strncpy(config.hardfile[1].name, "HARDFILE", sizeof(config.hardfile[1].name));
     config.hardfile[1].enabled = 2;  // Default is access to entire SD card
+    config.features.audiofiltermode = 0;
+    config.features.powerledoffstate = 0;
     updatekickstart=true;
     BootPrint("Defaults set\n");
   }
@@ -558,6 +562,7 @@ static void ApplyConfiguration(char reloadkickstart)
     ConfigVideo(config.filter.hires, config.filter.lores, config.scanlines);
     ConfigChipset(config.chipset);
     ConfigFloppy(config.floppy.drives, config.floppy.speed);
+    ConfigFeatures(config.features.audiofiltermode, config.features.powerledoffstate);
 
     if(reloadkickstart) {
       iprintf("Reloading kickstart ...\r");
