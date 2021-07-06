@@ -120,9 +120,11 @@ char *config_autofire_msg[] = {"        AUTOFIRE OFF", "        AUTOFIRE FAST", 
 const char *config_cd32pad_msg[] =  {"OFF", "ON"};
 char *config_button_turbo_msg[] = {"OFF", "FAST", "MEDIUM", "SLOW"};
 char *config_button_turbo_choice_msg[] = {"A only", "B only", "A & B"};
+const char *config_audio_filter_msg[] = {"switchable", "always off", "always on"};
+const char *config_power_led_off_msg[] = {"dim", "off"};
 
 
-enum HelpText_Message {HELPTEXT_NONE,HELPTEXT_MAIN,HELPTEXT_HARDFILE,HELPTEXT_CHIPSET,HELPTEXT_MEMORY,HELPTEXT_VIDEO};
+enum HelpText_Message {HELPTEXT_NONE,HELPTEXT_MAIN,HELPTEXT_HARDFILE,HELPTEXT_CHIPSET,HELPTEXT_MEMORY,HELPTEXT_VIDEO,HELPTEXT_FEATURES};
 const char *helptexts[]={
 	0,
 	"                                Welcome to MiST!  Use the cursor keys to navigate the menus.  Use space bar or enter to select an item.  Press Esc or F12 to exit the menus.  Joystick emulation on the numeric keypad can be toggled with the numlock key, while pressing Ctrl-Alt-0 (numeric keypad) toggles autofire mode.",
@@ -130,6 +132,7 @@ const char *helptexts[]={
 	"                                Minimig's processor core can emulate a 68000 or 68020 processor (though the 68020 mode is still experimental.)  If you're running software built for 68000, there's no advantage to using the 68020 mode, since the 68000 emulation runs just as fast.",
 	"                                Minimig can make use of up to 2 megabytes of Chip RAM, up to 1.5 megabytes of Slow RAM (A500 Trapdoor RAM), and up to 8 megabytes (68000/68010) / 24 megabytes (68020) of true Fast RAM.  To use the HRTmon feature you will need a file on the SD card named hrtmon.rom.",
 	"                                Minimig's video features include a blur filter, to simulate the poorer picture quality on older monitors, and also scanline generation to simulate the appearance of a screen with low vertical resolution.",
+	"                                Minimig can set the audio filter to switchable with power LED (A500r5+), always off or always on (A1000, A500r3). The power LED off-state can be configured to dim (A500r6+) or off (A1000, A500r3/5).",
 	0
 };
 
@@ -2240,7 +2243,7 @@ void HandleUI(void)
 		/******************************************************************/
 		case MENU_MAIN2_1 :
 			helptext=helptexts[HELPTEXT_MAIN];
-			menumask=0x3f;
+			menumask=0x7f;
 			OsdSetTitle("Settings",OSD_ARROW_LEFT|OSD_ARROW_RIGHT);
 			OsdWrite(0, "    load configuration", menusub == 0,0);
 			OsdWrite(1, "    save configuration", menusub == 1,0);
@@ -2248,8 +2251,8 @@ void HandleUI(void)
 			OsdWrite(3, "    chipset settings \x16", menusub == 2,0);
 			OsdWrite(4, "     memory settings \x16", menusub == 3,0);
 			OsdWrite(5, "      video settings \x16", menusub == 4,0);
-			OsdWrite(6, "", 0,0);
-			OsdWrite(7, STD_EXIT, menusub == 5,0);
+			OsdWrite(6, "   features settings \x16", menusub == 5,0);
+			OsdWrite(7, STD_EXIT, menusub == 6,0);
 			parentstate = menustate;
 			menustate = MENU_MAIN2_2;
 			break;
@@ -2286,6 +2289,11 @@ void HandleUI(void)
 					menusub = 0;
 				}
 				else if (menusub == 5)
+				{
+					menustate = MENU_SETTINGS_FEATURES1;
+					menusub = 0;
+				}
+				else if (menusub == 6)
 					menustate = MENU_NONE1;
 			}
 			else if (left)
@@ -2745,7 +2753,7 @@ void HandleUI(void)
 			}
 			else if (left)
 			{
-				menustate = MENU_SETTINGS_VIDEO1;
+				menustate = MENU_SETTINGS_FEATURES1;
 				menusub = 0;
 			}
 			break;
@@ -3251,7 +3259,7 @@ void HandleUI(void)
 			}
 			else if (right)
 			{
-				menustate = MENU_SETTINGS_CHIPSET1;
+				menustate = MENU_SETTINGS_FEATURES1;
 				menusub = 0;
 			}
 			else if (left)
@@ -3261,10 +3269,76 @@ void HandleUI(void)
 			}
 			break;
 
-			/******************************************************************/
-			/* rom file selected menu                                         */
-			/******************************************************************/
-			case MENU_ROMFILE_SELECTED :
+		/******************************************************************/
+		/* features settings menu                                         */
+		/******************************************************************/
+		case MENU_SETTINGS_FEATURES1 :
+			menumask=0x07;
+			parentstate=menustate;
+			helptext=helptexts[HELPTEXT_FEATURES];
+
+			OsdSetTitle("Features",OSD_ARROW_LEFT|OSD_ARROW_RIGHT);
+			OsdWrite(0, "", 0,0);
+			strcpy(s, "  Audio Filter  : ");
+			strcat(s, config_audio_filter_msg[(config.features.audiofiltermode & 0x03) % 3]);
+			OsdWrite(1, s, menusub == 0,0);
+			strcpy(s, "  Power LED off : ");
+			strcat(s, config_power_led_off_msg[config.features.powerledoffstate & 0x01]);
+			OsdWrite(2, s, menusub == 1,0);
+			OsdWrite(3, "", 0,0);
+			OsdWrite(4, "", 0,0);
+			OsdWrite(5, "", 0,0);
+			OsdWrite(6, "", 0,0);
+			OsdWrite(7, STD_EXIT, menusub == 2,0);
+
+			menustate = MENU_SETTINGS_FEATURES2;
+			break;
+
+		case MENU_SETTINGS_FEATURES2 :
+			if (select)
+			{
+				if (menusub == 0)
+				{
+					config.features.audiofiltermode++;
+					if (config.features.audiofiltermode > 2)
+						config.features.audiofiltermode = 0;
+					menustate = MENU_SETTINGS_FEATURES1;
+					ConfigFeatures(config.features.audiofiltermode, config.features.powerledoffstate);
+				}
+				else if (menusub == 1)
+				{
+					config.features.powerledoffstate ^= 1;
+					menustate = MENU_SETTINGS_FEATURES1;
+					ConfigFeatures(config.features.audiofiltermode, config.features.powerledoffstate);
+				}
+				else if (menusub == 2)
+				{
+					menustate = MENU_MAIN2_1;
+					menusub = 5;
+				}
+			}
+
+			if (menu)
+			{
+				menustate = MENU_MAIN2_1;
+				menusub = 5;
+			}
+			else if (right)
+			{
+				menustate = MENU_SETTINGS_CHIPSET1;
+				menusub = 0;
+			}
+			else if (left)
+			{
+				menustate = MENU_SETTINGS_VIDEO1;
+				menusub = 0;
+			}
+			break;
+
+		/******************************************************************/
+		/* rom file selected menu                                         */
+		/******************************************************************/
+		case MENU_ROMFILE_SELECTED :
 			menusub = 1;
 			menustate=MENU_ROMFILE_SELECTED1;
 			// no break intended

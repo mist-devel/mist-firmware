@@ -15,6 +15,12 @@ typedef struct
 
 typedef struct
 {
+    unsigned char audiofiltermode;
+    unsigned char powerledoffstate;
+} featuresTYPE;
+
+typedef struct
+{
     char          kickstart[80];
     filterTYPE    filter;
     unsigned char memory;
@@ -27,6 +33,7 @@ typedef struct
     hardfileTYPE  hardfile[HARDFILES];
     unsigned char cpu;
     unsigned char autofire;
+    featuresTYPE  features;
 } configTYPE;
 
 extern configTYPE config;
