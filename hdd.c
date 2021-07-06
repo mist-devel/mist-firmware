@@ -231,6 +231,8 @@ static void IdentifyDevice(unsigned short *pBuffer, unsigned char unit)
   pBuffer[56] = hdf[unit].sectors;
   pBuffer[57] = (unsigned short)total_sectors;
   pBuffer[58] = (unsigned short)(total_sectors >> 16);
+  pBuffer[60] = (unsigned short)total_sectors;
+  pBuffer[61] = (unsigned short)(total_sectors >> 16);
 }
 
 
