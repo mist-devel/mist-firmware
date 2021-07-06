@@ -914,13 +914,21 @@ void HandleUI(void)
 			menusub_last=entry; //remember final row
 			if (entry<6) menumask = (menumask << 1) | 1;
 			else {
-				p = user_io_8bit_get_string(last+1);
-				// set exit selectable if no option to scroll down
-				if ((!p || p[0] == 'V') ||
-				   (!(currentpage_8bit && p[0] == 'P' && p[2] != ',' && currentpage_8bit == getIdx(p)) &&
-				    !(!currentpage_8bit && (p[0] != 'P' || p[2] == ',')))) {
+				char i = 1;
+				while (1) {
+					p = user_io_8bit_get_string(last+i);
+					// set exit selectable if no option to scroll down
+					if (!p || !strlen(p)) {
+						menumask = (menumask << 1) | 1;
+						break;
+					}
+					if (p[0] != 'V') {
+						// the next option belongs to the current page?
+						if ((currentpage_8bit && p[0] == 'P' && p[2] != ',' && currentpage_8bit == getIdx(p)) ||
+						    (!currentpage_8bit && (p[0] != 'P' || p[2] == ','))) break;
 
-					menumask = (menumask << 1) | 1;
+					}
+					i++;
 				}
 			}
 
@@ -1062,18 +1070,33 @@ void HandleUI(void)
 				menustate = MENU_8BIT_SYSTEM1;
 				menusub = 0;
 			} else if (menusub == 6 && menusub != menusub_last && down) {
-				p = user_io_8bit_get_string(menuidx_8bit[menusub] + 1);
-				if (p && strlen(p) && p[0] != 'V') {
-					// the next option belongs to the current page?
-					if ((currentpage_8bit && p[0] == 'P' && p[2] != ',' && currentpage_8bit == getIdx(p)) ||
-					    (!currentpage_8bit && (p[0] != 'P' || p[2] == ','))) {
-						first_displayed_8bit++;
-						menustate = MENU_8BIT_MAIN1;
+				char i = 1;
+				while (1) {
+					p = user_io_8bit_get_string(menuidx_8bit[menusub] + i);
+					if (!p || !strlen(p)) break;
+					if (p[0] != 'V') {
+						// the next option belongs to the current page?
+						if ((currentpage_8bit && p[0] == 'P' && p[2] != ',' && currentpage_8bit == getIdx(p)) ||
+						    (!currentpage_8bit && (p[0] != 'P' || p[2] == ','))) {
+							first_displayed_8bit++;
+							menustate = MENU_8BIT_MAIN1;
+							break;
+						}
 					}
+					i++;
 				}
 				menu_debugf("Next hidden option %d %d %s\n", menusub_last, first_displayed_8bit, p);
 			} else if (!menusub && up) {
-				if (first_displayed_8bit) first_displayed_8bit--;
+				while (first_displayed_8bit) {
+					p = user_io_8bit_get_string(first_displayed_8bit);
+					first_displayed_8bit--;
+					if (!p || !strlen(p)) break; // should not happen
+
+					if (p[0] != 'V') {
+						if ((currentpage_8bit && p[0] == 'P' && p[2] != ',' && currentpage_8bit == getIdx(p)) ||
+						    (!currentpage_8bit && (p[0] != 'P' || p[2] == ','))) break;
+					}
+				}
 				menustate = MENU_8BIT_MAIN1;
 			}
 			break;
