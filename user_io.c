@@ -93,6 +93,11 @@ static unsigned long rtc_timer;
 #define video_sd_disable  (*(uint8_t*)0x0020FF15)
 #define video_ypbpr       (*(uint8_t*)0x0020FF16)
 
+static unsigned char modifier = 0, pressed[6] = { 0,0,0,0,0,0 };
+
+static unsigned char ps2_typematic_rate = 0x80;
+static unsigned long ps2_typematic_timer;
+
 typedef enum { PS2_KBD_IDLE, PS2_KBD_SCAN_GETSET, PS2_KBD_TYPEMATIC_SET, PS2_KBD_LED_SET } ps2_kbd_state_t;
 static ps2_kbd_state_t ps2_kbd_state;
 static char ps2_kbd_scan_set = 2;
@@ -179,6 +184,7 @@ void user_io_reset() {
 	ps2_kbd_state = PS2_KBD_IDLE;
 	ps2_kbd_scan_set = 2;
 	ps2_mouse_state = PS2_MOUSE_IDLE;
+	ps2_typematic_rate = 0x80;
 }
 
 void user_io_init() {
@@ -984,7 +990,7 @@ static void handle_ps2_kbd_commands()
 				}
 				break;
 			case PS2_KBD_TYPEMATIC_SET:
-				// TODO: handle the message
+				ps2_typematic_rate = cmd;
 				spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
 				ps2_kbd_state = PS2_KBD_IDLE;
 				break;
@@ -993,6 +999,33 @@ static void handle_ps2_kbd_commands()
 				spi_uio_cmd8(UIO_KEYBOARD, 0xFA); // ACK
 				ps2_kbd_state = PS2_KBD_IDLE;
 				break;
+		}
+	}
+}
+
+static void send_keycode(unsigned short code);
+static unsigned short keycode(unsigned char in);
+
+// 1000/(2^(39-rate)^(1/8))
+static int ps2_typematic_rates[] =
+	{34, 37, 40, 44, 48, 52, 57, 62, 68, 74, 81, 88, 96, 105, 114, 125, 136,
+	 148, 162, 176, 192, 210, 229, 250, 272, 297, 324, 353, 385, 420, 458, 500};
+
+static void handle_ps2_typematic_repeat()
+{
+	if (ps2_typematic_rate & 0x80) return;
+	if (ps2_kbd_state != PS2_KBD_IDLE) return;
+	if (CheckTimer(ps2_typematic_timer)) {
+		ps2_typematic_timer = GetTimer(ps2_typematic_rates[ps2_typematic_rate & 0x1f]);
+		for (char i=5; i>=0; i--) {
+			if (pressed[i]) {
+				unsigned short code = keycode(pressed[i]);
+
+				if (!osd_is_visible && !(code & CAPS_LOCK_TOGGLE)&& !(code & NUM_LOCK_TOGGLE)) {
+					send_keycode(code);
+				}
+				break;
+			}
 		}
 	}
 }
@@ -1555,6 +1588,7 @@ void user_io_poll() {
 
 	if(core_type == CORE_TYPE_8BIT)
 	{
+		handle_ps2_typematic_repeat();
 		handle_ps2_kbd_commands();
 		handle_ps2_mouse_commands();
 	}
@@ -2064,7 +2098,6 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 		//iprintf("KBD: %d\n", m);
 		//hexdump(k, 6, 0);
 
-		static unsigned char modifier = 0, pressed[6] = { 0,0,0,0,0,0 };
 		char keycodes[6] = { 0,0,0,0,0,0 };
 		uint16_t keycodes_ps2[6] = { 0,0,0,0,0,0 };
 		char i, j;
@@ -2333,6 +2366,11 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 			keycodes_ps2[i] = keycode(pressed[i]);
 		}
 		StateKeyboardSet(m, keycodes, keycodes_ps2);
+
+		// set the typematic timer to the first delay
+		if (core_type == CORE_TYPE_8BIT)
+			ps2_typematic_timer = GetTimer((((ps2_typematic_rate & 0x60)>>5)+1)*250);
+
 	}
 }
 
