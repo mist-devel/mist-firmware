@@ -469,6 +469,8 @@ static void ApplyConfiguration(char reloadkickstart)
   for (int i = 0; i < HARDFILES; i++)
     hardfile[i] = &config.hardfile[i];
 
+  ChangeDirectoryName("/");
+
   // Whether or not we uploaded a kickstart image we now need to set various parameters from the config.
   for (int i = 0; i < HARDFILES; i++) {
     if(OpenHardfile(i)) {
