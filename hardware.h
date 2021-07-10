@@ -74,6 +74,8 @@ void TIMER_wait(unsigned long ms);
 
 void USART_Poll(void);
 
+void MCUReset();
+
 #ifdef FPGA3
 // the MiST has the user inout on the arm controller
 void EnableIO(void);

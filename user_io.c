@@ -1106,7 +1106,7 @@ void user_io_poll() {
 			}
 
 			// reset io controller to cope with new core
-			*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
+			MCUReset(); // restart
 			for(;;);
 		}
 	}
@@ -1856,7 +1856,7 @@ static void check_reset(unsigned short modifiers, char useKeys)
 		if(modifiers & 2) // with lshift - MiST reset
 		{
 			if(mist_cfg.keep_video_mode) video_keep = VIDEO_KEEP_VALUE;
-			*AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST; // HW reset
+			MCUReset(); // HW reset
 			for(;;);
 		}
 

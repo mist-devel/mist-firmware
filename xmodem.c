@@ -72,7 +72,7 @@ void xmodem_rx_byte(unsigned char byte) {
     // idle state
   case IDLE:
     if((byte == 'r') || (byte == 'R')) {    // _R_eset
-      *AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
+      MCUReset();
       for(;;);
     }
 

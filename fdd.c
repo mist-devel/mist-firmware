@@ -23,13 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //              - fixed sector header generation
 // 2010-01-09   - support for variable number of tracks
 
-#ifdef __GNUC__
-#include "AT91SAM7S256.h"
-#include "stdio.h"
-#include "string.h"
-#else
 #include <stdio.h>
-#endif
 
 #include "errors.h"
 #include "hardware.h"

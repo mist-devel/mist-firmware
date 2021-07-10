@@ -22,14 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // 2020-11-14 - AMR: Simplified and combined read / readm + write / writem.  AROS IDE now works.
 
 
-#ifdef __GNUC__
-#include "AT91SAM7S256.h"
-#include "stdio.h"
-#include "string.h"
-#else
 #include <stdio.h>
 #include <string.h>
-#endif
 
 #include "errors.h"
 #include "hardware.h"

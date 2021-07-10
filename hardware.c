@@ -312,3 +312,7 @@ char mmc_write_protected() {
   return (*AT91C_PIOA_PDSR & SD_WP);
 }
 
+void MCUReset() {
+  *AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST;
+}
+

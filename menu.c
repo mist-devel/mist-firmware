@@ -23,8 +23,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // 2010-01-09   - support for variable number of tracks
 // 2016-06-01   - improvements to 8-bit menu
 
-//#include "AT91SAM7S256.h"
-//#include "stdbool.h"
 #include <stdlib.h>
 #include <inttypes.h>
 #include <ctype.h>
