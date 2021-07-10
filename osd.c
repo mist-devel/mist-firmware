@@ -89,7 +89,7 @@ static int quickrand()
 #ifndef MIST
 	int r=*(volatile unsigned long *)0x80000c;
 #else
-	int r = (int)(AT91C_BASE_RTTC->RTTC_RTVR);
+	int r = GetRTTC();
 #endif
 	r^=(prev&0xc75a)<<4;
 	r^=(prev&0x5a7c)>>(prev&7);

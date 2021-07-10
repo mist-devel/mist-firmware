@@ -76,6 +76,10 @@ void USART_Poll(void);
 
 void MCUReset();
 
+void InitRTTC();
+
+int inline GetRTTC() {return (int)(AT91C_BASE_RTTC->RTTC_RTVR);}
+
 #ifdef FPGA3
 // the MiST has the user inout on the arm controller
 void EnableIO(void);

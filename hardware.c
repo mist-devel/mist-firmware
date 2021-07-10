@@ -315,4 +315,9 @@ char mmc_write_protected() {
 void MCUReset() {
   *AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST | AT91C_RSTC_EXTRST;
 }
+
+void InitRTTC() {
+  // reprogram the realtime timer to run at 1Khz
+  AT91C_BASE_RTTC->RTTC_RTMR = 0x8000 / 1000;
+}
 
