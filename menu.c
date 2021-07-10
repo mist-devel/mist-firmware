@@ -2350,7 +2350,7 @@ void HandleUI(void)
 					OsdDisable();
 					SetConfigurationFilename(menusub);
 					LoadConfiguration(NULL, 0);
-					//OsdReset(RESET_NORMAL);
+					ResetMenu();
 					menustate = MENU_NONE1;
 				}
 				else
