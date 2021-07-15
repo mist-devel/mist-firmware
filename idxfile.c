@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "idxfile.h"
+#include "hardware.h"
 
 IDXFile sd_image[SD_IMAGES];
 

@@ -38,7 +38,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "spi.h"
 
 #include "mmc.h"
-#include "fat_compat.h"
 
 // variables
 static unsigned char crc;

@@ -31,7 +31,7 @@
 #include "spi.h"
 #include "ikbd.h"
 #include "debug.h"
-#include "usb.h"
+#include "hardware.h"
 #include "utils.h"
 
 #define IKBD_AUTO_MS   20
@@ -272,7 +272,7 @@ void ikbd_handler_time_set(void) {
   DisableIO();
 
   // try to set time on rtc if present
-  usb_rtc_set_time(ikbd.date);
+  SetRTC(ikbd.date);
 
   spi_uio_cmd_cont(UIO_IKBD_IN);
 
@@ -289,7 +289,7 @@ void ikbd_handler_interrogate_time(void) {
   DisableIO();
 
   // try to fetch time from rtc if present
-  usb_rtc_get_time(ikbd.date);
+  GetRTC(ikbd.date);
 
   spi_uio_cmd_cont(UIO_IKBD_IN);
 

@@ -1,4 +1,3 @@
-#include "AT91SAM7S256.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,11 +56,6 @@ extern char rom_direct_upload;
 // core variant (mostly for arcades)
 static char core_mod = 0;
 
-// permanent state of adc inputs used for dip switches
-static unsigned char adc_state = 0;
-AT91PS_ADC a_pADC = AT91C_BASE_ADC;
-AT91PS_PMC a_pPMC = AT91C_BASE_PMC;
-
 // keep state of caps lock
 static char caps_lock_toggle = 0;
 
@@ -87,12 +81,6 @@ bool scrl_status = 0;
 #define RTC_FREQ 1000   // 1 s
 static unsigned long rtc_timer;
 
-#define VIDEO_KEEP_VALUE  0x87654321
-#define video_keep        (*(int*)0x0020FF10)
-#define video_altered     (*(uint8_t*)0x0020FF14)
-#define video_sd_disable  (*(uint8_t*)0x0020FF15)
-#define video_ypbpr       (*(uint8_t*)0x0020FF16)
-
 static unsigned char modifier = 0, pressed[6] = { 0,0,0,0,0,0 };
 
 static unsigned char ps2_typematic_rate = 0x80;
@@ -115,64 +103,6 @@ static char osd_is_visible = false;
 
 char user_io_osd_is_visible() {
 	return osd_is_visible;
-}
-
-static void PollOneAdc() {
-	static unsigned char adc_cnt = 0xff;
-
-	// fetch result from previous run
-	if(adc_cnt != 0xff) {
-		unsigned int result;
-
-		// wait for end of convertion
-		while(!(AT91C_BASE_ADC->ADC_SR & (1 << (4+adc_cnt))));
- 
-		switch (adc_cnt) {
-		case 0: result = AT91C_BASE_ADC->ADC_CDR4; break;
-		case 1: result = AT91C_BASE_ADC->ADC_CDR5; break;
-		case 2: result = AT91C_BASE_ADC->ADC_CDR6; break;
-		case 3: result = AT91C_BASE_ADC->ADC_CDR7; break;
-		}
-
-		if(result < 128) adc_state |=  (1<<adc_cnt);
-		if(result > 128) adc_state &= ~(1<<adc_cnt);
-	}
-
-	adc_cnt = (adc_cnt + 1)&3;
-
-	// Enable desired chanel
-	AT91C_BASE_ADC->ADC_CHER = 1 << (4+adc_cnt);
-
-	// Start conversion
-	AT91C_BASE_ADC->ADC_CR = AT91C_ADC_START;
-}
-
-static void InitADC(void) {
-	// Enable clock for interface
-	AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_ADC;
-
-	// Reset
-	AT91C_BASE_ADC->ADC_CR = AT91C_ADC_SWRST;
-	AT91C_BASE_ADC->ADC_CR = 0x0;
-
-	// Set maximum startup time and hold time
-	AT91C_BASE_ADC->ADC_MR = 0x0F1F0F00 | AT91C_ADC_LOWRES_8_BIT;
-
-	// make sure we get the first values immediately
-	PollOneAdc();
-	PollOneAdc();
-	PollOneAdc();
-	PollOneAdc();
-}
-
-// poll one adc channel every 25ms
-static void PollAdc() {
-	static long adc_timer = 0;
-
-	if(CheckTimer(adc_timer)) {
-		adc_timer = GetTimer(25);
-		PollOneAdc();
-	}
 }
 
 void user_io_reset() {
@@ -198,15 +128,15 @@ void user_io_init() {
 
 	user_io_reset();
 
-	if(video_keep != VIDEO_KEEP_VALUE) video_altered = 0;
-	video_keep = 0;
+	if(VIDEO_KEEP_VAR != VIDEO_KEEP_VALUE) VIDEO_ALTERED_VAR = 0;
+	VIDEO_KEEP_VAR = 0;
 
 	// mark remap table as unused
 	memset(key_remap_table, 0, sizeof(key_remap_table));
 
 	InitADC();
 
-	if(user_io_menu_button()) DEBUG_MODE_VAR = DEBUG_MODE ? 0 : DEBUG_MODE_VALUE;
+	if(MenuButton()) DEBUG_MODE_VAR = DEBUG_MODE ? 0 : DEBUG_MODE_VALUE;
 	iprintf("debug_mode = %d\n", DEBUG_MODE);
 
 	ikbd_init();
@@ -275,7 +205,7 @@ void user_io_send_rtc(void) {
 	uint8_t date[7]; //year,month,date,hour,min,sec,day
 	uint8_t i;
 
-	if (usb_rtc_get_time((uint8_t*)&date)) {
+	if (GetRTC((uint8_t*)&date)) {
 		//iprintf("Sending time of day %u:%02u:%02u %u.%u.%u\n",
 		//  date[3], date[4], date[5], date[2], date[1], 1900 + date[0]);
 		spi_uio_cmd_cont(UIO_SET_RTC);
@@ -297,7 +227,11 @@ void user_io_detect_core_type() {
 	EnableIO();
 	core_type = SPI(0xff);
 	DisableIO();
+#ifdef SD_NO_DIRECT_MODE
+	rom_direct_upload = 0;
+#else
 	rom_direct_upload = (core_type & 0x10) >> 4; // bit 4 - direct upload support
+#endif
 	core_type &= 0xef;
 
 	if((core_type != CORE_TYPE_DUMB) &&
@@ -874,30 +808,30 @@ void user_io_send_buttons(char force) {
 
 	// frequently poll the adc the switches 
 	// and buttons are connected to
-	PollAdc();
+	PollADC();
 
 	unsigned char map = 0;
-	if(adc_state & 1) map |= SWITCH2;
-	if(adc_state & 2) map |= SWITCH1;
+	if(Buttons() & 1) map |= SWITCH2;
+	if(Buttons() & 2) map |= SWITCH1;
 
-	if(adc_state & 4) map |= BUTTON1;
-	else if(adc_state & 8) map |= BUTTON2;
+	if(Buttons() & 4) map |= BUTTON1;
+	else if(Buttons() & 8) map |= BUTTON2;
 	if(kbd_reset)     map |= BUTTON2;
 
-	if(!mist_cfg.keep_video_mode) video_altered = 0;
+	if(!mist_cfg.keep_video_mode) VIDEO_ALTERED_VAR = 0;
 
-	if(video_altered & 1)
+	if(VIDEO_ALTERED_VAR & 1)
 	{
-		if(video_sd_disable) map |= CONF_SCANDOUBLER_DISABLE;
+		if(VIDEO_SD_DISABLE_VAR) map |= CONF_SCANDOUBLER_DISABLE;
 	}
 	else
 	{
 		if(mist_cfg.scandoubler_disable) map |= CONF_SCANDOUBLER_DISABLE;
 	}
 
-	if(video_altered & 2)
+	if(VIDEO_ALTERED_VAR & 2)
 	{
-		if(video_ypbpr) map |= CONF_YPBPR;
+		if(VIDEO_YPBPR_VAR) map |= CONF_YPBPR;
 	}
 	else
 	{
@@ -1207,17 +1141,9 @@ void user_io_poll() {
 	}
 
 	// poll db9 joysticks
-	static int joy0_state = JOY0;
-	if((*AT91C_PIOA_PDSR & JOY0) != joy0_state) {
-		joy0_state = *AT91C_PIOA_PDSR & JOY0;
+	unsigned char joy_map = 0;
 
-		unsigned char joy_map = 0;
-		if(!(joy0_state & JOY0_UP))    joy_map |= JOY_UP;
-		if(!(joy0_state & JOY0_DOWN))  joy_map |= JOY_DOWN;
-		if(!(joy0_state & JOY0_LEFT))  joy_map |= JOY_LEFT;
-		if(!(joy0_state & JOY0_RIGHT)) joy_map |= JOY_RIGHT;
-		if(!(joy0_state & JOY0_BTN1))  joy_map |= JOY_BTN1;
-		if(!(joy0_state & JOY0_BTN2))  joy_map |= JOY_BTN2;
+	if(GetDB9(0, &joy_map)) {
 
 		joy_map = virtual_joystick_mapping(0x00db, 0x0000, joy_map);
 
@@ -1226,18 +1152,7 @@ void user_io_poll() {
 		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : hid_get_joysticks()); // send to OSD
 		virtual_joystick_keyboard(joy_map);
 	}
-
-	static int joy1_state = JOY1;
-	if((*AT91C_PIOA_PDSR & JOY1) != joy1_state) {
-		joy1_state = *AT91C_PIOA_PDSR & JOY1;
- 
-		unsigned char joy_map = 0;
-		if(!(joy1_state & JOY1_UP))    joy_map |= JOY_UP;
-		if(!(joy1_state & JOY1_DOWN))  joy_map |= JOY_DOWN;
-		if(!(joy1_state & JOY1_LEFT))  joy_map |= JOY_LEFT;
-		if(!(joy1_state & JOY1_RIGHT)) joy_map |= JOY_RIGHT;
-		if(!(joy1_state & JOY1_BTN1))  joy_map |= JOY_BTN1;
-		if(!(joy1_state & JOY1_BTN2))  joy_map |= JOY_BTN2;
+	if(GetDB9(1, &joy_map)) {
 
 		joy_map = virtual_joystick_mapping(0x00db, 0x0001, joy_map);
 
@@ -1662,7 +1577,7 @@ void user_io_poll() {
 	// and toggle scandoubler on/off then
 	static unsigned long timer = 1;
 	static unsigned char ypbpr_toggle = 0;
-	if(user_io_menu_button())
+	if(MenuButton())
 	{
 		if(timer == 1) 
 			timer = GetTimer(1000);
@@ -1676,12 +1591,12 @@ void user_io_poll() {
 	
 				user_io_send_buttons(1);
 				OsdDisableMenuButton(1);
-				video_altered |= 1;
-				video_sd_disable = mist_cfg.scandoubler_disable;
+				VIDEO_ALTERED_VAR |= 1;
+				VIDEO_SD_DISABLE_VAR = mist_cfg.scandoubler_disable;
 			}
 		}
 
-		if(adc_state & 8)
+		if(UserButton())
 		{
 			if(!ypbpr_toggle)
 			{
@@ -1692,8 +1607,8 @@ void user_io_poll() {
 
 				user_io_send_buttons(1);
 				OsdDisableMenuButton(1);
-				video_altered |= 2;
-				video_ypbpr = mist_cfg.ypbpr;
+				VIDEO_ALTERED_VAR |= 2;
+				VIDEO_YPBPR_VAR = mist_cfg.ypbpr;
 			}
 		}
 		else
@@ -1711,15 +1626,7 @@ void user_io_poll() {
 }
 
 char user_io_dip_switch1() {
-	return(((adc_state & 2)?1:0) || DEBUG_MODE);
-}
-
-char user_io_menu_button() {
-	return((adc_state & 4)?1:0);
-}
-
-char user_io_user_button() {
-	return((!user_io_menu_button() && (adc_state & 8))?1:0);
+	return(((Buttons() & 2)?1:0) || DEBUG_MODE);
 }
 
 static void send_keycode(unsigned short code) {
@@ -1887,7 +1794,7 @@ static void check_reset(unsigned short modifiers, char useKeys)
 	{
 		if(modifiers & 2) // with lshift - MiST reset
 		{
-			if(mist_cfg.keep_video_mode) video_keep = VIDEO_KEEP_VALUE;
+			if(mist_cfg.keep_video_mode) VIDEO_KEEP_VAR = VIDEO_KEEP_VALUE;
 			MCUReset(); // HW reset
 			for(;;);
 		}

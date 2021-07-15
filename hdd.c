@@ -25,6 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <string.h>
 
+#include "swab.h"
 #include "errors.h"
 #include "hardware.h"
 #include "fat_compat.h"
@@ -35,8 +36,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "fpga.h"
 #include "debug.h"
 
-
-#define SWAP(a) ((((a)&0x000000ff)<<24)|(((a)&0x0000ff00)<<8)|(((a)&0x00ff0000)>>8)|(((a)&0xff000000)>>24))
 
 hardfileTYPE  *hardfile[HARDFILES];
 
@@ -116,10 +115,10 @@ static void FakeRDB(int unit,int block)
       strcpy(rdb->rdb_DiskProduct, "repartition!");
       // swap byte order of strings to be able to "unswap" them after checksum
       unsigned long *p = (unsigned long*)rdb;
-      for(i=0;i<(8+16)/4;i++) p[40+i] = SWAP(p[40+i]);
+      for(i=0;i<(8+16)/4;i++) p[40+i] = swab32(p[40+i]);
       RDBChecksum((unsigned long *)rdb);
       // swap byte order of first 0x40 long values
-      for(i=0;i<0x40;i++) p[i] = SWAP(p[i]);
+      for(i=0;i<0x40;i++) p[i] = swab32(p[i]);
       break;
     }
     case 1: {
@@ -148,7 +147,7 @@ static void FakeRDB(int unit,int block)
       RDBChecksum((unsigned long *)pb);
       // swap byte order of first 0x40 entries
       unsigned long *p = (unsigned long*)pb;
-      for(i=0;i<0x40;i++) p[i] = SWAP(p[i]);
+      for(i=0;i<0x40;i++) p[i] = swab32(p[i]);
       break;
     }
     default: {
@@ -411,10 +410,10 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
 
             // adjust checksum by the difference between old and new flag value
             struct RigidDiskBlock *rdb = (struct RigidDiskBlock *)sector_buffer;
-            rdb->rdb_ChkSum = SWAP(SWAP(rdb->rdb_ChkSum) + SWAP(rdb->rdb_Flags) - 0x12);
+            rdb->rdb_ChkSum = swab32(swab32(rdb->rdb_ChkSum) + swab32(rdb->rdb_Flags) - 0x12);
 
             // adjust flags
-            rdb->rdb_Flags=SWAP(0x12);
+            rdb->rdb_Flags=swab32(0x12);
           }
           EnableFpga();
           spi8(CMD_IDE_DATA_WR); // write data command

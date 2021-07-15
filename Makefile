@@ -10,25 +10,25 @@ DUMP    = $(BASE)-objdump
 TODAY = `date +"%m/%d/%y"`
 
 PRJ = firmware
-SRC = Cstartup_SAM7.c fdd.c  firmware.c  fpga.c  hardware.c spi.c hdd.c  main.c  menu.c  mmc.c  osd.c state.c syscalls.c user_io.c data_io.c boot.c idxfile.c config.c tos.c ikbd.c xmodem.c ini_parser.c cue_parser.c mist_cfg.c archie.c pcecd.c arc_file.c font.c utils.c
+SRC = hw/AT91SAM/Cstartup_SAM7.c hw/AT91SAM/hardware.c hw/AT91SAM/spi.c hw/AT91SAM/mmc.c hw/AT91SAM/cdc_enumerate.c
+SRC += fdd.c  firmware.c  fpga.c hdd.c  main.c  menu.c osd.c state.c syscalls.c user_io.c data_io.c boot.c idxfile.c config.c tos.c ikbd.c xmodem.c ini_parser.c cue_parser.c mist_cfg.c archie.c pcecd.c arc_file.c font.c utils.c
 SRC += usb/max3421e.c usb/usb.c usb/hub.c usb/hid.c usb/hidparser.c usb/timer.c usb/asix.c usb/pl2303.c usb/usbrtc.c usb/joymapping.c
 SRC += fat_compat.c
 SRC += FatFs/diskio.c FatFs/ff.c FatFs/ffunicode.c
 # SRC += usb/storage.c
-SRC += cdc_enumerate.c cdc_control.c
+SRC += cdc_control.c
 
 OBJ = $(SRC:.c=.o)
 DEP = $(SRC:.c=.d)
 
-LINKMAP  = AT91SAM7S256-ROM.ld
+LINKMAP  = hw/AT91SAM/AT91SAM7S256-ROM.ld
 LIBDIR   = 
 
 # Commandline options for each tool.
 # for ESA11 add -DEMIST
-DFLAGS  = -I. -Iusb -DMIST
-CFLAGS  = $(DFLAGS) -c -mthumb -fno-common -O2 --std=gnu99 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
+DFLAGS  = -I. -Iusb -Iarch/ -Ihw/AT91SAM -DMIST -DCONFIG_ARCH_ARMV4TE -DCONFIG_ARCH_ARM
+CFLAGS  = $(DFLAGS) -c -march=armv4t -mtune=arm7tdmi -mthumb -fno-common -O2 --std=gnu99 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
 CFLAGS-firmware.o += -marm
-CFLAGS-spi.o += -marm
 CFLAGS += $(CFLAGS-$@)
 AFLAGS  = -ahls -mapcs-32
 LFLAGS  = -mthumb -nostartfiles -Wl,-Map,$(PRJ).map -T$(LINKMAP) $(LIBDIR)
@@ -43,7 +43,7 @@ LIBS       =
 all: $(PRJ).hex $(PRJ).upg
 
 clean:
-	rm -f *.d *.o *.hex *.elf *.map *.lst core *~ */*.d */*.o $(MKUPG) *.bin *.upg *.exe
+	rm -f *.d *.o *.hex *.elf *.map *.lst core *~ */*.d */*.o */*/*.d */*/*.o $(MKUPG) *.bin *.upg *.exe
 
 INTERFACE=interface/ftdi/olimex-arm-usb-tiny-h.cfg
 #INTERFACE=interface/busblaster.cfg
@@ -51,13 +51,17 @@ INTERFACE=interface/ftdi/olimex-arm-usb-tiny-h.cfg
 ADAPTER_KHZ=10000
 
 reset:
-	openocd -f $(INTERFACE) -f target/at91sam7sx.cfg --command "adapter_khz $(ADAPTER_KHZ); init; reset init; resume; shutdown"
+	openocd -f $(INTERFACE) -f target/at91sam7sx.cfg --command "adapter speed $(ADAPTER_KHZ); init; reset init; resume; shutdown"
 
 $(MKUPG): $(MKUPG).c
 	gcc  -o $@ $<
 
+debug: $(PRJ).hex $(PRJ).upg $(PRJ).bin
+	openocd -f $(INTERFACE) -f target/at91sam7sx.cfg --command 'adapter speed $(ADAPTER_KHZ); init; reset init; resume; \
+	echo "*********************"; echo "Start GDB debug session with:"; echo "> gdb $(PRJ).elf"; echo "(gdb) target ext:3333"; echo "*********************"'
+
 flash: $(PRJ).hex $(PRJ).upg $(PRJ).bin
-	openocd -f $(INTERFACE) -f target/at91sam7sx.cfg --command "adapter_khz $(ADAPTER_KHZ); init; reset init;  flash protect 0 0 7 off; sleep 1; arm7_9 fast_memory_access enable; flash write_bank 0 $(PRJ).bin 0x0; resume; shutdown"
+	openocd -f $(INTERFACE) -f target/at91sam7sx.cfg --command "adapter speed $(ADAPTER_KHZ); init; reset init;  flash protect 0 0 7 off; sleep 1; arm7_9 fast_memory_access enable; flash write_bank 0 $(PRJ).bin 0x0; resume; shutdown"
 
 flash_sam: $(PRJ).hex
 	Sam_I_Am -x flash_sam_i_am
@@ -78,7 +82,7 @@ $(PRJ).upg: $(PRJ).bin $(MKUPG)
 	./$(MKUPG) $< $@ `date +"%y%m%d"`
 
 # Compile the C runtime.
-crt.o: Cstartup.S
+crt.o: hw/AT91SAM/Cstartup.S
 	$(AS) $(AFLAGS) -o $@ $< > crt.lst
 
 %.o: %.c

@@ -17,11 +17,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "AT91SAM7S256.h"
 #include "stdio.h"
 #include "string.h"
 #include "errors.h"
 #include "hardware.h"
+#include "irqflags.h"
 #include "fat_compat.h"
 #include "firmware.h"
 
@@ -156,26 +156,19 @@ RAMFUNC void WriteFirmware(char *name)
     }
     size = f_size(&file) - sizeof(UPGRADE);
     // All interrupts have to be disabled.
-    asm volatile ("mrs r12, CPSR; orr r12, r12, #0xC0; msr CPSR_c, r12"
-        : /* No outputs */
-        : /* No inputs */
-        : "r12", "cc");
+    arch_irq_disable();
+//    asm volatile ("mrs r12, CPSR; orr r12, r12, #0xC0; msr CPSR_c, r12"
+//        : /* No outputs */
+//        : /* No inputs */
+//        : "r12", "cc");
+
 
     // Hack to foul FatFs to not handle a final partial sector (to avoid a memcpy)
     file.obj.objsize = (file.obj.objsize + 511) & 0xfffffe00;
     page = 0;
     pDst = 0;
 
-    *AT91C_MC_FMR = 48 << 16 | FWS << 8; // MCLK cycles in 1us
-    for (i = 0; i < 16; i++)
-        if (*AT91C_MC_FSR & 1 << 16 + i)
-        { // page is locked
-            while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
-            *AT91C_MC_FCR = 0x5A << 24 | i << 6 + 8 | AT91C_MC_FCMD_UNLOCK; // unlock page
-            while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
-        }
-
-    *AT91C_MC_FMR = 72 << 16 | FWS << 8; // MCLK cycles in 1.5us
+    UnlockFlash();
 
     while (size)
     {
@@ -198,18 +191,18 @@ RAMFUNC void WriteFirmware(char *name)
 
         // programming time: 13.2 ms per disk sector (512B)
         pSrc = (unsigned long*)sector_buffer;
-        k = 2;
+        k = 512/FLASH_PAGESIZE;
         while (k--)
         {
             if(size & 2048) DISKLED_ON
             else DISKLED_OFF;
 
 #ifndef GCC_OPTIMZES_TOO_MUCH  // the latest gcc 4.8.0 calls memcpy for this
-            i = 256 / 4;
+            i = FLASH_PAGESIZE / 4;
             while (i--)
                 *pDst++ = *pSrc++;
 #else
-            i = 256 / 8;
+            i = FLASH_PAGESIZE / 8;
             while (i--) {
                 *pDst++ = *pSrc++;
                 *pDst++ = *pSrc++;
@@ -217,9 +210,7 @@ RAMFUNC void WriteFirmware(char *name)
 
 #endif
 
-            while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
-            *AT91C_MC_FCR = 0x5A << 24 | page << 8 | AT91C_MC_FCMD_START_PROG; // key: 0x5A
-            while (!(*AT91C_MC_FSR & AT91C_MC_FRDY));  // wait for ready
+            WriteFlash(page);
             page++;
         }
 
@@ -227,7 +218,7 @@ RAMFUNC void WriteFirmware(char *name)
     }
 
     DISKLED_OFF;
-    *AT91C_RSTC_RCR = 0xA5 << 24 | AT91C_RSTC_PERRST | AT91C_RSTC_PROCRST; // restart
+    MCUReset(); // restart
     for(;;);
 }
 #pragma section_no_code_init

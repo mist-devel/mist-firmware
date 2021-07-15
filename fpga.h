@@ -15,5 +15,11 @@ void BootExit(void);
 void ClearMemory(unsigned long base, unsigned long size);
 unsigned char GetFPGAStatus(void);
 
+// minimig reset stuff
+#define SPI_RST_USR         0x1
+#define SPI_RST_CPU         0x2
+#define SPI_CPU_HLT         0x4
+extern uint8_t rstval;
+
 #endif
 

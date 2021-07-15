@@ -168,9 +168,6 @@ char minimig_v1();
 char minimig_v2();
 char user_io_is_8bit_with_config_string();
 void user_io_poll();
-char user_io_menu_button();
-char user_io_button_dip_switch1();
-char user_io_user_button();
 void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
 char *user_io_8bit_get_string(char);
@@ -210,14 +207,5 @@ void add_modifiers(uint8_t mod, uint16_t* keys_ps2);
 unsigned char user_io_ext_idx(const char*, const char*);
 
 void user_io_change_into_core_dir(void);
-
-
-#define USB_LOAD_VAR   *(int*)(0x0020FF04)
-#define USB_LOAD_VAR   *(int*)(0x0020FF04)
-#define USB_LOAD_VALUE 12345678
-
-#define DEBUG_MODE_VAR    *(int*)(0x0020FF08)
-#define DEBUG_MODE_VALUE  87654321
-#define DEBUG_MODE        (DEBUG_MODE_VAR == DEBUG_MODE_VALUE)
 
 #endif // USER_IO_H

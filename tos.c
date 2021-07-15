@@ -326,6 +326,7 @@ static void handle_acsi(unsigned char *buffer) {
 
         if(lba+length <= blocks) {
           DISKLED_ON;
+#ifndef SD_NO_DIRECT_MODE
           if (user_io_core_type() == CORE_TYPE_MIST2) {
             // SD-Card -> FPGA direct SPI transfer on MIST2
             if(hdd_direct && target == 0) {
@@ -337,6 +338,7 @@ static void handle_acsi(unsigned char *buffer) {
               FileReadBlockEx(&sd_image[target+2].file, 0, length);
             }
           } else {
+#endif
             while(length) {
               if(hdd_direct && target == 0) {
                 if(user_io_dip_switch1())
@@ -351,7 +353,9 @@ static void handle_acsi(unsigned char *buffer) {
               mist_memory_write_block(sector_buffer);
               length--;
             }
+#ifndef SD_NO_DIRECT_MODE
           }
+#endif
           DISKLED_OFF;
           dma_ack(0x00);
           asc[target] = 0x00;
@@ -1071,7 +1075,7 @@ void tos_poll() {
   mist_get_dmastate();
 
   // check the user button
-  if(user_io_user_button()) {
+  if(!MenuButton() && UserButton()) {
     if(timer == 1) 
       timer = GetTimer(1000);
     else if(timer != 2)

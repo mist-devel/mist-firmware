@@ -107,7 +107,6 @@ extern void inserttestfloppy();
 
 int main(void)
 {
-    uint8_t tmp;
     uint8_t mmc_ok = 0;
 
 #ifdef __GNUC__
@@ -135,8 +134,7 @@ int main(void)
 
     // TODO: If MMC fails try to wait for USB storage
 
-    tmp = MCLK / ((AT91C_SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) / 1000000;
-    iprintf("spiclk: %u MHz\r", tmp);
+    iprintf("spiclk: %u MHz\r", GetSPICLK());
 
     usb_init();
 

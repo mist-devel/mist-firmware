@@ -22,10 +22,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // 2009-12-10   - changed command header id
 // 2010-04-14   - changed command header id
 
-#ifdef __GNUC__
-#include "AT91SAM7S256.h"
-#endif
-
 #include "stdio.h"
 #include "string.h"
 #include "errors.h"
@@ -38,6 +34,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "fpga.h"
 #include "tos.h"
 #include "mist_cfg.h"
+
+uint8_t rstval = 0;
 
 #define CMD_HDRID 0xAACA
 
@@ -238,9 +236,10 @@ static inline void ShiftFpga(unsigned char data)
     for ( i = 0; i < 8; i++ )
     {
         /* Dump to DATA0 and insert a positive edge pulse at the same time */
-        *AT91C_PIOA_CODR = ALTERA_DATA0 | ALTERA_DCLK;
-        if((data >> i) & 1) *AT91C_PIOA_SODR = ALTERA_DATA0;
-        *AT91C_PIOA_SODR = ALTERA_DCLK;
+        FPGA_DATA0_CODR = ALTERA_DATA0;
+        FPGA_CODR = ALTERA_DCLK;
+        if((data >> i) & 1) FPGA_DATA0_SODR = ALTERA_DATA0;
+        FPGA_SODR = ALTERA_DCLK;
     }
 }
 
@@ -253,9 +252,8 @@ unsigned char ConfigureFpga(char *name)
     UINT br;
 
     // set outputs
-    *AT91C_PIOA_SODR = ALTERA_DCLK | ALTERA_DATA0 | ALTERA_NCONFIG;
-    // enable outputs
-    *AT91C_PIOA_OER = ALTERA_DCLK | ALTERA_DATA0 | ALTERA_NCONFIG;
+    FPGA_SODR = ALTERA_DCLK | ALTERA_NCONFIG;
+    FPGA_DATA0_SODR = ALTERA_DATA0;
 
     if(!name)
       name = "CORE.RBF";
@@ -275,14 +273,14 @@ unsigned char ConfigureFpga(char *name)
 
     /* Drive a transition of 0 to 1 to NCONFIG to indicate start of configuration */
     for(i=0;i<10;i++)
-      *AT91C_PIOA_CODR = ALTERA_NCONFIG;  // must be low for at least 500ns
+      FPGA_CODR = ALTERA_NCONFIG;  // must be low for at least 500ns
 
-    *AT91C_PIOA_SODR = ALTERA_NCONFIG;
+    FPGA_SODR = ALTERA_NCONFIG;
 
     // now wait for NSTATUS to go high
     // specs: max 800us
     i = 1000000;
-    while (!(*AT91C_PIOA_PDSR & ALTERA_NSTATUS))
+    while (!(FPGA_PDSR & ALTERA_NSTATUS))
     {
         if (--i == 0)
         {
@@ -328,7 +326,7 @@ unsigned char ConfigureFpga(char *name)
 
         /* Check for error through NSTATUS for every 10KB programmed and the last byte */
         if ( !(i % 10240) || (i == f_size(&file) - 1) ) {
-            if ( !*AT91C_PIOA_PDSR & ALTERA_NSTATUS ) {
+            if ( !FPGA_PDSR & ALTERA_NSTATUS ) {
                 iprintf("FPGA NSTATUS is NOT high!\r");
                 f_close(&file);
                 FatalError(5);
@@ -343,7 +341,7 @@ unsigned char ConfigureFpga(char *name)
     DISKLED_OFF;
 
     // check if DONE is high
-    if (!(*AT91C_PIOA_PDSR & ALTERA_DONE)) {
+    if (!(FPGA_DONE_PDSR & ALTERA_DONE)) {
       iprintf("FPGA Configuration done but contains error... CONF_DONE is LOW\r");
       FatalError(5);
     }
@@ -361,17 +359,17 @@ unsigned char ConfigureFpga(char *name)
     
     for ( i = 0; i < 50; i++ )
     {
-        *AT91C_PIOA_CODR = ALTERA_DCLK;
-        *AT91C_PIOA_SODR = ALTERA_DCLK;
+        FPGA_CODR = ALTERA_DCLK;
+        FPGA_SODR = ALTERA_DCLK;
     }
 
     /* Initialization end */
 
-    if ( !(*AT91C_PIOA_PDSR & ALTERA_NSTATUS) || 
-         !(*AT91C_PIOA_PDSR & ALTERA_DONE)) {
-      
+    if ( !(FPGA_PDSR & ALTERA_NSTATUS) || 
+         !(FPGA_DONE_PDSR & ALTERA_DONE)) {
+
       iprintf("FPGA Initialization finish but contains error: NSTATUS is %s and CONF_DONE is %s.\r", 
-             ((*AT91C_PIOA_PDSR & ALTERA_NSTATUS)?"HIGH":"LOW"), ((*AT91C_PIOA_PDSR & ALTERA_DONE)?"HIGH":"LOW") );
+             ((FPGA_PDSR & ALTERA_NSTATUS)?"HIGH":"LOW"), ((FPGA_DONE_PDSR & ALTERA_DONE)?"HIGH":"LOW") );
       FatalError(5);
     }
 
@@ -935,6 +933,7 @@ void fpga_init(char *name) {
   user_io_detect_core_type();
   mist_ini_parse();
   user_io_send_buttons(1);
+  InitDB9();
 
   if((user_io_core_type() == CORE_TYPE_MINIMIG)||
      (user_io_core_type() == CORE_TYPE_MINIMIG2)) {
