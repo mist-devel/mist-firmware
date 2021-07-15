@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <ctype.h>
+#include <string.h>
 #include "utils.h"
 #include "attrs.h"
 
@@ -15,17 +16,23 @@ unsigned char bcd2bin(unsigned char in) {
 
 FAST int _strnicmp(const char *s1, const char *s2, size_t n)
 {
+  int s1l, s2l;
   char c1, c2;
   int v;
 
-  do
-    {
+  s1l = strlen(s1);
+  s2l = strlen(s2);
+
+  do {
     c1 = *s1++;
     c2 = *s2++;
     if (!c1) break;
     v = (unsigned int)tolower(c1) - (unsigned int)tolower(c2);
-    }
-  while (v == 0 && --n > 0);
+  } while (v == 0 && --n > 0);
+
+  if ((v==0) && n && (s1l != s2l)) {
+    return((s1l > s2l) ? 1 : -1);
+  }
 
   return v;
 }
