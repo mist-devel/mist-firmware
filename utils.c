@@ -27,6 +27,7 @@ FAST int _strnicmp(const char *s1, const char *s2, size_t n)
     }
   while (v == 0 && --n > 0);
 
+  if (!c1 && c2) v = -1;
   return v;
 }
 
