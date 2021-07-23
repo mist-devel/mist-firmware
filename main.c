@@ -174,16 +174,14 @@ int main(void)
     tos_config_load(-1);
 
     char mod = 0;
-    char name[12];
-    strncpy(name, "CORE    ARC", 12);
 
-    mod = arc_open(name);
+    mod = arc_open("/CORE.ARC");
     if(mod < 0 || !strlen(arc_get_rbfname())) {
         fpga_init(NULL); // error opening default ARC, try with default RBF
     } else {
-        strncpy(name, "        RBF", 11);
-        strncpy(name, arc_get_rbfname(), strlen(arc_get_rbfname()));
-        fpga_init(name);
+        strncpy(s, arc_get_rbfname(), sizeof(s)-5);
+        strcat(s,".RBF");
+        fpga_init(s);
     }
 
     cdc_control_open();
