@@ -736,6 +736,8 @@ char user_io_is_mounted(unsigned char index) {
 
 void user_io_file_mount(const unsigned char *name, unsigned char index) {
 	FRESULT res;
+
+	buffer_lba = 0xffffffff; // invalidate cache
 	if (name) {
 		if (sd_image[sd_index(index)].valid)
 			f_close(&sd_image[sd_index(index)].file);
@@ -750,6 +752,7 @@ void user_io_file_mount(const unsigned char *name, unsigned char index) {
 			IDXIndex(&sd_image[sd_index(index)]);
 		} else {
 			iprintf("error mounting %s (%d)\n", name, res);
+			return;
 		}
 	} else {
 		iprintf("unmounting file in slot %d\n", index);
@@ -757,7 +760,6 @@ void user_io_file_mount(const unsigned char *name, unsigned char index) {
 		sd_image[sd_index(index)].valid = 0;
 		if (!index) umounted = 1;
 	}
-	buffer_lba = 0xffffffff;
 
 	// send mounted image size first then notify about mounting
 	EnableIO();
