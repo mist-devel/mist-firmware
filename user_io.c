@@ -105,6 +105,10 @@ static char ps2_kbd_scan_set = 2;
 typedef enum { PS2_MOUSE_IDLE, PS2_MOUSE_SETRESOLUTION, PS2_MOUSE_SETSAMPLERATE } ps2_mouse_state_t;
 static ps2_mouse_state_t ps2_mouse_state;
 
+static unsigned char ps2_mouse_status;
+static unsigned char ps2_mouse_resolution;
+static unsigned char ps2_mouse_samplerate;
+
 // set by OSD code to suppress forwarding of those keys to the core which
 // may be in use by an active OSD
 static char osd_is_visible = false;
@@ -184,6 +188,9 @@ void user_io_reset() {
 	ps2_kbd_state = PS2_KBD_IDLE;
 	ps2_kbd_scan_set = 2;
 	ps2_mouse_state = PS2_MOUSE_IDLE;
+	ps2_mouse_status = 0;
+	ps2_mouse_resolution = 0;
+	ps2_mouse_samplerate = 0;
 	ps2_typematic_rate = 0x80;
 }
 
@@ -1052,9 +1059,23 @@ static void handle_ps2_mouse_commands()
 					case 0xF6: // set defaults;
 						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
 						break;
+					case 0xE6: // set mouse scaling to 1:1
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						ps2_mouse_status &= ~0x10;
+						break;
+					case 0xE7: // set mouse scaling to 1:2
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						ps2_mouse_status |= 0x10;
+						break;
 					case 0xE8: // set resolution
 						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
 						ps2_mouse_state = PS2_MOUSE_SETRESOLUTION;
+						break;
+					case 0xE9: // status request
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						spi_uio_cmd8(UIO_MOUSE0_EXT, ps2_mouse_status);
+						spi_uio_cmd8(UIO_MOUSE0_EXT, ps2_mouse_resolution);
+						spi_uio_cmd8(UIO_MOUSE0_EXT, ps2_mouse_samplerate);
 						break;
 					case 0xF2: // get device ID
 						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
@@ -1062,6 +1083,11 @@ static void handle_ps2_mouse_commands()
 						break;
 					case 0xF4: // enable data reporting
 						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						ps2_mouse_status |= 0x20;
+						break;
+					case 0xF5: // disable data reporting
+						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+						ps2_mouse_status &= ~0x20;
 						break;
 					case 0xF3: // set sample rate
 						spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
@@ -1071,10 +1097,12 @@ static void handle_ps2_mouse_commands()
 				break;
 			case PS2_MOUSE_SETRESOLUTION:
 					spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+					ps2_mouse_resolution = cmd;
 					ps2_mouse_state = PS2_MOUSE_IDLE;
 					break;
 			case PS2_MOUSE_SETSAMPLERATE:
 					spi_uio_cmd8(UIO_MOUSE0_EXT, 0xFA); // ACK
+					ps2_mouse_samplerate = cmd;
 					ps2_mouse_state = PS2_MOUSE_IDLE;
 					break;
 		}
