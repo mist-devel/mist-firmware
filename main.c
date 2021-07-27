@@ -175,7 +175,9 @@ int main(void)
 
     char mod = 0;
 
-    mod = arc_open("/CORE.ARC");
+    if((USB_LOAD_VAR != USB_LOAD_VALUE) && !user_io_dip_switch1())
+        mod = arc_open("/CORE.ARC");
+
     if(mod < 0 || !strlen(arc_get_rbfname())) {
         fpga_init(NULL); // error opening default ARC, try with default RBF
     } else {
