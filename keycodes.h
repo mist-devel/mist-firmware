@@ -425,7 +425,7 @@ const unsigned short usb2ps2_set1[] = {
   0x1a,  // 2f: [
   0x1b,  // 30: ]
   0x2b,  // 31: backslash
-  MISS,  // 32: Europe 1
+  0x2b,  // 32: Europe 1
   0x27,  // 33: ; 
   0x28,  // 34: '
   0x29,  // 35: `
@@ -475,7 +475,7 @@ const unsigned short usb2ps2_set1[] = {
   0x49,  // 61: KP 9
   0x52,  // 62: KP 0
   0x53,  // 63: KP .
-  MISS,  // 64: Europe 2
+  0x56,  // 64: Europe 2
   OSD_OPEN | EXT | 0x2f, // 65: App
   MISS, // 66: Power
   MISS,  // 67: KP =
