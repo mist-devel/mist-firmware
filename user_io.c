@@ -1222,8 +1222,9 @@ void user_io_poll() {
 		joy_map = virtual_joystick_mapping(0x00db, 0x0000, joy_map);
 
 		uint8_t idx = joystick_renumber(0);
-		user_io_joystick(idx, joy_map);
+		if (!user_io_osd_is_visible()) user_io_joystick(idx, joy_map);
 		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : hid_get_joysticks()); // send to OSD
+		virtual_joystick_keyboard(joy_map);
 	}
 
 	static int joy1_state = JOY1;
@@ -1241,8 +1242,9 @@ void user_io_poll() {
 		joy_map = virtual_joystick_mapping(0x00db, 0x0001, joy_map);
 
 		uint8_t idx = joystick_renumber(1);
-		user_io_joystick(idx, joy_map);
+		if (!user_io_osd_is_visible()) user_io_joystick(idx, joy_map);
 		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : hid_get_joysticks() + 1); // send to OSD
+		virtual_joystick_keyboard(joy_map);
 	}
 
 	user_io_send_buttons(0);
