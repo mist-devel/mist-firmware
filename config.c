@@ -5,7 +5,6 @@
 
 #include "errors.h"
 #include "hardware.h"
-#include "mmc.h"
 #include "boot.h"
 #include "fat_compat.h"
 #include "ini_parser.h"
@@ -25,7 +24,7 @@ static configTYPE tmpconf;
 extern char s[FF_LFN_BUF + 1];
 static char configfilename[13];
 char DebugMode=0;
-static unsigned char romkey[3072];
+static unsigned char *romkey = (sector_buffer + 512);
 
 static const ini_section_t config_ini_sections[] = {
   {1, "MINIMIG"}
@@ -105,7 +104,7 @@ char UploadKickstart(char *name)
   BootPrint("Checking for Amiga Forever key file:");
   if(FileOpenCompat(&keyfile,"ROM     KEY", FA_READ) == FR_OK) {
     keysize=f_size(&keyfile);
-    if(keysize<sizeof(romkey)) {
+    if(keysize<(SECTOR_BUFFER_SIZE-512)) {
       f_read(&keyfile, romkey, keysize, &br);
       BootPrint("Loaded Amiga Forever key file");
     } else {

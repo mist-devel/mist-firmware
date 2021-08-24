@@ -6,7 +6,6 @@
 #include "FatFs/ff.h"
 
 #define MAXDIRENTRIES 8
-#define SECTOR_BUFFER_SIZE 2352
 
 struct PartitionEntry
 {

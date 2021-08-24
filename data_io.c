@@ -74,7 +74,7 @@ static void data_io_file_tx_send(FIL *file) {
   while(bytes2send) {
     iprintf(".");
 
-    unsigned short c, chunk = (bytes2send>2048)?2048:bytes2send;
+    unsigned short c, chunk = (bytes2send>(SECTOR_BUFFER_SIZE/512))?(SECTOR_BUFFER_SIZE/512):bytes2send;
     char *p;
 
     if (rom_direct_upload) {
