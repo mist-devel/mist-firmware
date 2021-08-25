@@ -249,7 +249,7 @@ uint8_t usb_rtc_set_time(uint8_t *d) {
   time.hour_bcd = bin2bcd(d[3]);
   time.min_bcd = bin2bcd(d[4]);
   time.sec_bcd = bin2bcd(d[5]);
-  time.day = d[3];
+  time.day = d[6];
 
   if(!i2c_write_cmd_and_data(dev, DS1307_ADDR, 0, &time, sizeof(struct timeS))) {
     usbrtc_debugf("Error writing time");

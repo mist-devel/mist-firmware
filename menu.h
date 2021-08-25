@@ -67,6 +67,8 @@ enum MENU
     MENU_FIRMWARE_CORE_FILE_SELECTED,
     MENU_ERROR,
     MENU_INFO,
+    MENU_RTC1,
+    MENU_RTC2,
 
     // Mist/atari specific pages
     MENU_MIST_MAIN1,

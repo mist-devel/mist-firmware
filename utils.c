@@ -13,6 +13,14 @@ unsigned char bcd2bin(unsigned char in) {
   return 10*(in >> 4) + (in & 0x0f);
 }
 
+unsigned char decval(unsigned char in, unsigned char min, unsigned char max) {
+  return (in == min) ? max : in-1;
+}
+
+unsigned char incval(unsigned char in, unsigned char min, unsigned char max) {
+  return (in == max) ? min : in+1;
+}
+
 FAST int _strnicmp(const char *s1, const char *s2, size_t n)
 {
   char c1, c2;

@@ -1,6 +1,8 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
+unsigned char decval(unsigned char in, unsigned char min, unsigned char max);
+unsigned char incval(unsigned char in, unsigned char min, unsigned char max);
 unsigned char bin2bcd(unsigned char in);
 unsigned char bcd2bin(unsigned char in);
 int _strnicmp(const char *s1, const char *s2, size_t n);

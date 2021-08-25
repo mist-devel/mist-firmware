@@ -29,7 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "stdio.h"
 #include "string.h"
 #include "errors.h"
-#include "mmc.h"
+#include "utils.h"
 #include "fat_compat.h"
 #include "osd.h"
 #include "state.h"
@@ -120,6 +120,7 @@ char *config_button_turbo_msg[] = {"OFF", "FAST", "MEDIUM", "SLOW"};
 char *config_button_turbo_choice_msg[] = {"A only", "B only", "A & B"};
 const char *config_audio_filter_msg[] = {"switchable", "always off", "always on"};
 const char *config_power_led_off_msg[] = {"dim", "off"};
+const char *days[] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
 
 enum HelpText_Message {HELPTEXT_NONE,HELPTEXT_MAIN,HELPTEXT_HARDFILE,HELPTEXT_CHIPSET,HELPTEXT_MEMORY,HELPTEXT_VIDEO,HELPTEXT_FEATURES};
@@ -1130,28 +1131,31 @@ void HandleUI(void)
 			menustate = MENU_NONE1;
 			break;
 
-		case MENU_8BIT_SYSTEM1:
+		case MENU_8BIT_SYSTEM1: {
+			uint8_t date[7];
+			char have_rtc = GetRTC((uint8_t*)&date);
 			helptext=helptexts[HELPTEXT_MAIN];
 			m = 0;
 			if (user_io_core_type()==CORE_TYPE_MINIMIG || user_io_core_type()==CORE_TYPE_MINIMIG2)
 				m = 1;
-			menumask = m ? 0x1f : 0x3f; // 5 selections + Exit
-			OsdSetTitle("System", OSD_ARROW_LEFT); 
+			menumask = m ? 0x3f : 0x7f; // 5 selections + Exit
+			if (!have_rtc) menumask &= ~0x02;
+			OsdSetTitle("System", OSD_ARROW_LEFT);
 			menustate = MENU_8BIT_SYSTEM2;
 			parentstate = MENU_8BIT_SYSTEM1;
-			OsdWrite(0, "", 0, 0);
-			OsdWrite(1, " Firmware & Core           \x16", menusub == 0,0);
-			OsdWrite(2, " Input Devices             \x16", menusub == 1,0);
-			OsdWrite(3, m ? " Reset" : " Reset settings", menusub == 2,0);
+			OsdWrite(0, " Firmware & Core           \x16", menusub == 0,0);
+			OsdWrite(1, " Date & Time               \x16", menusub == 1 && have_rtc, !have_rtc);
+			OsdWrite(2, " Input Devices             \x16", menusub == 2,0);
+			OsdWrite(3, m ? " Reset" : " Reset settings", menusub == 3,0);
 			if(m)
 				OsdWrite(4, "", 0,0);
 			else
-				OsdWrite(4, " Save settings", menusub == 3, 0); // Minimig saves settings elsewhere
-			OsdWrite(5, " About", menusub == (4-m),0);
-			OsdWrite(6, "", 0,0);
-			OsdWrite(7, STD_EXIT, menusub == (5-m),0);
+				OsdWrite(4, " Save settings", menusub == 4, 0); // Minimig saves settings elsewhere
+			OsdWrite(5, " About", menusub == (5-m),0);
+			OsdWrite(6, "", 0, 0);
+			OsdWrite(7, STD_EXIT, menusub == (6-m),0);
 			break;
-
+		}
 		case MENU_8BIT_SYSTEM2 :
 			m = 0;
 			if (user_io_core_type()==CORE_TYPE_MINIMIG || user_io_core_type()==CORE_TYPE_MINIMIG2)
@@ -1167,15 +1171,20 @@ void HandleUI(void)
 						menusub = 1;
 						break;
 					case 1:
+						// RTC submenu
+						menustate = MENU_RTC1;
+						menusub = 0;
+						break;
+					case 2:
 						// Input tests and settings
 						menustate = MENU_8BIT_CONTROLLERS1;
 						menusub = 0;
 						break;
-					case 2:
+					case 3:
 						menustate = MENU_RESET1; 
 						menusub = 1;
 						break;
-					case 3:
+					case 4:
 						if(m) {
 							menustate = MENU_8BIT_ABOUT1; 
 							menusub = 0;
@@ -1199,7 +1208,7 @@ void HandleUI(void)
 							}
 						}
 						break;
-					case 4:
+					case 5:
 						if(m) {
 							menustate=MENU_NONE1;
 							menusub = 0;
@@ -1209,7 +1218,7 @@ void HandleUI(void)
 							menusub = 0;
 						}
 						break;
-					case 5:
+					case 6:
 						// Exit
 						menustate=MENU_NONE1;
 						menusub = 0;
@@ -1273,20 +1282,20 @@ void HandleUI(void)
 			// menu key closes menu
 			if (menu) {
 				menustate = MENU_8BIT_SYSTEM1;
-				menusub = 3;
+				menusub = 4;
 			}
 			if(select) {
 				//iprintf("Selected", 0);
 				if (menusub==0) {
 					menustate = MENU_8BIT_SYSTEM1;
-					menusub = 3;
+					menusub = 4;
 				}
 			}
 			else { 
 				if (left)
 				{
 					menustate = MENU_8BIT_SYSTEM1;
-					menusub = 3;
+					menusub = 4;
 				} 
 			}
 			break;
@@ -1311,7 +1320,7 @@ void HandleUI(void)
 		case MENU_8BIT_CONTROLLERS2:
 			// menu key goes back to previous menu
 			if (menu) {
-				menusub = 1;
+				menusub = 2;
 				menustate = MENU_8BIT_SYSTEM1;
 			}
 			if(select) {
@@ -3654,6 +3663,87 @@ void HandleUI(void)
 				menusub = 2;
 			}
 			break;
+
+		/******************************************************************/
+		/* RTC menu                                                       */
+		/******************************************************************/
+		case MENU_RTC1: {
+
+			uint8_t date[7]; //year,month,date,hour,min,sec,day
+			helptext=helptexts[HELPTEXT_NONE];
+			parentstate=menustate;
+
+			menumask = 0xff;
+
+			if (GetRTC((uint8_t*)&date)) {
+
+				OsdSetTitle("Clock",0);
+				siprintf(s, "       Year      %4d", 1900+date[0]);
+				OsdWrite(0, s, menusub == 0, 0);
+				siprintf(s, "       Month       %2d", date[1]);
+				OsdWrite(1, s, menusub == 1, 0);
+				siprintf(s, "       Date        %2d", date[2]);
+				OsdWrite(2, s, menusub == 2, 0);
+				siprintf(s, "       Hour        %2d", date[3]);
+				OsdWrite(3, s, menusub == 3, 0);
+				siprintf(s, "       Minute      %2d", date[4]);
+				OsdWrite(4, s, menusub == 4, 0);
+				siprintf(s, "       Second      %2d", date[5]);
+				OsdWrite(5, s, menusub == 5, 0);
+				siprintf(s, "       Day  %9s", date[6] <= 7 ? days[date[6]-1] : "--------");
+				OsdWrite(6, s, menusub == 6, 0);
+				OsdWrite(7, STD_EXIT, menusub == 7, 0);
+				menustate = MENU_RTC2;
+			} else {
+				menustate = MENU_8BIT_SYSTEM1;
+			}
+			break;
+		}
+
+		case MENU_RTC2: {
+			uint8_t date[7]; //year,month,date,hour,min,sec,day
+			static const char mdays[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+			int year;
+			uint8_t is_leap, month, maxday;
+
+			static unsigned long timer = 0;
+			if (CheckTimer(timer)) {
+				timer = GetTimer(1000);
+				menustate = MENU_RTC1;
+				break;
+			}
+			if (menu) {
+				menusub = 1;
+				menustate = MENU_8BIT_SYSTEM1;
+			}
+			else if (select) {
+				if (menusub == 7) {
+					menusub = 1;
+					menustate = MENU_8BIT_SYSTEM1;
+				}
+			} else if (left | right) {
+				if (GetRTC((uint8_t*)&date)) {
+					year = 1900+date[0];
+					month = date[1];
+					if (month > 12) month = 12;
+					is_leap = (!(year % 4) && (year % 100)) || !(year % 400);
+					maxday = mdays[month-1] + (month == 2 && is_leap);
+
+					switch(menusub) {
+					case 0: if (left) date[0]--; else date[0]++; break;
+					case 1: if (left) date[1] = decval(date[1], 1, 12); else date[1] = incval(date[1], 1, 12); break;
+					case 2: if (left) date[2] = decval(date[2], 1, maxday); else date[2] = incval(date[2], 1, maxday); break;
+					case 3: if (left) date[3] = decval(date[3], 0, 23); else date[3] = incval(date[3], 0, 23); break;
+					case 4: if (left) date[4] = decval(date[4], 0, 59); else date[4] = incval(date[4], 0, 59); break;
+					case 5: if (left) date[5] = decval(date[5], 0, 59); else date[5] = incval(date[5], 0, 59); break;
+					case 6: if (left) date[6] = decval(date[6], 1, 7); else date[6] = incval(date[6], 1, 7); break;
+					}
+					if (SetRTC((uint8_t*)&date))
+						menustate = MENU_RTC1;
+				}
+			}
+			break;
+		}
 
 		/******************************************************************/
 		/* error message menu                                             */
