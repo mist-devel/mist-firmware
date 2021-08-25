@@ -179,6 +179,7 @@ int main(void)
     if(mod < 0 || !strlen(arc_get_rbfname())) {
         fpga_init(NULL); // error opening default ARC, try with default RBF
     } else {
+        user_io_set_core_mod(mod);
         strncpy(s, arc_get_rbfname(), sizeof(s)-5);
         strcat(s,".RBF");
         fpga_init(s);
