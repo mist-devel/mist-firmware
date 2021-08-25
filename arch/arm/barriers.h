@@ -34,7 +34,7 @@
  *        Public functions
  *----------------------------------------------------------------------------*/
 
-#if defined(CONFIG_ARCH_ARMV5TE)
+#if defined(CONFIG_ARCH_ARMV5TE) || defined(CONFIG_ARCH_ARMV4TE)
 
 static inline void dmb(void)
 {

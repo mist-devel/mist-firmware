@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "errors.h"
 #include "hardware.h"
 #include "irqflags.h"
+#include "barriers.h"
 #include "fat_compat.h"
 #include "firmware.h"
 
@@ -197,18 +198,11 @@ RAMFUNC void WriteFirmware(char *name)
             if(size & 2048) DISKLED_ON
             else DISKLED_OFF;
 
-#ifndef GCC_OPTIMZES_TOO_MUCH  // the latest gcc 4.8.0 calls memcpy for this
             i = FLASH_PAGESIZE / 4;
-            while (i--)
-                *pDst++ = *pSrc++;
-#else
-            i = FLASH_PAGESIZE / 8;
             while (i--) {
                 *pDst++ = *pSrc++;
-                *pDst++ = *pSrc++;
+                dmb();
             }
-
-#endif
 
             WriteFlash(page);
             page++;
