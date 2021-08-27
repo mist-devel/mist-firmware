@@ -75,6 +75,8 @@
 #define UIO_SECTOR_SND  0x51 // removed
 #define UIO_SECTOR_RCV  0x52 // removed
 
+#define UIO_GET_FEATS   0x80 // get core features (only once after fpga init)
+
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
 #define JOY_DOWN        0x04
@@ -164,6 +166,7 @@ void user_io_reset();
 void user_io_init();
 void user_io_detect_core_type();
 unsigned char user_io_core_type();
+uint32_t user_io_get_core_features();
 char minimig_v1();
 char minimig_v2();
 char user_io_is_8bit_with_config_string();

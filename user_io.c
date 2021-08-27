@@ -53,6 +53,9 @@ static char core_type_8bit_with_config_string = 0;
 // core supports direct ROM upload via SS4
 extern char rom_direct_upload;
 
+// extra features in the firmware requested by the core
+static uint32_t core_features = 0;
+
 // core variant (mostly for arcades)
 static char core_mod = 0;
 
@@ -115,6 +118,7 @@ void user_io_reset() {
 	sd_image[2].valid = 0;
 	sd_image[3].valid = 0;
 	core_mod = 0;
+	core_features = 0;
 	ps2_kbd_state = PS2_KBD_IDLE;
 	ps2_kbd_scan_set = 2;
 	ps2_mouse_state = PS2_MOUSE_IDLE;
@@ -186,7 +190,8 @@ static void user_io_read_core_name() {
 
 	if(user_io_is_8bit_with_config_string()) {
 		char *p = user_io_8bit_get_string(0);  // get core name
-		if(p && p[0]) strcpy(core_name, p);
+		if(p && p[0]) strncpy(core_name, p, sizeof(core_name));
+		core_name[sizeof(core_name)-1] = 0;
 	}
 
 	iprintf("Core name from FPGA is \"%s\"\n", core_name);
@@ -219,6 +224,23 @@ void user_io_send_rtc(void) {
 		spi8(0x40); // flag
 		DisableIO();
 	}
+}
+
+uint32_t user_io_get_core_features() {
+	return core_features;
+}
+
+static void user_io_read_core_features() {
+	core_features = 0;
+
+	spi_uio_cmd_cont(UIO_GET_FEATS);
+	if (spi_in() == 0x80) {
+		core_features = spi_in();
+		core_features = (core_features<<8) | spi_in();
+		core_features = (core_features<<8) | spi_in();
+		core_features = (core_features<<8) | spi_in();
+	}
+	DisableIO();
 }
 
 void user_io_detect_core_type() {
@@ -294,6 +316,9 @@ void user_io_detect_core_type() {
 
 		// set core name. This currently only sets a name for the 8 bit cores
 		user_io_read_core_name();
+
+		// get requested features
+		user_io_read_core_features();
 
 		// send a reset
 		user_io_8bit_set_status(UIO_STATUS_RESET, ~0);
