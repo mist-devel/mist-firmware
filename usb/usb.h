@@ -34,6 +34,7 @@ typedef struct {
 
 /* Common setup data constant combinations  */
 #define USB_REQ_GET_DESCR     USB_SETUP_DEVICE_TO_HOST|USB_SETUP_TYPE_STANDARD|USB_SETUP_RECIPIENT_DEVICE     //get descriptor request type
+#define USB_REQ_GET           USB_SETUP_DEVICE_TO_HOST|USB_SETUP_TYPE_STANDARD|USB_SETUP_RECIPIENT_DEVICE     //get request type for all but 'get feature' and 'get interface'
 #define USB_REQ_SET           USB_SETUP_HOST_TO_DEVICE|USB_SETUP_TYPE_STANDARD|USB_SETUP_RECIPIENT_DEVICE     //set request type for all but 'set feature' and 'set interface'
 #define USB_REQ_CL_GET_INTF   USB_SETUP_DEVICE_TO_HOST|USB_SETUP_TYPE_CLASS|USB_SETUP_RECIPIENT_INTERFACE     //get interface request type
 
@@ -204,6 +205,20 @@ typedef struct {
   uint8_t bInterval;             // Polling interval in frames.
 } __attribute__((packed)) usb_endpoint_descriptor_t;
 
+/* String index 0 descriptor structure */
+typedef struct {
+  uint8_t bLength;               // Length of this descriptor.
+  uint8_t bDescriptorType;       // STRING descriptor type (USB_DESCRIPTOR_STRING).
+  uint8_t wLANGID[2];            // Supported language codes
+} __attribute__((packed)) usb_string0_descriptor_t;
+
+/* String descriptor structure */
+typedef struct {
+  uint8_t  bLength;               // Length of this descriptor.
+  uint8_t  bDescriptorType;       // STRING descriptor type (USB_DESCRIPTOR_STRING).
+  uint16_t bString[];           // Unicode Encoded String
+} __attribute__((packed)) usb_string_descriptor_t;
+
 /* Standard Device Requests */
 #define USB_REQUEST_GET_STATUS                  0       // Standard Device Request - GET STATUS
 #define USB_REQUEST_CLEAR_FEATURE               1       // Standard Device Request - CLEAR FEATURE
@@ -253,11 +268,20 @@ uint8_t usb_ctrl_req( usb_device_t *, uint8_t bmReqType,
 		      uint16_t wInd, uint16_t nbytes, uint8_t* dataptr);
 uint8_t usb_get_dev_descr( usb_device_t *, uint16_t nbytes, usb_device_descriptor_t* dataptr );
 uint8_t usb_get_conf_descr( usb_device_t *, uint16_t nbytes, uint8_t conf, usb_configuration_descriptor_t* dataptr );
+uint8_t usb_get_string_descr( usb_device_t *dev, uint16_t nbytes, uint8_t index, uint16_t lang_id, usb_string_descriptor_t* dataptr );
+uint8_t usb_get_conf( usb_device_t *dev, uint8_t *conf_value );
 uint8_t usb_set_conf( usb_device_t *dev, uint8_t conf_value );
 uint8_t usb_in_transfer( usb_device_t *, ep_t *ep, uint16_t *nbytesptr, uint8_t* data);
 uint8_t usb_out_transfer( usb_device_t *, ep_t *ep, uint16_t nbytes, uint8_t* data );
 uint8_t usb_release_device(uint8_t parent, uint8_t port);
 usb_device_t *usb_get_devices();
 uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed);
-  
+
+// debug functions
+void usb_dump_device_descriptor(usb_device_descriptor_t *desc);
+void usb_dump_conf_descriptor(usb_configuration_descriptor_t *desc);
+void usb_dump_interface_descriptor(usb_interface_descriptor_t *desc);
+void usb_dump_endpoint_descriptor(usb_endpoint_descriptor_t *desc);
+void usb_dump_hid_descriptor(usb_hid_descriptor_t *desc);
+
 #endif // USB_H

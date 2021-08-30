@@ -380,7 +380,7 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 		iprintf("Setting addr %x\n", i+1);
 		rcode = usb_set_addr(d, i+1);
 		if(rcode) {
-			puts("failed to assign address");
+			iprintf("failed to assign address (rcode=%d)", rcode);
 			return rcode;
 		}
 
@@ -564,10 +564,21 @@ uint8_t usb_set_addr( usb_device_t *dev, uint8_t newaddr )  {
 	return rcode;
 }
 
+//get configuration
+uint8_t usb_get_conf( usb_device_t *dev, uint8_t *conf_value )  {
+  return( usb_ctrl_req( dev, USB_REQ_GET, USB_REQUEST_GET_CONFIGURATION,
+	                0x00, 0x00, 0x0000, 1, conf_value));
+}
+
 //set configuration
 uint8_t usb_set_conf( usb_device_t *dev, uint8_t conf_value )  {
   return( usb_ctrl_req( dev, USB_REQ_SET, USB_REQUEST_SET_CONFIGURATION,
 	                conf_value, 0x00, 0x0000, 0x0000, NULL));
+}
+
+uint8_t usb_get_string_descr( usb_device_t *dev, uint16_t nbytes, uint8_t index, uint16_t lang_id, usb_string_descriptor_t* dataptr ) {
+  return( usb_ctrl_req( dev, USB_REQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 
+	       index, USB_DESCRIPTOR_STRING, lang_id, nbytes, (uint8_t*)dataptr));
 }
 
 void usb_SetHubPreMask() { 

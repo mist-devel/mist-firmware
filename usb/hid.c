@@ -125,11 +125,24 @@ static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t i, uint16_t size)
 	return rcode;
 }
 
+static uint8_t hid_get_idle(usb_device_t *dev, uint8_t iface, uint8_t reportID, uint8_t *duration ) {
+  //  hid_debugf("%s(%x, if=%d id=%d, dur=%d)", __FUNCTION__, dev->bAddress, iface, reportID, duration);
+	return( usb_ctrl_req( dev, HID_REQ_HIDIN, HID_REQUEST_GET_IDLE, reportID,
+	        0, iface, 0x0001, duration));
+}
+
 static uint8_t hid_set_idle(usb_device_t *dev, uint8_t iface, uint8_t reportID, uint8_t duration ) {
   //  hid_debugf("%s(%x, if=%d id=%d, dur=%d)", __FUNCTION__, dev->bAddress, iface, reportID, duration);
 
 	return( usb_ctrl_req( dev, HID_REQ_HIDOUT, HID_REQUEST_SET_IDLE, reportID,
 	        duration, iface, 0x0000, NULL));
+}
+
+static uint8_t hid_get_protocol(usb_device_t *dev, uint8_t iface, uint8_t *protocol) {
+  //  hid_debugf("%s(%x, if=%d proto=%d)", __FUNCTION__, dev->bAddress, iface, protocol);
+
+	return( usb_ctrl_req( dev, HID_REQ_HIDIN, HID_REQUEST_GET_PROTOCOL, 0,
+	        0x00, iface, 0x0001, protocol));
 }
 
 static uint8_t hid_set_protocol(usb_device_t *dev, uint8_t iface, uint8_t protocol) {
@@ -171,19 +184,18 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	while(len > 0) {
 		switch(p->conf_desc.bDescriptorType) {
 		case USB_DESCRIPTOR_CONFIGURATION:
-			// hid_debugf("conf descriptor size %d", p->conf_desc.bLength);
 			// we already had this, so we simply ignore it
 			break;
 
 		case USB_DESCRIPTOR_INTERFACE:
 			isGoodInterface = false;
-			// hid_debugf("iface descriptor size %d", p->iface_desc.bLength);
+			usb_dump_interface_descriptor(&p->iface_desc);
 
 			/* check the interface descriptors for supported class */
 
 			// only HID interfaces are supported
 			if(p->iface_desc.bInterfaceClass == USB_CLASS_HID) {
-			//	puts("iface is HID");
+				hid_debugf("iface is HID");
 
 				if(info->bNumIfaces < MAX_IFACES) {
 					// ok, let's use this interface
@@ -231,7 +243,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 			break;
 
 			case USB_DESCRIPTOR_ENDPOINT:
-			//      hid_debugf("endpoint descriptor size %d", p->ep_desc.bLength);
+				usb_dump_endpoint_descriptor(&p->ep_desc);
 
 				if(isGoodInterface) {
 
@@ -253,7 +265,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 				break;
 
 			case HID_DESCRIPTOR_HID:
-				hid_debugf("hid descriptor size %d", p->ep_desc.bLength);
+				usb_dump_hid_descriptor(&p->hid_desc);
 
 				if(isGoodInterface) {
 					// we need a report descriptor
@@ -298,6 +310,12 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 		usb_configuration_descriptor_t conf_desc;
 	} buf;
 
+	union {
+		usb_string_descriptor_t str_desc;
+		uint8_t buf[256];
+	} str;
+	uint8_t s[128+1];
+
 	// reset status
 	info->bPollEnable = false;
 	info->bNumIfaces = 0;
@@ -313,6 +331,38 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 	// try to re-read full device descriptor from newly assigned address
 	if(rcode = usb_get_dev_descr( dev, sizeof(usb_device_descriptor_t), &buf.dev_desc ))
 		return rcode;
+	usb_dump_device_descriptor(&buf.dev_desc);
+
+	iprintf("USB vendor ID: %04X, product ID: %04x\n", buf.dev_desc.idVendor, buf.dev_desc.idProduct);
+
+	// The Retroflag Classic USB Gamepad doesn't report movement until the string descriptors are read,
+	// so read all of them here (and show them on the console)
+	usb_get_string_descr(dev, sizeof(str), 0, 0, &str.str_desc); // supported languages descriptor
+
+	if (buf.dev_desc.iManufacturer && 
+	    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iManufacturer, 0, &str.str_desc)) {
+		for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
+			s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
+		}
+		s[i] = 0;
+		iprintf("Manufacturer: %s\n", s);
+	}
+	if (buf.dev_desc.iProduct && 
+	    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iProduct, 0, &str.str_desc)) {
+		for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
+			s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
+		}
+		s[i] = 0;
+		iprintf("Product: %s\n", s);
+	}
+	if (buf.dev_desc.iSerialNumber && 
+	    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iSerialNumber, 0, &str.str_desc)) {
+		for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
+			s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
+		}
+		s[i] = 0;
+		iprintf("Serial no.: %s\n", s);
+	}
 
 	// save vid/pid for automatic hack later
 	vid = buf.dev_desc.idVendor;
@@ -325,8 +375,7 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 		if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &buf.conf_desc)) 
 			return rcode;
 
-	 	//    hid_debugf("conf descriptor %d has total size %d", i, buf.conf_desc.wTotalLength);
-
+		usb_dump_conf_descriptor(&buf.conf_desc);
 		// parse directly if it already fitted completely into the buffer
 		usb_hid_parse_conf(dev, i, buf.conf_desc.wTotalLength);
 	}
@@ -339,6 +388,7 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 
 	// Set Configuration Value
 	rcode = usb_set_conf(dev, buf.conf_desc.bConfigurationValue);
+	if (rcode) hid_debugf("hid_set_conf error: %d", rcode);
 
 	// process all supported interfaces
 	for(i=0; i<info->bNumIfaces; i++) {
@@ -351,7 +401,10 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 		// boot mode only supports two buttons and the archie wants three
 		if(!info->iface[i].has_boot_mode || info->iface[i].ignore_boot_mode) {
 			rcode = hid_get_report_descr(dev, i, info->iface[i].report_desc_size);
-			if(rcode) return rcode;
+			if(rcode) {
+				hid_debugf("hid_get_report_descr error: %d", rcode);
+				return rcode;
+			}
 
 			if(info->iface[i].device_type == REPORT_TYPE_NONE) {
 				// bInterfaceProtocol was 0 ("none") -> try to parse anyway
@@ -420,17 +473,16 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 				}
 			}
 		}
-
 		rcode = hid_set_idle(dev, info->iface[i].iface_idx, 0, 0);
 		if (rcode && rcode != hrSTALL)
 			return rcode;
 
-			// enable boot mode if its not diabled
-			if(info->iface[i].has_boot_mode && !info->iface[i].ignore_boot_mode) {
-				hid_debugf("enabling boot mode");
-				hid_set_protocol(dev, info->iface[i].iface_idx, HID_BOOT_PROTOCOL);
-			} else
-				hid_set_protocol(dev, info->iface[i].iface_idx, HID_RPT_PROTOCOL);
+		// enable boot mode if its not diabled
+		if(info->iface[i].has_boot_mode && !info->iface[i].ignore_boot_mode) {
+			hid_debugf("enabling boot mode");
+			hid_set_protocol(dev, info->iface[i].iface_idx, HID_BOOT_PROTOCOL);
+		} else
+			hid_set_protocol(dev, info->iface[i].iface_idx, HID_RPT_PROTOCOL);
 	}
 
 	puts("HID configured");

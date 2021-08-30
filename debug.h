@@ -57,6 +57,12 @@
 #endif
 
 // ------------ usb debugging -----------
+#if 0
+// usb debug output in green
+#define usb_debugf(a, ...) iprintf("\033[1;32mUSB: " a "\033[0m\n", ##__VA_ARGS__)
+#else
+#define usb_debugf(...)
+#endif
 
 #if 0
 #define hidp_debugf(a, ...)  iprintf("\033[1;34mHIDP: " a "\033[0m\n", ##__VA_ARGS__)
