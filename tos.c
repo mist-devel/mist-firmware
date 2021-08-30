@@ -239,6 +239,7 @@ static void dma_nak(void) {
 }
 
 static void handle_acsi(unsigned char *buffer) {
+
   static unsigned char asc[2] = { 0,0 };
   unsigned char target = buffer[10] >> 5;
   unsigned char device = buffer[1] >> 5;
@@ -246,6 +247,11 @@ static void handle_acsi(unsigned char *buffer) {
   unsigned long lba = 256 * 256 * (buffer[1] & 0x1f) +
     256 * buffer[2] + buffer[3];
   unsigned short length = buffer[4];
+
+  unsigned short blocklen;
+  unsigned char *buf;
+  unsigned short blocks;
+
   if(length == 0) length = 256;
 
   if(user_io_dip_switch1()) {
@@ -389,17 +395,28 @@ static void handle_acsi(unsigned char *buffer) {
         if(lba+length <= blocks) {
           DISKLED_ON;
           while(length) {
-            mist_memory_read_block(sector_buffer);
+            UINT bw;
+
+            blocklen = (length > SECTOR_BUFFER_SIZE/512) ? SECTOR_BUFFER_SIZE/512 : length;
+            buf = sector_buffer;
+            blocks = blocklen;
+            while (blocks--) {
+              mist_memory_read_block(buf);
+              buf+=512;
+            }
             if(hdd_direct && target == 0) {
               if(user_io_dip_switch1()) 
                 tos_debugf("ACSI: direct write %ld", lba);
-              MMC_Write(lba++, sector_buffer);
+              if (blocklen == 1)
+                MMC_Write(lba++, sector_buffer);
+              else
+                MMC_WriteMultiple(lba++, sector_buffer, blocklen);
             } else {
               IDXSeek(&sd_image[target+2], lba);
-              FileWriteBlock(&sd_image[target+2].file, sector_buffer);
-              lba++;
+              f_write(&sd_image[target+2].file, sector_buffer, blocklen*512, &bw);
             }
-            length--;
+            lba+=blocklen;
+            length-=blocklen;
           }
           DISKLED_OFF;
           dma_ack(0x00);

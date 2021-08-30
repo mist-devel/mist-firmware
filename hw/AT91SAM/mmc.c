@@ -396,29 +396,8 @@ unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, un
     return(1);
 }
 
-// write 512-byte block
-unsigned char MMC_Write(unsigned long lba, const unsigned char *pWriteBuffer)
+static char MMC_SendDataBlock(const unsigned char *pWriteBuffer)
 {
-    unsigned long i;
-
-    // check of card has been removed and try to re-initialize it
-    if(!check_card()) return 0;
-
-   if (CardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
-        lba = lba << 9; // otherwise convert sector adddress to byte address
-
-    EnableCard();
-
-    if (MMC_Command(CMD24, lba))
-    {
-        iprintf("CMD24 (WRITE_BLOCK): invalid response 0x%02X (lba=%lu)\r", response, lba);
-        DisableCard();
-        return(0);
-    }
-
-    SPI(0xFF); // one byte gap
-    SPI(0xFE); // send Data Token
-
     // send sector bytes
     spi_block_write(pWriteBuffer);
     spi_wait4xfer_end();
@@ -435,31 +414,93 @@ unsigned char MMC_Write(unsigned long lba, const unsigned char *pWriteBuffer)
     response &= 0x1F;
     if (response != 0x05)
     {
-        iprintf("CMD24 (WRITE_BLOCK): invalid status 0x%02X (lba=%lu)\r", response, lba);
+        iprintf("MMC: SendDataBlock: invalid status 0x%02X\r", response);
+        return(0);
+    }
+
+    timeout = 0;
+    while (SPI(0xFF) != 0xFF) // wait until the card is not busy
+    {
+        if (timeout++ >= 1000000)
+        {
+            iprintf("MMC: SendDataBlock: busy wait timeout!\r");
+            return(0);
+        }
+    }
+}
+
+// write 512-byte block
+unsigned char MMC_Write(unsigned long lba, const unsigned char *pWriteBuffer)
+{
+    // check of card has been removed and try to re-initialize it
+    if(!check_card()) return 0;
+
+   if (CardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
+        lba = lba << 9; // otherwise convert sector address to byte address
+
+    EnableCard();
+
+    if (MMC_Command(CMD24, lba))
+    {
+        iprintf("CMD24 (WRITE_BLOCK): invalid response 0x%02X (lba=%lu)\r", response, lba);
         DisableCard();
         return(0);
     }
 
-    // TODO: Move this to the beginning of MMC_Command to interleave Core and SD card better
+    SPI(0xFF); // one byte gap
+    SPI(0xFE); // send Data Token
+    if(!MMC_SendDataBlock(pWriteBuffer)) {
+        DisableCard();
+        return(0);
+    }
+    DisableCard();
+    return(1);
+}
+
+// write 512-byte block
+unsigned char MMC_WriteMultiple(unsigned long lba, const unsigned char *pWriteBuffer, unsigned long nBlockCount)
+{
+    //iprintf("MMC_WriteMultiple (lba=%d, count=%d)\n", lba, nBlockCount);
+    // check of card has been removed and try to re-initialize it
+    if(!check_card()) return 0;
+
+    if (CardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
+        lba = lba << 9; // otherwise convert sector address to byte address
+
+    EnableCard();
+
+    if (MMC_Command(CMD25, lba))
+    {
+        iprintf("CMD25 (WRITE_MULTIPLE_BLOCK): invalid response 0x%02X (lba=%lu)\r", response, lba);
+        DisableCard();
+        return(0);
+    }
+
+    do {
+        SPI(0xFC); // send Data Token
+        if(!MMC_SendDataBlock(pWriteBuffer)) {
+            DisableCard();
+            return(0);
+        }
+        pWriteBuffer += 512;
+    } while (--nBlockCount);
+
+    SPI(0xFD); // stop Token
 
     timeout = 0;
-    while (spi_in() == 0x00) // wait until the card is not busy
+    while (SPI(0xFF) != 0xFF) // wait until the card is not busy
     {
         if (timeout++ >= 1000000)
         {
-            iprintf("CMD24 (WRITE_BLOCK): busy wait timeout! (lba=%lu)\r", lba);
+            iprintf("CMD25 (WRITE_MULTIPLE_BLOCK): busy wait timeout! (lba=%lu)\r", lba);
             DisableCard();
             return(0);
         }
     }
 
-    // real life values here are ~500 until card becomes not busy again
-    //    iprintf("W:%d\n", timeout);
-
     DisableCard();
     return(1);
 }
-
 
 // MMC command
 static RAMFUNC unsigned char MMC_Command(unsigned char cmd, unsigned long arg)

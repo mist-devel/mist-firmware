@@ -79,6 +79,7 @@ unsigned char MMC_Init(void);
 unsigned char MMC_Read(unsigned long lba, unsigned char *pReadBuffer) RAMFUNC;
 unsigned char MMC_Write(unsigned long lba, const unsigned char *pWriteBuffer);
 unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, unsigned long nBlockCount);
+unsigned char MMC_WriteMultiple(unsigned long lba, const unsigned char *pWriteBuffer, unsigned long nBlockCount);
 unsigned char MMC_GetCSD(unsigned char *);
 unsigned char MMC_GetCID(unsigned char *);
 unsigned long MMC_GetCapacity(); // Returns the capacity in 512 byte blocks

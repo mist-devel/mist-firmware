@@ -149,15 +149,14 @@ DRESULT disk_write (
 	switch (pdrv) {
 	case DEV_MMC :
 		// translate the arguments here
-		while (count) {
-			result = MMC_Write(sector++, buff);
-			if (!result) return RES_ERROR;
-			count--;
-			buff += 512;
-		}
-		// translate the reslut code here
+		if (count == 1)
+			result = MMC_Write(sector, buff);
+		else
+			result = MMC_WriteMultiple(sector, buff, count);
 
-		return RES_OK;
+		// translate the reslut code here
+		res = result ? RES_OK : RES_ERROR;
+		return res;
 /*
 	case DEV_USB :
 		// translate the arguments here

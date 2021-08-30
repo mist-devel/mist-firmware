@@ -481,7 +481,8 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
 static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, char multiple, char lbamode)
 {
   unsigned short i;
-  unsigned short block_count;
+  unsigned short block_count, block_size, sectors;
+  unsigned char *buf;
   long lba=chs2lba(cylinder, head, sector, unit, lbamode);
 
   // write sectors
@@ -498,52 +499,64 @@ static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, u
     if (multiple && block_count > hdf[unit].sectors_per_block)
         block_count = hdf[unit].sectors_per_block;
 
-    while(block_count--)
-    {
-      while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
-      EnableFpga();
-      SPI(CMD_IDE_DATA_RD); // read data command
-      SPI(0x00);
-      SPI(0x00);
-      SPI(0x00);
-      SPI(0x00);
-      SPI(0x00);
-      spi_block_read(sector_buffer);
-      DisableFpga();
+    UINT bw;
 
+    while(block_count)
+    {
+      block_size = (block_count > SECTOR_BUFFER_SIZE/512) ? (SECTOR_BUFFER_SIZE/512) : block_count;
+      sectors = block_size;
+      buf = sector_buffer;
+      while(sectors--) {
+        while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
+        EnableFpga();
+        SPI(CMD_IDE_DATA_RD); // read data command
+        SPI(0x00);
+        SPI(0x00);
+        SPI(0x00);
+        SPI(0x00);
+        SPI(0x00);
+        spi_block_read(buf);
+        DisableFpga();
+        buf += 512;
+      }
       switch(hdf[unit].type) {
         case HDF_FILE | HDF_SYNTHRDB:
         case HDF_FILE:
           if (f_size(&hdf[unit].idxfile->file) && (lba>-1)) {
             // Don't attempt to write to fake RDB
-            FileWriteBlock(&hdf[unit].idxfile->file, sector_buffer);
+            f_write(&hdf[unit].idxfile->file, sector_buffer, 512*block_size, &bw);
           }
-          lba++;
+          lba+=block_size;
           break;
         case HDF_CARD:
         case HDF_CARDPART0:
         case HDF_CARDPART1:
         case HDF_CARDPART2:
         case HDF_CARDPART3:
-          MMC_Write(lba,sector_buffer);
-          lba++;
+          MMC_WriteMultiple(lba, sector_buffer, block_size);
+          lba+=block_size;
           break;
       }
 
       // decrease sector count
-      if (sector_count!=1) {
-        if (sector == hdf[unit].sectors) {
-          sector = 1;
-          head++;
-          if (head == hdf[unit].heads) {
-            head = 0;
-            cylinder++;
+      sectors = block_size;
+      while(sectors--) {
+        if (sector_count!=1) {
+          if (sector == hdf[unit].sectors) {
+            sector = 1;
+            head++;
+            if (head == hdf[unit].heads) {
+              head = 0;
+              cylinder++;
+            }
+          } else {
+            sector++;
           }
-        } else {
-          sector++;
         }
+        sector_count--; // decrease sector count
       }
-      sector_count--; // decrease sector count
+
+      block_count-=block_size;
     }
 
     if (hdf[unit].type & HDF_FILE)
