@@ -533,7 +533,10 @@ static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, u
         case HDF_CARDPART1:
         case HDF_CARDPART2:
         case HDF_CARDPART3:
-          MMC_WriteMultiple(lba, sector_buffer, block_size);
+          if (block_size == 1)
+            MMC_Write(lba, sector_buffer);
+          else
+            MMC_WriteMultiple(lba, sector_buffer, block_size);
           lba+=block_size;
           break;
       }
