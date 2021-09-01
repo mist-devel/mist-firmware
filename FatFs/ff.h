@@ -232,6 +232,9 @@ typedef struct {
 	LBA_t	sect;			/* Current sector (0:Read operation has terminated) */
 	BYTE*	dir;			/* Pointer to the directory item in the win[] */
 	BYTE	fn[12];			/* SFN (in/out) {body[8],ext[3],status[1]} */
+	BYTE	*buf;			/* Optional external buffer for the directory */
+	WORD	buf_size;		/* Size of the external buffer (in sectors)*/
+	LBA_t   buf_sect;		/* Start sector in the external buffer */
 #if FF_USE_LFN
 	DWORD	blk_ofs;		/* Offset of current entry block being processed (0xFFFFFFFF:Invalid) */
 #endif
