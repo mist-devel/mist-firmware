@@ -167,7 +167,7 @@ unsigned char ConfigureFpga(char *name)
         FatalError(4);
     }
 
-    iprintf("FPGA bitstream file opened, file size = %llu\r", f_size(&file));
+    iprintf("FPGA bitstream file %s opened, file size = %llu\r", name, f_size(&file));
     iprintf("[");
 
     // send all bytes to FPGA in loop
@@ -265,7 +265,7 @@ unsigned char ConfigureFpga(char *name)
         FatalError(4);
     }
 
-    iprintf("FPGA bitstream file opened, file size = %llu\r", f_size(&file));
+    iprintf("FPGA bitstream file %s opened, file size = %llu\r", name, f_size(&file));
     iprintf("[");
 
     // send all bytes to FPGA in loop
