@@ -197,7 +197,6 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 								conf->joystick_mouse.axis[c].size = report_size;
 								conf->joystick_mouse.axis[c].logical.min = logical_minimum;
 								conf->joystick_mouse.axis[c].logical.max = logical_maximum;
-								conf->joystick_mouse.axis[c].size = report_size;
 								if(c==0) report_complete |= JOY_MOUSE_REQ_AXIS_X;
 								if(c==1) report_complete |= JOY_MOUSE_REQ_AXIS_Y;
 							}
