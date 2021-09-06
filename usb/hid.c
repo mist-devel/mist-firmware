@@ -814,26 +814,31 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 					uint8_t hat = collect_bits(p, conf->joystick_mouse.hat.offset, 
 								 conf->joystick_mouse.hat.size, 0);
 
-					// we don't want more than 4 bits
-					uint8_t size = conf->joystick_mouse.hat.size;
-					while(size-- > 4) 
-						hat >>= 1;
-
 					//  iprintf("HAT = %d\n", hat);
 
-					// TODO: Deal with 3 bit (4 direction/no diagonal) hats 
 					static const uint8_t hat2x[] = { 127,255,255,255,127,  0,  0,  0 };
 					static const uint8_t hat2y[] = {   0,  0,127,255,255,255,127,  0 };
 
-					if(hat&8) {
+					uint16_t units = conf->joystick_mouse.hat.logical.max - conf->joystick_mouse.hat.logical.min;
+
+					if(hat > conf->joystick_mouse.hat.logical.max || hat < conf->joystick_mouse.hat.logical.min || !units) {
 						// hat is idle - don't override analog 
 						/*
 						if (a[0] > JOYSTICK_AXIS_TRIGGER_MIN) || a[0] < JOYSTICK_AXIS_TRIGGER_MAX) a[0] = JOYSTICK_AXIS_MID; 
 						if (a[1] > JOYSTICK_AXIS_TRIGGER_MIN) || a[1] < JOYSTICK_AXIS_TRIGGER_MAX) a[1] = JOYSTICK_AXIS_MID; 
 						*/
 					} else {
-						uint8_t x_val = hat2x[hat];
-						uint8_t y_val = hat2y[hat];
+						uint16_t degrees = (hat - conf->joystick_mouse.hat.logical.min) * 
+						                   (conf->joystick_mouse.hat.physical.max - conf->joystick_mouse.hat.physical.min) / units;
+						//iprintf("hat logical min=%d max=%d, physical min=%d max=%d degrees=%d\n",
+						//     conf->joystick_mouse.hat.logical.min,
+						//     conf->joystick_mouse.hat.logical.max,
+						//     conf->joystick_mouse.hat.physical.min,
+						//     conf->joystick_mouse.hat.physical.max,
+						//     degrees);
+						uint8_t idx = (degrees/45) & 0x07;
+						uint8_t x_val = hat2x[idx];
+						uint8_t y_val = hat2y[idx];
 						// cancel out with X analog axis if it pushes on the opposite direction
 						if(x_val < JOYSTICK_AXIS_TRIGGER_MIN) {
 							// hat pointing left, compensate if analog is pointing right

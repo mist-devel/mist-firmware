@@ -35,6 +35,14 @@ typedef struct {
       struct {
 				uint16_t offset;
 				uint8_t size;
+				struct {
+					uint16_t min;
+					uint16_t max;
+				} logical;
+				struct {
+					uint16_t min;
+					uint16_t max;
+				} physical;
       } hat;                   // 1 hat (joystick only)
 
 			uint8_t button_count;

@@ -87,6 +87,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 	uint8_t report_size, report_count;
 	uint16_t bit_count = 0, usage_count = 0;
 	uint16_t logical_minimum=0, logical_maximum=0;
+	uint16_t physical_minimum=0, physical_maximum=0;
 
 	// mask used to check of all required components have been found, so
 	// that e.g. both axes and the button of a joystick are ready to be used
@@ -211,6 +212,10 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 						if(conf->type == REPORT_TYPE_JOYSTICK) {
 							conf->joystick_mouse.hat.offset = cnt;
 							conf->joystick_mouse.hat.size = report_size;
+							conf->joystick_mouse.hat.logical.min = logical_minimum;
+							conf->joystick_mouse.hat.logical.max = logical_maximum;
+							conf->joystick_mouse.hat.physical.min = physical_minimum;
+							conf->joystick_mouse.hat.physical.max = physical_maximum;
 						}
 					}
 
@@ -328,10 +333,12 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 
 				case 3:
 					hidp_extreme_debugf("PHYSICAL_MINIMUM(%d/%d)", value, (int16_t)value);
+					physical_minimum = value;
 					break;
 
 				case 4:
 					hidp_extreme_debugf("PHYSICAL_MAXIMUM(%d)", value);
+					physical_maximum = value;
 					break;
 
 				case 5:
