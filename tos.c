@@ -408,9 +408,9 @@ static void handle_acsi(unsigned char *buffer) {
               if(user_io_dip_switch1()) 
                 tos_debugf("ACSI: direct write %ld", lba);
               if (blocklen == 1)
-                MMC_Write(lba++, sector_buffer);
+                MMC_Write(lba, sector_buffer);
               else
-                MMC_WriteMultiple(lba++, sector_buffer, blocklen);
+                MMC_WriteMultiple(lba, sector_buffer, blocklen);
             } else {
               IDXSeek(&sd_image[target+2], lba);
               f_write(&sd_image[target+2].file, sector_buffer, blocklen*512, &bw);
