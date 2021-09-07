@@ -1317,7 +1317,7 @@ void user_io_poll() {
 		DisableIO();
 	}
 
-	if((core_type == CORE_TYPE_8BIT) && !strcmp(user_io_get_core_name(), "TGFX16"))
+	if((core_type == CORE_TYPE_8BIT) && (!strcmp(user_io_get_core_name(), "TGFX16") || (core_features & FEAT_PCECD)))
 		pcecd_poll();
 
 	// sd card emulation

@@ -77,6 +77,9 @@
 
 #define UIO_GET_FEATS   0x80 // get core features (only once after fpga init)
 
+#define FEAT_MENU       0x01 // menu core
+#define FEAT_PCECD      0x02 // call pcecd_poll()
+
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
 #define JOY_DOWN        0x04
