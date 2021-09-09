@@ -4564,9 +4564,11 @@ FRESULT f_lseek (
 /* Create a Directory Object                                             */
 /*-----------------------------------------------------------------------*/
 
-FRESULT f_opendir (
+FRESULT f_opendir_buf (
 	DIR* dp,			/* Pointer to directory object to create */
-	const TCHAR* path	/* Pointer to the directory path */
+	const TCHAR* path,	/* Pointer to the directory path */
+	BYTE *buf,
+	WORD buf_size
 )
 {
 	FRESULT res;
@@ -4579,13 +4581,13 @@ FRESULT f_opendir (
 	/* Get logical drive */
 	res = mount_volume(&path, &fs, 0);
 	if (res == FR_OK) {
-		dp->buf = 0;
-		dp->buf_size = 0;
-		dp->buf_sect = (LBA_t)0 - 1;
 		dp->obj.fs = fs;
 		INIT_NAMBUF(fs);
 		res = follow_path(dp, path);			/* Follow the path to the directory */
 		if (res == FR_OK) {						/* Follow completed */
+			dp->buf = buf;
+			dp->buf_size = buf_size > fs->csize ? fs->csize : buf_size;
+			dp->buf_sect = (LBA_t)0 - 1;
 			if (!(dp->fn[NSFLAG] & NS_NONAME)) {	/* It is not the origin directory itself */
 				if (dp->obj.attr & AM_DIR) {		/* This object is a sub-directory */
 #if FF_FS_EXFAT
@@ -4626,7 +4628,13 @@ FRESULT f_opendir (
 	LEAVE_FF(fs, res);
 }
 
-
+FRESULT f_opendir (
+	DIR* dp,			/* Pointer to directory object to create */
+	const TCHAR* path	/* Pointer to the directory path */
+)
+{
+	return f_opendir_buf(dp, path, 0, 0);
+}
 
 
 /*-----------------------------------------------------------------------*/
