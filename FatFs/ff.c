@@ -1699,10 +1699,7 @@ static FRESULT dir_sdi (	/* FR_OK(0):succeeded, !=0:error */
 	dp->clust = clst;					/* Current cluster# */
 	if (dp->sect == 0) return FR_INT_ERR;
 	dp->sect += ofs / SS(fs);			/* Sector# of the directory entry */
-	if (dp->buf_size)
-		dp->dir = dp->buf + (ofs % (dp->buf_size * SS(fs)));	/* Pointer to the entry in the external buffer */
-	else
-		dp->dir = fs->win + (ofs % SS(fs));	/* Pointer to the entry in the win[] */
+	dp->dir = fs->win + (ofs % SS(fs));	/* Pointer to the entry in the win[] */
 
 	return FR_OK;
 }
@@ -1762,10 +1759,7 @@ FAST static FRESULT dir_next (	/* FR_OK(0):succeeded, FR_NO_FILE:End of table, F
 		}
 	}
 	dp->dptr = ofs;						/* Current entry */
-	if (dp->buf_size)
-		dp->dir = dp->buf + (ofs % (dp->buf_size * SS(fs)));
-	else
-		dp->dir = fs->win + (ofs % SS(fs));	/* Pointer to the entry in the win[] */
+	dp->dir = fs->win + ofs % SS(fs);	/* Pointer to the entry in the win[] */
 
 	return FR_OK;
 }
@@ -2271,24 +2265,6 @@ static void create_xdir (
 
 
 #if FF_FS_MINIMIZE <= 1 || FF_FS_RPATH >= 2 || FF_USE_LABEL || FF_FS_EXFAT
-FAST static FRESULT dir_read_buf(
-	FATFS *fs,
-	DIR *dp
-)
-{
-	FRESULT res = FR_OK;
-
-
-	if (dp->sect < dp->buf_sect || dp->sect >= dp->buf_sect + dp->buf_size) {	/* Window offset changed? */
-		if (disk_read(fs->pdrv, dp->buf, dp->sect, dp->buf_size) != RES_OK) {
-			dp->sect = (LBA_t)0 - 1;	/* Invalidate window if read data is not valid */
-			res = FR_DISK_ERR;
-		}
-		dp->buf_sect = dp->sect;
-	}
-	return res;
-}
-
 /*-----------------------------------------------------------------------*/
 /* Read an object from the directory                                     */
 /*-----------------------------------------------------------------------*/
@@ -2309,10 +2285,7 @@ FAST static FRESULT dir_read (
 #endif
 
 	while (dp->sect) {
-		if (dp->buf_size)
-			res = dir_read_buf(fs, dp);
-		else
-			res = move_window(fs, dp->sect);
+		res = move_window(fs, dp->sect);
 		if (res != FR_OK) break;
 		b = dp->dir[DIR_Name];	/* Test for the entry type */
 		if (b == 0) {
@@ -3039,9 +3012,6 @@ static FRESULT follow_path (	/* FR_OK(0): successful, !=0: error code */
 	FATFS *fs = dp->obj.fs;
 
 
-	dp->buf = 0;
-	dp->buf_size = 0;
-	dp->buf_sect = (LBA_t)0 - 1;
 #if FF_FS_RPATH != 0
 	if (!IsSeparator(*path) && (FF_STR_VOLUME_ID != 2 || !IsTerminator(*path))) {	/* Without heading separator */
 		dp->obj.sclust = fs->cdir;			/* Start at the current directory */
@@ -4579,9 +4549,6 @@ FRESULT f_opendir (
 	/* Get logical drive */
 	res = mount_volume(&path, &fs, 0);
 	if (res == FR_OK) {
-		dp->buf = 0;
-		dp->buf_size = 0;
-		dp->buf_sect = (LBA_t)0 - 1;
 		dp->obj.fs = fs;
 		INIT_NAMBUF(fs);
 		res = follow_path(dp, path);			/* Follow the path to the directory */

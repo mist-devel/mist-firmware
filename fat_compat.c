@@ -327,8 +327,6 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 		for (i = 0; i < MAXDIRENTRIES; i++)
 			sort_table[i] = i;
 		if (f_opendir(&dir, ".") != FR_OK) return 0;
-		dir.buf = sector_buffer;
-		dir.buf_size = SECTOR_BUFFER_SIZE/512;
 	}
 	else
 	{
