@@ -238,8 +238,9 @@ static inline void ShiftFpga(unsigned char data)
         /* Dump to DATA0 and insert a positive edge pulse at the same time */
         FPGA_DATA0_CODR = ALTERA_DATA0;
         FPGA_CODR = ALTERA_DCLK;
-        if((data >> i) & 1) FPGA_DATA0_SODR = ALTERA_DATA0;
+        if(data & 1) FPGA_DATA0_SODR = ALTERA_DATA0;
         FPGA_SODR = ALTERA_DCLK;
+        data >>= 1;
     }
 }
 
@@ -298,18 +299,18 @@ unsigned char ConfigureFpga(char *name)
     /* Loop through every single byte */
     for ( i = 0; i < f_size(&file); )
     {
-        // read sector if 512 (64*8) bytes done
-        if ((i & 0x1FF) == 0)
+        // read sector if SECTOR_BUFFER_SIZE bytes done
+        if ((i & (SECTOR_BUFFER_SIZE-1)) == 0)
         {
             if (i & (1<<13))
                 DISKLED_OFF
             else
                 DISKLED_ON
 
-            if ((i & 0x3FFF) == 0)
+            if ((i & (SECTOR_BUFFER_SIZE*4-1)) == 0)
                 iprintf("*");
 
-            if (f_read(&file, sector_buffer, 512, &br) != FR_OK) {
+            if (f_read(&file, sector_buffer, SECTOR_BUFFER_SIZE, &br) != FR_OK) {
                 f_close(&file);
                 return(0);
             }
