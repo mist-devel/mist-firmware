@@ -477,14 +477,17 @@ unsigned char MMC_WriteMultiple(unsigned long lba, const unsigned char *pWriteBu
     }
 
     do {
+        SPI(0xFF); // one byte gap
         SPI(0xFC); // send Data Token
         if(!MMC_SendDataBlock(pWriteBuffer)) {
+            iprintf("Error at lba=%d, remaining blocks=%d\n", lba, nBlockCount);
             DisableCard();
             return(0);
         }
         pWriteBuffer += 512;
     } while (--nBlockCount);
 
+    SPI(0xFF); // one byte gap
     SPI(0xFD); // stop Token
 
     timeout = 0;
