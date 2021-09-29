@@ -311,8 +311,9 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 	} buf;
 
 	union {
+		usb_string0_descriptor_t str0_desc;
 		usb_string_descriptor_t str_desc;
-		uint8_t buf[256];
+		uint8_t buf[255];
 	} str;
 	uint8_t s[128+1];
 
@@ -333,36 +334,7 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 		return rcode;
 	usb_dump_device_descriptor(&buf.dev_desc);
 
-	iprintf("USB vendor ID: %04X, product ID: %04x\n", buf.dev_desc.idVendor, buf.dev_desc.idProduct);
-
-	// The Retroflag Classic USB Gamepad doesn't report movement until the string descriptors are read,
-	// so read all of them here (and show them on the console)
-	usb_get_string_descr(dev, sizeof(str), 0, 0, &str.str_desc); // supported languages descriptor
-
-	if (buf.dev_desc.iManufacturer && 
-	    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iManufacturer, 0, &str.str_desc)) {
-		for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
-			s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
-		}
-		s[i] = 0;
-		iprintf("Manufacturer: %s\n", s);
-	}
-	if (buf.dev_desc.iProduct && 
-	    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iProduct, 0, &str.str_desc)) {
-		for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
-			s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
-		}
-		s[i] = 0;
-		iprintf("Product: %s\n", s);
-	}
-	if (buf.dev_desc.iSerialNumber && 
-	    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iSerialNumber, 0, &str.str_desc)) {
-		for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
-			s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
-		}
-		s[i] = 0;
-		iprintf("Serial no.: %s\n", s);
-	}
+	iprintf("USB vendor ID: %04X, product ID: %04X\n", buf.dev_desc.idVendor, buf.dev_desc.idProduct);
 
 	// save vid/pid for automatic hack later
 	vid = buf.dev_desc.idVendor;
@@ -384,6 +356,41 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 	if(!info->bNumIfaces) {
 		hid_debugf("no hid interfaces found");
 		return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
+	}
+
+	// The Retroflag Classic USB Gamepad doesn't report movement until the string descriptors are read,
+	// so read all of them here (and show them on the console)
+	if (!usb_get_string_descr(dev, sizeof(str), 0, 0, &str.str_desc)) { // supported languages descriptor
+		uint16_t wLangId = str.str0_desc.wLANGID[0];
+		hid_debugf("wLangId: %04X", wLangId);
+
+		// Some gamepads (Retrobit) breaks if its strings are queried like below, so don't do it until it can be done safely.
+#if 0
+		if (buf.dev_desc.iManufacturer && 
+		    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iManufacturer, wLangId, &str.str_desc)) {
+			for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
+				s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
+			}
+			s[i] = 0;
+			iprintf("Manufacturer: %s\n", s);
+		}
+		if (buf.dev_desc.iProduct && 
+		    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iProduct, wLangId, &str.str_desc)) {
+			for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
+				s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
+			}
+			s[i] = 0;
+			iprintf("Product: %s\n", s);
+		}
+		if (buf.dev_desc.iSerialNumber && 
+		    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iSerialNumber, wLangId, &str.str_desc)) {
+			for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
+				s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
+			}
+			s[i] = 0;
+			iprintf("Serial no.: %s\n", s);
+		}
+#endif
 	}
 
 	// Set Configuration Value

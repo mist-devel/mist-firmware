@@ -207,9 +207,9 @@ typedef struct {
 
 /* String index 0 descriptor structure */
 typedef struct {
-  uint8_t bLength;               // Length of this descriptor.
-  uint8_t bDescriptorType;       // STRING descriptor type (USB_DESCRIPTOR_STRING).
-  uint8_t wLANGID[2];            // Supported language codes
+  uint8_t  bLength;               // Length of this descriptor.
+  uint8_t  bDescriptorType;       // STRING descriptor type (USB_DESCRIPTOR_STRING).
+  uint16_t wLANGID[];             // Supported language codes
 } __attribute__((packed)) usb_string0_descriptor_t;
 
 /* String descriptor structure */
