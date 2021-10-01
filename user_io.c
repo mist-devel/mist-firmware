@@ -2390,11 +2390,13 @@ void user_io_key_remap(char *s) {
 unsigned char user_io_ext_idx(const char *name, const char* ext) {
 	unsigned char idx = 0;
 	int len = strlen(ext);
+	int extlen;
 
 	const char *nameext = GetExtension(name);
 	if (!nameext) return 0;
+	extlen = strlen(nameext);
 	while((len>3) && *ext) {
-		if(!_strnicmp(nameext,ext,strlen(nameext))) return idx;
+		if(!_strnicmp(nameext,ext,extlen > 3 ? 3 : extlen)) return idx;
 		if(strlen(ext)<=3) break;
 		idx++;
 		ext +=3;
