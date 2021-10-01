@@ -2394,7 +2394,7 @@ unsigned char user_io_ext_idx(const char *name, const char* ext) {
 	const char *nameext = GetExtension(name);
 	if (!nameext) return 0;
 	while((len>3) && *ext) {
-		if(!_strnicmp(nameext,ext,3)) return idx;
+		if(!_strnicmp(nameext,ext,strlen(nameext))) return idx;
 		if(strlen(ext)<=3) break;
 		idx++;
 		ext +=3;
