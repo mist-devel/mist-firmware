@@ -210,60 +210,6 @@ unsigned char MMC_Init(void)
     return(CARDTYPE_NONE); 
 }
 
-
-// Read single 512-byte block
-RAMFUNC unsigned char MMC_Read(unsigned long lba, unsigned char *pReadBuffer)
-{
-    // if pReadBuffer is NULL then use direct to the FPGA transfer mode (FPGA2 asserted)
-
-    // check of card has been removed and try to re-initialize it
-    if(!check_card()) return 0;
-
-    unsigned long i;
-    unsigned char *p;
-
-    if (CardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
-        lba = lba << 9; // otherwise convert sector adddress to byte address
-
-    EnableCard();
-
-    if (MMC_Command(CMD17, lba))
-    {
-      //        iprintf("CMD17 (READ_BLOCK): invalid response 0x%02X (lba=%lu)\r", response, lba);
-        DisableCard();
-        return(0);
-    }
-
-    // now we are waiting for data token, it takes around 300us
-    timeout = 0;
-    while ((SPI(0xFF)) != 0xFE)
-    {
-        if (timeout++ >= 1000000) // we can't wait forever
-        {
-	  //            iprintf("CMD17 (READ_BLOCK): no data token! (lba=%lu)\r", lba);
-            DisableCard();
-            return(0);
-        }
-    }
-
-    if (pReadBuffer == 0)
-    {   // in this mode we do not receive data, instead the FPGA captures directly the data stream transmitted by the SD/MMC card
-        EnableDMode();
-        spi_block(511);
-        SPI(0xff); // dummy write for 4096 clocks
-        SPI(0xff);
-        DisableDMode();
-    }
-    else
-      spi_block_read(pReadBuffer);
-
-    SPI(0xFF); // read CRC lo byte
-    SPI(0xFF); // read CRC hi byte
-
-    DisableCard();
-    return(1);
-}
-
 static unsigned char MMC_GetCXD(unsigned char cmd, unsigned char *ptr) {
   int i;
   EnableCard();
@@ -336,6 +282,73 @@ unsigned long MMC_GetCapacity()
 	}
 }
 
+RAMFUNC static unsigned char MMC_WaitBusy(unsigned long timeout)
+{
+    unsigned long timer = GetTimer(timeout);
+    while (1) {
+        if (SPI(0xFF) == 0xFF) return 1; // OK
+        if (CheckTimer(timer)) return 0; // timeout
+    }
+}
+
+RAMFUNC static unsigned char MMC_ReceiveDataBlock(unsigned char *pReadBuffer)
+{
+    // now we are waiting for data token, it takes around 300us
+    timeout = 0;
+    while ((SPI(0xFF)) != 0xFE)
+    {
+        if (timeout++ >= 1000000) // we can't wait forever
+        {
+	  //            iprintf("CMD17 (READ_BLOCK): no data token! (lba=%lu)\r", lba);
+            return(0);
+        }
+    }
+
+    if (pReadBuffer == 0)
+    {   // in this mode we do not receive data, instead the FPGA captures directly the data stream transmitted by the SD/MMC card
+        EnableDMode();
+        spi_block(511);
+        SPI(0xff); // dummy write for 4096 clocks
+        SPI(0xff);
+        //spi_read(sector_buffer, 512);
+        DisableDMode();
+    }
+    else
+      spi_block_read(pReadBuffer);
+
+    SPI(0xFF); // read CRC lo byte
+    SPI(0xFF); // read CRC hi byte
+    return(1);
+}
+
+// Read single 512-byte block
+RAMFUNC unsigned char MMC_Read(unsigned long lba, unsigned char *pReadBuffer)
+{
+    // if pReadBuffer is NULL then use direct to the FPGA transfer mode (FPGA2 asserted)
+
+    // check of card has been removed and try to re-initialize it
+    if(!check_card()) return 0;
+
+    unsigned long i;
+    unsigned char *p;
+
+    if (CardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
+        lba = lba << 9; // otherwise convert sector adddress to byte address
+
+    EnableCard();
+
+    if (MMC_Command(CMD17, lba))
+    {
+      //        iprintf("CMD17 (READ_BLOCK): invalid response 0x%02X (lba=%lu)\r", response, lba);
+        DisableCard();
+        return(0);
+    }
+
+    unsigned char retval = MMC_ReceiveDataBlock(pReadBuffer);
+    DisableCard();
+    return(retval);
+}
+
 // read multiple 512-byte blocks
 unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, unsigned long nBlockCount)
 {
@@ -360,44 +373,28 @@ unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, un
 
     while (nBlockCount--)
     {
-        // now we are waiting for data token, it takes around 300us
-        timeout = 0;
-        while ((SPI(0xFF)) != 0xFE)
-        {
-            if (timeout++ >= 1000000) // we can't wait forever
-            {
-                iprintf("CMD18 (READ_MULTIPLE_BLOCK): no data token! (lba=%u)\r", lba);
-                DisableCard();
-                return(0);
-            }
+        if (!MMC_ReceiveDataBlock(pReadBuffer)) {
+            DisableCard();
+            return (0);
         }
-
-        if (pReadBuffer == 0)
-        {   // in this mode we do not receive data, instead the FPGA captures directly the data stream transmitted by the SD/MMC card
-            EnableDMode();
-            spi_block(511);
-            SPI(0xff); // dummy write for 4096 clocks
-            SPI(0xff);
-            DisableDMode();
-        }
-        else
-        {
-	    spi_block_read(pReadBuffer);
-	    pReadBuffer += 512; // point to next sector
-        }
-
-        SPI(0xFF); // read CRC lo byte
-        SPI(0xFF); // read CRC hi byte
+        if (pReadBuffer) pReadBuffer+=512;
     }
-
     MMC_CMD12(); // stop multi block transmission
 
     DisableCard();
     return(1);
 }
 
-static char MMC_SendDataBlock(const unsigned char *pWriteBuffer)
+static char MMC_SendDataBlock(const unsigned char *pWriteBuffer, unsigned char token)
 {
+    // wait until not busy
+    if (!MMC_WaitBusy(500)) {
+        iprintf("MMC: SendDataBlock: busy wait timeout!\r");
+        return(0);
+    }
+    SPI(0xFF); // one byte gap
+    SPI(token); // send token
+
     // send sector bytes
     spi_block_write(pWriteBuffer);
     spi_wait4xfer_end();
@@ -417,16 +414,7 @@ static char MMC_SendDataBlock(const unsigned char *pWriteBuffer)
         iprintf("MMC: SendDataBlock: invalid status 0x%02X\r", response);
         return(0);
     }
-
-    timeout = 0;
-    while (SPI(0xFF) != 0xFF) // wait until the card is not busy
-    {
-        if (timeout++ >= 1000000)
-        {
-            iprintf("MMC: SendDataBlock: busy wait timeout!\r");
-            return(0);
-        }
-    }
+    return(1);
 }
 
 // write 512-byte block
@@ -435,7 +423,7 @@ unsigned char MMC_Write(unsigned long lba, const unsigned char *pWriteBuffer)
     // check of card has been removed and try to re-initialize it
     if(!check_card()) return 0;
 
-   if (CardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
+    if (CardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
         lba = lba << 9; // otherwise convert sector address to byte address
 
     EnableCard();
@@ -447,14 +435,9 @@ unsigned char MMC_Write(unsigned long lba, const unsigned char *pWriteBuffer)
         return(0);
     }
 
-    SPI(0xFF); // one byte gap
-    SPI(0xFE); // send Data Token
-    if(!MMC_SendDataBlock(pWriteBuffer)) {
-        DisableCard();
-        return(0);
-    }
+    unsigned char retval = MMC_SendDataBlock(pWriteBuffer, 0xFE);
     DisableCard();
-    return(1);
+    return(retval);
 }
 
 // write 512-byte block
@@ -477,30 +460,32 @@ unsigned char MMC_WriteMultiple(unsigned long lba, const unsigned char *pWriteBu
     }
 
     do {
-        SPI(0xFF); // one byte gap
-        SPI(0xFC); // send Data Token
-        if(!MMC_SendDataBlock(pWriteBuffer)) {
-            iprintf("Error at lba=%d, remaining blocks=%d\n", lba, nBlockCount);
+        if(!MMC_SendDataBlock(pWriteBuffer, 0xFC)) {
+            iprintf("CMD25 (WRITE_MULTIPLE_BLOCK): error at lba=%d, remaining blocks=%d\n", lba, nBlockCount);
             DisableCard();
             return(0);
         }
         pWriteBuffer += 512;
     } while (--nBlockCount);
 
-    SPI(0xFF); // one byte gap
-    SPI(0xFD); // stop Token
-
-    timeout = 0;
-    while (SPI(0xFF) != 0xFF) // wait until the card is not busy
-    {
-        if (timeout++ >= 1000000)
-        {
-            iprintf("CMD25 (WRITE_MULTIPLE_BLOCK): busy wait timeout! (lba=%lu)\r", lba);
-            DisableCard();
-            return(0);
-        }
+    if (!MMC_WaitBusy(500)) {
+        DisableCard();
+        iprintf("CMD25 (WRITE_MULTIPLE_BLOCK): busy wait timeout before STOP token!\r");
+        return(0);
     }
 
+    SPI(0xFF); // one byte gap
+    SPI(0xFD); // stop Token
+    SPI(0xFF); // one byte gap
+
+    // Let the firmware proceed while the card is busy
+/*
+    if (!MMC_WaitBusy(1000)) {
+        iprintf("CMD25 (WRITE_MULTIPLE_BLOCK): busy wait timeout after STOP token! (lba=%lu)\r", lba);
+        DisableCard();
+        return(0);
+    }
+*/
     DisableCard();
     return(1);
 }
@@ -514,8 +499,11 @@ static RAMFUNC unsigned char MMC_Command(unsigned char cmd, unsigned long arg)
 
     // flush spi, give card a moment to wake up (needed for old 2GB Panasonic card)
     //    spi_n(0xff, 8);  // this is not flash save if not in ram
-    for(b=0;b<8;b++) SPI(0xff);
-
+    // (wait for busy instead)
+    //for(b=0;b<8;b++) SPI(0xff); 
+    if (!MMC_WaitBusy(1000)) {
+        return(0x80); // busy forever?
+    }
     SPI(cmd);
     MMC_CRC(cmd);
 
@@ -573,8 +561,10 @@ static unsigned char MMC_CMD12(void)
     do
     {    response = SPI(0xFF); // get response
 //        RS232(response);
-   } while (response == 0xFF && Ncr--);
+    } while (response == 0xFF && Ncr--);
 
+    // Let the firmware proceed while the card is busy
+/*
     timeout = 0;
     while ((SPI(0xFF)) == 0x00) // wait until the card is not busy
     {   // RS232('+');
@@ -584,7 +574,8 @@ static unsigned char MMC_CMD12(void)
             DisableCard();
             return(0);
         }
-}
+    }
+*/
     return response;
 }
 
