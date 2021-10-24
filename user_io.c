@@ -408,7 +408,7 @@ static unsigned short usb2ps2code( unsigned char k) {
 }
 
 void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
-	if(core_type == CORE_TYPE_8BIT) {
+	if(core_type == CORE_TYPE_8BIT || core_type == CORE_TYPE_MINIMIG2) {
 		spi_uio_cmd8_cont(UIO_ASTICK, joystick);
 		spi8(valueX);
 		spi8(valueY);

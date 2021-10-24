@@ -116,6 +116,7 @@ const char *config_chipset_msg[] = {"OCS-A500", "OCS-A1000", "ECS", "---", "---"
 const char *config_turbo_msg[] = {"none", "CHIPRAM", "KICK", "BOTH"};
 char *config_autofire_msg[] = {"        AUTOFIRE OFF", "        AUTOFIRE FAST", "        AUTOFIRE MEDIUM", "        AUTOFIRE SLOW"};
 const char *config_cd32pad_msg[] =  {"OFF", "ON"};
+const char *config_joystick_msg[] =  {"Digital", "Analogue"};
 char *config_button_turbo_msg[] = {"OFF", "FAST", "MEDIUM", "SLOW"};
 char *config_button_turbo_choice_msg[] = {"A only", "B only", "A & B"};
 const char *config_audio_filter_msg[] = {"switchable", "always off", "always on"};
@@ -495,7 +496,7 @@ void HandleUI(void)
 				{
 					char autofire_tmp = config.autofire & 3;
 					autofire_tmp++;
-					config.autofire=(config.autofire & 4) | (autofire_tmp & 3);
+					config.autofire=(config.autofire & 0x0c) | (autofire_tmp & 3);
 					ConfigAutofire(config.autofire);
 					if (menustate == MENU_NONE2 || menustate == MENU_INFO)
 						InfoMessage(config_autofire_msg[config.autofire & 3]);
@@ -2644,31 +2645,33 @@ void HandleUI(void)
 			menumask=0;
 			OsdSetTitle("Chipset",OSD_ARROW_LEFT|OSD_ARROW_RIGHT);
 
-			OsdWrite(0, "", 0,0);
 			strcpy(s, "         CPU : ");
 			strcat(s, config_cpu_msg[config.cpu & 0x03]);
-			OsdWrite(1, s, menusub == 0,0);
+			OsdWrite(0, s, menusub == 0,0);
 			strcpy(s, "       Turbo : ");
 			strcat(s, config_turbo_msg[(config.cpu >> 2) & 0x03]);
-			OsdWrite(2, s, menusub == 1,0);
+			OsdWrite(1, s, menusub == 1,0);
 			strcpy(s, "       Video : ");
 			strcat(s, config.chipset & CONFIG_NTSC ? "NTSC" : "PAL");
-			OsdWrite(3, s, menusub == 2,0);
+			OsdWrite(2, s, menusub == 2,0);
 			strcpy(s, "     Chipset : ");
 			strcat(s, config_chipset_msg[(config.chipset >> 2) & (minimig_v1()?3:7)]);
-			OsdWrite(4, s, menusub == 3,0);
+			OsdWrite(3, s, menusub == 3,0);
 			strcpy(s, "     CD32Pad : ");
 			strcat(s, config_cd32pad_msg[(config.autofire >> 2) & 1]);
-			OsdWrite(5, s, menusub == 4,0);
+			OsdWrite(4, s, menusub == 4,0);
+			strcpy(s, "    Joystick : ");
+			strcat(s, config_joystick_msg[(config.autofire >> 3) & 1]);
+			OsdWrite(5, s, menusub == 5,0);
 			OsdWrite(6, "", 0,0);
-			OsdWrite(7, STD_EXIT, menusub == 5,0);
+			OsdWrite(7, STD_EXIT, menusub == 6,0);
 
 			menustate = MENU_SETTINGS_CHIPSET2;
 			break;
 
 		case MENU_SETTINGS_CHIPSET2 :
 
-			if (down && menusub < 5)
+			if (down && menusub < 6)
 			{
 				menusub++;
 				menustate = MENU_SETTINGS_CHIPSET1;
@@ -2737,11 +2740,17 @@ void HandleUI(void)
 				else if (menusub == 4)
 				{
 					//config.autofire = ((((config.autofire >> 2) + 1) & 1) << 2) || (config.autofire & 3);
-					config.autofire  = (config.autofire + 4) & 0x7;
+					config.autofire  = (config.autofire ^ 0x04);
 					menustate = MENU_SETTINGS_CHIPSET1;
 					ConfigAutofire(config.autofire);
 				}
 				else if (menusub == 5)
+				{
+					config.autofire  = (config.autofire ^ 0x08);
+					menustate = MENU_SETTINGS_CHIPSET1;
+					ConfigAutofire(config.autofire);
+				}
+				else if (menusub == 6)
 				{
 					menustate = MENU_MAIN2_1;
 					menusub = 2;
