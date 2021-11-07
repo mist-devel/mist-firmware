@@ -32,6 +32,7 @@ typedef struct {
   uint8_t led_animation;
   uint8_t sdram64;
   uint8_t amiga_mod_keys;
+  uint8_t usb_storage;
 } mist_cfg_t;
 
 

@@ -8,7 +8,6 @@
 #define CDC_REDIRECT_PARALLEL 0x04
 #define CDC_REDIRECT_MIDI     0x05
 
-void cdc_control_open(void);
 void cdc_control_poll(void);
 void cdc_control_tx(char c);
 void cdc_control_flush(void);

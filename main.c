@@ -53,11 +53,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "arc_file.h"
 #include "font.h"
 #include "tos.h"
-#include "cdc_control.h"
 #include "usb.h"
 #include "debug.h"
 #include "mist_cfg.h"
-#include "cdc_enumerate.h"
+#include "usbdev.h"
+#include "cdc_control.h"
+#include "storage_control.h"
 
 #ifndef _WANT_IO_LONG_LONG
 #error "newlib lacks support of long long type in IO functions. Please use a toolchain that was compiled with option --enable-newlib-io-long-long."
@@ -185,10 +186,11 @@ int main(void)
         fpga_init(s);
     }
 
-    cdc_control_open();
+    usb_dev_open();
 
     while (1) {
       cdc_control_poll();
+      storage_control_poll();
 
       user_io_poll();
 

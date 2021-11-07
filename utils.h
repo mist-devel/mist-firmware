@@ -1,6 +1,10 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
+#include <stddef.h>
+
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+
 unsigned char decval(unsigned char in, unsigned char min, unsigned char max);
 unsigned char incval(unsigned char in, unsigned char min, unsigned char max);
 unsigned char bin2bcd(unsigned char in);

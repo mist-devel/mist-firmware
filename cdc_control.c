@@ -5,8 +5,8 @@
 
 #include <stdio.h>
 
-#include "cdc_enumerate.h"
 #include "cdc_control.h"
+#include "usbdev.h"
 #include "utils.h"
 #include "user_io.h"
 #include "tos.h"
@@ -17,12 +17,6 @@ static unsigned char fill = 0;
 static unsigned long flush_timer = 0;
 
 extern const char version[];
-
-void cdc_control_open(void) {
-  iprintf("CDC control open\n");
-
-  usb_cdc_open();
-}
 
 // send everything in buffer 
 void cdc_control_flush(void) {
@@ -62,13 +56,12 @@ void cdc_control_poll(void) {
     flush_timer = 0;
   }
 
-  // low level usb handling happens inside usb_cdc_poll
-  if(usb_cdc_poll()) {
+  if(usb_cdc_is_configured()) {
     uint16_t read, i;
-    char data[AT91C_EP_OUT_SIZE];
+    char data[BULK_OUT_SIZE];
 
     // check for user input
-    if((read = usb_cdc_read(data, AT91C_EP_OUT_SIZE)) != 0) {
+    if((read = usb_cdc_read(data, BULK_OUT_SIZE)) != 0) {
       
       switch(tos_get_cdc_control_redirect()) {
       case CDC_REDIRECT_RS232:
