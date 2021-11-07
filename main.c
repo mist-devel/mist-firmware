@@ -187,8 +187,6 @@ int main(void)
 
     cdc_control_open();
 
-    usb_cdc_open();
-
     while (1) {
       cdc_control_poll();
 
