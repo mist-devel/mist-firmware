@@ -9,13 +9,21 @@ void spi_init() {
     *AT91C_SPI_CR = AT91C_SPI_SPIEN;
 
     // SPI Mode Register
-    *AT91C_SPI_MR = AT91C_SPI_MSTR | AT91C_SPI_MODFDIS  | (0x0E << 16);
+    *AT91C_SPI_MR = AT91C_SPI_MSTR | AT91C_SPI_MODFDIS  | (0x01 << 16);
 
     // SPI CS register
-    AT91C_SPI_CSR[0] = AT91C_SPI_CPOL | (48 << 8) | (0x00 << 16) | (0x01 << 24);
+    AT91C_SPI_CSR[0] = AT91C_SPI_CPOL | AT91C_SPI_CSAAT | (2 << 8) | (0x04 << 16) | (0x00 << 24); // USB
+    AT91C_SPI_CSR[1] = AT91C_SPI_CPOL | AT91C_SPI_CSAAT | (48 << 8) | (0x04 << 16) | (0x00 << 24); // MMC/CONF_DATA
+    AT91C_SPI_CSR[2] = AT91C_SPI_CPOL | AT91C_SPI_CSAAT | (2 << 8) | (0x04 << 16) | (0x00 << 24); // Data IO
+    AT91C_SPI_CSR[3] = AT91C_SPI_CPOL | AT91C_SPI_CSAAT | (2 << 8) | (0x04 << 16) | (0x00 << 24); // OSD
 
     // Configure pins for SPI use
-    AT91C_BASE_PIOA->PIO_PDR = AT91C_PA14_SPCK | AT91C_PA13_MOSI | AT91C_PA12_MISO;
+    AT91C_BASE_PIOA->PIO_PDR = AT91C_PA14_SPCK | AT91C_PA13_MOSI | AT91C_PA12_MISO | AT91C_PA11_NPCS0 | AT91C_PA10_NPCS2 | AT91C_PA3_NPCS3;
+    AT91C_BASE_PIOA->PIO_BSR = AT91C_PA9_NPCS1 | AT91C_PA10_NPCS2 | AT91C_PA3_NPCS3;
+
+    // PA9 (CONF_DATA0) and PA31 (MMC) are both NPCS1. Give them to the SPI only when transfer is required.
+    // Set them to high level by default.
+    *AT91C_PIOA_SODR = FPGA0 | MMC_SEL;
 }
 
 RAMFUNC void spi_wait4xfer_end() {
@@ -28,33 +36,39 @@ RAMFUNC void spi_wait4xfer_end() {
 
 void EnableFpga()
 {
-    *AT91C_PIOA_CODR = FPGA0;  // clear output
+    *AT91C_SPI_CR = AT91C_SPI_SPIEN;
+    *AT91C_SPI_MR = AT91C_SPI_MSTR | AT91C_SPI_MODFDIS  | (0x03 << 16); // NPCS2
 }
 
 void DisableFpga()
 {
+    *AT91C_SPI_CR = AT91C_SPI_SPIEN | AT91C_SPI_LASTXFER;
     spi_wait4xfer_end();
-    *AT91C_PIOA_SODR = FPGA0;  // set output
+    *AT91C_SPI_MR = AT91C_SPI_MSTR | AT91C_SPI_MODFDIS  | (0x01 << 16); // NPCS1
 }
 
 void EnableOsd()
 {
-    *AT91C_PIOA_CODR = FPGA1;  // clear output
+    *AT91C_SPI_CR = AT91C_SPI_SPIEN;
+    *AT91C_SPI_MR = AT91C_SPI_MSTR | AT91C_SPI_MODFDIS  | (0x07 << 16); // NPCS3
 }
 
 void DisableOsd()
 {
+    *AT91C_SPI_CR = AT91C_SPI_SPIEN | AT91C_SPI_LASTXFER;
     spi_wait4xfer_end();
-    *AT91C_PIOA_SODR = FPGA1;  // set output
+    *AT91C_SPI_MR = AT91C_SPI_MSTR | AT91C_SPI_MODFDIS  | (0x01 << 16); // NPCS1
 }
 
 void EnableIO() {
-    *AT91C_PIOA_CODR = FPGA3;  // clear output
+    *AT91C_SPI_MR = AT91C_SPI_MSTR | AT91C_SPI_MODFDIS  | (0x01 << 16); // NPCS1
+    *AT91C_SPI_CR = AT91C_SPI_SPIEN;
+    AT91C_BASE_PIOA->PIO_PDR = FPGA3;
 }
 
 void DisableIO() {
     spi_wait4xfer_end();
-    *AT91C_PIOA_SODR = FPGA3;  // set output
+    AT91C_BASE_PIOA->PIO_PER = FPGA3;
 }
 
 void EnableDMode() {
@@ -66,14 +80,26 @@ void DisableDMode() {
 }
 
 RAMFUNC void EnableCard() {
-  *AT91C_PIOA_CODR = MMC_SEL;  // clear output (MMC chip select enabled)
+    *AT91C_SPI_MR = AT91C_SPI_MSTR | AT91C_SPI_MODFDIS  | (0x01 << 16); // NPCS1
+    AT91C_BASE_PIOA->PIO_PDR = MMC_SEL;
+    *AT91C_SPI_CR = AT91C_SPI_SPIEN;
 }
 
 RAMFUNC void DisableCard() {
-  spi_wait4xfer_end();
-  *AT91C_PIOA_SODR = MMC_SEL;  // set output (MMC chip select disabled)
-  SPI(0xFF);
-  spi_wait4xfer_end();
+    *AT91C_SPI_CR = AT91C_SPI_SPIEN | AT91C_SPI_LASTXFER;
+    spi_wait4xfer_end();
+    AT91C_BASE_PIOA->PIO_PER = MMC_SEL;
+}
+
+void spi_max_start() {
+    *AT91C_SPI_CR = AT91C_SPI_SPIEN;
+    *AT91C_SPI_MR = AT91C_SPI_MSTR | AT91C_SPI_MODFDIS  | (0x0E << 16); // NPCS0
+}
+
+void spi_max_end() {
+    *AT91C_SPI_CR = AT91C_SPI_SPIEN | AT91C_SPI_LASTXFER;
+    spi_wait4xfer_end();
+    *AT91C_SPI_MR = AT91C_SPI_MSTR | AT91C_SPI_MODFDIS  | (0x01 << 16); // NPCS1
 }
 
 void spi_block(unsigned short num) {
@@ -131,19 +157,19 @@ void spi_block_write(const char *addr) {
 static unsigned char spi_speed;
 
 void spi_slow() {
-  AT91C_SPI_CSR[0] = AT91C_SPI_CPOL | (SPI_SLOW_CLK_VALUE << 8) | (2 << 24); // init clock 100-400 kHz
+  AT91C_SPI_CSR[1] = AT91C_SPI_CPOL | AT91C_SPI_CSAAT | (4 << 16) | (SPI_SLOW_CLK_VALUE << 8) | (2 << 24); // init clock 100-400 kHz
   spi_speed = SPI_SLOW_CLK_VALUE;
 }
 
 void spi_fast() {
   // set appropriate SPI speed for SD/SDHC card (max 25 Mhz)
-  AT91C_SPI_CSR[0] = AT91C_SPI_CPOL | (SPI_SDC_CLK_VALUE << 8); // 24 MHz SPI clock
+  AT91C_SPI_CSR[1] = AT91C_SPI_CPOL | AT91C_SPI_CSAAT | (4 << 16) | (SPI_SDC_CLK_VALUE << 8); // 24 MHz SPI clock
   spi_speed = SPI_SDC_CLK_VALUE;
 }
 
 void spi_fast_mmc() {
   // set appropriate SPI speed for MMC card (max 20Mhz)
-  AT91C_SPI_CSR[0] = AT91C_SPI_CPOL | (SPI_MMC_CLK_VALUE << 8); // 16 MHz SPI clock
+  AT91C_SPI_CSR[1] = AT91C_SPI_CPOL | AT91C_SPI_CSAAT | (4 << 16) | (SPI_MMC_CLK_VALUE << 8); // 16 MHz SPI clock
   spi_speed = SPI_MMC_CLK_VALUE;
 }
 

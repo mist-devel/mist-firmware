@@ -62,8 +62,8 @@ void spi_uio_cmd32(unsigned char cmd, unsigned long parm);
 void spi_uio_cmd64(unsigned char cmd, unsigned long long parm);
   
 /* spi functions for max3421 */
-#define spi_max_start()  { *AT91C_PIOA_CODR = USB_SEL; }
-#define spi_max_end()    {  spi_wait4xfer_end(); *AT91C_PIOA_SODR = USB_SEL; }
+void spi_max_start();
+void spi_max_end();
 
 static inline unsigned char SPI(unsigned char outByte) {
   while (!(*AT91C_SPI_SR & AT91C_SPI_TDRE));
