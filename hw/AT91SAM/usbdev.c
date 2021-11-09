@@ -143,9 +143,9 @@ static const char storageDevDescriptor[] = {
   0x12,   // bLength
   0x01,   // bDescriptorType
   WORD(0x0200),   // bcdUSBL
-  0x08,   // bDeviceClass:    MISCELLANEOUS class code
-  0x06,   // bDeviceSubclass: Common Class
-  0x50,   // bDeviceProtocol: Interface Association Descriptor
+  0x00,   // bDeviceClass:    Specified by interface
+  0x00,   // bDeviceSubclass: Specified by interface
+  0x00,   // bDeviceProtocol: Specified by interface
   0x08,   // bMaxPacketSize0
   WORD(0x1c40), // idVendorL
   WORD(0x0537), // idProductL
@@ -186,7 +186,7 @@ static const char storageCfgDescriptor[] = {
 	0x05, // bDescriptorType
 	0x01, // bEndpointAddress, Endpoint 01 - Bulk-out
 	0x02, // bmAttributes BULK
-	WORD(AT91C_EP_IN_SIZE), // wMaxPacketSize
+	WORD(AT91C_EP_OUT_SIZE), // wMaxPacketSize
 	0x00, // bInterval
 
 	/* Endpoint 2 descriptor - Bulk-in */
@@ -194,7 +194,7 @@ static const char storageCfgDescriptor[] = {
 	0x05, // bDescriptorType
 	0x82, // bEndpointAddress, Endpoint 02 - Bulk-in
 	0x02, // bmAttributes BULK
-	WORD(AT91C_EP_OUT_SIZE), // wMaxPacketSize
+	WORD(AT91C_EP_IN_SIZE), // wMaxPacketSize
 	0x00 // bInterval
 };
 

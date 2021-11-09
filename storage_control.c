@@ -102,6 +102,14 @@ typedef struct {
 	uint32_t blocklen;
 } __attribute__ ((packed)) CAPACITYDATA_t;
 
+typedef struct {
+	uint8_t  Reserved[3];
+	uint8_t  Length;
+	uint32_t Blocks;
+	uint8_t  DescriptorType  :1;
+	uint8_t  Reserved2 : 7;
+	uint8_t  Blocklen[3];
+} __attribute__ ((packed)) FORMATCAPACITYDATA_t;
 
 static void clear_sense() {
 	sense.key = sense.asc = sense.ascq = 0;
@@ -153,6 +161,17 @@ static void scsi_mode_sense(uint8_t *cmd) {
 	uint8_t len = cmd[4];
 	memset(sector_buffer, 0, len);
 	usb_storage_write(sector_buffer, len);
+}
+
+static void scsi_read_format_capacities(uint8_t *cmd) {
+	uint16_t len = cmd[7]<<8 | cmd[8];
+	FORMATCAPACITYDATA_t dat;
+
+	memset(&dat, 0, sizeof(FORMATCAPACITYDATA_t));
+	dat.Length = 8;
+	dat.Blocks = MMC_GetCapacity();
+	dat.Blocklen[1] = 0x02; // 512 bytes
+	usb_storage_write((const char*) &dat, MIN(len, sizeof(FORMATCAPACITYDATA_t)));
 }
 
 static uint8_t scsi_read(uint8_t *cmd) {
@@ -259,6 +278,11 @@ void storage_control_poll(void) {
 				clear_sense();
 				storage_control_send_csw(tag, 0);
 				break;
+			case 0x23:
+				storage_debugf("Read format capacities");
+				clear_sense();
+				scsi_read_format_capacities(cbw->CBWCB);
+				storage_control_send_csw(tag, 0);
 			case 0x25:
 				storage_debugf("Read Capacity");
 				clear_sense();
