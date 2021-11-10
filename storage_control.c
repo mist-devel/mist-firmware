@@ -283,6 +283,7 @@ void storage_control_poll(void) {
 				clear_sense();
 				scsi_read_format_capacities(cbw->CBWCB);
 				storage_control_send_csw(tag, 0);
+				break;
 			case 0x25:
 				storage_debugf("Read Capacity");
 				clear_sense();
