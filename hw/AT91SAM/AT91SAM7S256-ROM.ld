@@ -35,9 +35,14 @@ MEMORY
 
 SECTIONS
 {
-  /* first section is .text which is used for code */
-  . = 0x0000000;
-  .text : { *Cstartup.o (.text) }>FLASH =0
+  /* The startup code goes first into FLASH */
+  .reset :
+  {
+    . = ALIGN(4);
+    KEEP(*(.reset)) /* Startup code */
+    . = ALIGN(4);
+  } >FLASH
+
   .text :
   {
     *(.text)                   /* remaining code */
