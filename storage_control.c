@@ -125,6 +125,7 @@ static void scsi_inquiry(uint8_t *cmd) {
 	uint16_t len = cmd[3]<<8 | cmd[4];
 	INQUIRYDATA_t *data = (INQUIRYDATA_t*)sector_buffer;
 	memset(data, 0, sizeof(INQUIRYDATA_t));
+	data->Versions = 0x04;
 	data->RemovableMedia = 1;
 	data->ResponseDataFormat = 2;
 	data->AdditionalLength = 0x1f;
@@ -156,11 +157,24 @@ static void scsi_request_sense(uint8_t *cmd) {
 }
 
 static void scsi_mode_sense(uint8_t *cmd) {
-	hexdump(cmd, 6, 0);
-	// TODO: more complete implementation
-	uint8_t len = cmd[4];
-	memset(sector_buffer, 0, len);
-	usb_storage_write(sector_buffer, len);
+	uint16_t len, datalen;
+	if (cmd[0] == 0x5A) { // MODE_SENSE10
+		len = cmd[7]<<8 | cmd[8];
+		datalen = 8;
+		sector_buffer[0] = 0x00;
+		sector_buffer[1] = datalen-2;
+		sector_buffer[2] = 0;
+		sector_buffer[3] = mmc_write_protected() ? 0x80 : 0x00;
+		sector_buffer[4] = sector_buffer[5] = sector_buffer[6] = sector_buffer[7] = 0;
+	} else {
+		len = cmd[4]; // MODE SENSE6
+		datalen = 4;
+		sector_buffer[0] = datalen-1;
+		sector_buffer[1] = 0;
+		sector_buffer[2] = mmc_write_protected() ? 0x80 : 0x00;
+		sector_buffer[3] = 0;
+	}
+	usb_storage_write(sector_buffer, MIN(len, datalen));
 }
 
 static void scsi_read_format_capacities(uint8_t *cmd) {
@@ -180,7 +194,7 @@ static uint8_t scsi_read(uint8_t *cmd) {
 	storage_debugf("Read lba=%d len=%d", lba, len);
 	while (len) {
 		uint8_t ret;
-		uint16_t read = len>(SECTOR_BUFFER_SIZE/512) ? (SECTOR_BUFFER_SIZE/512) : len;
+		uint16_t read = MIN(len, SECTOR_BUFFER_SIZE/512);
 		DISKLED_ON
 		if (len == 1) ret=MMC_Read(lba, sector_buffer);
 		else ret=MMC_ReadMultiple(lba, sector_buffer, read);
@@ -201,7 +215,8 @@ static uint8_t scsi_write(uint8_t *cmd) {
 	uint16_t len = cmd[7]<<8 | cmd[8];
 	storage_debugf("Write lba=%d len=%d", lba, len);
 	while (len) {
-		uint16_t write = len>(SECTOR_BUFFER_SIZE/512) ? (SECTOR_BUFFER_SIZE/512) : len;
+		uint8_t ret;
+		uint16_t write = MIN(len, SECTOR_BUFFER_SIZE/512);
 		uint16_t read, total_read = write*512;
 		uint8_t *buf = sector_buffer;
 		long to = GetTimer(100);  // wait max 100ms for host
@@ -216,9 +231,10 @@ static uint8_t scsi_write(uint8_t *cmd) {
 		}
 		//hexdump(sector_buffer, write*512, 0);
 		DISKLED_ON
-		if (write == 1) MMC_Write(lba, sector_buffer);
-		else MMC_WriteMultiple(lba, sector_buffer, write);
+		if (write == 1) ret = MMC_Write(lba, sector_buffer);
+		else ret = MMC_WriteMultiple(lba, sector_buffer, write);
 		DISKLED_OFF
+		if (!ret) return 0;
 		lba+=write;
 		len-=write;
 	}
@@ -268,6 +284,7 @@ void storage_control_poll(void) {
 				storage_control_send_csw(tag, 0);
 				break;
 			case 0x1A:
+			case 0x5A:
 				storage_debugf("Mode Sense");
 				clear_sense();
 				scsi_mode_sense(cbw->CBWCB);

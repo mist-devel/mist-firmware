@@ -86,6 +86,7 @@
 #define SECTOR_BUFFER_SIZE   4096
 
 char mmc_inserted(void);
+char mmc_write_protected(void);
 void USART_Init(unsigned long baudrate);
 void USART_Write(unsigned char c);
 unsigned char USART_Read(void);
