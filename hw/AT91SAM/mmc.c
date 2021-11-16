@@ -299,7 +299,7 @@ RAMFUNC static unsigned char MMC_ReceiveDataBlock(unsigned char *pReadBuffer)
     {
         if (timeout++ >= 1000000) // we can't wait forever
         {
-            iprintf("CMD17/18 (READ_BLOCK): no data token!\r");
+            //iprintf("CMD17/18 (READ_BLOCK): no data token!\r");
             return(0);
         }
     }
@@ -339,7 +339,7 @@ RAMFUNC unsigned char MMC_Read(unsigned long lba, unsigned char *pReadBuffer)
 
     if (MMC_Command(CMD17, lba))
     {
-        iprintf("CMD17 (READ_BLOCK): invalid response 0x%02X (lba=%lu)\r", response, lba);
+        //iprintf("CMD17 (READ_BLOCK): invalid response 0x%02X (lba=%lu)\r", response, lba);
         DisableCard();
         return(0);
     }
