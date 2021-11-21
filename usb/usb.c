@@ -354,6 +354,13 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 
 	// find an empty device entry
 	uint8_t i;
+	usb_device_descriptor_t dev_desc;
+	union {
+		usb_string0_descriptor_t str0_desc;
+		usb_string_descriptor_t str_desc;
+		uint8_t buf[255];
+	} str;
+
 	for(i=0; i<USB_NUMDEVICES && dev[i].bAddress; i++);
 
 	if(i < USB_NUMDEVICES) {
@@ -375,6 +382,49 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 		d->ep0.bmNakPower = USB_NAK_MAX_POWER;
 
 		// --- enumerate device ---
+		if(rcode = usb_get_dev_descr( d, sizeof(usb_device_descriptor_t), &dev_desc ))
+			return rcode;
+		usb_dump_device_descriptor(&dev_desc);
+		iprintf("USB vendor ID: %04X, product ID: %04X\n", dev_desc.idVendor, dev_desc.idProduct);
+
+		// save vid/pid
+		d->vid = dev_desc.idVendor;
+		d->pid = dev_desc.idProduct;
+
+		// The Retroflag Classic USB Gamepad doesn't report movement until the string descriptors are read,
+		// so read all of them here (and show them on the console)
+		if (!usb_get_string_descr(d, sizeof(str), 0, 0, &str.str_desc)) { // supported languages descriptor
+			uint16_t wLangId = str.str0_desc.wLANGID[0];
+			iprintf("wLangId: %04X\n", wLangId);
+
+			// Some gamepads (Retrobit) breaks if its strings are queried like below, so don't do it until it can be done safely.
+#if 0
+			if (dev_desc.iManufacturer && 
+				!usb_get_string_descr(d, sizeof(str), dev_desc.iManufacturer, wLangId, &str.str_desc)) {
+				for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
+					s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
+				}
+				s[i] = 0;
+				iprintf("Manufacturer: %s\n", s);
+			}
+			if (dev_desc.iProduct && 
+			    !usb_get_string_descr(d, sizeof(str), dev_desc.iProduct, wLangId, &str.str_desc)) {
+				for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
+					s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
+				}
+				s[i] = 0;
+				iprintf("Product: %s\n", s);
+			}
+			if (dev_desc.iSerialNumber && 
+			    !usb_get_string_descr(d, sizeof(str), dev_desc.iSerialNumber, wLangId, &str.str_desc)) {
+				for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
+					s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
+				}
+				s[i] = 0;
+				iprintf("Serial no.: %s\n", s);
+			}
+#endif
+		}
 
 		// Assign new address to the device
 		// (address is simply the number of the free slot + 1)

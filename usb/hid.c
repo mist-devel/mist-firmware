@@ -291,13 +291,6 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 		usb_configuration_descriptor_t conf_desc;
 	} buf;
 
-	union {
-		usb_string0_descriptor_t str0_desc;
-		usb_string_descriptor_t str_desc;
-		uint8_t buf[255];
-	} str;
-	uint8_t s[128+1];
-
 	// reset status
 	info->bPollEnable = false;
 	info->bNumIfaces = 0;
@@ -313,9 +306,6 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 	// try to re-read full device descriptor from newly assigned address
 	if(rcode = usb_get_dev_descr( dev, sizeof(usb_device_descriptor_t), &buf.dev_desc ))
 		return rcode;
-	usb_dump_device_descriptor(&buf.dev_desc);
-
-	iprintf("USB vendor ID: %04X, product ID: %04X\n", buf.dev_desc.idVendor, buf.dev_desc.idProduct);
 
 	// save vid/pid for automatic hack later
 	vid = buf.dev_desc.idVendor;
@@ -339,50 +329,12 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 		return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
 	}
 
-	// The Retroflag Classic USB Gamepad doesn't report movement until the string descriptors are read,
-	// so read all of them here (and show them on the console)
-	if (!usb_get_string_descr(dev, sizeof(str), 0, 0, &str.str_desc)) { // supported languages descriptor
-		uint16_t wLangId = str.str0_desc.wLANGID[0];
-		hid_debugf("wLangId: %04X", wLangId);
-
-		// Some gamepads (Retrobit) breaks if its strings are queried like below, so don't do it until it can be done safely.
-#if 0
-		if (buf.dev_desc.iManufacturer && 
-		    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iManufacturer, wLangId, &str.str_desc)) {
-			for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
-				s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
-			}
-			s[i] = 0;
-			iprintf("Manufacturer: %s\n", s);
-		}
-		if (buf.dev_desc.iProduct && 
-		    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iProduct, wLangId, &str.str_desc)) {
-			for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
-				s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
-			}
-			s[i] = 0;
-			iprintf("Product: %s\n", s);
-		}
-		if (buf.dev_desc.iSerialNumber && 
-		    !usb_get_string_descr(dev, sizeof(str), buf.dev_desc.iSerialNumber, wLangId, &str.str_desc)) {
-			for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
-				s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
-			}
-			s[i] = 0;
-			iprintf("Serial no.: %s\n", s);
-		}
-#endif
-	}
-
 	// Set Configuration Value
 	rcode = usb_set_conf(dev, buf.conf_desc.bConfigurationValue);
 	if (rcode) hid_debugf("hid_set_conf error: %d", rcode);
 
 	// process all supported interfaces
 	for(i=0; i<info->bNumIfaces; i++) {
-
-		info->iface[i].conf.pid = pid;
-		info->iface[i].conf.vid = vid;
 
 		// no boot mode, try to parse HID report descriptor
 		// when running archie core force the usage of the HID descriptor as 
@@ -537,7 +489,7 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
 }
 
 // special 5200daptor button processing
-static void handle_5200daptor(usb_hid_iface_info_t *iface, uint8_t *buf) {
+static void handle_5200daptor(usb_device_t *dev, usb_hid_iface_info_t *iface, uint8_t *buf) {
 
 	// list of buttons that are reported as keys
 	static const struct {
@@ -588,7 +540,7 @@ static void handle_5200daptor(usb_hid_iface_info_t *iface, uint8_t *buf) {
 		//    iprintf("5200: %d %d %d %d %d %d\n", buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
 
 		// generate key events
-		user_io_kbd(0x00, buf, UIO_PRIORITY_GAMEPAD, iface->conf.vid, iface->conf.pid); 
+		user_io_kbd(0x00, buf, UIO_PRIORITY_GAMEPAD, dev->vid, dev->pid);
 
 		// save current state of keys
 		iface->key_state = keys;
@@ -646,9 +598,10 @@ static uint16_t collect_bits(uint8_t *p, uint16_t offset, uint8_t size, bool is_
 static usb_hid_iface_info_t *virt_joy_kbd_iface = NULL;
 
 /* processes a single USB interface */
-static void usb_process_iface (usb_hid_iface_info_t *iface, 
-							   uint16_t read, 
-							   uint8_t *buf) {
+static void usb_process_iface (usb_device_t *dev,
+                               usb_hid_iface_info_t *iface,
+                               uint16_t read,
+                               uint8_t *buf) {
 
 	// successfully received some bytes
 	if(iface->has_boot_mode && !iface->ignore_boot_mode) {
@@ -663,9 +616,9 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 			// boot kbd needs at least eight bytes
 			if(read >= 8) {
 				if (iface->conf.report_id)
-					user_io_kbd(buf[1], buf+3, UIO_PRIORITY_KEYBOARD, iface->conf.vid, iface->conf.pid);
+					user_io_kbd(buf[1], buf+3, UIO_PRIORITY_KEYBOARD, dev->vid, dev->pid);
 				else
-					user_io_kbd(buf[0], buf+2, UIO_PRIORITY_KEYBOARD, iface->conf.vid, iface->conf.pid);
+					user_io_kbd(buf[0], buf+2, UIO_PRIORITY_KEYBOARD, dev->vid, dev->pid);
 			}
 		}
 	}
@@ -836,13 +789,13 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 
 				// report joystick 1 to OSD
 				idx = joystick_index(iface->jindex);
-				StateUsbIdSet( conf->vid, conf->pid, conf->joystick_mouse.button_count, idx);
+				StateUsbIdSet( dev->vid, dev->pid, conf->joystick_mouse.button_count, idx);
 				StateUsbJoySet( jmap, btn_extra, idx);
 
 				// map virtual joypad
 				uint16_t vjoy = jmap;
 				vjoy |= btn_extra << 8;
-				vjoy = virtual_joystick_mapping( conf->vid, conf->pid, vjoy );
+				vjoy = virtual_joystick_mapping( dev->vid, dev->pid, vjoy );
 
 				//iprintf("VIRTUAL JOY:%d\n", vjoy);
 				//if (jmap != 0) iprintf("JMAP pre map:%d\n", jmap);
@@ -880,7 +833,7 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 
 				// do special 5200daptor treatment
 				if(iface->is_5200daptor)
-					handle_5200daptor(iface, buf);
+					handle_5200daptor(dev, iface, buf);
 				
 				// apply keyboard mappings
 				if ((!virt_joy_kbd_iface) || (virt_joy_kbd_iface == iface)) {
@@ -917,7 +870,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 					if (rcode != hrNAK)
 						hid_debugf("%s() error: %d", __FUNCTION__, rcode);
 				} else {
-					usb_process_iface ( iface, read, buf);
+					usb_process_iface (dev, iface, read, buf);
 				}
 				iface->qNextPollTime = timer_get_msec() + iface->interval;   // poll at requested rate
 			}

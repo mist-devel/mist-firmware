@@ -113,6 +113,8 @@ typedef struct usb_device_entry {
   uint8_t bAddress;	                   // device address
   uint8_t parent;                          // parent device address
   uint8_t port;
+  uint16_t vid;
+  uint16_t pid;
   bool lowspeed;
 
   union {

@@ -62,7 +62,7 @@ uint8_t joystick_release(uint8_t c_jindex) {
 						iprintf("decreasing joystick index of dev #%d from %d to %d\n", j,
 							jindex, jindex-1);
 						dev[j].hid_info.iface[k].jindex--;
-						StateUsbIdSet( dev[j].hid_info.iface[k].conf.vid, dev[j].hid_info.iface[k].conf.pid, dev[j].hid_info.iface[k].conf.joystick_mouse.button_count, dev[j].hid_info.iface[k].jindex);
+						StateUsbIdSet( dev[j].vid, dev[j].pid, dev[j].hid_info.iface[k].conf.joystick_mouse.button_count, dev[j].hid_info.iface[k].jindex);
 					}
 				}
 			}
@@ -72,7 +72,7 @@ uint8_t joystick_release(uint8_t c_jindex) {
 			if(jindex > c_jindex) {
 				iprintf("Decreasing xbox index of dev #%d from %d to %d\n", j, jindex, jindex-1);
 				dev[j].xbox_info.jindex--;
-				StateUsbIdSet( dev[j].xbox_info.vid, dev[j].xbox_info.pid, 8/*button_count*/, dev[j].xbox_info.jindex);
+				StateUsbIdSet( dev[j].vid, dev[j].pid, 8/*button_count*/, dev[j].xbox_info.jindex);
 			}
 		}
 

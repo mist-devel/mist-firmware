@@ -12,10 +12,6 @@ typedef struct {
   uint8_t report_id;
   uint8_t report_size;
 
-  // for downstream mapping
-  uint16_t vid;            
-  uint16_t pid;
-
   union {
     struct {
       struct {

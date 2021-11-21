@@ -89,26 +89,12 @@ uint8_t usb_xbox_init(usb_device_t *dev) {
 	uint16_t pid;
 	uint16_t vid;
 
-	union {
-		usb_device_descriptor_t dev_desc;
-		usb_configuration_descriptor_t conf_desc;
-	} buf;
-
-	union {
-		usb_string0_descriptor_t str0_desc;
-		usb_string_descriptor_t str_desc;
-		uint8_t buf[255];
-	} str;
+	usb_configuration_descriptor_t conf_desc;
 
 	dev->xbox_info.bPollEnable = false;
 	usb_debugf("%s(%x)", __FUNCTION__, dev->bAddress);
-
-	if(rcode = usb_get_dev_descr( dev, sizeof(usb_device_descriptor_t), &buf.dev_desc ))
-		return rcode;
-	usb_dump_device_descriptor(&buf.dev_desc);
-
-	vid = buf.dev_desc.idVendor;
-	pid = buf.dev_desc.idProduct;
+	vid = dev->vid;
+	pid = dev->pid;
 
 	if(vid != XBOX_VID && vid != MADCATZ_VID && vid != JOYTECH_VID && vid != GAMESTOP_VID) {// Check VID
 		usb_debugf("Not a XBOX VID (%04x)", vid);
@@ -127,16 +113,10 @@ uint8_t usb_xbox_init(usb_device_t *dev) {
 		return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
 	}
 
-	// get the language descriptor 0, Retroflag classic USB joystick doesn't work without querying it
-	if (!usb_get_string_descr(dev, sizeof(str), 0, 0, &str.str_desc)) { // supported languages descriptor
-		uint16_t wLangId = str.str0_desc.wLANGID[0];
-		iprintf("XBOX: wLangId: %04X\n", wLangId);
-	}
-
-	if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), 0, &buf.conf_desc))
+	if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), 0, &conf_desc))
 		return rcode;
 
-	usb_dump_conf_descriptor(&buf.conf_desc);
+	usb_dump_conf_descriptor(&conf_desc);
 
 	// Skip parsing the interface and endpoint descriptors, and use known values */
 	//usb_xbox_parse_conf(dev, 0, buf.conf_desc.wTotalLength);
@@ -149,12 +129,10 @@ uint8_t usb_xbox_init(usb_device_t *dev) {
 	dev->xbox_info.qNextPollTime = 0;
 
 	// Set Configuration Value
-	if(rcode = usb_set_conf(dev, buf.conf_desc.bConfigurationValue)) {
+	if(rcode = usb_set_conf(dev, conf_desc.bConfigurationValue)) {
 		iprintf("XBOX: error setting conf value (%d)\n", rcode);
 		return rcode;
 	}
-	dev->xbox_info.vid = vid;
-	dev->xbox_info.pid = pid;
 	dev->xbox_info.jindex = joystick_add();
 	dev->xbox_info.bPollEnable = true;
 	return 0;
@@ -175,7 +153,7 @@ static void usb_xbox_read_report(usb_device_t *dev, uint16_t len, uint8_t *buf) 
 
 	uint16_t buttons = (swp2(buf[2], 0xc) >> 2) | (swp2(buf[2], 0x3) << 2) | swp2(buf[3], 0x30) | (swp2(buf[2], 0x30) << 2) | ((buf[3] & 0x03) << 10) | (swp2(buf[3], 0xc0) << 2);
 	uint8_t idx = dev->xbox_info.jindex;
-	StateUsbIdSet(dev->xbox_info.vid, dev->xbox_info.pid, 8, idx);
+	StateUsbIdSet(dev->vid, dev->pid, 8, idx);
 
 /*
 	TODO: handle analogue parts
@@ -189,7 +167,7 @@ static void usb_xbox_read_report(usb_device_t *dev, uint16_t len, uint8_t *buf) 
 
 	if(buttons != dev->xbox_info.oldButtons) {
 		StateUsbJoySet(buttons, buttons>>8, idx);
-		uint16_t vjoy = virtual_joystick_mapping(dev->xbox_info.vid, dev->xbox_info.pid, buttons);
+		uint16_t vjoy = virtual_joystick_mapping(dev->vid, dev->pid, buttons);
 
 		StateJoySet(vjoy, idx);
 		StateJoySetExtra( vjoy>>8, idx);

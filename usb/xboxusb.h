@@ -53,8 +53,6 @@
 
 typedef struct {
 	bool     bPollEnable;    // poll enable flag
-	uint16_t vid;
-	uint16_t pid;
 	uint8_t  interval;
 	uint32_t oldButtons;
 	uint32_t qNextPollTime;  // next poll time
