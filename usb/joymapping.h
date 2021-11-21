@@ -1,3 +1,20 @@
+/*
+  This file is part of MiST-firmware
+
+  MiST-firmware is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 3 of the License, or
+  (at your option) any later version.
+
+  MiST-firmware is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 /*****************************************************************************/
 // Handles Virtual Joystick functions (USB->Joystick mapping and Keyboard bindings)
 /*****************************************************************************/
@@ -22,6 +39,7 @@
 #define JOYSTICK_ALIAS_RETRO_FREAK 	  "Retro Freak gamepad"
 #define JOYSTICK_ALIAS_ROYDS_EX 			"ROYDS Stick.EX"
 #define JOYSTICK_ALIAS_SPEEDLINK_COMP "Speedlink Competition Pro"
+#define JOYSTICK_ALIAS_XBOX "Xbox360 Controller"
 #define JOYSTICK_ALIAS_ATARI_DAPTOR2 	"2600-daptor II"
 #define JOYSTICK_ALIAS_5200_DAPTOR2 	"5200-daptor"
 #define JOYSTICK_ALIAS_NEOGEO_DAPTOR 	"NEOGEO-daptor"

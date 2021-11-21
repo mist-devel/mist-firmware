@@ -1,3 +1,20 @@
+/*
+  This file is part of MiST-firmware
+
+  MiST-firmware is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 3 of the License, or
+  (at your option) any later version.
+
+  MiST-firmware is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 /*  
 This file defines how to handle mapping in the MiST controllers in various ways:
 
@@ -164,6 +181,9 @@ char* get_joystick_alias( uint16_t vid, uint16_t pid ) {
 	
 	if(vid==0x0738 && pid==0x2217)
 		return JOYSTICK_ALIAS_SPEEDLINK_COMP;
+
+	if(vid==0x045E && pid==0x028E)
+		return JOYSTICK_ALIAS_XBOX;
 
 	return JOYSTICK_ALIAS_NONE;
 		

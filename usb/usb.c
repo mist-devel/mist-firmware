@@ -338,6 +338,7 @@ uint8_t usb_ctrl_req(usb_device_t *dev, uint8_t bmReqType,
 static const usb_device_class_config_t *class_list[] = {
   &usb_hub_class,
   &usb_hid_class,
+  &usb_xbox_class,
   &usb_asix_class,
 #ifdef USB_STORAGE
   &usb_storage_class,

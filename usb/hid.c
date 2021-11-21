@@ -8,6 +8,7 @@
 #include "hidparser.h"
 #include "debug.h"
 #include "joymapping.h"
+#include "joystick.h"
 #include "hardware.h"
 #include "../utils.h"
 #include "../user_io.h"
@@ -17,7 +18,6 @@
 
 
 static unsigned char kbd_led_state = 0;  // default: all leds off
-static unsigned char joysticks = 0;      // number of detected usb joysticks
 static unsigned char mice      = 0;      // number of detected usb mice
 
 // up to 8 buttons can be remapped
@@ -74,24 +74,6 @@ void hid_joystick_button_remap(char *s) {
 
 /*****************************************************************************/
 
-uint8_t hid_get_jindex(usb_hid_iface_info_t *iface) {
-	uint8_t jindex;
-
-	// Get USB joystick index (0,1...)
-	jindex = iface->jindex;
-
-	// If DB9 joystick are preferred: USB joysticks are shifted to 2,3...
-	if(mist_cfg.joystick_db9_fixed_index) {
-		jindex += 2;
-	}
-
-	return jindex;
-}
-
-uint8_t hid_get_joysticks(void) {
-	return joysticks;
-}
-
 //get HID report descriptor 
 static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t i, uint16_t size)  {
 	//  hid_debugf("%s(%x, if=%d, size=%d)", __FUNCTION__, dev->bAddress, iface, size);
@@ -108,10 +90,9 @@ static uint8_t hid_get_report_descr(usb_device_t *dev, uint8_t i, uint16_t size)
 		// we got a report descriptor. Try to parse it
 		if(parse_report_descriptor(buf, size, &(info->iface[i].conf))) {
 			if(info->iface[i].conf.type == REPORT_TYPE_JOYSTICK) {
-				hid_debugf("Detected USB joystick #%d", joysticks);
+				hid_debugf("Detected USB joystick #%d", joystick_count());
 				info->iface[i].device_type = HID_DEVICE_JOYSTICK;
-				info->iface[i].jindex = joysticks++;
-				StateNumJoysticksSet(joysticks);
+				info->iface[i].jindex = joystick_add();
 			}
 		} else {
 		// parsing failed. Fall back to boot mode for mice
@@ -519,37 +500,9 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
 	for(i=0;i<info->bNumIfaces;i++) {
 		// check if a joystick is released
 		if(info->iface[i].device_type == HID_DEVICE_JOYSTICK) {
-			uint8_t c_jindex = hid_get_jindex(&info->iface[i]);
+			uint8_t c_jindex = joystick_index(info->iface[i].jindex);
 			hid_debugf("releasing joystick #%d, renumbering", c_jindex);
-
-			// walk through all devices and search for sticks with a higher id
-
-			// search for all joystick interfaces on all hid devices
-			usb_device_t *dev = usb_get_devices();
-			uint8_t j;
-			for(j=0;j<USB_NUMDEVICES;j++) {
-				if(dev[j].bAddress && (dev[j].class == &usb_hid_class)) {
-					// search for joystick interfaces
-					uint8_t k;
-					for(k=0;k<MAX_IFACES;k++) {
-						if(dev[j].hid_info.iface[k].device_type == HID_DEVICE_JOYSTICK) {
-							uint8_t jindex = hid_get_jindex(&dev[j].hid_info.iface[k]);
-							if(jindex > c_jindex) {
-								hid_debugf("decreasing jindex of dev #%d from %d to %d", j, 
-									jindex, jindex-1);
-								dev[j].hid_info.iface[k].jindex--;
-								StateUsbIdSet( dev[j].hid_info.iface[k].conf.vid, dev[j].hid_info.iface[k].conf.pid, dev[j].hid_info.iface[k].conf.joystick_mouse.button_count, dev[j].hid_info.iface[k].jindex);
-
-							}
-						}
-					}
-				}
-			}
-			// one less joystick in the system ...
-			joysticks--;
-			StateNumJoysticksSet(joysticks);
-			if (joysticks < 6)
-				StateUsbIdSet(0, 0, 0, joysticks);
+			joystick_release(c_jindex);
 		}
 
 		// check if a mouse is released
@@ -612,7 +565,7 @@ static void handle_5200daptor(usb_hid_iface_info_t *iface, uint8_t *buf) {
 
 	// keyboard events are only generated for the first
 	// two joysticks in the system
-	uint8_t jindex = hid_get_jindex(iface);
+	uint8_t jindex = joystick_index(iface->jindex);
 	if(jindex > 1) return;
 
 	// build map of pressed keys
@@ -882,7 +835,7 @@ static void usb_process_iface (usb_hid_iface_info_t *iface,
 				jmap |= btn << JOY_BTN_SHIFT;      // add buttons
 
 				// report joystick 1 to OSD
-				idx = hid_get_jindex(iface);
+				idx = joystick_index(iface->jindex);
 				StateUsbIdSet( conf->vid, conf->pid, conf->joystick_mouse.button_count, idx);
 				StateUsbJoySet( jmap, btn_extra, idx);
 

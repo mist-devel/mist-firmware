@@ -25,6 +25,7 @@
 #include "cue_parser.h"
 #include "utils.h"
 #include "usb/joymapping.h"
+#include "usb/joystick.h"
 
 // up to 16 key can be remapped
 #define MAX_REMAP  16
@@ -593,7 +594,7 @@ void user_io_eth_send_rx_frame(uint8_t *s, uint16_t len) {
 // (mouse port)
 
 static uint8_t joystick_renumber(uint8_t j) {
-	uint8_t usb_sticks = hid_get_joysticks();
+	uint8_t usb_sticks = joystick_count();
 
 	// no usb sticks present: no changes are being made
 	if(!usb_sticks) return j;
@@ -1174,7 +1175,7 @@ void user_io_poll() {
 
 		uint8_t idx = joystick_renumber(0);
 		if (!user_io_osd_is_visible()) user_io_joystick(idx, joy_map);
-		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : hid_get_joysticks()); // send to OSD
+		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count()); // send to OSD
 		virtual_joystick_keyboard(joy_map);
 	}
 	if(GetDB9(1, &joy_map)) {
@@ -1183,7 +1184,7 @@ void user_io_poll() {
 
 		uint8_t idx = joystick_renumber(1);
 		if (!user_io_osd_is_visible()) user_io_joystick(idx, joy_map);
-		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : hid_get_joysticks() + 1); // send to OSD
+		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count() + 1); // send to OSD
 		virtual_joystick_keyboard(joy_map);
 	}
 
