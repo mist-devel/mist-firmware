@@ -919,7 +919,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 				} else {
 					usb_process_iface ( iface, read, buf);
 				}
-				iface->qNextPollTime += iface->interval;   // poll at requested rate
+				iface->qNextPollTime = timer_get_msec() + iface->interval;   // poll at requested rate
 			}
 		} // end if known device
 	} // end for loop (bNumIfaces)
