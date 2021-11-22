@@ -374,6 +374,7 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 		d->lowspeed = lowspeed;
 		d->port = port;
 		d->class = NULL;
+		d->vid = d->pid = 0;
 
 		// setup endpoint 0
 		d->ep0.epAddr     = 0;
