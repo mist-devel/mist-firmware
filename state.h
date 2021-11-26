@@ -42,8 +42,10 @@ uint16_t StateUsbPidGet(uint8_t joy_num);
 // State of first (virtual) internal joystisk i.e. after mapping
 void StateJoySet(uint8_t c, uint8_t joy_num);
 void StateJoySetExtra(uint8_t c, uint8_t joy_num);
+void StateJoySetRight(uint8_t c, uint8_t joy_num);
 uint8_t StateJoyGet(uint8_t joy_num);
 uint8_t StateJoyGetExtra(uint8_t joy_num);
+uint8_t StateJoyGetRight(uint8_t joy_num);
 
 // turbo button functions
 void StateTurboUpdate(mist_joystick_t* joy);

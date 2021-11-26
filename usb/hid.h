@@ -67,7 +67,7 @@ typedef struct {
   
   // additional info extracted from the report descriptor
   // (currently only used for joysticks) 
-  uint16_t jmap;           // last reported joystick state
+  uint32_t jmap;           // last reported joystick state
   uint16_t jindex;         // joystick index
   hid_report_t conf;
 

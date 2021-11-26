@@ -52,6 +52,9 @@ typedef struct {
 #define USAGE_X       48
 #define USAGE_Y       49
 #define USAGE_Z       50
+#define USAGE_RX      51
+#define USAGE_RY      52
+#define USAGE_RZ      53
 #define USAGE_WHEEL   56
 #define USAGE_HAT     57
 
@@ -94,9 +97,11 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 	uint8_t report_complete = 0;
 
 	// joystick/mouse components
-	int8_t axis[3] = { -1, -1, -1};
+	int8_t axis[MAX_AXES];
 	uint8_t btns = 0;
 	int8_t hat = -1;
+
+	for (i=0; i<MAX_AXES; i++) axis[i] = -1;
 
 	conf->type = REPORT_TYPE_NONE;
 
@@ -186,7 +191,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 
 					// handle found axes
 					char c;
-					for(c=0;c<3;c++) {
+					for(c=0;c<MAX_AXES;c++) {
 						if(axis[c] >= 0) {
 							uint16_t cnt = bit_count + report_size * axis[c];
 							hidp_debugf("  (%c-AXIS @ %d (byte %d, bit %d))", 'X'+c,
@@ -225,7 +230,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 					bit_count += report_count * report_size;
 					usage_count = 0;
 					btns = 0;
-					axis[0] = axis[1] = axis[2] = -1;
+					for (i=0; i<MAX_AXES; i++) axis[i] = -1;
 					hat = -1;
 					break;
 
@@ -396,7 +401,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 
 						hidp_debugf(" -> Pointer");
 
-					} else if((value == USAGE_X || value == USAGE_Y || value == USAGE_WHEEL) && app_collection) {
+					} else if(((value >= USAGE_X && value <= USAGE_RZ) || value == USAGE_WHEEL) && app_collection) {
 						// usage(x) and usage(y) are allowed within the app collection
 						hidp_extreme_debugf(" -> axis usage");
 
@@ -409,6 +414,14 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 							if(value == USAGE_Y) {
 								hidp_extreme_debugf("JOYSTICK/MOUSE: found y axis @ %d", usage_count);
 								axis[1] = usage_count;
+							}
+							if(value == USAGE_Z) {
+								hidp_extreme_debugf("JOYSTICK/MOUSE: found z axis @ %d", usage_count);
+								if (axis[2] == -1) axis[2] = usage_count; // don't override wheel
+							}
+							if(value == USAGE_RX || value == USAGE_RY || value == USAGE_RZ) {
+								hidp_extreme_debugf("JOYSTICK/MOUSE: found R%c axis @ %d", 'X'+(value-USAGE_RX), usage_count);
+								if (axis[3] == -1) axis[3] = usage_count;
 							}
 							if(value == USAGE_WHEEL) {
 								hidp_extreme_debugf("MOUSE: found wheel @ %d", usage_count);

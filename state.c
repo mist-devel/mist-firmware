@@ -129,6 +129,7 @@ uint8_t StateJoyStructureState ( uint8_t num_joy) {
 /* latest joystick state */
 static uint8_t osd_joy[6];
 static uint8_t osd_joy_extra[6];
+static uint8_t osd_joy_right[6];
 
 void StateJoySet(uint8_t c, uint8_t joy_num) {
   //iprintf("OSD joy: %x\n", c);
@@ -139,11 +140,19 @@ void StateJoySetExtra(uint8_t c, uint8_t joy_num) {
 	if (joy_num > 5) return;
 	osd_joy_extra[joy_num] = c;
 }
+void StateJoySetRight(uint8_t c, uint8_t joy_num) {
+	if (joy_num > 5) return;
+	osd_joy_right[joy_num] = c;
+}
+
 uint8_t StateJoyGet(uint8_t joy_num) {
   return (joy_num < 6) ? osd_joy[joy_num] : 0;
 }
 uint8_t StateJoyGetExtra(uint8_t joy_num) {
   return (joy_num < 6) ? osd_joy_extra[joy_num] : 0;
+}
+uint8_t StateJoyGetRight(uint8_t joy_num) {
+  return (joy_num < 6) ? osd_joy_right[joy_num] : 0;
 }
 
 static uint8_t raw_usb_joy[6];       // four directions and 4 buttons

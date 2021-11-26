@@ -376,7 +376,7 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 				  info->iface[i].conf.report_id,
 				  info->iface[i].conf.report_size);
 
-				for(k=0;k<3;k++)
+				for(k=0;k<MAX_AXES;k++)
 					iprintf("Axis%d: %d@%d %d->%d\n", k, 
 					  info->iface[i].conf.joystick_mouse.axis[k].size,
 					  info->iface[i].conf.joystick_mouse.axis[k].offset/8,
@@ -638,8 +638,8 @@ static void usb_process_iface (usb_device_t *dev,
 
 			uint8_t btn = 0, jmap = 0;
 			uint8_t btn_extra = 0;
-			int16_t a[3];
-			static int16_t rem[3];
+			int16_t a[MAX_AXES];
+			static int16_t rem[MAX_AXES];
 			uint8_t idx, i;
 
 			// skip report id if present
@@ -647,8 +647,8 @@ static void usb_process_iface (usb_device_t *dev,
 
 			// hid_debugf("data:"); hexdump(buf, read, 0);
 		
-			// two axes ...
-			for(i=0;i<3;i++) {
+			// several axes ...
+			for(i=0;i<MAX_AXES;i++) {
 				// if logical minimum is > logical maximum then logical minimum 
 				// is signed. This means that the value itself is also signed
 				bool is_signed = conf->joystick_mouse.axis[i].logical.min > 
@@ -690,36 +690,40 @@ static void usb_process_iface (usb_device_t *dev,
 			// ---------- process joystick -------------
 			if(iface->device_type == HID_DEVICE_JOYSTICK) {
 
-				for(i=0;i<2;i++) {
-					uint16_t min = conf->joystick_mouse.axis[i].logical.min;
-					uint16_t max = conf->joystick_mouse.axis[i].logical.max;
-					if (min > max) {
-						// signed -> unsigned
-						// FIXME: do proper sign extension based on bSize of min and max in the report
-						if (min > 255 || max > 255) {
-							// assume 16 bit values
-							min += 32768;
-							max += 32768;
-							a[i] += 32768;
-						} else {
-							// assume 8 bit values
-							min = (min + 128) & 0xff;
-							max = (max + 128) & 0xff;
-							a[i] = ((a[i] & 0xff) + 128) & 0xff;
-						}
-					}
-					int hrange = (max - min);
-					int dead = hrange/63;
-
-					// scale to 0-255
-					if (a[i] <= min) a[i] = min;
-					else if (a[i] >= max) a[i] = max;
-					if (!hrange)
+				for(i=0;i<MAX_AXES;i++) {
+					if (conf->joystick_mouse.axis[i].size == 0) {
 						a[i] = 127;
-					else
-						a[i] = ((a[i]-min) * 255) / hrange;
+					} else {
+						uint16_t min = conf->joystick_mouse.axis[i].logical.min;
+						uint16_t max = conf->joystick_mouse.axis[i].logical.max;
+						if (min > max) {
+							// signed -> unsigned
+							// FIXME: do proper sign extension based on bSize of min and max in the report
+							if (min > 255 || max > 255) {
+								// assume 16 bit values
+								min += 32768;
+								max += 32768;
+								a[i] += 32768;
+							} else {
+								// assume 8 bit values
+								min = (min + 128) & 0xff;
+								max = (max + 128) & 0xff;
+								a[i] = ((a[i] & 0xff) + 128) & 0xff;
+							}
+						}
+						int hrange = (max - min);
+						int dead = hrange/63;
 
-					if (a[i] > (127-dead) && a[i] < (127+dead)) a[i] = 127;
+						// scale to 0-255
+						if (a[i] <= min) a[i] = min;
+						else if (a[i] >= max) a[i] = max;
+						if (!hrange)
+							a[i] = 127;
+						else
+							a[i] = ((a[i]-min) * 255) / hrange;
+
+						if (a[i] > (127-dead) && a[i] < (127+dead)) a[i] = 127;
+					}
 				}
 
 				// handle hat if present and overwrite any axis value
@@ -779,7 +783,7 @@ static void usb_process_iface (usb_device_t *dev,
 					}
 				}// end joystick hat handler
 			
-				// printf("JOY X:%d Y:%d\n", a[0], a[1]);
+				//iprintf("JOY X:%d Y:%d RX:%d, RY:%d\n", a[0], a[1], a[3], a[2]);
 
 				if(a[0] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
 				if(a[0] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
@@ -793,7 +797,7 @@ static void usb_process_iface (usb_device_t *dev,
 				StateUsbJoySet( jmap, btn_extra, idx);
 
 				// map virtual joypad
-				uint16_t vjoy = jmap;
+				uint32_t vjoy = jmap;
 				vjoy |= btn_extra << 8;
 				vjoy = virtual_joystick_mapping( dev->vid, dev->pid, vjoy );
 
@@ -809,9 +813,19 @@ static void usb_process_iface (usb_device_t *dev,
 				// report joysticks to OSD
 				StateJoySet(jmap, idx);
 				StateJoySetExtra( btn_extra, idx);
+
+				// Send right joy to OSD
+				jmap = 0;
+				if(a[3] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
+				if(a[3] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
+				if(a[2] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_UP;
+				if(a[2] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_DOWN;
+				StateJoySetRight( jmap, idx);
+				// add it to vjoy (no remapping)
+				vjoy |= jmap<<16;
+
 				// swap joystick 0 and 1 since 1 is the one 
 				// used primarily on most systems
-
 				if(idx == 0)      idx = 1;
 				else if(idx == 1) idx = 0;
 				//StateJoySetExtra( btn_extra, idx); 
@@ -821,7 +835,7 @@ static void usb_process_iface (usb_device_t *dev,
 
 				// don't run if not changed
 				if (vjoy != iface->jmap) {
-					user_io_digital_joystick(idx, jmap);
+					user_io_digital_joystick(idx, vjoy & 0xFF);
 					// new API with all extra buttons
 					user_io_digital_joystick_ext(idx, vjoy);
 				}
@@ -829,7 +843,7 @@ static void usb_process_iface (usb_device_t *dev,
 				iface->jmap = vjoy;
 
 				// also send analog values
-				user_io_analog_joystick(idx, a[0]-128, a[1]-128);
+				user_io_analog_joystick(idx, a[0]-128, a[1]-128, a[3]-128, a[2]-128);
 
 				// do special 5200daptor treatment
 				if(iface->is_5200daptor)

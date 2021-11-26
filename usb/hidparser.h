@@ -6,6 +6,8 @@
 #define REPORT_TYPE_KEYBOARD 2
 #define REPORT_TYPE_JOYSTICK 3
 
+#define MAX_AXES 4
+
 // currently only joysticks are supported
 typedef struct {
   uint8_t type: 2;             // REPORT_TYPE_...
@@ -21,7 +23,7 @@ typedef struct {
 					uint16_t min;
 					uint16_t max;
 				} logical;
-      } axis[3];               // x and y axis + wheel
+      } axis[MAX_AXES];               // x and y axis + wheel or right hat
 
       struct {
 				uint8_t byte_offset;

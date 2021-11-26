@@ -110,6 +110,12 @@
 #define JOY_L3     0x4000
 #define JOY_R3     0x8000
 
+// Right stick
+#define JOY_RIGHT2      0x010000
+#define JOY_LEFT2       0x020000
+#define JOY_DOWN2       0x040000
+#define JOY_UP2         0x080000
+
 // keyboard LEDs control 
 #define KBD_LED_CAPS_CONTROL  0x01
 #define KBD_LED_CAPS_STATUS   0x02
@@ -202,8 +208,8 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 #define CONFIG_VHD  2   // create config filename according to VHD= in arc file
 char user_io_create_config_name(char *s, const char *ext, char flags);
 void user_io_digital_joystick(unsigned char, unsigned char);
-void user_io_digital_joystick_ext(unsigned char, uint16_t);
-void user_io_analog_joystick(unsigned char, char, char);
+void user_io_digital_joystick_ext(unsigned char, uint32_t);
+void user_io_analog_joystick(unsigned char, char, char, char, char);
 char user_io_osd_is_visible();
 void user_io_send_buttons(char);
 

@@ -246,37 +246,39 @@ static void siprintbinary(char* buffer, size_t const size, void const * const pt
 
 static void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) {
 	// helper to get joystick status (both USB or DB9)
-	uint16_t vjoy;
-	memset(joy_string, '\0', sizeof(joy_string));
-	memset(joy_string2, '\0', sizeof(joy_string2));
+	uint32_t vjoy;
 	vjoy = StateJoyGet(joy_num);
 	vjoy |=  StateJoyGetExtra(joy_num) << 8;
+	vjoy |=  StateJoyGetRight(joy_num) << 16;
 	if (vjoy==0) {
-		strcpy(joy_string2, "                             ");
-		memset(joy_string2, ' ', 8);
-		memset(joy_string2+8, '\x14', 1);
-		memset(joy_string2+9, ' ', 1);
-		strcat(joy_string2, "\0");
-		return;		
+		joy_string[0] = '\0';
+		strcpy(joy_string2, "  \x14     \x14                 ");
+		return;
 	}
-	strcpy(joy_string,  "        \x12   X Y L R L2 R2 L3");
-	strcpy(joy_string2, "      < \x13 > A B Sel Sta R3");
-	if(!(vjoy & JOY_UP)) memset(joy_string+8, ' ', 1);
-	if(!(vjoy & JOY_X))  memset(joy_string+12, ' ', 1);
-	if(!(vjoy & JOY_Y))  memset(joy_string+14, ' ', 1);
-	if(!(vjoy & JOY_L))  memset(joy_string+16, ' ', 1);
-	if(!(vjoy & JOY_R))  memset(joy_string+18, ' ', 1);
-	if(!(vjoy & JOY_L2))  memset(joy_string+20, ' ', 2);
-	if(!(vjoy & JOY_R2))  memset(joy_string+23, ' ', 2);
-	if(!(vjoy & JOY_L3))  memset(joy_string+26, ' ', 2);
-	if(!(vjoy & JOY_LEFT)) 	memset(joy_string2+6, ' ', 1);
-	if(!(vjoy & JOY_DOWN))  memset(joy_string2+8, '\x14', 1);
-	if(!(vjoy & JOY_RIGHT)) memset(joy_string2+10, ' ', 1);
-	if(!(vjoy & JOY_A))  		memset(joy_string2+12, ' ', 1);
-	if(!(vjoy & JOY_B))  		memset(joy_string2+14, ' ', 1);
+	strcpy(joy_string,  "  \x12     \x12   X Y L R L2 R2 L3");
+	strcpy(joy_string2, "< \x13 > < \x13 > A B Sel Sta R3");
+	if(!(vjoy & JOY_UP))    joy_string[2]  = ' ';
+	if(!(vjoy & JOY_X))     joy_string[12] = ' ';
+	if(!(vjoy & JOY_Y))     joy_string[14] = ' ';
+	if(!(vjoy & JOY_L))     joy_string[16] = ' ';
+	if(!(vjoy & JOY_R))     joy_string[18] = ' ';
+	if(!(vjoy & JOY_L2))    memset(joy_string+20, ' ', 2);
+	if(!(vjoy & JOY_R2))    memset(joy_string+23, ' ', 2);
+	if(!(vjoy & JOY_L3))    memset(joy_string+26, ' ', 2);
+	if(!(vjoy & JOY_LEFT))  joy_string2[0] = ' ';
+	if(!(vjoy & JOY_DOWN))  joy_string2[2] = '\x14';
+	if(!(vjoy & JOY_RIGHT)) joy_string2[4] = ' ';
+	if(!(vjoy & JOY_A))     joy_string2[12] = ' ';
+	if(!(vjoy & JOY_B))     joy_string2[14] = ' ';
 	if(!(vjoy & JOY_SELECT))memset(joy_string2+16, ' ', 3);
 	if(!(vjoy & JOY_START)) memset(joy_string2+20, ' ', 3);
-	if(!(vjoy & JOY_R3))  	memset(joy_string2+24, ' ', 2);
+	if(!(vjoy & JOY_R3))    memset(joy_string2+24, ' ', 2);
+
+	if(!(vjoy & JOY_UP2))   joy_string[8] = ' ';
+	if(!(vjoy & JOY_LEFT2)) joy_string2[6] = ' ';
+	if(!(vjoy & JOY_DOWN2)) joy_string2[8] = '\x14';
+	if(!(vjoy & JOY_RIGHT2))joy_string2[10] = ' ';
+
 	return;
 }
 
@@ -296,29 +298,35 @@ static void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 	}
 	max_btn = StateUsbGetNumButtons(joy_num);
 	joy = StateUsbJoyGet(joy_num);
-	siprintf(s, "  USB: ---- 0000 0000 0000");
+	siprintf(s, "USB: ---- 0000 0000 0000 ----");
 	siprintbinary(binary_string, sizeof(joy), &joy);
-	s[7]  = binary_string[0]=='\x1a'?'>':'\x1b';
-	s[8]  = binary_string[1]=='\x1a'?'<':'\x1b';
-	s[9]  = binary_string[2]=='\x1a'?'\x13':'\x1b';
-	s[10] = binary_string[3]=='\x1a'?'\x12':'\x1b';  
-	s[12] = binary_string[4];
-	s[13] = max_btn>1 ? binary_string[5] : ' ';
-	s[14] = max_btn>2 ? binary_string[6] : ' ';
-	s[15] = max_btn>3 ? binary_string[7] : ' ';
+	s[5]  = binary_string[0]=='\x1a'?'>':'\x1b';
+	s[6]  = binary_string[1]=='\x1a'?'<':'\x1b';
+	s[7]  = binary_string[2]=='\x1a'?'\x13':'\x1b';
+	s[8]  = binary_string[3]=='\x1a'?'\x12':'\x1b';
+	s[10] = binary_string[4];
+	s[11] = max_btn>1 ? binary_string[5] : ' ';
+	s[12] = max_btn>2 ? binary_string[6] : ' ';
+	s[13] = max_btn>3 ? binary_string[7] : ' ';
 	joy = StateUsbJoyGetExtra(joy_num);
 	siprintbinary(binary_string, sizeof(joy), &joy);
-	s[17] = max_btn>4 ? binary_string[0] : ' ';
-	s[18] = max_btn>5 ? binary_string[1] : ' ';
-	s[19] = max_btn>6 ? binary_string[2] : ' ';
-	s[20] = max_btn>7 ? binary_string[3] : ' ';
-	s[22] = max_btn>8 ? binary_string[4] : ' ';
-	s[23] = max_btn>9 ? binary_string[5] : ' ';
-	s[24] = max_btn>10 ? binary_string[6] : ' ';
-	s[25] = max_btn>11 ? binary_string[7] : ' ';	
+	s[15] = max_btn>4 ? binary_string[0] : ' ';
+	s[16] = max_btn>5 ? binary_string[1] : ' ';
+	s[17] = max_btn>6 ? binary_string[2] : ' ';
+	s[18] = max_btn>7 ? binary_string[3] : ' ';
+	s[20] = max_btn>8 ? binary_string[4] : ' ';
+	s[21] = max_btn>9 ? binary_string[5] : ' ';
+	s[22] = max_btn>10 ? binary_string[6] : ' ';
+	s[23] = max_btn>11 ? binary_string[7] : ' ';
+
+	joy = StateJoyGetRight(joy_num);
+	s[25]  = (joy & JOY_RIGHT)?'>':'\x1b';
+	s[26]  = (joy & JOY_LEFT) ?'<':'\x1b';
+	s[27]  = (joy & JOY_DOWN) ?'\x13':'\x1b';
+	s[28]  = (joy & JOY_UP  ) ?'\x12':'\x1b';
 	return;
 }
-			
+
 static void append_joystick_usbid ( char *usb_id, unsigned int usb_vid, unsigned int usb_pid ) {
 	siprintf(usb_id, "VID:%04X PID:%04X", usb_vid, usb_pid);
 }		

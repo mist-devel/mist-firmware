@@ -408,11 +408,13 @@ static unsigned short usb2ps2code( unsigned char k) {
 	return (ps2_kbd_scan_set == 1) ? usb2ps2_set1[k] : usb2ps2[k];
 }
 
-void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY) {
+void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY, char valueX2, char valueY2) {
 	if(core_type == CORE_TYPE_8BIT || core_type == CORE_TYPE_MINIMIG2) {
 		spi_uio_cmd8_cont(UIO_ASTICK, joystick);
 		spi8(valueX);
 		spi8(valueY);
+		spi8(valueX2);
+		spi8(valueY2);
 		DisableIO();
 	}
 }
@@ -440,11 +442,11 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 	spi_uio_cmd8((joystick < 2)?(UIO_JOYSTICK0 + joystick):((UIO_JOYSTICK2 + joystick - 2)), map);
 }
 
-void user_io_digital_joystick_ext(unsigned char joystick, uint16_t map) {
+void user_io_digital_joystick_ext(unsigned char joystick, uint32_t map) {
 	// "only" 6 joysticks are supported
 	if(joystick > 5) return;
 	//iprintf("ext j%d: %x\n", joystick, map);
-	spi_uio_cmd32(UIO_JOYSTICK0_EXT + joystick, 0x0000ffff & map);
+	spi_uio_cmd32(UIO_JOYSTICK0_EXT + joystick, 0x000fffff & map);
 }
 
 static char dig2ana(char min, char max) {
@@ -459,7 +461,8 @@ void user_io_joystick(unsigned char joystick, unsigned char map) {
 	user_io_digital_joystick_ext(joystick, map);
 	user_io_analog_joystick(joystick, 
 		       dig2ana(map&JOY_LEFT, map&JOY_RIGHT),
-		       dig2ana(map&JOY_UP, map&JOY_DOWN));
+		       dig2ana(map&JOY_UP, map&JOY_DOWN),
+		       0 ,0);
 }
 
 // transmit serial/rs232 data into core
