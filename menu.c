@@ -329,53 +329,37 @@ static void get_joystick_state_usb( char *s, unsigned char joy_num ) {
 
 static void append_joystick_usbid ( char *usb_id, unsigned int usb_vid, unsigned int usb_pid ) {
 	siprintf(usb_id, "VID:%04X PID:%04X", usb_vid, usb_pid);
-}		
-		
+}
+
 static void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
 	/*
 	Builds a string containing the USB VID/PID information of a joystick
 	*/
 	char buffer[32]="";
-
-	if (raw_id==0) {
-		if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && joy_num >= StateNumJoysticks()))
-		{
-			strcpy( usb_id, "      ");
-			if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && joy_num < StateNumJoysticks()+2)) {
-				strcat( usb_id, "Atari DB9 Joystick");
-			} else {
-				strcat( usb_id, "None");
-			}
-			return;
-		}
-	}
+	usb_id[0] = 0;
 
 	//hack populate from outside
 	int vid = StateUsbVidGet(joy_num);
 	int pid = StateUsbPidGet(joy_num);
 
-	memset(usb_id, '\0', sizeof(usb_id));
-	if (vid>0) {
+	if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && joy_num >= StateNumJoysticks())) {
+		if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && joy_num < StateNumJoysticks()+2)) {
+			strcpy( buffer, "Atari DB9 Joystick");
+		} else {
+			strcpy( buffer, "None");
+		}
+	} else if (vid>0) {
 		if (raw_id == 0) {
 			strcpy(buffer, get_joystick_alias( vid, pid ));
 		}
-		if(strlen(buffer)==0) {
+		if(!buffer[0]) {
 			append_joystick_usbid( buffer, vid, pid );
 		}
-	} else {
-		if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && joy_num >= StateNumJoysticks()))
-		{
-			if ((mist_cfg.joystick_db9_fixed_index && joy_num < 2) || (!mist_cfg.joystick_db9_fixed_index && joy_num < StateNumJoysticks()+2)) {
-				strcpy( buffer, "Atari DB9 Joystick");
-			} else {
-				strcpy( buffer, "None");
-			}
-		}
 	}
+
 	if(raw_id == 0)
 		siprintf(usb_id, "%*s", (28-strlen(buffer))/2, " ");
-	else
-		strcpy(usb_id, "");
+
 	strcat(usb_id, buffer);
 	return;
 }
