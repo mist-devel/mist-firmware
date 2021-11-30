@@ -48,7 +48,7 @@ void arc_set_conf(char *c)
 	}
 }
 
-char arc_open(char *fname)
+char arc_open(const char *fname)
 {
 	ini_cfg_t arc_ini_cfg;
 

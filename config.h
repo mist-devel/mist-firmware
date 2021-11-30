@@ -44,4 +44,4 @@ void SetConfigurationFilename(int config);	// Set configuration filename by slot
 unsigned char LoadConfiguration(char *filename, int printconfig);	// Can supply NULL to use filename previously set by slot number
 unsigned char SaveConfiguration(char *filename);	// Can supply NULL to use filename previously set by slot number
 unsigned char ConfigurationExists(char *filename);
-
+void EjectAllFloppies();

@@ -47,7 +47,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "fpga.h"
 #include "fdd.h"
 #include "hdd.h"
-#include "firmware.h"
+#include "config.h"
 #include "menu.h"
 #include "user_io.h"
 #include "arc_file.h"

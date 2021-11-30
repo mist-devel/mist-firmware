@@ -1,137 +1,84 @@
 #ifndef MENU_H
 #define MENU_H
 
-#include "fdd.h" // for adfTYPE definition
-
 /*menu states*/
 enum MENU
 {
     MENU_NONE1,
     MENU_NONE2,
-    MENU_MAIN1,
-    MENU_MAIN2,
+    MENU_NG,
+    MENU_NG1,
+    MENU_NG2,
+    MENU_FILE_SELECT,
     MENU_FILE_SELECT1,
     MENU_FILE_SELECT2,
-    MENU_FILE_SELECTED,
-    MENU_RESET1,
-    MENU_RESET2,
-    MENU_RECONF1,
-    MENU_RECONF2,
-    MENU_SETTINGS1,
-    MENU_SETTINGS2,
-    MENU_ROMFILE_SELECTED,
-    MENU_ROMFILE_SELECTED1,
-    MENU_ROMFILE_SELECTED2,
-    MENU_SETTINGS_VIDEO1,
-    MENU_SETTINGS_VIDEO2,
-    MENU_SETTINGS_MEMORY1,
-    MENU_SETTINGS_MEMORY2,
-    MENU_SETTINGS_CHIPSET1,
-    MENU_SETTINGS_CHIPSET2,
-    MENU_SETTINGS_FEATURES1,
-    MENU_SETTINGS_FEATURES2,
-    MENU_SETTINGS_DRIVES1,
-    MENU_SETTINGS_DRIVES2,
-    MENU_SETTINGS_HARDFILE1,
-    MENU_SETTINGS_HARDFILE2,
-    MENU_HARDFILE_SELECT1,
-    MENU_HARDFILE_SELECT2,
-    MENU_HARDFILE_SELECTED,
-    MENU_HARDFILE_EXIT,
-    MENU_HARDFILE_CHANGED1,
-    MENU_HARDFILE_CHANGED2,
-    MENU_SYNTHRDB1,
-    MENU_SYNTHRDB2,
-    MENU_SYNTHRDB2_1,
-    MENU_SYNTHRDB2_2,
-    MENU_MAIN2_1,
-    MENU_MAIN2_2,
-    MENU_LOADCONFIG_1,
-    MENU_LOADCONFIG_2,
-    MENU_SAVECONFIG_1,
-    MENU_SAVECONFIG_2,
-    MENU_FIRMWARE1,
-    MENU_FIRMWARE2,
-    MENU_FIRMWARE_UPDATE1,
-    MENU_FIRMWARE_UPDATE2,
-    MENU_FIRMWARE_UPDATE_ERROR1,
-    MENU_FIRMWARE_UPDATE_ERROR2,
-    MENU_FIRMWARE_UPDATING1,
-    MENU_FIRMWARE_UPDATING2,
-    MENU_FIRMWARE_OPTIONS1,
-    MENU_FIRMWARE_OPTIONS2,
-    MENU_FIRMWARE_OPTIONS_ENABLE1,
-    MENU_FIRMWARE_OPTIONS_ENABLE2,
-    MENU_FIRMWARE_OPTIONS_ENABLED1,
-    MENU_FIRMWARE_OPTIONS_ENABLED2,
-    MENU_FIRMWARE_CORE_FILE_SELECTED,
-    MENU_ERROR,
-    MENU_INFO,
-    MENU_RTC1,
-    MENU_RTC2,
-
-    // Mist/atari specific pages
-    MENU_MIST_MAIN1,
-    MENU_MIST_MAIN2,
-    MENU_MIST_MAIN_FILE_SELECTED,
-    MENU_MIST_STORAGE1,
-    MENU_MIST_STORAGE2,
-    MENU_MIST_STORAGE_FILE_SELECTED,
-    MENU_MIST_SYSTEM1,
-    MENU_MIST_SYSTEM2,
-    MENU_MIST_SYSTEM_FILE_SELECTED,
-    MENU_MIST_VIDEO1,
-    MENU_MIST_VIDEO2,
-    MENU_MIST_VIDEO_ADJUST1,
-    MENU_MIST_VIDEO_ADJUST2,
-    MENU_MIST_LOAD_CONFIG1,
-    MENU_MIST_LOAD_CONFIG2,
-    MENU_MIST_SAVE_CONFIG1,
-    MENU_MIST_SAVE_CONFIG2,
-
-    // archimedes menu entries
-    MENU_ARCHIE_MAIN1,
-    MENU_ARCHIE_MAIN2,
-    MENU_ARCHIE_MAIN_FILE_SELECTED,
+    MENU_FILE_SELECT_EXIT,
+    MENU_DIALOG1,
+    MENU_DIALOG2,
 
     // 8bit menu entries
-    MENU_8BIT_MAIN1,
-    MENU_8BIT_MAIN2,
-    MENU_8BIT_CUE_FILE_SELECTED,
-    MENU_8BIT_MAIN_FILE_SELECTED,
-    MENU_8BIT_MAIN_IMAGE_SELECTED,
-    MENU_8BIT_SYSTEM1,
-    MENU_8BIT_SYSTEM2,
     MENU_8BIT_ABOUT1,
     MENU_8BIT_ABOUT2,
-    MENU_8BIT_CONTROLLERS1,
-    MENU_8BIT_CONTROLLERS2,
-    MENU_8BIT_JOYTEST1,
-    MENU_8BIT_JOYTEST2,
-    MENU_8BIT_KEYTEST1,
-    MENU_8BIT_KEYTEST2,
-    MENU_8BIT_USB1,
-    MENU_8BIT_USB2,
     MENU_8BIT_CHRTEST1,
     MENU_8BIT_CHRTEST2
 };
 
-// UI strings, used by boot messages
-extern const char *config_filter_msg[];
-extern const char *config_memory_chip_msg[];
-extern const char *config_memory_slow_msg[];
-extern const char *config_memory_fast_msg[];
-extern const char *config_scanline_msg[];
-extern const char *config_cpu_msg[];
-extern const char *config_hdf_msg[];
-extern const char *config_chipset_msg[];
-unsigned const char *config_memory_fast_txt();
+typedef struct {
+    char *title;
+    uint8_t flags;
+    uint32_t timer;
+    uint8_t stdexit;
+} menu_page_t;
+
+typedef struct {
+    char *item;
+    char stipple;
+    char active;
+    char newpage;
+    uint8_t newsub;
+    char page;
+} menu_item_t;
+
+#define MENU_ACT_NONE -1
+#define MENU_ACT_GET   0
+#define MENU_ACT_SEL   1
+#define MENU_ACT_BKSP  2
+#define MENU_ACT_LEFT  3
+#define MENU_ACT_RIGHT 4
+#define MENU_ACT_PLUS  5
+#define MENU_ACT_MINUS 6
+
+#define MENU_STD_NONE_EXIT  0
+#define MENU_STD_EXIT       1
+#define MENU_STD_SPACE_EXIT 2
+#define MENU_STD_COMBO_EXIT 3
+
+#define MENU_PAGE_ENTER 0
+#define MENU_PAGE_EXIT 1
+
+#define MENU_DIALOG_OK 1
+#define MENU_DIALOG_YESNO 2
+#define MENU_DIALOG_TIMER 4
 
 
+typedef char (*menu_get_items_t)(uint8_t, char, menu_item_t*);
+typedef char (*menu_get_page_t)(uint8_t, char, menu_page_t*);
+typedef char (*menu_select_file_t)(uint8_t, const char*);
+typedef char (*menu_dialog_t)(uint8_t);
+
+void DialogBox(const char *message, char options, menu_dialog_t);
+void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect, char chdir);
+void SelectFileNG(char *pFileExt, unsigned char Options, menu_select_file_t callback, char chdir);
+void SetupSystemMenu();
+void SetupMenu(menu_get_page_t, menu_get_items_t);
+void CloseMenu();
 void ResetMenu();
+void ClosePage();
+void ChangePage(char);
+
 void HandleUI(void);
-void InfoMessage(char *message);
-void EjectAllFloppies();
+void InfoMessage(const char *message);
+
+extern const char *config_cpu_msg[];
 
 #endif
-

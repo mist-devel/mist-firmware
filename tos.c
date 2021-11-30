@@ -4,6 +4,8 @@
 #include "hardware.h"
 
 #include "menu.h"
+#include "osd.h"
+#include "misc_cfg.h"
 #include "tos.h"
 #include "fat_compat.h"
 #include "fpga.h"
@@ -19,6 +21,7 @@
 #define CONFIG_FILENAME  "MIST    CFG"
 
 extern bool eth_present;
+extern char s[FF_LFN_BUF + 1];
 
 typedef struct {
   unsigned long system_ctrl;  // system control word
@@ -1379,4 +1382,458 @@ char tos_config_exists(char slot) {
   res = FileOpenCompat(&file, filename, FA_READ);
   f_close(&file);
   return res == FR_OK;
+}
+
+///////////////////////////
+////// Atari ST menu //////
+///////////////////////////
+
+static const char* scanlines[]={"Off","25%","50%","75%"};
+static const char* stereo[]={"Mono","Stereo"};
+static const char* blend[]={"Off","On"};
+static const char* atari_chipset[]={"ST","STE","MegaSTE","STEroids"};
+static const char *config_tos_mem[] =  {"512 kB", "1 MB", "2 MB", "4 MB", "8 MB", "14 MB", "--", "--" };
+static const char *config_tos_wrprot[] =  {"none", "A:", "B:", "A: and B:"};
+static const char *config_tos_usb[] =  {"none", "control", "debug", "serial", "parallel", "midi"};
+
+static char tos_file_selected(uint8_t idx, const char *SelectedName) {
+
+	switch(idx) {
+		case 0:
+		case 7:
+		case 8:	// Floppy
+			iprintf("Insert image %s for disk %d\n", SelectedName, (idx>=7) ? idx-7 : idx);
+			tos_insert_disk((idx>=7) ? idx-7 : idx, SelectedName);
+			break;
+		case 12:
+		case 13: // ACSI
+			iprintf("Insert image %s for ACSI disk %d\n", SelectedName, idx-10);
+			tos_insert_disk(idx-10, SelectedName);
+			break;
+		case 16:  // TOS
+			tos_upload(SelectedName);
+			break;
+		case 17:  // Cart
+			tos_load_cartridge(SelectedName);
+			break;
+	}
+	return 0;
+}
+
+static char tos_getmenupage(uint8_t idx, char action, menu_page_t *page) {
+	if (action==MENU_PAGE_EXIT) return 0;
+	if (user_io_core_type() == CORE_TYPE_MIST2)
+		page->title = "MiSTery";
+	else
+		page->title = "MiST";
+	if (!idx)
+		page->flags = OSD_ARROW_RIGHT;
+	else
+		page->flags = 0;
+	page->timer = 0;
+	page->stdexit = MENU_STD_EXIT;
+	return 0;
+}
+
+static char tos_getmenuitem(uint8_t idx, char action, menu_item_t *item) {
+	char page_idx = item->page; // save current page number
+	char enable;
+
+	item->stipple = 0;
+	item->active = 1;
+	item->page = 0;
+	item->newpage = 0;
+	item->newsub = 0;
+	item->item = "";
+	if(idx<=6) item->page = 0;
+	else if(idx<=13) item->page = 1;
+	else if(idx<=20) item->page = 2;
+	else if(idx<=27) item->page = 3;
+	else if(idx<=33) item->page = 6;
+	else if(idx<=39) item->page = 4;
+	else if(idx<=45) item->page = 5;
+	else return 0;
+
+	if (page_idx == 0 && action == MENU_ACT_RIGHT) {
+		SetupSystemMenu();
+		return 0;
+	}
+
+	switch (action) {
+		case MENU_ACT_GET:
+			if (item->page != page_idx) return 1; // shortcut
+			switch(idx) {
+				case 0:
+					// most important: main page has setup for floppy A:
+					strcpy(s, " A: ");
+					strcat(s, tos_get_disk_name(0));
+					if(tos_system_ctrl() & TOS_CONTROL_FDC_WR_PROT_A) strcat(s, " \x17");
+					item->item = s;
+					break;
+				//case 1 same as page 3/screen 
+				case 2:
+					item->item = " Storage";
+					item->newpage = 1;
+					break;
+				case 3:
+					item->item = " System";
+					item->newpage = 2;
+					break;
+				case 4:
+					item->item = " Audio / Video";
+					item->newpage = 3;
+					break;
+				case 5:
+					item->item = " Load config";
+					item->newpage = 4;
+					break;
+				case 6:
+					item->item = " Save config";
+					item->newpage = 5;
+					break;
+
+				// Page 1 - Storage
+				case 7:
+				case 8:
+					// entries for both floppies
+					strcpy(s, " A: ");
+					strcat(s, tos_get_disk_name(idx-7));
+					s[1] = 'A'+idx-7;
+					if(tos_system_ctrl() & (TOS_CONTROL_FDC_WR_PROT_A << (idx-7)))
+						strcat(s, " \x17");
+					item->item = s;
+					break;
+				case 9:
+					strcpy(s, " Write protect: ");
+					strcat(s, config_tos_wrprot[(tos_system_ctrl() >> 6)&3]);
+					item->item = s;
+					break;
+				case 11:
+					strcpy(s, " ACSI0 direct SD: ");
+					strcat(s, tos_get_direct_hdd()?"on":"off");
+					item->item = s;
+					break;
+				case 12:
+				case 13:
+					strcpy(s, " ACSI0: ");
+					s[5] = '0'+idx-12;
+					strcat(s, tos_get_disk_name(2+idx-12));
+					item->item = s;
+					item->active = ((idx == 13) || !tos_get_direct_hdd());
+					item->stipple = !item->active;
+					break;
+
+				// Page 2 - System
+				case 14:
+					strcpy(s, " Memory:    ");
+					strcat(s, config_tos_mem[(tos_system_ctrl() >> 1)&7]);
+					item->item = s;
+					break;
+				case 15:
+					strcpy(s, " CPU:       ");
+					strcat(s, config_cpu_msg[(tos_system_ctrl() >> 4)&3]);
+					item->item = s;
+					break;
+				case 16:
+					strcpy(s, " TOS:       ");
+					strcat(s, tos_get_image_name());
+					item->item = s;
+					break;
+				case 17:
+					strcpy(s, " Cartridge: ");
+					strcat(s, tos_get_cartridge_name());
+					item->item = s;
+					break;
+				case 18:
+					strcpy(s, " USB I/O:   ");
+					strcat(s, config_tos_usb[tos_get_cdc_control_redirect()]);
+					item->item = s;
+					break;
+				case 19:
+					item->item = " Reset";
+					break;
+				case 20:
+					item->item = " Cold boot";
+					break;
+
+				// Page 3 - A/V
+				case 1:
+				case 21:
+					strcpy(s, " Screen:        ");
+					if (idx==1) strcat(s, "     ");
+					if(tos_system_ctrl() & TOS_CONTROL_VIDEO_COLOR) strcat(s, "Color");
+					else                                            strcat(s, "Mono");
+					item->item = s;
+					break;
+				case 22: // Viking card can only be enabled with max 8MB RAM
+					enable = (tos_system_ctrl()&0xe) <= TOS_MEMCONFIG_8M;
+					strcpy(s, " Viking/SM194:  ");
+					strcat(s, ((tos_system_ctrl() & TOS_CONTROL_VIKING) && enable)?"on":"off");
+					item->item = s;
+					item->active = enable;
+					item->stipple = !enable;
+					break;
+				case 23:
+					// Blitter is always present in >= STE
+					enable = (tos_system_ctrl() & (TOS_CONTROL_STE | TOS_CONTROL_MSTE))?1:0;
+					strcpy(s, " Blitter:       ");
+					strcat(s, ((tos_system_ctrl() & TOS_CONTROL_BLITTER) || enable)?"on":"off");
+					item->item = s;
+					item->active = !enable;
+					item->stipple = enable;
+					break;
+				case 24:
+					strcpy(s, " Chipset:       ");
+					// extract  TOS_CONTROL_STE and  TOS_CONTROL_MSTE bits
+					strcat(s, atari_chipset[(tos_system_ctrl()>>23)&3]);
+					item->item = s;
+					break;
+				case 25:
+					if(user_io_core_type() == CORE_TYPE_MIST) {
+						item->item = " Video adjust";
+						item->newpage = 6;
+					} else {
+						strcpy(s, " Scanlines:     ");
+						strcat(s,scanlines[(tos_system_ctrl()>>20)&3]);
+						item->item = s;
+					}
+					break;
+				case 26:
+					strcpy(s, " YM-Audio:      ");
+					strcat(s, stereo[(tos_system_ctrl() & TOS_CONTROL_STEREO)?1:0]);
+					item->item = s;
+					break;
+				case 27:
+					if(user_io_core_type() == CORE_TYPE_MIST) {
+						item->item = "";
+						item->active = 0;
+					} else {
+						strcpy(s, " Comp. blend:   ");
+						strcat(s, blend[(tos_system_ctrl() & TOS_CONTROL_BLEND)?1:0]);
+						item->item = s;
+					}
+					break;
+
+				// Page 6 - V-adj
+				case 29:
+					strcpy(s, " PAL mode:    ");
+					if(tos_system_ctrl() & TOS_CONTROL_PAL50HZ) strcat(s, "50Hz");
+					else                                        strcat(s, "56Hz");
+					item->item = s;
+					break;
+				case 30:
+					strcpy(s, " Scanlines:   ");
+					strcat(s,scanlines[(tos_system_ctrl()>>20)&3]);
+					item->item = s;
+					break;
+				case 32:
+					siprintf(s, " Horizontal:  %d", tos_get_video_adjust(0));
+					item->item = s;
+					break;
+				case 33:
+					siprintf(s, " Vertical:    %d", tos_get_video_adjust(1));
+					item->item = s;
+					break;
+
+				// Page 4 - Load config
+				case 35:
+				case 36:
+				case 37:
+				case 38:
+				case 39:
+					if(!tos_config_exists(idx-35)) {
+						item->active = 0;
+						item->stipple = 1;
+					}
+					strcpy(s,"          ");
+					strcat(s, atarist_cfg.conf_name[idx-35]);
+					item->item = s;
+					break;
+
+				// page 5 - Save config
+				case 41:
+				case 42:
+				case 43:
+				case 44:
+				case 45:
+					strcpy(s,"          ");
+					strcat(s, atarist_cfg.conf_name[idx-41]);
+					item->item = s;
+					break;
+				default:
+					item->active = 0;
+			}
+			break;
+
+		case MENU_ACT_SEL:
+			switch(idx) {
+				case 0:
+				case 7:
+				case 8:
+					if(tos_disk_is_inserted(idx>=7 ? idx-7 : idx))
+						tos_insert_disk(idx>=7 ? idx-7 : idx, NULL);
+					else
+						SelectFileNG("ST ", SCAN_DIR | SCAN_LFN, tos_file_selected, 0);
+					break;
+				case 2:
+				case 3:
+				case 4:
+				case 5:
+				case 6:
+					item->newpage = idx-1;
+					break;
+
+				case 9:
+					// remove current write protect bits and increase by one
+					tos_update_sysctrl((tos_system_ctrl() & ~(TOS_CONTROL_FDC_WR_PROT_A | TOS_CONTROL_FDC_WR_PROT_B))
+					     | (((((tos_system_ctrl() >> 6)&3) + 1)&3)<<6) );
+					break;
+				case 11:
+					iprintf("toggle direct hdd\n");
+					tos_set_direct_hdd(!tos_get_direct_hdd());
+					break;
+				case 12:
+				case 13:
+					iprintf("Select image for disk %d\n", idx-10);
+					if(tos_disk_is_inserted(idx-10))
+						tos_insert_disk(idx-10, NULL);
+					else
+						SelectFileNG("HD ", SCAN_LFN, tos_file_selected, 0);
+					break;
+
+				case 14: { // RAM
+					int mem = (tos_system_ctrl() >> 1)&7;   // current memory config
+					mem++;
+					if(mem > 5) mem = 0;
+					tos_update_sysctrl((tos_system_ctrl() & ~0x0e) | (mem<<1) );
+					tos_reset(1);
+					} break;
+				case 15: { // CPU
+					int cpu = (tos_system_ctrl() >> 4)&3;   // current cpu config
+					cpu = (cpu+1)&3;
+					if(cpu == 2 || (user_io_core_type() == CORE_TYPE_MIST2 && cpu == 1)) cpu = 3; // skip unused config
+					tos_update_sysctrl((tos_system_ctrl() & ~0x30) | (cpu<<4) );
+					tos_reset(0);
+					} break;
+				case 16:  // TOS
+					SelectFileNG("IMG", SCAN_LFN, tos_file_selected, 0);
+					break;
+				case 17:  // Cart
+					// if a cart name is set, then remove it
+					if(tos_cartridge_is_inserted()) {
+						tos_load_cartridge("");
+					} else
+						SelectFileNG("IMG", SCAN_LFN, tos_file_selected, 0);
+					break;
+				case 18:
+					if(tos_get_cdc_control_redirect() == CDC_REDIRECT_MIDI) 
+						tos_set_cdc_control_redirect(CDC_REDIRECT_NONE);
+					else 
+						tos_set_cdc_control_redirect(tos_get_cdc_control_redirect()+1);
+					break;
+				case 19:  // Reset
+					tos_reset(0);
+					CloseMenu();
+					break;
+				case 20:  // Cold Boot
+					tos_reset(1);
+					CloseMenu();
+					break;
+
+				case 1:
+				case 21:
+					tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIDEO_COLOR);
+					break;
+				case 22:
+					// viking/sm194
+					tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_VIKING);
+					break;
+				case 23:
+					if(!(tos_system_ctrl() & TOS_CONTROL_STE)) {
+						tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_BLITTER );
+					}
+					break;
+				case 24: {
+					unsigned long chipset = (tos_system_ctrl() >> 23)+1;
+					if(chipset == 4) chipset = 0;
+					tos_update_sysctrl(tos_system_ctrl() & ~(TOS_CONTROL_STE | TOS_CONTROL_MSTE) |
+						 (chipset << 23));
+					}
+					break;
+				case 25:
+					if(user_io_core_type() == CORE_TYPE_MIST) {
+						item->newpage = 6;
+					} else {
+						// next scanline state
+						int scan = ((tos_system_ctrl() >> 20)+1)&3;
+						tos_update_sysctrl((tos_system_ctrl() & ~TOS_CONTROL_SCANLINES) | (scan << 20));
+					}
+					break;
+				case 26:
+					tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_STEREO);
+					break;
+				case 27:
+					tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_BLEND);
+					break;
+				case 29:
+					tos_update_sysctrl(tos_system_ctrl() ^ TOS_CONTROL_PAL50HZ);
+					break;
+				case 30: {
+					// next scanline state
+					int scan = ((tos_system_ctrl() >> 20)+1)&3;
+					tos_update_sysctrl((tos_system_ctrl() & ~TOS_CONTROL_SCANLINES) | (scan << 20));
+					} break;
+
+				// page 4 - Load config
+				case 35:
+				case 36:
+				case 37:
+				case 38:
+				case 39:
+					tos_insert_disk(2, NULL);
+					tos_insert_disk(3, NULL);
+					tos_config_load(idx-35);
+					tos_upload(NULL);
+					CloseMenu();
+					break;
+
+				// page 5 - Save config
+				case 41:
+				case 42:
+				case 43:
+				case 44:
+				case 45:
+					tos_config_save(idx-41);
+					CloseMenu();
+					break;
+
+				default:
+					return 0;
+			}
+			break;
+
+		case MENU_ACT_PLUS:
+		case MENU_ACT_MINUS:
+			switch(idx) {
+				case 32:
+				case 33:
+					if(action == MENU_ACT_MINUS && (tos_get_video_adjust(idx - 32) > -100))
+						tos_set_video_adjust(idx - 32, -1);
+
+					if(action == MENU_ACT_PLUS && (tos_get_video_adjust(idx - 32) < 100))
+						tos_set_video_adjust(idx - 32, +1);
+					break;
+				default:
+					return 0;
+			}
+			break;
+
+		default:
+			return 0;
+	}
+	return 1;
+}
+
+void tos_setup_menu() {
+	SetupMenu(tos_getmenupage, tos_getmenuitem);
 }

@@ -18,6 +18,7 @@
 #include "user_io.h"
 #include "usb/usb.h"
 #include "misc_cfg.h"
+#include "minimig-menu.h"
 
 configTYPE config;
 static configTYPE tmpconf;
@@ -25,6 +26,9 @@ extern char s[FF_LFN_BUF + 1];
 static char configfilename[13];
 char DebugMode=0;
 static unsigned char *romkey = (sector_buffer + 512);
+
+extern unsigned char drives;
+extern adfTYPE df[4];
 
 static const ini_section_t config_ini_sections[] = {
   {1, "MINIMIG"}
@@ -621,4 +625,13 @@ unsigned char SaveConfiguration(char *filename)
   ini_save(&config_ini_cfg);
 
   return(0);
+}
+
+void EjectAllFloppies() {
+  for(int i=0;i<drives;i++)
+    df[i].status = 0;
+
+  // harddisk
+  config.hardfile[0].present = 0;
+  config.hardfile[1].present = 0;
 }

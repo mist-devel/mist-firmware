@@ -780,7 +780,7 @@ unsigned char OpenHardfile(unsigned char unit)
 
 
 // GetHDFFileType()
-unsigned char GetHDFFileType(char *filename)
+unsigned char GetHDFFileType(const char *filename)
 {
   FIL rdbfile;
   unsigned char res = HDF_FILETYPE_NOTFOUND;

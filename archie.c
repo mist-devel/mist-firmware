@@ -3,6 +3,7 @@
 #include "hardware.h"
 
 #include "menu.h"
+#include "osd.h"
 #include "archie.h"
 #include "hdd.h"
 #include "user_io.h"
@@ -477,4 +478,116 @@ void archie_handle_hdd(void) {
 void archie_poll(void) {
   archie_handle_kbd();
   archie_handle_hdd();
+}
+
+//////////////////////////
+////// Archie menu ///////
+//////////////////////////
+static char archie_file_selected(uint8_t idx, const char *SelectedName) {
+	switch(idx) {
+		case 0:
+		case 1:
+			archie_set_floppy(idx, SelectedName);
+			break;
+		case 2:
+			archie_set_rom(SelectedName);
+			break;
+		case 3:
+			archie_set_cmos(SelectedName);
+			break;
+	}
+	return 0;
+}
+
+static char archie_getmenupage(uint8_t idx, char action, menu_page_t *page) {
+	if (action == MENU_PAGE_EXIT) return 0;
+	page->title = "Archie";
+	page->flags = OSD_ARROW_RIGHT;
+	page->timer = 0;
+	page->stdexit = MENU_STD_EXIT;
+	return 0;
+}
+
+static char archie_getmenuitem(uint8_t idx, char action, menu_item_t *item) {
+	item->stipple = 0;
+	item->active = 1;
+	item->page = 0;
+	item->newpage = 0;
+	item->newsub = 0;
+	if (action == MENU_ACT_RIGHT) {
+		SetupSystemMenu();
+		return 0;
+	}
+
+	switch (action) {
+		case MENU_ACT_GET:
+			switch(idx) {
+				case 0:
+					strcpy(s, " Floppy 0: ");
+					strcat(s, archie_get_floppy_name(0));
+					item->item = s;
+					break;
+				case 1:
+					strcpy(s, " Floppy 1: ");
+					strcat(s, archie_get_floppy_name(1));
+					item->item = s;
+					break;
+				case 2:
+					strcpy(s, "   OS ROM: ");
+					strcat(s, archie_get_rom_name());
+					item->item = s;
+					break;
+				case 3:
+					strcpy(s, " CMOS RAM: ");
+					strcat(s, archie_get_cmos_name());
+					item->item = s;
+					break;
+				case 4:
+					item->item = " Save CMOS RAM";
+					break;
+				case 5:
+					item->item = " Save config";
+					break;
+				default:
+					item->active = 0;
+					return 0;
+			}
+			break;
+		case MENU_ACT_SEL:
+			switch(idx) {
+				case 0:  // Floppy 0
+				case 1:  // Floppy 1
+					if(user_io_is_mounted(idx)) {
+						archie_set_floppy(idx, NULL);
+					} else
+						SelectFileNG("ADF", SCAN_DIR | SCAN_LFN, archie_file_selected, 1);
+					break;
+				case 2:  // Load ROM
+					SelectFileNG("ROM", SCAN_LFN, archie_file_selected, 0);
+					break;
+
+				case 3:  // Load CMOS
+					SelectFileNG("RAM", SCAN_LFN, archie_file_selected, 0);
+					break;
+
+				case 4:  // Save CMOS
+					archie_save_cmos();
+					break;
+
+				case 5:  // Save config
+					archie_save_config();
+					break;
+				default:
+					return 0;
+			}
+			break;
+		default:
+			return 0;
+	}
+	return 1;
+}
+
+void archie_setup_menu()
+{
+	SetupMenu(archie_getmenupage, archie_getmenuitem);
 }

@@ -3,8 +3,8 @@
 
 #include "fat_compat.h"
 
-void fpga_init(char *name);
-unsigned char ConfigureFpga(char *);
+void fpga_init(const char *name);
+unsigned char ConfigureFpga(const char*);
 void SendFile(FIL *file);
 void SendFileEncrypted(FIL *file,unsigned char *key,int keysize);
 void SendFileV2(FIL* file, unsigned char* key, int keysize, int address, int size);

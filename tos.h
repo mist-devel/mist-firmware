@@ -110,4 +110,5 @@ void tos_config_load(char slot); // slot -1 == last config
 void tos_config_save(char slot);
 char tos_config_exists(char slot);
 
+void tos_setup_menu();
 #endif

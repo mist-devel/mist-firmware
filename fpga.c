@@ -115,7 +115,7 @@ void ShiftFpga(unsigned char data)
 
 // Xilinx FPGA configuration
 // was before unsigned char ConfigureFpga(void)
-unsigned char ConfigureFpga(char *name)
+unsigned char ConfigureFpga(const char *name)
 {
     unsigned long  t;
     unsigned long  n;
@@ -245,7 +245,7 @@ static inline void ShiftFpga(unsigned char data)
 }
 
 // Altera FPGA configuration
-unsigned char ConfigureFpga(char *name)
+unsigned char ConfigureFpga(const char *name)
 {
     unsigned long i;
     unsigned char *ptr;
@@ -901,7 +901,7 @@ unsigned char GetFPGAStatus(void)
 }
 
 
-void fpga_init(char *name) {
+void fpga_init(const char *name) {
   unsigned long time = GetTimer(0);
   int loaded_from_usb = USB_LOAD_VAR;
 

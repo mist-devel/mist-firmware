@@ -77,7 +77,7 @@ extern hdfTYPE hdf[HARDFILES];
 void HandleHDD(unsigned char c1, unsigned char c2, unsigned char cs1ena);
 void GetHardfileGeometry(hdfTYPE *hdf);
 unsigned char OpenHardfile(unsigned char unit);
-unsigned char GetHDFFileType(char *filename);
+unsigned char GetHDFFileType(const char *filename);
 
 
 #endif // __HDD_H__

@@ -1363,19 +1363,21 @@ void user_io_poll() {
 				static char using_sdhc = 1;
 
 				// SD request and 
-				if((c & 0x03) && !(c & 0x04)) {
-					if(using_sdhc) {
-						// we have not been using sdhc so far? 
-						// -> complain!
-						ErrorMessage(" This core does not support\n"
-						             " SDHC cards. Using them may\n"
-						             " lead to data corruption.\n\n"
-						            " Please use an SD card <2GB!", 0);
-						using_sdhc = 0;
-					}
-				} else
-					// SDHC request from core is always ok
-					using_sdhc = 1;
+				if(c & 0x03){
+					if (!(c & 0x04)) {
+						if(using_sdhc) {
+							// we have not been using sdhc so far? 
+							// -> complain!
+							ErrorMessage(" This core does not support\n"
+								" SDHC cards. Using them may\n"
+								" lead to data corruption.\n\n"
+								" Please use an SD card <2GB!", 0);
+							using_sdhc = 0;
+						}
+					} else
+						// SDHC request from core is always ok
+						using_sdhc = 1;
+				}
 			}
 
 			// Write to file/SD Card
