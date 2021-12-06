@@ -226,8 +226,8 @@ static void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
         break;
       case INT8:
         *(int8_t*)(cfg->vars[var_id].var) = strtol(&(buf[i]), NULL, 0);
-        if (*(int8_t*)(cfg->vars[var_id].var) > cfg->vars[var_id].max) *(int8_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
-        if (*(int8_t*)(cfg->vars[var_id].var) < cfg->vars[var_id].min) *(int8_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
+        if (*(int8_t*)(cfg->vars[var_id].var) > (int8_t)cfg->vars[var_id].max) *(int8_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
+        if (*(int8_t*)(cfg->vars[var_id].var) < (int8_t)cfg->vars[var_id].min) *(int8_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
         break;
       case UINT16:
         *(uint16_t*)(cfg->vars[var_id].var) = strtoul(&(buf[i]), NULL, 0);
@@ -236,8 +236,8 @@ static void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
         break;
       case INT16:
         *(int16_t*)(cfg->vars[var_id].var) = strtol(&(buf[i]), NULL, 0);
-        if (*(int16_t*)(cfg->vars[var_id].var) > cfg->vars[var_id].max) *(int16_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
-        if (*(int16_t*)(cfg->vars[var_id].var) < cfg->vars[var_id].min) *(int16_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
+        if (*(int16_t*)(cfg->vars[var_id].var) > (int16_t)cfg->vars[var_id].max) *(int16_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
+        if (*(int16_t*)(cfg->vars[var_id].var) < (int16_t)cfg->vars[var_id].min) *(int16_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
         break;
       case UINT32:
         *(uint32_t*)(cfg->vars[var_id].var) = strtoul(&(buf[i]), NULL, 0);
@@ -246,8 +246,8 @@ static void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
         break;
       case INT32:
         *(int32_t*)(cfg->vars[var_id].var) = strtol(&(buf[i]), NULL, 0);
-        if (*(int32_t*)(cfg->vars[var_id].var) > cfg->vars[var_id].max) *(int32_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
-        if (*(int32_t*)(cfg->vars[var_id].var) < cfg->vars[var_id].min) *(int32_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
+        if (*(int32_t*)(cfg->vars[var_id].var) > (int32_t)cfg->vars[var_id].max) *(int32_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
+        if (*(int32_t*)(cfg->vars[var_id].var) < (int32_t)cfg->vars[var_id].min) *(int32_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
         break;
       case UINT64:
         *(uint64_t*)(cfg->vars[var_id].var) = strtoull(&(buf[i]), NULL, 0);
@@ -256,8 +256,8 @@ static void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
         break;
       case INT64:
         *(int64_t*)(cfg->vars[var_id].var) = strtoll(&(buf[i]), NULL, 0);
-        if (*(int64_t*)(cfg->vars[var_id].var) > cfg->vars[var_id].max) *(int64_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
-        if (*(int64_t*)(cfg->vars[var_id].var) < cfg->vars[var_id].min) *(int64_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
+        if (*(int64_t*)(cfg->vars[var_id].var) > (int64_t)cfg->vars[var_id].max) *(int64_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].max;
+        if (*(int64_t*)(cfg->vars[var_id].var) < (int64_t)cfg->vars[var_id].min) *(int64_t*)(cfg->vars[var_id].var) = cfg->vars[var_id].min;
         break;
 #ifdef INI_ENABLE_FLOAT
       case FLOAT:

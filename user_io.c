@@ -410,11 +410,16 @@ static unsigned short usb2ps2code( unsigned char k) {
 
 void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY, char valueX2, char valueY2) {
 	if(core_type == CORE_TYPE_8BIT || core_type == CORE_TYPE_MINIMIG2) {
+		int16_t valueXX = valueX*mist_cfg.joystick_analog_mult/128 + mist_cfg.joystick_analog_offset;
+		int16_t valueYY = valueY*mist_cfg.joystick_analog_mult/128 + mist_cfg.joystick_analog_offset;
+		int16_t valueXX2 = valueX2*mist_cfg.joystick_analog_mult/128 + mist_cfg.joystick_analog_offset;
+		int16_t valueYY2 = valueY2*mist_cfg.joystick_analog_mult/128 + mist_cfg.joystick_analog_offset;
+		//iprintf("analog: x=%d, y=%d, xx=%d, yy=%d, mult=%d, offs=%d\n", valueX, valueY, valueXX, valueYY, mist_cfg.joystick_analog_mult, mist_cfg.joystick_analog_offset);
 		spi_uio_cmd8_cont(UIO_ASTICK, joystick);
-		spi8(valueX);
-		spi8(valueY);
-		spi8(valueX2);
-		spi8(valueY2);
+		spi8(valueXX);
+		spi8(valueYY);
+		spi8(valueXX2);
+		spi8(valueYY2);
 		DisableIO();
 	}
 }
