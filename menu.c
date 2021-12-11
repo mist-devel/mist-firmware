@@ -304,7 +304,7 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 		char x = p[1];
 
 		// get version string
-		strcpy(s, OsdCoreName()); // max 65
+		strcpy(s, user_io_get_core_name());
 		strcat(s," ");
 		substrcpy(s+strlen(s), p, 1);
 		OsdCoreNameSet(s);
@@ -477,10 +477,11 @@ static void Setup8bitMenu() {
 	strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
 	helptext=helptext_custom;
 
-	SetupMenu(GetMenuPage_8bit, GetMenuItem_8bit);
 	p = user_io_get_core_name();
 	if(!p[0]) OsdCoreNameSet("8BIT");
 	else      OsdCoreNameSet(p);
+
+	SetupMenu(GetMenuPage_8bit, GetMenuItem_8bit);
 }
 
 ///////////////////////////
