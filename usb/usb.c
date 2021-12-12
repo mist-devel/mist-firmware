@@ -382,6 +382,15 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 		d->ep0.epAttribs  = 0;
 		d->ep0.bmNakPower = USB_NAK_MAX_POWER;
 
+		// Assign new address to the device
+		// (address is simply the number of the free slot + 1)
+		iprintf("Setting addr %x\n", i+1);
+		rcode = usb_set_addr(d, i+1);
+		if(rcode) {
+			iprintf("failed to assign address (rcode=%d)", rcode);
+			return rcode;
+		}
+
 		// --- enumerate device ---
 		if(rcode = usb_get_dev_descr( d, sizeof(usb_device_descriptor_t), &dev_desc ))
 			return rcode;
@@ -425,15 +434,6 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 				iprintf("Serial no.: %s\n", s);
 			}
 #endif
-		}
-
-		// Assign new address to the device
-		// (address is simply the number of the free slot + 1)
-		iprintf("Setting addr %x\n", i+1);
-		rcode = usb_set_addr(d, i+1);
-		if(rcode) {
-			iprintf("failed to assign address (rcode=%d)", rcode);
-			return rcode;
 		}
 
 		// try to connect device to one of the supported classes
