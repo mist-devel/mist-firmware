@@ -214,7 +214,7 @@ uint8_t usb_rtc_get_time(uint8_t *d) {
   }
   
   // only set time if rtc is in 24h mode
-  if(time.mode12) return 0;
+  //if(time.mode12) return 0;
 
   // copy time/date into target array
   d[0] = bcd2bin(time.year_bcd) + 100;
