@@ -32,7 +32,7 @@ static uint8_t usb_hub_get_port_status(usb_device_t *dev, uint8_t port, uint16_t
        USB_REQUEST_GET_STATUS, 0, 0, port, nbytes, dataptr));
 }
 
-static uint8_t usb_hub_init(usb_device_t *dev) {
+static uint8_t usb_hub_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc) {
   iprintf("%s()\n", __FUNCTION__);
 
   uint8_t rcode;
@@ -41,7 +41,6 @@ static uint8_t usb_hub_init(usb_device_t *dev) {
   usb_hub_info_t *info = &(dev->hub_info);
 
   union {
-    usb_device_descriptor_t dev_desc;
     usb_configuration_descriptor_t conf_desc;
     usb_hub_descriptor_t hub_desc;
   } buf;
@@ -56,25 +55,13 @@ static uint8_t usb_hub_init(usb_device_t *dev) {
   info->ep.epAttribs     = 0;
   info->ep.bmNakPower	= USB_NAK_NOWAIT;
 
-  rcode = usb_get_dev_descr( dev, 8, &buf.dev_desc );
-  if( rcode ) {
-    puts("failed to get device descriptor 1");
-    return rcode;
-  }
-  
   // Extract device class from device descriptor
   // If device class is not a hub return
-  if (buf.dev_desc.bDeviceClass != USB_CLASS_HUB) {
-    puts("not a hub!");    
+  if (dev_desc->bDeviceClass != USB_CLASS_HUB) {
+    puts("not a hub!");
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
   }
 
-  // try to re-read full device descriptor from newly assigned address
-  if(rcode = usb_get_dev_descr( dev, sizeof(usb_device_descriptor_t), &buf.dev_desc )) {
-    puts("failed to get device descriptor 2");
-    return rcode;
-  }
- 
   // Get hub descriptor
   rcode = usb_hub_get_hub_descriptor(dev, 0, 8, &buf.hub_desc);
     

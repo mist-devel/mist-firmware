@@ -256,7 +256,7 @@ static uint8_t pl2303_parse_conf0(usb_device_t *dev, uint16_t len) {
 uint8_t tx_test = 0;
 #endif
 
-static uint8_t pl2303_init(usb_device_t *dev) {
+static uint8_t pl2303_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc) {
   usb_pl2303_info_t *info = &(dev->pl2303_info);
   uint8_t i, rcode = 0;
 
@@ -275,25 +275,17 @@ static uint8_t pl2303_init(usb_device_t *dev) {
 #endif
 
   union {
-    usb_device_descriptor_t dev_desc;
     usb_configuration_descriptor_t conf_desc;
     uint8_t raw[0];
   } buf;
 
-  // read full device descriptor 
-  rcode = usb_get_dev_descr( dev, sizeof(usb_device_descriptor_t), &buf.dev_desc );
-  if( rcode ) {
-    pl2303_debugf("failed to get device descriptor");
-    return rcode;
-  }
-
   pl2303_debugf("vid/pid = %x/%x", 
-		buf.dev_desc.idVendor, buf.dev_desc.idProduct);
+    dev_desc->idVendor, dev_desc->idProduct);
 
   // scan through list of supported devices
   for(i=0;(i!=0xff)&&(supported_devices[i][0]!=0);i++) {
-    if((buf.dev_desc.idVendor  == supported_devices[i][0]) &&
-       (buf.dev_desc.idProduct == supported_devices[i][1])) {
+    if((dev_desc->idVendor  == supported_devices[i][0]) &&
+       (dev_desc->idProduct == supported_devices[i][1])) {
       pl2303_debugf("Found supported vid/pid");
       i = 0xfe;  // will be increase by 1 at end of for loop
     }
@@ -304,16 +296,16 @@ static uint8_t pl2303_init(usb_device_t *dev) {
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
   }
 
-  if(buf.dev_desc.bDeviceClass == 0x02 ) {
+  if(dev_desc->bDeviceClass == 0x02 ) {
     info->type = PL2303_TYPE_0;
     pl2303_debugf("TYPE_0");
-  } else if(buf.dev_desc.bMaxPacketSize0 == 0x40 ) {
+  } else if(dev_desc->bMaxPacketSize0 == 0x40 ) {
     info->type = PL2303_TYPE_HX;
     pl2303_debugf("TYPE_HX");
-  } else if(buf.dev_desc.bDeviceClass == 0x00) {
+  } else if(dev_desc->bDeviceClass == 0x00) {
     info->type = PL2303_TYPE_1;
     pl2303_debugf("TYPE_1");
-  } else if(buf.dev_desc.bDeviceClass == 0xff) {
+  } else if(dev_desc->bDeviceClass == 0xff) {
     info->type = PL2303_TYPE_1;
     pl2303_debugf("TYPE_1");
   }

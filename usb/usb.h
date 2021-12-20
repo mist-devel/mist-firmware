@@ -88,9 +88,10 @@ typedef struct {
 #define USB_ERROR_TRANSFER_TIMEOUT			    0xFF
 
 struct usb_device_entry;
+struct usb_device_descriptor;
 
 typedef struct {
-  uint8_t (*init)(struct usb_device_entry *);
+  uint8_t (*init)(struct usb_device_entry *, struct usb_device_descriptor *);
   uint8_t (*release)(struct usb_device_entry *);
   uint8_t (*poll)(struct usb_device_entry *);
 } usb_device_class_config_t;
@@ -157,7 +158,7 @@ typedef struct usb_device_entry {
 /*******************************************************************************/
 
 /* Device descriptor structure */
-typedef struct {
+typedef struct usb_device_descriptor {
   uint8_t  bLength;            // Length of this descriptor.
   uint8_t  bDescriptorType;    // DEVICE descriptor type (USB_DESCRIPTOR_DEVICE).
   uint16_t bcdUSB;	       // USB Spec Release Number (BCD).

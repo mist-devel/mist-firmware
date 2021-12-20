@@ -277,7 +277,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	return 0;
 }
 
-static uint8_t usb_hid_init(usb_device_t *dev) {
+static uint8_t usb_hid_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc) {
 	hid_debugf("%s(%x)", __FUNCTION__, dev->bAddress);
 
 	uint8_t rcode;
@@ -286,10 +286,7 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 
 	usb_hid_info_t *info = &(dev->hid_info);
 
-	union {
-		usb_device_descriptor_t dev_desc;
-		usb_configuration_descriptor_t conf_desc;
-	} buf;
+	usb_configuration_descriptor_t conf_desc;
 
 	// reset status
 	info->bPollEnable = false;
@@ -303,24 +300,20 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 		info->iface[i].ep.bmNakPower = USB_NAK_MAX_POWER;
 	}
 
-	// try to re-read full device descriptor from newly assigned address
-	if(rcode = usb_get_dev_descr( dev, sizeof(usb_device_descriptor_t), &buf.dev_desc ))
-		return rcode;
-
 	// save vid/pid for automatic hack later
-	vid = buf.dev_desc.idVendor;
-	pid = buf.dev_desc.idProduct;
+	vid = dev_desc->idVendor;
+	pid = dev_desc->idProduct;
 
-	uint8_t num_of_conf = buf.dev_desc.bNumConfigurations;
+	uint8_t num_of_conf = dev_desc->bNumConfigurations;
 	//  hid_debugf("number of configurations: %d", num_of_conf);
 
 	for(i=0; i<num_of_conf; i++) {
-		if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &buf.conf_desc)) 
+		if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &conf_desc)) 
 			return rcode;
 
-		usb_dump_conf_descriptor(&buf.conf_desc);
+		usb_dump_conf_descriptor(&conf_desc);
 		// parse directly if it already fitted completely into the buffer
-		usb_hid_parse_conf(dev, i, buf.conf_desc.wTotalLength);
+		usb_hid_parse_conf(dev, i, conf_desc.wTotalLength);
 	}
 
 	// check if we found valid hid interfaces
@@ -330,7 +323,7 @@ static uint8_t usb_hid_init(usb_device_t *dev) {
 	}
 
 	// Set Configuration Value
-	rcode = usb_set_conf(dev, buf.conf_desc.bConfigurationValue);
+	rcode = usb_set_conf(dev, conf_desc.bConfigurationValue);
 	if (rcode) hid_debugf("hid_set_conf error: %d", rcode);
 
 	// process all supported interfaces

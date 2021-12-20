@@ -440,7 +440,7 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 		uint8_t c;
 		for(c=0;class_list[c];c++) {
 			iprintf("trying to init class %d\n", c);
-			rcode = class_list[c]->init(d);
+			rcode = class_list[c]->init(d, &dev_desc);
 
 			if (!rcode) {
 				d->class = class_list[c];

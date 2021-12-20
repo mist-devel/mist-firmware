@@ -84,7 +84,7 @@ static uint8_t usb_xbox_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len
 }
 #endif
 
-uint8_t usb_xbox_init(usb_device_t *dev) {
+uint8_t usb_xbox_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc) {
 	uint8_t rcode;
 	uint16_t pid;
 	uint16_t vid;
