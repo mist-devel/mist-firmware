@@ -663,10 +663,11 @@ static char GetMenuItem_Minimig(uint8_t idx, char action, menu_item_t *item) {
 				case 23:
 				case 24:
 				case 25:
+					CloseMenu();
+					ResetMenu();
 					OsdDisable();
 					SetConfigurationFilename(idx-21);
 					LoadConfiguration(NULL, 0);
-					ResetMenu();
 					break;
 
 				// Page 4 - Save configuration
