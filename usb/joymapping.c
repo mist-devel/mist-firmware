@@ -42,11 +42,7 @@ This file defines how to handle mapping in the MiST controllers in various ways:
    The mapping translates directions plus generic HID buttons (1-12) into a sandard MiST "virtual joystick"
 \****************************************************************************/
 
-static struct {
-    uint16_t vid;
-    uint16_t pid;
-    uint16_t mapping[16];
-} joystick_mappers[MAX_VIRTUAL_JOYSTICK_REMAP];
+static joymapping_t joystick_mappers[MAX_VIRTUAL_JOYSTICK_REMAP];
 
 static uint16_t default_joystick_mapping [16] = {
 	JOY_RIGHT,
@@ -67,16 +63,30 @@ static uint16_t default_joystick_mapping [16] = {
 	JOY_R3 
 };
 
-void virtual_joystick_remap_init(void) {
-  memset(joystick_mappers, 0, sizeof(joystick_mappers));
+static char dump_mapping() {
+	for(int i=0;i<MAX_VIRTUAL_JOYSTICK_REMAP;i++) {
+		if(joystick_mappers[i].vid && joystick_mappers[i].pid) {
+			iprintf("map[%d]: VID: %04x PID: %04x tag: %d\n", i, joystick_mappers[i].vid, joystick_mappers[i].pid, joystick_mappers[i].tag);
+		}
+	}
+}
+
+static char idx = 0;
+
+void virtual_joystick_remap_init(char save) {
+  if(save)
+    idx = 0;
+  else
+    memset(joystick_mappers, 0, sizeof(joystick_mappers));
 }
 
 /* Parses an input comma-separated string into a mapping strucutre
    The string is expected to have the following format:  [VID],[PID],[comma separated list of buttons]
    and requires at least 13  characters in length 
 */
-void virtual_joystick_remap(char *s) {
-  
+
+char virtual_joystick_remap(char *s, char action, int tag) {
+
   uint8_t i;
   uint8_t count;
   uint8_t off = 0; 
@@ -84,24 +94,47 @@ void virtual_joystick_remap(char *s) {
   uint16_t value = 0;
   char *token;
   char *sub_token;
-  
+
+
+  // save entry to string
+  if(action == INI_SAVE) {
+    hid_debugf("%s(tag: %d)", __FUNCTION__, tag);
+
+    while(1) {
+      if (idx == MAX_VIRTUAL_JOYSTICK_REMAP || joystick_mappers[idx].vid == 0)
+        return 0;
+      if(joystick_mappers[idx].tag == tag) {
+        siprintf(s, "%04X,%04X", joystick_mappers[idx].vid, joystick_mappers[idx].pid);
+        for (count=0; count<16; count++) {
+          char hex[16];
+          siprintf(hex, ",%X", joystick_mappers[idx].mapping[count]);
+          strcat(s, hex);
+        }
+        idx++;
+        return 1;
+      }
+      idx++;
+    }
+  }
+
   hid_debugf("%s(%s)", __FUNCTION__, s);
-  
+
+  // load entry from string
   if(len < 13) {
     hid_debugf("malformed entry");
-    return;
+    return 0;
   }
-  
+
   // parse remap request
   for(i=0;i<MAX_VIRTUAL_JOYSTICK_REMAP;i++) {
     // fill sequentially the available mapping slots, stopping at first empty one
     if(!joystick_mappers[i].vid) {
-	  // init mapping data
+      // init mapping data
       for (count=0; count<16; count++)
         joystick_mappers[i].mapping[count]=0;
       // parse this first to stop if error - it will occupy a slot and proceed
-	  value = strtol(s, NULL, 16); 
-	  if (value==0) continue; // ignore zero entries
+      value = strtol(s, NULL, 16);
+      if (value==0) continue; // ignore zero entries
       joystick_mappers[i].vid = value;
       // default assignment for directions
       joystick_mappers[i].mapping[0] = JOY_RIGHT;
@@ -115,6 +148,7 @@ void virtual_joystick_remap(char *s) {
         value = strtol(token, NULL, 16);
         if (count==1) {
           joystick_mappers[i].pid = value;
+          joystick_mappers[i].tag = tag;
         } else if (count >= 2) {
             //parse sub-tokens sequentially and assign 16-bit value to them
             joystick_mappers[i].mapping[off+count-2] = value;
@@ -125,9 +159,63 @@ void virtual_joystick_remap(char *s) {
         token = strtok (NULL, ",");
         count+=1;
       }
-      return; // finished processing input string so exit
+      return 0; // finished processing input string so exit
     }
   }
+  return 0;
+}
+
+void virtual_joystick_remap_update(joymapping_t *map) {
+	for(int i=0;i<MAX_VIRTUAL_JOYSTICK_REMAP;i++) {
+		if((joystick_mappers[i].vid == map->vid &&
+		    joystick_mappers[i].pid == map->pid &&
+		    joystick_mappers[i].tag == map->tag) ||
+		    !joystick_mappers[i].vid) {
+			memcpy(&joystick_mappers[i], map, sizeof(joymapping_t));
+			return;
+		}
+	}
+}
+
+void virtual_joystick_tag_update(uint16_t vid, uint16_t pid, int newtag)
+{
+	// first search for the entry to update with the largest tag
+	int old = -1, new = -1, i, oldtag = 0;
+	for(i=0;i<MAX_VIRTUAL_JOYSTICK_REMAP;i++) {
+		if(joystick_mappers[i].vid == vid &&
+		   joystick_mappers[i].pid == pid &&
+		   joystick_mappers[i].tag >= oldtag) {
+
+			old = i;
+		}
+	}
+	if (old == -1) return; // old entry not found
+
+	// now search if the entry with the same newtag already there
+	for(i=0;i<MAX_VIRTUAL_JOYSTICK_REMAP;i++) {
+		if(joystick_mappers[i].vid == vid &&
+		   joystick_mappers[i].pid == pid &&
+		   joystick_mappers[i].tag == newtag) {
+
+			new = i;
+			break;
+		}
+	}
+
+	if (new == -1) {
+		// no entry with the same tag, simply update
+		joystick_mappers[old].tag = newtag;
+	} else if (new != old) {
+		memcpy(&joystick_mappers[new].mapping, &joystick_mappers[old].mapping, 16*sizeof(uint16_t));
+		// delete the old entry
+		for(i = old; i<MAX_VIRTUAL_JOYSTICK_REMAP; i++) {
+			if (i==(MAX_VIRTUAL_JOYSTICK_REMAP-1)) {
+				memset(&joystick_mappers[i], 0, sizeof(joymapping_t));
+			} else {
+				memcpy(&joystick_mappers[i], &joystick_mappers[i+1].mapping, sizeof(joymapping_t));
+			}
+		}
+	}
 }
 
 /*****************************************************************************/
@@ -331,16 +419,22 @@ uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_inpu
 		use_default=0;
 	}
 	
-	// apply remap information from mist.ini if present
+	// Apply remap information from various config sources if present
+	// Priority (low to high):
+	// 0 - mist.ini
+	// 1 - mistcfg.ini
+	// 2 - [corename].cfg
 	uint8_t j;
+	int tag = 0;
 	for(j=0;j<MAX_VIRTUAL_JOYSTICK_REMAP;j++) {
-	  if(joystick_mappers[j].vid==vid && joystick_mappers[j].pid==pid) {
-		for(i=0; i<16; i++) 
-		  mapping[i]=joystick_mappers[j].mapping[i];
-		use_default=0;
-	  }
+		if(joystick_mappers[j].vid==vid && joystick_mappers[j].pid==pid && joystick_mappers[j].tag >= tag) {
+			for(i=0; i<16; i++)
+				mapping[i]=joystick_mappers[j].mapping[i];
+			use_default=0;
+			tag = joystick_mappers[j].tag + 1;
+		}
 	}
-	
+
 	// apply default mapping to rest of buttons if requested
 	if (use_default) {
 	  for(i=4; i<16; i++) 
@@ -376,19 +470,21 @@ void joy_key_map_init(void) {
 }
 
 
-void joystick_key_map(char *s) {
+char joystick_key_map(char *s, char action, int tag) {
   uint8_t i,j;
   uint8_t count;
   uint8_t assign=0;
   uint8_t len = strlen(s);
   uint8_t scancode=0;
   char *token;
-  
+
   hid_debugf("%s(%s)", __FUNCTION__, s);
-  
+
+  if(action == INI_SAVE) return 0;
+
   if(len < 3) {
     hid_debugf("malformed entry");
-    return;
+    return 0;
   }
   
   // parse remap request
@@ -421,7 +517,7 @@ void joystick_key_map(char *s) {
         s = strtok (NULL, ",");
         count+=1;
       }
-      return; // finished processing input string so exit
+      return 0; // finished processing input string so exit
     }
   }
 }

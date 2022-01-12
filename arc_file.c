@@ -21,7 +21,7 @@ typedef struct {
 static arc_t arc;
 static int conf_ptr;
 
-void arc_set_conf(char *);
+char arc_set_conf(char *, char, int);
 
 // arc ini sections
 const ini_section_t arc_ini_sections[] = {
@@ -39,13 +39,15 @@ const ini_var_t arc_ini_vars[] = {
 	{"CONF", (void*)arc_set_conf, CUSTOM_HANDLER, 0, 0, 1},
 };
 
-void arc_set_conf(char *c)
+char arc_set_conf(char *c, char action, int tag)
 {
+	if (action == INI_SAVE) return 0;
 	if ((conf_ptr+strlen(c))<MAX_CONF_SIZE-1) {
 		strcpy(&arc.conf[conf_ptr], c);
 		strcat(arc.conf, ";");
 		conf_ptr += strlen(c) + 1;
 	}
+	return 0;
 }
 
 char arc_open(const char *fname)
@@ -60,7 +62,7 @@ char arc_open(const char *fname)
 
 	arc_reset();
 	arc.mod = -1; // indicate error by default, valid ARC file will overrdide with the correct MOD value
-	ini_parse(&arc_ini_cfg, 0);
+	ini_parse(&arc_ini_cfg, 0, 0);
 	iprintf("ARC CONF STR: %s\n",arc.conf);
 	return arc.mod;
 }

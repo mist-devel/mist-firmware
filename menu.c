@@ -47,6 +47,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "usb/joymapping.h"
 #include "mist_cfg.h"
 #include "minimig-menu.h"
+#include "settings.h"
 
 // test features (not used right now)
 // #define ALLOW_TEST_MENU 0 //remove to disable in prod version
@@ -77,6 +78,7 @@ static unsigned int menumask = 0; // Used to determine which rows are selectable
 static unsigned long menu_timer = 0;
 static menu_get_items_t menu_item_callback;
 static menu_get_page_t menu_page_callback;
+static menu_key_event_t menu_key_callback;
 static menu_select_file_t menu_select_callback;
 
 extern const char version[];
@@ -95,7 +97,7 @@ const char *config_cpu_msg[] = {"68000 ", "68010", "-----","68020"};
 const char *config_autofire_msg[] = {"\n\n        AUTOFIRE OFF", "\n\n        AUTOFIRE FAST", "\n\n       AUTOFIRE MEDIUM", "\n\n        AUTOFIRE SLOW"};
 const char *days[] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
-enum HelpText_Message {HELPTEXT_NONE,HELPTEXT_MAIN,HELPTEXT_HARDFILE,HELPTEXT_CHIPSET,HELPTEXT_MEMORY,HELPTEXT_VIDEO,HELPTEXT_FEATURES};
+enum HelpText_Message {HELPTEXT_NONE,HELPTEXT_MAIN,HELPTEXT_HARDFILE,HELPTEXT_CHIPSET,HELPTEXT_MEMORY,HELPTEXT_VIDEO,HELPTEXT_FEATURES,HELPTEXT_INPUT};
 const char *helptexts[]={
 	0,
 	"                                Welcome to MiST!  Use the cursor keys to navigate the menus.  Use space bar or enter to select an item.  Press Esc or F12 to exit the menus.  Joystick emulation on the numeric keypad can be toggled with the numlock key, while pressing Ctrl-Alt-0 (numeric keypad) toggles autofire mode.",
@@ -104,6 +106,7 @@ const char *helptexts[]={
 	"                                Minimig can make use of up to 2 megabytes of Chip RAM, up to 1.5 megabytes of Slow RAM (A500 Trapdoor RAM), and up to 8 megabytes (68000/68010) / 24 megabytes (68020) of true Fast RAM.  To use the HRTmon feature you will need a file on the SD card named hrtmon.rom.",
 	"                                Minimig's video features include a blur filter, to simulate the poorer picture quality on older monitors, and also scanline generation to simulate the appearance of a screen with low vertical resolution.",
 	"                                Minimig can set the audio filter to switchable with power LED (A500r5+), always off or always on (A1000, A500r3). The power LED off-state can be configured to dim (A500r6+) or off (A1000, A500r3/5).",
+	"                                Press F1 to setup the button mapping of the current joystick. Press F2 to save the current mapping globally. Press F3 to save the current mapping to the actual core only.",
 	0
 };
 
@@ -481,12 +484,34 @@ static void Setup8bitMenu() {
 	if(!p[0]) OsdCoreNameSet("8BIT");
 	else      OsdCoreNameSet(p);
 
-	SetupMenu(GetMenuPage_8bit, GetMenuItem_8bit);
+	SetupMenu(GetMenuPage_8bit, GetMenuItem_8bit, NULL);
 }
 
 ///////////////////////////
 /////// System menu ///////
 ///////////////////////////
+
+static uint8_t setup_phase = 0;
+static joymapping_t mapping;
+static char *buttons [16] = {
+  "RIGHT",
+  "LEFT",
+  "DOWN",
+  "UP",
+  "A",
+  "B",
+  "SELECT(C)",
+  "START",
+  "X",
+  "Y",
+  "L",
+  "R",
+  "L2",
+  "R2",
+  "L3",
+  "R3"
+};
+
 // prints input as a string of binary (on/off) values
 // assumes big endian, returns using special characters (checked box/unchecked box)
 static void siprintbinary(char* buffer, uint8_t byte)
@@ -666,18 +691,13 @@ static char ResetDialog(uint8_t idx) {
 			CloseMenu();
 			OsdReset(RESET_NORMAL);
 		} else {
-			FIL file;
-			UINT br;
-			if (!user_io_create_config_name(s, "CFG", CONFIG_ROOT)) {
-				iprintf("Saving config to %s\n", s);
-				if(f_open(&file, s, FA_READ | FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
-				 // finally write data
-					((unsigned long long*)sector_buffer)[0] = user_io_8bit_set_status(arc_get_default(),~0);
-					f_write(&file, sector_buffer, 8, &br);
-					iprintf("Settings for %s written\n", s);
-					f_close(&file);
-				}
-			}
+			user_io_8bit_set_status(arc_get_default(),~0);
+			if (settings_save(false)) {
+				iprintf("Settings for %s reset\n", user_io_get_core_name());
+				Setup8bitMenu();
+				menusub = 0;
+			} else
+				ErrorMessage("\n   Error writing settings!\n", 0);
 		}
 	}
 	return 0;
@@ -721,12 +741,49 @@ static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
 	return 0;
 }
 
+static char KeyEvent_System(uint8_t key) {
+	if (page_idx >= 4 && page_idx <= 7) {
+		uint8_t joy_num = page_idx-4;
+		uint16_t vid = StateUsbVidGet(joy_num);
+		uint16_t pid = StateUsbPidGet(joy_num);
+		if (key == KEY_F1) {
+			if (!setup_phase) {
+				if (vid && pid) setup_phase = 1; // start setup
+				memset(&mapping, 0, sizeof(joymapping_t));
+			} else if (setup_phase >= 1 && setup_phase <= 16)
+				setup_phase++; // skip button
+			return true;
+		}
+		if (key == KEY_F2 && !setup_phase) {
+			virtual_joystick_tag_update(vid, pid, 1); // new tag -> global tag
+			if (settings_save(true)) {
+				DialogBox("\n        Saved global\n     joystick mappings.", MENU_DIALOG_OK, NULL);
+			} else {
+				ErrorMessage("\n   Error writing settings!\n", 0);
+			}
+			return true;
+		}
+		if (key == KEY_F3 && !setup_phase) {
+			virtual_joystick_tag_update(vid, pid, 2); // new tag -> core tag
+			if (settings_save(false)) {
+				DialogBox("\n         Saved core\n     joystick mappings.", MENU_DIALOG_OK, NULL);
+			} else {
+				ErrorMessage("\n   Error writing settings!\n", 0);
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
 static char GetMenuPage_System(uint8_t idx, char action, menu_page_t *page) {
 	if (action == MENU_PAGE_EXIT) return 0;
 
 	page->timer = 0;
 	page->stdexit = MENU_STD_EXIT;
 	page->flags = 0;
+	helptext=helptexts[HELPTEXT_NONE];
+
 	switch (idx) {
 		case 0:
 			page->title = "System";
@@ -746,10 +803,13 @@ static char GetMenuPage_System(uint8_t idx, char action, menu_page_t *page) {
 		case 5:
 		case 6:
 		case 7:
+			helptext=helptexts[HELPTEXT_INPUT];
 			siprintf(s, "Joy%d", idx-3);
 			page->title = s;
 			page->timer = 10;
 			page->stdexit = MENU_STD_SPACE_EXIT;
+			memset(&mapping, 0, sizeof(joymapping_t));
+			setup_phase = 0;
 			break;
 		case 8:
 			page->title = "Keyboard";
@@ -898,7 +958,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 				case 21:
 				case 22:
 				case 23:
-					siprintf(s, " Joystick %d Test", idx-19);
+					siprintf(s, " Joystick %d Setup/Test", idx-19);
 					item->item = s;
 					item->newpage = 4+idx-20; // page 4-7
 					break;
@@ -913,8 +973,12 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 
 				// page 4-7 - joy test
 				case 26:
-					get_joystick_state(joy_string, joy_string2, page_idx-4); //grab state of joy
-					siprintf(s, "       Test Joystick %d", page_idx-4+1);
+					if (!setup_phase) {
+						get_joystick_state(joy_string, joy_string2, page_idx-4); //grab state of joy
+						siprintf(s, "       Test Joystick %d", page_idx-4+1);
+					} else {
+						siprintf(s, "      Setup Joystick %d", page_idx-4+1);
+					}
 					item->item = s;
 					break;
 				case 27:
@@ -922,10 +986,46 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					break;
 				case 29:
-					item->item = joy_string;
+					if (!setup_phase) {
+						item->item = joy_string;
+					} else {
+						uint8_t joy_num = page_idx-4;
+						uint32_t joy;
+						static uint32_t joy_prev;
+
+						if (setup_phase>15) {
+							setup_phase = 0;
+							mapping.vid = StateUsbVidGet(joy_num);
+							mapping.pid = StateUsbPidGet(joy_num);
+							mapping.tag = 3; // highest prio
+							iprintf("mapping: %04x,%04x", mapping.vid, mapping.pid);
+							for (int i = 0; i<16; i++) {
+								iprintf(",%x", mapping.mapping[i]);
+							}
+							iprintf("\n");
+							virtual_joystick_remap_update(&mapping);
+							break;
+						}
+
+						siprintf(s, "      Press button %s", buttons[setup_phase - 1]);
+						joy = StateUsbJoyGet(joy_num);
+						joy |= StateUsbJoyGetExtra(joy_num) << 8;
+						if (!joy_prev && joy) {
+							for (int i = 0; i<16; i++) {
+								if (joy & (1<<i)) mapping.mapping[i] = 1<<(setup_phase - 1);
+							}
+							setup_phase++;
+						}
+						joy_prev = joy;
+						item->item = s;
+					}
 					break;
 				case 30:
-					item->item = joy_string2;
+					if (!setup_phase) {
+						item->item = joy_string2;
+					} else {
+						item->item = "    F1 - skip this button";
+					}
 					break;
 				case 32:
 					get_joystick_state_usb(s, page_idx-4);
@@ -999,28 +1099,15 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					DialogBox(m ? "\n         Reset MiST?" : "\n       Reset settings?", MENU_DIALOG_YESNO, ResetDialog);
 					break;
 				}
-				case 4: {
+				case 4:
 					// Save settings
-					FIL file;
-					UINT bw = 0;
-					if (!user_io_create_config_name(s, "CFG", CONFIG_ROOT)) {
-						iprintf("Saving config to %s\n", s);
-						FRESULT res;
-						if((res = f_open(&file, s, FA_READ | FA_WRITE | FA_OPEN_ALWAYS)) == FR_OK) {
-							// finally write data
-							((unsigned long long*)sector_buffer)[0] = user_io_8bit_set_status(0,0);
-							res = f_write(&file, sector_buffer, 8, &bw);
-							f_close(&file);
-						}
-						if (res == FR_OK && bw == 8) {
-							iprintf("Settings for %s written\n", s);
-							Setup8bitMenu();
-							menusub = 0;
-						} else
-							ErrorMessage("\n   Error writing settings!\n", 0);
-					}
+					if (settings_save(false)) {
+						iprintf("Settings for %s written\n", user_io_get_core_name());
+						Setup8bitMenu();
+						menusub = 0;
+					} else
+						ErrorMessage("\n   Error writing settings!\n", 0);
 					break;
-				}
 				case 5:
 					parentstate = MENU_8BIT_ABOUT1;
 					menusub = 0;
@@ -1113,7 +1200,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 
 void SetupSystemMenu() {
 	helptext = helptexts[HELPTEXT_NONE];
-	SetupMenu(GetMenuPage_System, GetMenuItem_System);
+	SetupMenu(GetMenuPage_System, GetMenuItem_System, KeyEvent_System);
 	menusub = 0;
 }
 
@@ -1182,11 +1269,12 @@ void SelectFileNG(char *pFileExt, unsigned char Options, menu_select_file_t call
 	menu_select_callback = callback;
 }
 
-void SetupMenu(menu_get_page_t menu_page_cb, menu_get_items_t menu_item_cb)
+void SetupMenu(menu_get_page_t menu_page_cb, menu_get_items_t menu_item_cb, menu_key_event_t menu_key_cb)
 {
 	menuidx[0] = menu_last = page_idx = page_level = scroll_down = scroll_up = 0;
 	menu_item_callback = menu_item_cb;
 	menu_page_callback = menu_page_cb;
+	menu_key_callback = menu_key_cb;
 	menustate = parentstate = MENU_NG;
 }
 
@@ -1287,8 +1375,6 @@ void HandleUI(void)
 
 	if(menu || select || up || down || left || right )
 	{
-		if(helpstate)
-			OsdWrite(7,STD_EXIT,(menumask-((1<<(menusub+1))-1))<=0,0); // Redraw the Exit line...
 		helpstate=0;
 		helptext_timer=GetTimer(HELPTEXT_DELAY);
 	}
@@ -1300,7 +1386,8 @@ void HandleUI(void)
 			if(CheckTimer(helptext_timer))
 			{
 				helptext_timer=GetTimer(FRAME_DELAY);
-				OsdWriteOffset(7,STD_EXIT,0,0,helpstate);
+				if (menu_page.stdexit)
+					OsdWriteOffset(OSDNLINE-1,menu_page.stdexit == 1 ? STD_EXIT : menu_page.stdexit == 2 ? STD_SPACE_EXIT : STD_COMBO_EXIT,0,0,helpstate);
 				++helpstate;
 			}
 		}
@@ -1310,7 +1397,7 @@ void HandleUI(void)
 			++helpstate;
 		}
 		else
-			ScrollText(7,helptext,0,0,0,0);
+			ScrollText(OSDNLINE-1,helptext,0,0,0,0);
 	}
 
 	// Standardised menu up/down.
@@ -1449,7 +1536,8 @@ void HandleUI(void)
 					menu_item.stipple = 0;
 				}
 				if (!(menumask & 1<<idx) && menusub == idx) menusub++;
-				OsdWrite(idx, item, menusub == idx, menu_item.stipple);
+				if (!(helpstate && idx == OSDNLINE-1))
+					OsdWrite(idx, item, menusub == idx, menu_item.stipple);
 			}
 			if (menu_page.timer) page_timer = GetTimer(menu_page.timer);
 			menustate = MENU_NG2;
@@ -1517,6 +1605,10 @@ void HandleUI(void)
 				menustate = parentstate;
 				break;
 			}
+			if (c && menu_key_callback) {
+				if (menu_key_callback(c)) break;
+			}
+
 			action = MENU_ACT_NONE;
 			if (select)      action = MENU_ACT_SEL;
 			else if (backsp) action = MENU_ACT_BKSP;

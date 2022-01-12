@@ -351,7 +351,7 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
   config_ini_cfg.nsections = (int)(sizeof(config_ini_sections) / sizeof(ini_section_t));
   config_ini_cfg.nvars =  (int)(sizeof(config_ini_vars) / sizeof(ini_var_t));
 
-  ini_parse(&config_ini_cfg, 0);
+  ini_parse(&config_ini_cfg, 0, 0);
 
   if(tmpconf.floppy.drives<=4 && tmpconf.kickstart[0]) {
     // If either the old config and new config have a different kickstart file,
@@ -622,7 +622,7 @@ unsigned char SaveConfiguration(char *filename)
   config_ini_cfg.nvars =  (int)(sizeof(config_ini_vars) / sizeof(ini_var_t));
   memcpy((void*)&tmpconf, (void*)&config, sizeof(config));
 
-  ini_save(&config_ini_cfg);
+  ini_save(&config_ini_cfg, 0);
 
   return(0);
 }

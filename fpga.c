@@ -22,8 +22,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // 2009-12-10   - changed command header id
 // 2010-04-14   - changed command header id
 
-#include "stdio.h"
-#include "string.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
 #include "errors.h"
 #include "hardware.h"
 #include "fdd.h"
@@ -34,6 +35,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "fpga.h"
 #include "tos.h"
 #include "mist_cfg.h"
+#include "settings.h"
+#include "usb/joymapping.h"
 
 uint8_t rstval = 0;
 
@@ -931,9 +934,11 @@ void fpga_init(const char *name) {
     iprintf("ident = %x\n", ct);
   }
 
+  virtual_joystick_remap_init(false);
+  settings_load(true);
   user_io_detect_core_type();
   mist_ini_parse();
-  user_io_send_buttons(1);
+  user_io_send_buttons(true);
   InitDB9();
 
   if((user_io_core_type() == CORE_TYPE_MINIMIG)||

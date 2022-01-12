@@ -24,6 +24,7 @@
 #include "arc_file.h"
 #include "cue_parser.h"
 #include "utils.h"
+#include "settings.h"
 #include "usb/joymapping.h"
 #include "usb/joystick.h"
 
@@ -337,6 +338,8 @@ void user_io_detect_core_type() {
 					((unsigned long long*)sector_buffer)[0] = 0;
 					f_read(&file, sector_buffer, f_size(&file), &br);
 					user_io_8bit_set_status(((unsigned long long*)sector_buffer)[0], ~1);
+				} else {
+					settings_load(false);
 				}
 				f_close(&file);
 			} else {
@@ -2378,11 +2381,12 @@ void add_modifiers(uint8_t mod, uint16_t* keys_ps2)
 	}
 }
 
-void user_io_key_remap(char *s) {
+char user_io_key_remap(char *s, char action, int tag) {
+	if (action == INI_SAVE) return 0;
 	// s is a string containing two comma separated hex numbers
 	if((strlen(s) != 5) && (s[2]!=',')) {
 		ini_parser_debugf("malformed entry %s", s);
-		return;
+		return 0;
 	}
 
 	char i;
@@ -2393,9 +2397,10 @@ void user_io_key_remap(char *s) {
 
 			ini_parser_debugf("key remap entry %d = %02x,%02x", 
 			  i, key_remap_table[i][0], key_remap_table[i][1]);
-			return;
+			return 0;
 		}
 	}
+	return 0;
 }
 
 unsigned char user_io_ext_idx(const char *name, const char* ext) {

@@ -103,7 +103,7 @@ int8_t hid_keyboard_present(void);
 
 // HID low-level remapping - do not confuse with virtual joystick in joymapping.h
 void hid_joystick_button_remap_init(void);
-void hid_joystick_button_remap(char *);
+char hid_joystick_button_remap(char *, char, int);
 void joy_key_map_init(void); // older function, prefer to use joymapping.h function
 
 #endif // HID_H

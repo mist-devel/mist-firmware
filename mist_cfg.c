@@ -17,12 +17,14 @@ extern FIL ini_file;
 // call data_io_rom_upload but reload sector_buffer afterwards since the io
 // operations in data_io_rom_upload may have overwritten the buffer
 // mode = 0: prepare for rom upload, mode = 1: rom upload, mode = 2, end rom upload
-void ini_rom_upload(char *s) {
+char ini_rom_upload(char *s, char action, int tag) {
+  if(action == INI_SAVE) return 0;
 #ifndef INI_PARSER_TEST
   data_io_rom_upload(s, 1);
   f_lseek(&ini_file, (((f_tell(&ini_file)+511)>>9)-1)<<9);
   FileReadBlock(&ini_file, sector_buffer);
 #endif
+  return 0;
 }
 
 //// mist_ini_parse() ////
@@ -30,14 +32,13 @@ void mist_ini_parse()
 {
 #ifndef INI_PARSER_TEST
   hid_joystick_button_remap_init();
-  virtual_joystick_remap_init();
   joy_key_map_init();
   data_io_rom_upload(NULL, 0);   // prepare upload
   memset(&mist_cfg, 0, sizeof(mist_cfg));
   mist_cfg.mouse_speed = 100;
   mist_cfg.joystick_analog_mult = 128;
   minimig_cfg.kick1x_memory_detection_patch = 1;
-  ini_parse(&mist_ini_cfg, user_io_get_core_name());
+  ini_parse(&mist_ini_cfg, user_io_get_core_name(), 0);
   data_io_rom_upload(NULL, 2);   // upload done
 #endif
 }

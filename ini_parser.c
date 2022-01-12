@@ -189,7 +189,7 @@ static int ini_get_section(const ini_cfg_t* cfg, char* buf, const char* alter_se
 
 
 //// ini_get_var() ////
-static void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
+static void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf, int tag)
 {
   int i=0, j=0;
   int var_id = -1;
@@ -270,7 +270,7 @@ static void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
         strncpy((char*)(cfg->vars[var_id].var), &(buf[i]), cfg->vars[var_id].max);
         break;
       case CUSTOM_HANDLER:
-        ((custom_handler_t*)(cfg->vars[var_id].var))(&(buf[i]));
+        ((custom_handler_t*)(cfg->vars[var_id].var))(&(buf[i]), INI_LOAD, tag);
         break;
     }
     return (void*)(&(cfg->vars[var_id].var));
@@ -281,7 +281,7 @@ static void* ini_get_var(const ini_cfg_t* cfg, int cur_section, char* buf)
 
 
 //// ini_parse() ////
-void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
+void ini_parse(const ini_cfg_t* cfg, const char *alter_section, int tag)
 {
   char line[INI_LINE_SIZE] = {0};
   int section = INI_SECTION_INVALID_ID;
@@ -326,7 +326,7 @@ void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
         section = ini_get_section(cfg, line, alter_section);
       } else {
         // otherwise this is a variable, get it
-        ini_get_var(cfg, section, line);
+        ini_get_var(cfg, section, line, tag);
       }
     }
     // if end of file, stop
@@ -343,10 +343,11 @@ void ini_parse(const ini_cfg_t* cfg, const char *alter_section)
 
 
 //// ini_save() ////
-void ini_save(const ini_cfg_t* cfg)
+void ini_save(const ini_cfg_t* cfg, int tag)
 {
   int section, var;
   char line[INI_LINE_SIZE] = {0};
+  char val[INI_LINE_SIZE] = {0};
 
   ini_pt = 0;
   // open ini file
@@ -379,6 +380,9 @@ void ini_save(const ini_cfg_t* cfg)
           case UINT32:
             siprintf(line, "%s=%u\n", cfg->vars[var].name, *(uint32_t*)(cfg->vars[var].var));
             break;
+          case UINT64:
+            siprintf(line, "%s=%llu\n", cfg->vars[var].name, *(uint64_t*)(cfg->vars[var].var));
+            break;
           case INT8:
             siprintf(line, "%s=%d\n", cfg->vars[var].name, *(int8_t*)(cfg->vars[var].var));
             break;
@@ -396,8 +400,14 @@ void ini_save(const ini_cfg_t* cfg)
           case STRING:
             siprintf(line, "%s=\"%s\"\n", cfg->vars[var].name, (char*)(cfg->vars[var].var));
             break;
+          case CUSTOM_HANDLER:
+            while (((custom_handler_t*)(cfg->vars[var].var))(val, INI_SAVE, tag)) {
+                siprintf(line, "%s=\"%s\"\n", cfg->vars[var].name, val);
+                ini_putline(line);
+            };
         }
-        ini_putline(line);
+        if (cfg->vars[var].type != CUSTOM_HANDLER)
+            ini_putline(line);
       }
     }
 

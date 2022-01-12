@@ -63,6 +63,7 @@ typedef struct {
 
 typedef char (*menu_get_items_t)(uint8_t, char, menu_item_t*);
 typedef char (*menu_get_page_t)(uint8_t, char, menu_page_t*);
+typedef char (*menu_key_event_t)(uint8_t);
 typedef char (*menu_select_file_t)(uint8_t, const char*);
 typedef char (*menu_dialog_t)(uint8_t);
 
@@ -70,7 +71,7 @@ void DialogBox(const char *message, char options, menu_dialog_t);
 void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect, char chdir);
 void SelectFileNG(char *pFileExt, unsigned char Options, menu_select_file_t callback, char chdir);
 void SetupSystemMenu();
-void SetupMenu(menu_get_page_t, menu_get_items_t);
+void SetupMenu(menu_get_page_t, menu_get_items_t, menu_key_event_t);
 void CloseMenu();
 void ResetMenu();
 void ClosePage();

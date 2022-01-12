@@ -213,7 +213,7 @@ void user_io_analog_joystick(unsigned char, char, char, char, char);
 char user_io_osd_is_visible();
 void user_io_send_buttons(char);
 
-void user_io_key_remap(char *);
+char user_io_key_remap(char *, char, int);
 void add_modifiers(uint8_t mod, uint16_t* keys_ps2);
 
 unsigned char user_io_ext_idx(const char*, const char*);

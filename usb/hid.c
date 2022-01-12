@@ -42,14 +42,16 @@ void hid_joystick_button_remap_init(void) {
 	memset(joystick_button_remap, 0, sizeof(joystick_button_remap));
 }
 
-void hid_joystick_button_remap(char *s) {
+char hid_joystick_button_remap(char *s, char action, int tag) {
 	uint8_t i;
 
 	hid_debugf("%s(%s)", __FUNCTION__, s);
 
+	if (action == INI_SAVE) return 0;
+
 	if(strlen(s) < 13) {
 		hid_debugf("malformed entry");
-		return;
+		return 0;
 	}
 
 	// parse remap request
@@ -67,9 +69,10 @@ void hid_joystick_button_remap(char *s) {
 			joystick_button_remap[i].vid, joystick_button_remap[i].pid,
 			joystick_button_remap[i].offset, joystick_button_remap[i].button);
 
-			return;
+			return 0;
 		}
 	}
+	return 0;
 }
 
 /*****************************************************************************/
