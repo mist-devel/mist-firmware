@@ -160,6 +160,7 @@ char virtual_joystick_remap(char *s, char action, int tag) {
 
       joystick_mappers[i].vid = vid;
       joystick_mappers[i].pid = pid;
+      joystick_mappers[i].tag = tag;
       // default assignment for directions
       joystick_mappers[i].mapping[0] = JOY_RIGHT;
       joystick_mappers[i].mapping[1] = JOY_LEFT;
