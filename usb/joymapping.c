@@ -89,9 +89,9 @@ char virtual_joystick_remap(char *s, char action, int tag) {
 
   uint8_t i;
   uint8_t count;
-  uint8_t off = 0; 
   uint8_t len = strlen(s);
   uint16_t value = 0;
+  uint16_t pid, vid;
   char *token;
   char *sub_token;
 
@@ -125,39 +125,59 @@ char virtual_joystick_remap(char *s, char action, int tag) {
     return 0;
   }
 
+  token  = strtok (s, ",");
+  if (!token) {
+    hid_debugf("no vid");
+    return 0;
+  }
+  vid = strtol(token, NULL, 16);
+  if (vid==0) {
+    hid_debugf("invalid vid");
+    return 0; // invalid vid
+  }
+
+  token  = strtok (NULL, ",");
+  if (!token) {
+    hid_debugf("no pid");
+    return 0;
+  }
+  pid = strtol(token, NULL, 16);
+  if (pid==0) {
+    hid_debugf("invalid pid");
+    return 0; // invalid vid
+  }
+
   // parse remap request
   for(i=0;i<MAX_VIRTUAL_JOYSTICK_REMAP;i++) {
-    // fill sequentially the available mapping slots, stopping at first empty one
-    if(!joystick_mappers[i].vid) {
+    // update if the same vid/pid/tag found, or use the first empty slot
+    if((joystick_mappers[i].vid == vid &&
+        joystick_mappers[i].pid == pid &&
+        joystick_mappers[i].tag == tag) ||
+       !joystick_mappers[i].vid) {
       // init mapping data
       for (count=0; count<16; count++)
         joystick_mappers[i].mapping[count]=0;
-      // parse this first to stop if error - it will occupy a slot and proceed
-      value = strtol(s, NULL, 16);
-      if (value==0) continue; // ignore zero entries
-      joystick_mappers[i].vid = value;
+
+      joystick_mappers[i].vid = vid;
+      joystick_mappers[i].pid = pid;
       // default assignment for directions
       joystick_mappers[i].mapping[0] = JOY_RIGHT;
       joystick_mappers[i].mapping[1] = JOY_LEFT;
       joystick_mappers[i].mapping[2] = JOY_DOWN;
       joystick_mappers[i].mapping[3] = JOY_UP;
       count  = 0;
-      token  = strtok (s, ",");
+      token  = strtok (NULL, ",");
       while(token!=NULL) {
-        //if (count==0) joystick_mappers[i].vid = strtol(token, NULL, 16); -- VID mapping already done
         value = strtol(token, NULL, 16);
-        if (count==1) {
-          joystick_mappers[i].pid = value;
-          joystick_mappers[i].tag = tag;
-        } else if (count >= 2) {
+        if (count < 16) {
             //parse sub-tokens sequentially and assign 16-bit value to them
-            joystick_mappers[i].mapping[off+count-2] = value;
+            joystick_mappers[i].mapping[count] = value;
             hid_debugf("parsed: %x/%x %d -> %d", 
                       joystick_mappers[i].vid, joystick_mappers[i].pid,
-                      count-1, joystick_mappers[i].mapping[off+count-2]);
+                      count, joystick_mappers[i].mapping[count]);
         }
         token = strtok (NULL, ",");
-        count+=1;
+        count++;
       }
       return 0; // finished processing input string so exit
     }
