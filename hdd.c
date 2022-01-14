@@ -684,6 +684,12 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
 
       if ((head*cyl*32)==total)	// Does the geometry match the size of the underlying hard file?
         return;
+      // Is hard file size within cyllimit * 32 geometry?
+      if (total <= cyllimit * 32) {
+        pHDF->heads = 1;
+        pHDF->cylinders = (total / 32) + 1;	// Add a cylinder for the fake RDB.
+        return;
+      }
       // If not, fall back to regular hardfile geometry aproximations...
       break;
     case HDF_FILE:
