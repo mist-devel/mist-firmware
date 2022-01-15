@@ -908,6 +908,11 @@ void fpga_init(const char *name) {
   unsigned long time = GetTimer(0);
   int loaded_from_usb = USB_LOAD_VAR;
 
+  // load the global MISTCFG.INI here
+  // loading between the FPGA init and detect_core_type breaks with some SD-Cards. Reason unknown.
+  virtual_joystick_remap_init(false);
+  settings_load(true);
+
   iprintf("loaded_from_usb = %d\n", USB_LOAD_VAR == USB_LOAD_VALUE);
   USB_LOAD_VAR = 0;
 
@@ -934,8 +939,6 @@ void fpga_init(const char *name) {
     iprintf("ident = %x\n", ct);
   }
 
-  virtual_joystick_remap_init(false);
-  settings_load(true);
   user_io_detect_core_type();
   mist_ini_parse();
   user_io_send_buttons(true);
