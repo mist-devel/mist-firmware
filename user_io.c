@@ -263,21 +263,7 @@ void user_io_detect_core_type() {
 #endif
 	core_type &= 0xef;
 
-	if((core_type != CORE_TYPE_DUMB) &&
-	   (core_type != CORE_TYPE_MINIMIG) &&
-	   (core_type != CORE_TYPE_MINIMIG2) &&
-	   (core_type != CORE_TYPE_PACE) &&
-	   (core_type != CORE_TYPE_MIST) &&
-	   (core_type != CORE_TYPE_MIST2) &&
-	   (core_type != CORE_TYPE_ARCHIE) &&
-	   (core_type != CORE_TYPE_8BIT))
-	    core_type = CORE_TYPE_UNKNOWN;
-
 	switch(core_type) {
-	case CORE_TYPE_UNKNOWN:
-		iprintf("Unable to identify core (%x)!\n", core_type);
-		break;
-
 	case CORE_TYPE_DUMB:
 		puts("Identified core without user interface");
 		break;
@@ -394,6 +380,9 @@ void user_io_detect_core_type() {
 		user_io_8bit_set_status(0, UIO_STATUS_RESET);
 
 	} break;
+	default:
+		iprintf("Unable to identify core (%x)!\n", core_type);
+		core_type = CORE_TYPE_UNKNOWN;
 	}
 }
 
