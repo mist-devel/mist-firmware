@@ -993,7 +993,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 						uint32_t joy;
 						static uint32_t joy_prev;
 
-						if (setup_phase>15) {
+						if (setup_phase>16) {
 							setup_phase = 0;
 							mapping.vid = StateUsbVidGet(joy_num);
 							mapping.pid = StateUsbPidGet(joy_num);
