@@ -7,15 +7,26 @@
 /* storage control modules to the FatFs module with a defined API.       */
 /*-----------------------------------------------------------------------*/
 
+#include <string.h>
 #include "ff.h"			/* Obtains integer types */
 #include "diskio.h"		/* Declarations of disk functions */
 #include "hardware.h"
 #include "mmc.h"
+#include "fat_compat.h"
 
 /* Definitions of physical drive number for each drive */
 #define DEV_MMC		0
 #define DEV_USB		1
 
+static char enable_cache = 0;
+static LBA_t cache_sector;
+static LBA_t database;
+
+void disk_cache_set(char enable, LBA_t base) {
+	cache_sector = -1;
+	database = base;
+	enable_cache = enable;
+}
 
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
@@ -99,14 +110,22 @@ DRESULT disk_read (
 	int result;
 
 	//iprintf("disk_read: %d LBA: %d count: %d\n", pdrv, sector, count);
+	if(enable_cache && cache_sector != -1 && sector >= cache_sector && (sector + count - 1) <= (cache_sector + SECTOR_BUFFER_SIZE/512 - 1)) {
+		memcpy(buff, &sector_buffer[512*(sector-cache_sector)], count*512);
+		return RES_OK;
+	}
 
 	switch (pdrv) {
 	case DEV_MMC :
-		// translate the arguments here
-		if (count == 1)
+		if(enable_cache && sector >= database) {
+			result = MMC_ReadMultiple(sector, sector_buffer, SECTOR_BUFFER_SIZE/512);
+			memcpy(buff, sector_buffer, count*512);
+			cache_sector = sector;
+		} else if (count == 1) {
 			result = MMC_Read(sector, buff);
-		else
+		} else {
 			result = MMC_ReadMultiple(sector, buff, count);
+		}
 
 		// translate the reslut code here
 		res = result ? RES_OK : RES_ERROR;

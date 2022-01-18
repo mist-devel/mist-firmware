@@ -9,6 +9,8 @@
 extern "C" {
 #endif
 
+void disk_cache_set(char enable, LBA_t base);
+
 /* Status of Disk Functions */
 typedef BYTE	DSTATUS;
 

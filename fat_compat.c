@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include "mmc.h"
 #include "fat_compat.h"
 #include "fpga.h"
@@ -374,6 +375,9 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 		find_dir = options & FIND_DIR;
 	}
 
+	//enable caching in the sector buffer while traversing the directory,
+	//because FatFs is inefficiently using single sector reads
+	disk_cache_set(true, fs.database);
 	f_rewinddir(&dir);
 	nNewEntries = 0;
 	while (1) {
@@ -533,6 +537,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 			}
 		}
 	}
+	disk_cache_set(false, 0);
 
 	if (nNewEntries) {
 		if (mode == SCAN_NEXT_PAGE) {
