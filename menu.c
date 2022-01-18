@@ -302,15 +302,6 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 
 	// check for 'V'ersion strings
 	if(p && (p[0] == 'V')) {
-
-		// p[1] is not used but kept for future use
-		char x = p[1];
-
-		// get version string
-		strcpy(s, user_io_get_core_name());
-		strcat(s," ");
-		substrcpy(s+strlen(s), p, 1);
-		OsdCoreNameSet(s);
 		item->page = 0xff; // hide
 		return 1;
 	}
@@ -472,7 +463,8 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 }
 
 static void Setup8bitMenu() {
-	char *p;
+	char *c, *p;
+	int i;
 
 	// set helptext with core display on top of basic info
 	strcpy(helptext_custom, HELPTEXT_SPACER);
@@ -480,10 +472,23 @@ static void Setup8bitMenu() {
 	strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
 	helptext=helptext_custom;
 
-	p = user_io_get_core_name();
-	if(!p[0]) OsdCoreNameSet("8BIT");
-	else      OsdCoreNameSet(p);
+	c = user_io_get_core_name();
+	if(!c[0]) OsdCoreNameSet("8BIT");
+	else      OsdCoreNameSet(c);
 
+	i = 2;
+	// search for 'V'ersion string
+	while (p = user_io_8bit_get_string(i++)) {
+		if(p[0] == 'V') {
+			// p[1] is not used but kept for future use
+			char x = p[1];
+			// get version string
+			strcpy(s, user_io_get_core_name());
+			strcat(s," ");
+			substrcpy(s+strlen(s), p, 1);
+			OsdCoreNameSet(s);
+		}
+	}
 	SetupMenu(GetMenuPage_8bit, GetMenuItem_8bit, NULL);
 }
 
