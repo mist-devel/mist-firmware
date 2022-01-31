@@ -78,8 +78,15 @@ void ClosePage();
 void ChangePage(char);
 
 void HandleUI(void);
+void ErrorMessage(const char *message, unsigned char code);
 void InfoMessage(const char *message);
 
 extern const char *config_cpu_msg[];
+
+enum HelpText_Message {HELPTEXT_NONE,HELPTEXT_MAIN,HELPTEXT_HARDFILE,HELPTEXT_CHIPSET,HELPTEXT_MEMORY,HELPTEXT_VIDEO,HELPTEXT_FEATURES,HELPTEXT_INPUT};
+extern const char *helptexts[];
+extern const char* HELPTEXT_SPACER;
+extern char helptext_custom[450];
+extern const char *helptext;
 
 #endif

@@ -18,7 +18,7 @@
 #include "user_io.h"
 #include "usb/usb.h"
 #include "misc_cfg.h"
-#include "minimig-menu.h"
+#include "menu-minimig.h"
 
 configTYPE config;
 static configTYPE tmpconf;

@@ -53,11 +53,6 @@ const char *KickstartSelectedName;
 // TODO: remove these extern hacks to private variables
 extern char DiskInfo[5]; // disk number info of selected entry
 extern unsigned char menusub;
-enum HelpText_Message {HELPTEXT_NONE,HELPTEXT_MAIN,HELPTEXT_HARDFILE,HELPTEXT_CHIPSET,HELPTEXT_MEMORY,HELPTEXT_VIDEO,HELPTEXT_FEATURES};
-extern const char *helptexts[];
-extern const char* HELPTEXT_SPACER;
-extern char helptext_custom[450];
-extern const char *helptext;
 
 ////////////////////////////
 /////// Minimig menu ///////

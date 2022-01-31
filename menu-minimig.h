@@ -1,5 +1,5 @@
-#ifndef MINIMIG_MENU_H
-#define MINIMIG_MENU_H
+#ifndef MENU_MINIMIG_H
+#define MENU_MINIMIG_H
 
 // UI strings, used by boot messages
 extern const char *config_filter_msg[];
