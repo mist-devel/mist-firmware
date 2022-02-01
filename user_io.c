@@ -27,6 +27,7 @@
 #include "settings.h"
 #include "usb/joymapping.h"
 #include "usb/joystick.h"
+#include "menu.h"
 
 // up to 16 key can be remapped
 #define MAX_REMAP  16
@@ -106,6 +107,12 @@ static unsigned char ps2_mouse_samplerate;
 // may be in use by an active OSD
 static char osd_is_visible = false;
 
+static char autofire;
+static unsigned long autofire_timer;
+static uint32_t autofire_map;
+static uint32_t autofire_mask;
+static char autofire_joy;
+
 char user_io_osd_is_visible() {
 	return osd_is_visible;
 }
@@ -128,6 +135,8 @@ void user_io_reset() {
 	ps2_mouse_resolution = 0;
 	ps2_mouse_samplerate = 0;
 	ps2_typematic_rate = 0x80;
+	autofire = 0;
+	autofire_joy = -1;
 }
 
 void user_io_init() {
@@ -444,6 +453,16 @@ void user_io_digital_joystick_ext(unsigned char joystick, uint32_t map) {
 	if(joystick > 5) return;
 	//iprintf("ext j%d: %x\n", joystick, map);
 	spi_uio_cmd32(UIO_JOYSTICK0_EXT + joystick, 0x000fffff & map);
+	if (autofire && (map & 0x30)) {
+		autofire_mask = map & 0x30;
+		autofire_map = (autofire_map & autofire_mask) | (map & ~autofire_mask);
+		if (autofire_joy != joystick) {
+			autofire_joy = joystick;
+			autofire_timer = GetTimer(autofire*50);
+		}
+	} else {
+		autofire_joy = -1;
+	}
 }
 
 static char dig2ana(char min, char max) {
@@ -1186,6 +1205,13 @@ void user_io_poll() {
 		if (!user_io_osd_is_visible()) user_io_joystick(idx, joy_map);
 		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count() + 1); // send to OSD
 		virtual_joystick_keyboard(joy_map);
+	}
+
+	if (autofire && autofire_joy >= 0 && autofire_joy <= 5 && CheckTimer(autofire_timer)) {
+		autofire_map ^= autofire_mask;
+		//iprintf("06x\n", autofire_map);
+		spi_uio_cmd32(UIO_JOYSTICK0_EXT + autofire_joy, 0x000fffff & autofire_map);
+		autofire_timer = GetTimer(autofire*50);
 	}
 
 	user_io_send_buttons(0);
@@ -2246,7 +2272,19 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 					else
 					{
 						// special OSD key handled internally 
-						if(osd_is_visible) OsdKeySet(usb2amiga(k[i]));
+						if(osd_is_visible)
+							OsdKeySet(usb2amiga(k[i]));
+						else if (((mist_cfg.joystick_autofire_combo == 0 && k[i] == 0x62) ||  // KP0
+						          (mist_cfg.joystick_autofire_combo == 1 && k[i] == 0x2B)) && // TAB
+						          (m & 0x05) == 0x05 && // LCTR+LALT
+						          (core_type == CORE_TYPE_8BIT ||
+						          core_type == CORE_TYPE_ARCHIE ||
+						          core_type == CORE_TYPE_MIST2))
+						{
+							autofire = ((autofire + 1) & 0x03);
+							InfoMessage(config_autofire_msg[autofire]);
+						}
+
 					}
 
 					// no further processing of any key that is currently 

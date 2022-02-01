@@ -59,6 +59,7 @@ mist_cfg_t mist_cfg = {
   .joystick_emu_fixed_index = 0,
   .joystick_analog_mult = 128,
   .joystick_analog_offset = 0,
+  .joystick_autofire_combo = 0,
   .key_menu_as_rgui = 0,
   .keyrah_mode = 0,
   .reset_combo = 0,
@@ -105,6 +106,7 @@ const ini_var_t mist_ini_vars[] = {
   {"JOYSTICK_EMU_FIXED_INDEX", (void*)(&(mist_cfg.joystick_emu_fixed_index)), UINT8, 0, 1, 1},
   {"JOYSTICK_ANALOG_MULTIPLIER", (void*)(&(mist_cfg.joystick_analog_mult)), UINT8, 1, 128, 1},
   {"JOYSTICK_ANALOG_OFFSET", (void*)(&(mist_cfg.joystick_analog_offset)), INT8, -127, 127, 1},
+  {"JOYSTICK_AUTOFIRE_COMBO", (void*)(&(mist_cfg.joystick_autofire_combo)), INT8, 0, 2, 1},
   {"KEY_MENU_AS_RGUI", (void*)(&(mist_cfg.key_menu_as_rgui)), UINT8, 0, 1, 1},
   {"SDRAM64", (void*)(&(mist_cfg.sdram64)), UINT8, 0, 1, 1},
 #ifndef INI_PARSER_TEST
