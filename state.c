@@ -39,11 +39,7 @@ static mist_joystick_t mist_joystick_temp;
 	.state=0 , \
 	.state_extra=0, \
 	.usb_state=0, \
-	.usb_state_extra=0, \
-	.turbo=0, \
-	.turbo_counter=0, \
-	.turbo_mask=0x30, \
-	.turbo_state=0xFF \
+	.usb_state_extra=0 \
 	}
 
 /* latest joystick state */
@@ -67,63 +63,6 @@ void StateReset() {
 		StateUsbIdSet(0, 0, 0, idx);
 		StateUsbJoySet(0, 0, idx);
 	}
-}
-
-// sets a joystick to input status
-void StateJoyCopy ( uint8_t num_joy, mist_joystick_t* joy ) {
-	mist_joystick_t mine;
-	if(num_joy>5) return;
-	if(!joy) return;
-	mine = mist_joysticks[num_joy];
-	mine.vid = joy->vid;
-	mine.pid = joy->pid;
-	mine.num_buttons=joy->num_buttons; 
-	mine.state=joy->state;
-	mine.state_extra=joy->state_extra;
-	mine.usb_state=joy->usb_state;
-	mine.usb_state_extra=joy->usb_state_extra;
-	mine.turbo=joy->turbo;
-	mine.turbo_counter=joy->turbo_counter;
-	mine.turbo_mask=joy->turbo_mask;			
-	mine.turbo_state=joy->turbo_state; 
-}
-
-void StateJoyRead ( uint8_t num_joy, mist_joystick_t* joy ) {
-	mist_joystick_t mine;
-	if(num_joy>5) return;
-	if(!joy) return;
-	mine = mist_joysticks[num_joy];
-	joy->vid = mine.vid;
-	joy->pid = mine.pid;
-	joy->num_buttons = mine.num_buttons;
-	joy->state = mine.state;
-	joy->state_extra=mine.state_extra;
-	joy->usb_state=mine.usb_state;
-	joy->usb_state_extra=mine.usb_state_extra;
-	joy->turbo=mine.turbo;
-	joy->turbo_counter=mine.turbo_counter;
-	joy->turbo_mask=mine.turbo_mask;			
-	joy->turbo_state=mine.turbo_state; 
-}
-
-// returns a copy of a status structure
-mist_joystick_t StateJoyGetStructure (uint8_t num_joy) {
-	StateJoyRead( num_joy, &mist_joystick_temp);
-	return mist_joystick_temp;
-}
-
-// applies the turbo to a given joystick
-mist_joystick_t StateJoyUpdateTurboStructure (uint8_t num_joy) {
-	StateJoyRead( num_joy, &mist_joystick_temp);
-	StateTurboUpdate( &mist_joystick_temp);
-	//mist_joystick_t mine = mist_joystick_temp;
-	StateJoyCopy( num_joy, &mist_joystick_temp);
-}
-
-uint8_t StateJoyStructureState ( uint8_t num_joy) {
-	mist_joystick_t mine;
-	mine = StateJoyGetStructure( num_joy);
-	return mine.state; 
 }
 
 /* latest joystick state */
@@ -189,51 +128,6 @@ uint16_t StateUsbPidGet(uint8_t joy_num) {
 }
 uint8_t StateUsbGetNumButtons(uint8_t joy_num) {
 	return (joy_num < 6) ? num_buttons[joy_num] : 0;
-}
-
-// return joystick state take into account turbo settings
-void  StateJoyState( uint8_t joy_num, mist_joystick_t* joy ) {
-	mist_joystick_t mine;
-	if (joy_num>5) return;
-	if(!joy) return;
-	joy->vid = StateUsbVidGet(joy_num);
-	joy->pid = StateUsbPidGet(joy_num);
-	//joy.num_buttons=1; // DB9 has 1 button
-	joy->state=StateUsbPidGet(joy_num);
-	joy->state_extra=StateJoyGetExtra(joy_num);
-	joy->usb_state=StateUsbJoyGet(joy_num);
-	joy->usb_state_extra=(joy_num);
-	//apply turbo status
-	joy->state=StateUsbPidGet(joy_num);
-	if(joy->turbo > 0) {
-		joy->state &= joy->turbo_state;
-	}
-	// chache into current static scope
-	StateJoyCopy(joy_num, joy);
-}
-
-/* handle button's turbo timers */
-void StateTurboUpdate(mist_joystick_t* joy) {
-	if(!joy) return;
-	if(joy->turbo==0) return; // nothing to do
-	joy->turbo_counter += 1;
-	if(joy->turbo_counter > joy->turbo) {
-		joy->turbo_counter = 0;
-		joy->turbo_state ^= joy->turbo_mask;
-	}
-}
-/* reset all turbo timers and state */
-void StateTurboReset(mist_joystick_t* joy) {
-	if(!joy) return;
-	joy->turbo_counter=0;
-	joy->turbo_state=0xFF;	
-}
-/* set a specific turbo mask and timeout */
-void StateTurboSet ( mist_joystick_t* joy, uint16_t turbo, uint16_t mask ) {
-	if(!joy) return;
-	StateTurboReset(joy);
-	joy->turbo = turbo;
-	joy->turbo_mask = mask;
 }
 
 // Keep track of connected sticks
