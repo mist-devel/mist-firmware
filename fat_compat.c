@@ -9,6 +9,7 @@
 #include "utils.h"
 
 #include "FatFs/ff.h"
+#include "FatFs/diskio.h"
 
 unsigned char sector_buffer[SECTOR_BUFFER_SIZE]; // sector buffer for one CDDA sector (or 4 SD sector)
 struct PartitionEntry partitions[4];             // lbastart and sectors will be byteswapped as necessary
