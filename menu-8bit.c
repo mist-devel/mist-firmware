@@ -27,6 +27,7 @@
 #include "user_io.h"
 #include "data_io.h"
 #include "fat_compat.h"
+#include "cue_parser.h"
 
 extern char s[FF_LFN_BUF + 1];
 
@@ -139,7 +140,7 @@ static char CueFileSelected(uint8_t idx, const char *SelectedName) {
 	iprintf("Cue file selected: %s\n", SelectedName);
 	data_io_set_index(user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | (menusub+1));
 	res = user_io_cue_mount(SelectedName);
-	if (res) ErrorMessage("\n  Error mounting CD image!\n", res);
+	if (res) ErrorMessage(cue_error_msg[res-1], res);
 	else     CloseMenu();
 	return 0;
 }

@@ -60,6 +60,12 @@ static int cue_pt = 0;
 
 toc_t toc;
 
+const char *cue_error_msg[] = {
+  "\n   Cannot open CUE file.\n",
+  "\n     Invalid CUE file.\n",
+  "\n   Unsupported CUE file.\n",
+  "\n   Cannot open the image.\n"
+};
 
 void LBA2MSF(int lba, msf_t* msf) {
   msf->m = (lba / 75) / 60;

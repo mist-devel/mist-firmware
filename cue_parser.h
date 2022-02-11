@@ -43,6 +43,7 @@ typedef struct
 } msf_t;
 
 extern toc_t toc;
+extern const char *cue_error_msg[];
 
 #ifdef CUE_PARSER_TEST
 char cue_parse(const char *filename);

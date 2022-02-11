@@ -238,19 +238,6 @@ static void pcecd_run() {
 
 		pcecdd.index = cue_gettrackbylba(pcecdd.lba);
 
-		if (!pcecdd.cdda_fifo_halffull) {
-			for (int i = 0; i <= pcecdd.CDDAFirst; i++) {
-				if (!toc.tracks[pcecdd.index].type) {
-					f_lseek(&toc.file->file, toc.tracks[pcecdd.index].offset + (pcecdd.lba - toc.tracks[pcecdd.index].start) * 2352);
-					//pcecd_debugf("Audio sector send = %i, track = %i, offset = %llu", pcecdd.lba, pcecdd.index, f_tell(&toc.file->file));
-					SendSector(2352, 0);
-				}
-				pcecdd.lba++;
-			}
-		}
-
-		pcecdd.CDDAFirst = 0;
-
 		if ((pcecdd.lba >= pcecdd.CDDAEnd) || toc.tracks[pcecdd.index].type || pcecdd.index >= toc.last)
 		{
 			if (pcecdd.CDDAMode == PCECD_CDDAMODE_LOOP) {
@@ -262,10 +249,20 @@ static void pcecd_run() {
 			}
 
 			if (pcecdd.CDDAMode == PCECD_CDDAMODE_INTERRUPT) {
-				PendStatus(MAKE_STATUS(PCECD_STATUS_GOOD, 0));
+				SendStatus(MAKE_STATUS(PCECD_STATUS_GOOD, 0));
 			}
 
 			pcecd_debugf("playback reached the end %d\n", pcecdd.lba);
+		} else if (!pcecdd.cdda_fifo_halffull) {
+			for (int i = 0; i <= pcecdd.CDDAFirst; i++) {
+				if (!toc.tracks[pcecdd.index].type) {
+					f_lseek(&toc.file->file, toc.tracks[pcecdd.index].offset + (pcecdd.lba - toc.tracks[pcecdd.index].start) * 2352);
+					//pcecd_debugf("Audio sector send = %i, track = %i, offset = %llu", pcecdd.lba, pcecdd.index, f_tell(&toc.file->file));
+					SendSector(2352, 0);
+				}
+				pcecdd.lba++;
+			}
+			pcecdd.CDDAFirst = 0;
 		}
 	}
 }
