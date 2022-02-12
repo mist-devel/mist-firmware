@@ -1101,13 +1101,17 @@ void HandleUI(void)
 				else if(user_io_core_type() == CORE_TYPE_ARCHIE)
 					archie_setup_menu();
 				else {
-					// the "menu" core is special in jumps directly to the core selection menu
-					if(!strcmp(user_io_get_core_name(), "MENU") || (user_io_get_core_features() & FEAT_MENU)) {
+					if(strcmp(user_io_get_core_name(), "MENU") || (user_io_get_core_features() & FEAT_MENU)) {
+						// new menu cores does have a settings page
+						Setup8bitMenu();
+					} else {
+						// old menu core
 						SetupSystemMenu();
 						page_idx = 1; // Firmware & Core page
+					}
+					// the "menu" core is special in jumps directly to the core selection menu
+					if(!strcmp(user_io_get_core_name(), "MENU") || (user_io_get_core_features() & FEAT_MENU)) {
 						SelectFileNG("RBFARC", SCAN_LFN | SCAN_SYSDIR, CoreFileSelected, 0);
-					} else {
-						Setup8bitMenu();
 					}
 				}
 
