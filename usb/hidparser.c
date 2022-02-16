@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "hidparser.h"
 #include "debug.h"
@@ -91,6 +92,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 	uint16_t bit_count = 0, usage_count = 0;
 	uint16_t logical_minimum=0, logical_maximum=0;
 	uint16_t physical_minimum=0, physical_maximum=0;
+	memset(conf, 0, sizeof(hid_report_t));
 
 	// mask used to check of all required components have been found, so
 	// that e.g. both axes and the button of a joystick are ready to be used
