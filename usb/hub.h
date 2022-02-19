@@ -9,6 +9,7 @@ typedef struct {
   uint32_t qNextPollTime;   // next poll time
   bool	   bPollEnable;	    // poll enable flag
   ep_t ep;	            // interrupt endpoint info structure
+  bool     bResetStatus[8]; // status of port resets
 } usb_hub_info_t;
 
 // Hub Requests

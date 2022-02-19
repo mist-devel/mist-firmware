@@ -49,6 +49,8 @@ static uint8_t usb_hub_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
   info->bNbrPorts = 0; 
   info->qNextPollTime = 0;
   info->bPollEnable = false;
+  for (i=0; i<8; i++)
+    info->bResetStatus[i] = false;
 
   info->ep.epAddr	= 1;
   info->ep.maxPktSize	= 8;  //kludge
@@ -133,6 +135,8 @@ static void usb_hub_show_port_status(uint8_t port, uint16_t status, uint16_t cha
 
 static uint8_t usb_hub_port_status_change(usb_device_t *dev, uint8_t port, hub_event_t evt) {
   usb_hub_info_t *info = &(dev->hub_info);
+  usb_device_t newdev;
+  uint8_t buf[64];
 
   iprintf("status change on port %d, 0x%x\n", port, evt.bmEvent);
   usb_hub_show_port_status(port, evt.bmStatus, evt.bmChange);
@@ -151,7 +155,7 @@ static uint8_t usb_hub_port_status_change(usb_device_t *dev, uint8_t port, hub_e
     }
 
     //    timer_delay_msec(100);
-
+    info->bResetStatus[port] = true;
     iprintf("resetting port %d\n", port);
     usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_ENABLE, port, 0);
     usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_CONNECTION, port, 0);
@@ -175,6 +179,29 @@ static uint8_t usb_hub_port_status_change(usb_device_t *dev, uint8_t port, hub_e
   case USB_HUB_PORT_EVENT_RESET_COMPLETE:
   case USB_HUB_PORT_EVENT_LS_RESET_COMPLETE:
     iprintf(" port %d reset complete!\n", port);
+    if (info->bResetStatus[port]) {
+      newdev.bAddress       = 0;
+      newdev.parent = dev->bAddress;
+      newdev.lowspeed = (evt.bmStatus & USB_HUB_PORT_STATUS_PORT_LOW_SPEED)!=0;
+      newdev.port = port;
+      newdev.class = NULL;
+      newdev.vid = newdev.pid = 0;
+      newdev.ep0.epAddr     = 0;
+      newdev.ep0.maxPktSize = 8;
+      newdev.ep0.epAttribs  = 0;
+      newdev.ep0.bmNakPower = USB_NAK_MAX_POWER;
+      if( !usb_get_dev_descr( &newdev, newdev.lowspeed ? 8 : 64, (usb_device_descriptor_t*)&buf) ) {
+        iprintf("max ep0 packet size: %d \n", buf[7]);
+      }
+      iprintf("resetting port %d after fetching the initial device descriptor\n", port);
+      usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_ENABLE, port, 0);
+      usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_CONNECTION, port, 0);
+      usb_hub_set_port_feature(dev, HUB_FEATURE_PORT_RESET, port, 0);	
+      bResetInitiated = true;
+      info->bResetStatus[port] = false;
+      return HUB_ERROR_PORT_HAS_BEEN_RESET;
+    }
+
     usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_RESET, port, 0);
     usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_CONNECTION, port, 0);
     
