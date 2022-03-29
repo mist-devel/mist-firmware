@@ -72,7 +72,8 @@
 #define TOS_CONTROL_STE           0x00800000
 #define TOS_CONTROL_MSTE          0x01000000
 #define TOS_CONTROL_ETHERNET      0x02000000
-                          
+#define TOS_CONTROL_CUBASE        0x40000000
+
 // USB redirection modes
 // (NONE=0, RS232=1, PARALLEL=2, MIDI=3)
 #define TOS_CONTROL_REDIR0        0x04000000
