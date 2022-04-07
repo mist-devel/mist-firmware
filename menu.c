@@ -376,6 +376,8 @@ static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
 	// De-init joysticks to allow re-ordering for new core
 	StateReset();
 
+	usb_dev_reconnect();
+
 	CloseMenu();
 
 	return 0;

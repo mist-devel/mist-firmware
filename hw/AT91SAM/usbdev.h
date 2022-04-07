@@ -25,6 +25,7 @@
 #define BULK_OUT_SIZE AT91C_EP_OUT_SIZE
 
 void usb_dev_open(void);
+void usb_dev_reconnect(void);
 
 uint8_t  usb_cdc_is_configured(void);
 uint16_t usb_cdc_write(const char *pData, uint16_t length);

@@ -490,3 +490,9 @@ void usb_dev_open(void) {
   else
     usb_cdc_open();
 }
+
+void usb_dev_reconnect() {
+    *AT91C_PIOA_SODR = USB_PUP;
+    WaitTimer(20);
+    usb_dev_open();
+}
