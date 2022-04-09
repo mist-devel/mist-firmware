@@ -374,12 +374,6 @@ void Setup8bitMenu() {
 	char *c, *p;
 	int i;
 
-	// set helptext with core display on top of basic info
-	strcpy(helptext_custom, HELPTEXT_SPACER);
-	strcat(helptext_custom, OsdCoreName());
-	strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
-	helptext=helptext_custom;
-
 	c = user_io_get_core_name();
 	if(!c[0]) OsdCoreNameSet("8BIT");
 	else      OsdCoreNameSet(c);
@@ -397,5 +391,12 @@ void Setup8bitMenu() {
 			OsdCoreNameSet(s);
 		}
 	}
+
+	// set helptext with core display on top of basic info
+	strcpy(helptext_custom, HELPTEXT_SPACER);
+	strcat(helptext_custom, OsdCoreName());
+	strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
+	helptext=helptext_custom;
+
 	SetupMenu(GetMenuPage_8bit, GetMenuItem_8bit, NULL);
 }
