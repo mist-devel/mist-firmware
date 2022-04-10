@@ -294,6 +294,9 @@ char* get_joystick_alias( uint16_t vid, uint16_t pid ) {
 	if(vid==0x045E && pid==0x028E)
 		return JOYSTICK_ALIAS_XBOX;
 
+	if(vid==0x1C59 && pid==0x0026)
+		return JOYSTICK_ALIAS_RETRO_GAMES_THEGAMEPAD;
+
 	return JOYSTICK_ALIAS_NONE;
 		
 }
