@@ -37,6 +37,7 @@
 #define JOYSTICK_ALIAS_RETROLINK_GC 	"Retrolink N64/GC"
 #define JOYSTICK_ALIAS_RETROLINK_NES 	"Retrolink NES"
 #define JOYSTICK_ALIAS_RETRO_FREAK 	  "Retro Freak gamepad"
+#define JOYSTICK_ALIAS_RETRO_GAMES_THEGAMEPAD	"Retro Games THEGAMEPAD"
 #define JOYSTICK_ALIAS_ROYDS_EX 			"ROYDS Stick.EX"
 #define JOYSTICK_ALIAS_SPEEDLINK_COMP "Speedlink Competition Pro"
 #define JOYSTICK_ALIAS_XBOX "Xbox360 Controller"
