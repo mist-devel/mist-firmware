@@ -451,7 +451,7 @@ const unsigned short usb2ps2_set1[] = {
   EXT | 0x52, // 49: Insert
   EXT | 0x47, // 4a: Home
   EXT | 0x49, // 4b: Page Up
-  EXT | 0x4b, // 4c: Delete
+  EXT | 0x53, // 4c: Delete
   EXT | 0x4f, // 4d: End
   EXT | 0x51, // 4e: Page Down
   EXT | 0x4d, // 4f: Right Arrow
