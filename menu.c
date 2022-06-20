@@ -1194,7 +1194,7 @@ void HandleUI(void)
 		break;
 
 		case MENU_NG2: {
-			char idx, items = 0, stdexit = 0, action;
+			char idx, newidx = 0, items = 0, stdexit = 0, action;
 
 			if (menu_page.stdexit == MENU_STD_COMBO_EXIT) {
 				StateKeyboardPressed(keys);
@@ -1208,37 +1208,60 @@ void HandleUI(void)
 			} else if (menu || (menu_page.stdexit && select && menusub == OSDNLINE - 1)) {
 				stdexit = 1;
 			}
+
+			if (c == KEY_PGDN) {
+				if (menusub < (OSDNLINE - 1 - (menu_page.stdexit?1:0))) {
+					menusub = OSDNLINE - 1 - (menu_page.stdexit?1:0);
+					while((menumask & (1<<menusub)) == 0) menusub--;
+					menustate = parentstate;
+				} else {
+					scroll_down = OSDNLINE - (menu_page.stdexit?1:0);
+				}
+			}
+
 			if (scroll_down) {
 				menu_debugf("menu_ng: scroll down\n");
-				scroll_down = 0;
 				idx = menuidx[menu_last]+1;
 				while(menu_item_callback(idx, 0, &menu_item)) {      // are more items there?
 					if (menu_item.page == page_idx) {            // same page?
 						items++;
+						if (!newidx) newidx = idx;           // the next invisible item
 						if (menu_item.active) {              // any selectable?
-							menuidx[0] = menuidx[items]; // then scroll down
+							menuidx[0] = items < (OSDNLINE - (menu_page.stdexit?1:0)) ? menuidx[items] : newidx; // then scroll down
 							menusub = OSDNLINE - 1 - (menu_page.stdexit?1:0);
-							break;
+							if (!--scroll_down) break;
 						}
 					}
 					idx++;
 				}
+				scroll_down = 0;
 				menustate = parentstate;
 			}
+
+			if (c == KEY_PGUP) {
+				if (menusub > 0) {
+					menusub = 0;
+					while((menumask & (1<<menusub)) == 0) menusub++;
+					menustate = parentstate;
+				} else {
+					scroll_up = OSDNLINE - (menu_page.stdexit?1:0);
+				}
+			}
+
 			if (scroll_up) {
 				menu_debugf("menu_ng: scroll up\n");
-				scroll_up = 0;
 				if (menuidx[0] > 0) {
 					idx = menuidx[0] - 1;
 					while(menu_item_callback(idx, 0, &menu_item)) {// are more items there?
 						if (menu_item.page == page_idx && menu_item.active) {     // any selectable?
 							menuidx[0] = idx; // then scroll up
 							menusub = 0;
-							break;
+							if (!--scroll_up) break;
 						}
 						if (!idx) break;
 						idx--;
 					}
+					scroll_up = 0;
 					menustate = parentstate;
 				}
 			}
