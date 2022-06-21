@@ -1241,7 +1241,8 @@ void HandleUI(void)
 			if (c == KEY_PGUP) {
 				if (menusub > 0) {
 					menusub = 0;
-					while((menumask & (1<<menusub)) == 0) menusub++;
+					while((menumask & (1<<menusub)) == 0 && menusub<OSDNLINE) menusub++;
+					if(menusub == OSDNLINE) menusub = 0;
 					menustate = parentstate;
 				} else {
 					scroll_up = OSDNLINE - (menu_page.stdexit?1:0);
@@ -1261,9 +1262,10 @@ void HandleUI(void)
 						if (!idx) break;
 						idx--;
 					}
-					scroll_up = 0;
 					menustate = parentstate;
 				}
+				scroll_up = 0;
+
 			}
 			if ((backsp || stdexit) && page_level) {
 				ClosePage();
