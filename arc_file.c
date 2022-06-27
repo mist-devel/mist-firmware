@@ -11,7 +11,7 @@
 typedef struct {
 	char mod;
 	uint64_t conf_default;
-	char rbfname[9];
+	char rbfname[33];
 	char corename[9];
 	char dirname[9];
 	char vhdname[9];
@@ -32,7 +32,7 @@ const ini_section_t arc_ini_sections[] = {
 const ini_var_t arc_ini_vars[] = {
 	{"MOD", (void*)(&arc.mod), UINT8, 0, 127, 1},
 	{"DEFAULT", (void*)(&arc.conf_default), UINT64, 0, ~0, 1},
-	{"RBF", (void*)arc.rbfname, STRING, 1, 8, 1},
+	{"RBF", (void*)arc.rbfname, STRING, 1, 32, 1},
 	{"NAME", (void*)arc.corename, STRING, 1, 8, 1},
 	{"DIR", (void*)arc.dirname, STRING, 1, 8, 1},
 	{"VHD", (void*)arc.vhdname, STRING, 1, 8, 1},
