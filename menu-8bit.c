@@ -351,6 +351,7 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 					if (f_open(&file, s, FA_READ | FA_WRITE | FA_OPEN_ALWAYS) == FR_OK) {
 						data_io_file_rx(&file, -1, len);
 						f_close(&file);
+						CloseMenu();
 					} else {
 						ErrorMessage("\n   Error saving RAM file!\n", 0);
 					}
