@@ -543,6 +543,12 @@ void user_io_sd_set_config(void) {
 	//  hexdump(data, sizeof(data), 0);
 }
 
+static void user_io_sd_ack(char drive_index) {
+	spi_uio_cmd_cont(UIO_SD_ACK);
+	spi8(drive_index);
+	DisableIO();
+}
+
 // read 8+32 bit sd card status word from FPGA
 uint8_t user_io_sd_get_status(uint32_t *lba, uint8_t *drive_index) {
 	uint32_t s;
@@ -1413,7 +1419,7 @@ void user_io_poll() {
 					if(buffer_lba == lba && buffer_drive_index == drive_index) {
 						buffer_lba = 0xffffffff;
 					}
-
+					user_io_sd_ack(drive_index);
 					// Fetch sector data from FPGA ...
 					spi_uio_cmd_cont(UIO_SECTOR_WR);
 					spi_block_read(wr_buf);
@@ -1469,7 +1475,7 @@ void user_io_poll() {
 
 				if(buffer_lba == lba) {
 					// hexdump(buffer, 32, 0);
-
+					user_io_sd_ack(drive_index);
 					// data is now stored in buffer. send it to fpga
 					spi_uio_cmd_cont(UIO_SECTOR_RD);
 					spi_block_write(buffer);
