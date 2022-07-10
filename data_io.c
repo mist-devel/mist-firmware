@@ -77,7 +77,7 @@ static void data_io_file_tx_send(FIL *file) {
     unsigned short c, chunk = (bytes2send>SECTOR_BUFFER_SIZE)?SECTOR_BUFFER_SIZE:bytes2send;
     char *p;
 
-    if (rom_direct_upload) {
+    if (rom_direct_upload && fat_uses_mmc()) {
       // upload directly from the SD-Card if the core supports that
       bytes2send = (file->obj.objsize + 511) & 0xfffffe00;
       file->obj.objsize = bytes2send; // hack to foul FatFs think the last block is a full sector

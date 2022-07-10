@@ -210,7 +210,7 @@ void max3421e_init();
 uint8_t max3421e_poll();
 void max3421e_write_u08(uint8_t reg, uint8_t data);
 uint8_t max3421e_read_u08(uint8_t reg);
-uint8_t *max3421e_write(uint8_t reg, uint8_t n, uint8_t* data);
+const uint8_t *max3421e_write(uint8_t reg, uint8_t n, const uint8_t* data);
 uint8_t *max3421e_read(uint8_t reg, uint8_t n, uint8_t* data);
 
 #endif //_max3421e_h_

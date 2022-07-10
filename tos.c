@@ -13,10 +13,11 @@
 #include "debug.h"
 #include "user_io.h"
 #include "data_io.h"
-#include "mmc.h"
 #include "ikbd.h"
 #include "idxfile.h"
 #include "font.h"
+#include "mmc.h"
+#include "FatFs/diskio.h"
 
 #define CONFIG_FILENAME  "MIST    CFG"
 
@@ -208,7 +209,7 @@ void tos_set_direct_hdd(char on) {
 
   if(on) {
     tos_debugf("ACSI: enable direct sd access");
-    hdd_direct = MMC_GetCapacity();
+    disk_ioctl(fs.pdrv, GET_SECTOR_COUNT, &hdd_direct);
 
     tos_debugf("ACSI: Direct capacity = %ld (%ld Bytes)", hdd_direct, hdd_direct*512);
     config.system_ctrl |= TOS_ACSI0_ENABLE;
@@ -339,14 +340,14 @@ static void handle_acsi(unsigned char *buffer) {
         if(lba+length <= blocks) {
           DISKLED_ON;
 #ifndef SD_NO_DIRECT_MODE
-          if (user_io_core_type() == CORE_TYPE_MIST2) {
+          if (user_io_core_type() == CORE_TYPE_MIST2 && fat_uses_mmc()) {
             // SD-Card -> FPGA direct SPI transfer on MIST2
             spi_speed = spi_get_speed();
             mist2_spi_set_speed(spi_newspeed);
             if(hdd_direct && target == 0) {
               if(user_io_dip_switch1()) 
                 tos_debugf("ACSI: direct read %ld", lba);
-              MMC_ReadMultiple(lba, 0, length);
+              disk_read(fs.pdrv, 0, lba, length);
             } else {
               IDXSeek(&sd_image[target+2], lba);
               FileReadBlockEx(&sd_image[target+2].file, 0, length);
@@ -358,7 +359,7 @@ static void handle_acsi(unsigned char *buffer) {
               if(hdd_direct && target == 0) {
                 if(user_io_dip_switch1())
                   tos_debugf("ACSI: direct read %ld", lba);
-                MMC_Read(lba++, sector_buffer);
+                disk_read(fs.pdrv, sector_buffer, lba++, 1);
               } else {
                 IDXSeek(&sd_image[target+2], lba);
                 FileReadBlock(&sd_image[target+2].file, sector_buffer);
@@ -416,10 +417,7 @@ static void handle_acsi(unsigned char *buffer) {
             if(hdd_direct && target == 0) {
               if(user_io_dip_switch1()) 
                 tos_debugf("ACSI: direct write %ld", lba);
-              if (blocklen == 1)
-                MMC_Write(lba, sector_buffer);
-              else
-                MMC_WriteMultiple(lba, sector_buffer, blocklen);
+              disk_write(fs.pdrv, sector_buffer, lba, blocklen);
             } else {
               IDXSeek(&sd_image[target+2], lba);
               f_write(&sd_image[target+2].file, sector_buffer, blocklen*512, &bw);

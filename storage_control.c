@@ -12,7 +12,7 @@
 #include "storage_control.h"
 #include "fat_compat.h"
 #include "usbdev.h"
-#include "mmc.h"
+#include "FatFs/diskio.h"
 #include "debug.h"
 
 #define SENSEKEY_NO_SENSE        0x0
@@ -137,7 +137,9 @@ static void scsi_inquiry(uint8_t *cmd) {
 
 static void scsi_readcapacity(uint8_t *cmd) {
 	CAPACITYDATA_t cap;
-	cap.LBA = swab32(MMC_GetCapacity()-1);
+	uint32_t capacity;
+	disk_ioctl(fs.pdrv, GET_SECTOR_COUNT, &capacity);
+	cap.LBA = swab32(capacity-1);
 	cap.blocklen = swab32(512);
 	usb_storage_write((const char*) &cap, sizeof(CAPACITYDATA_t));
 }
@@ -164,14 +166,14 @@ static void scsi_mode_sense(uint8_t *cmd) {
 		sector_buffer[0] = 0x00;
 		sector_buffer[1] = datalen-2;
 		sector_buffer[2] = 0;
-		sector_buffer[3] = mmc_write_protected() ? 0x80 : 0x00;
+		sector_buffer[3] = (fat_uses_mmc() && mmc_write_protected()) ? 0x80 : 0x00;
 		sector_buffer[4] = sector_buffer[5] = sector_buffer[6] = sector_buffer[7] = 0;
 	} else {
 		len = cmd[4]; // MODE SENSE6
 		datalen = 4;
 		sector_buffer[0] = datalen-1;
 		sector_buffer[1] = 0;
-		sector_buffer[2] = mmc_write_protected() ? 0x80 : 0x00;
+		sector_buffer[2] = (fat_uses_mmc() && mmc_write_protected()) ? 0x80 : 0x00;
 		sector_buffer[3] = 0;
 	}
 	usb_storage_write(sector_buffer, MIN(len, datalen));
@@ -181,9 +183,11 @@ static void scsi_read_format_capacities(uint8_t *cmd) {
 	uint16_t len = cmd[7]<<8 | cmd[8];
 	FORMATCAPACITYDATA_t dat;
 
+	uint32_t capacity;
+	disk_ioctl(fs.pdrv, GET_SECTOR_COUNT, &capacity);
 	memset(&dat, 0, sizeof(FORMATCAPACITYDATA_t));
 	dat.Length = 8;
-	dat.Blocks = MMC_GetCapacity();
+	dat.Blocks = capacity;
 	dat.Blocklen[1] = 0x02; // 512 bytes
 	usb_storage_write((const char*) &dat, MIN(len, sizeof(FORMATCAPACITYDATA_t)));
 }
@@ -196,10 +200,9 @@ static uint8_t scsi_read(uint8_t *cmd) {
 		uint8_t ret;
 		uint16_t read = MIN(len, SECTOR_BUFFER_SIZE/512);
 		DISKLED_ON
-		if (len == 1) ret=MMC_Read(lba, sector_buffer);
-		else ret=MMC_ReadMultiple(lba, sector_buffer, read);
+		ret = disk_read(fs.pdrv, sector_buffer, lba, read);
 		DISKLED_OFF
-		if (!ret) {
+		if (ret) {
 			iprintf("STORAGE: Error reading from MMC (lba=%d, len=%d)\n", lba, len);
 			return 0;
 		}
@@ -231,10 +234,9 @@ static uint8_t scsi_write(uint8_t *cmd) {
 		}
 		//hexdump(sector_buffer, write*512, 0);
 		DISKLED_ON
-		if (write == 1) ret = MMC_Write(lba, sector_buffer);
-		else ret = MMC_WriteMultiple(lba, sector_buffer, write);
+		ret = disk_write(fs.pdrv, sector_buffer, lba, write);
 		DISKLED_OFF
-		if (!ret) return 0;
+		if (ret) return 0;
 		lba+=write;
 		len-=write;
 	}

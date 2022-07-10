@@ -27,6 +27,7 @@
 #include "settings.h"
 #include "usb/joymapping.h"
 #include "usb/joystick.h"
+#include "FatFs/diskio.h"
 #include "menu.h"
 
 // up to 16 key can be remapped
@@ -530,10 +531,29 @@ void user_io_sd_set_config(void) {
 	unsigned char data[33];
 
 	// get CSD and CID from SD card
-	MMC_GetCID(data);
-	MMC_GetCSD(data+16);
-	// byte 32 is a generic config byte
-	data[32] = MMC_IsSDHC()?1:0;
+	if (fat_uses_mmc()) {
+		MMC_GetCID(data);
+		MMC_GetCSD(data+16);
+		// byte 32 is a generic config byte
+		data[32] = MMC_IsSDHC()?1:0;
+	} else {
+		// synthetic CSD for non-MMC storage
+		uint32_t capacity;
+		disk_ioctl(fs.pdrv, GET_SECTOR_COUNT, &capacity);
+		memset(data, sizeof(data), 0);
+		data[16+0] = 0x40;
+		data[16+1] = 0x0e;
+		data[16+3] = 0x32;
+		data[16+4] = 0x5b;
+		data[16+5] = 0x59;
+		data[16+6] = 0x90;
+		data[16+7] = (capacity >> 26) & 0xff;
+		data[16+8] = (capacity >> 18) & 0xff;
+		data[16+9] = (capacity >> 10) & 0xff;
+		data[16+10] = 0x5f;
+		data[16+11] = 0xc0;
+		data[32] = 1; // SDHC
+	}
 
 	// and forward it to the FPGA
 	spi_uio_cmd_cont(UIO_SET_SDCONF);
@@ -1435,7 +1455,7 @@ void user_io_poll() {
 							IDXWrite(&sd_image[sd_index(drive_index)], wr_buf);
 						}
 					} else if (!drive_index && !umounted)
-						MMC_Write(lba, wr_buf);
+						disk_write(fs.pdrv, wr_buf, lba, 1);
 #else
 					hexdump(wr_buf, 512, 0);
 #endif
@@ -1467,7 +1487,7 @@ void user_io_poll() {
 						// sector read
 						// read sector from sd card if it is not already present in
 						// the buffer
-						MMC_Read(lba, buffer);
+						disk_read(fs.pdrv, buffer, lba, 1);
 					}
 					buffer_lba = lba;
 					DISKLED_OFF;
@@ -1499,7 +1519,7 @@ void user_io_poll() {
 					// sector read
 					// read sector from sd card if it is not already present in
 					// the buffer
-					MMC_Read(lba+1, buffer);
+					disk_read(fs.pdrv, buffer, lba+1, 1);
 					buffer_lba = lba+1;
 				}
 				buffer_drive_index = drive_index;

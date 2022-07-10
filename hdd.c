@@ -26,12 +26,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <string.h>
 
 #include "swab.h"
+#include "utils.h"
 #include "errors.h"
 #include "hardware.h"
 #include "fat_compat.h"
+#include "FatFs/diskio.h"
 #include "hdd.h"
 #include "hdd_internal.h"
-#include "mmc.h"
 #include "menu.h"
 #include "fpga.h"
 #include "debug.h"
@@ -426,7 +427,24 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
         if(blk) // Any blocks left?
         {
           HardFileSeek(&hdf[unit], lba + hdf[unit].offset);
-          FileReadBlockEx(&hdf[unit].idxfile->file, 0, blk); // NULL enables direct transfer to the FPGA
+#ifndef SD_NO_DIRECT_MODE
+          if (fat_uses_mmc()) {
+            FileReadBlockEx(&hdf[unit].idxfile->file, 0, blk); // NULL enables direct transfer to the FPGA
+          } else {
+#endif
+            int blocks = blk;
+            while (blocks) {
+              FileReadBlockEx(&hdf[unit].idxfile->file, sector_buffer, MIN(blocks, SECTOR_BUFFER_SIZE/512));
+              EnableFpga();
+              spi8(CMD_IDE_DATA_WR); // write data command
+              spi_n(0x00, 5);
+              spi_write(sector_buffer, 512*MIN(blocks, SECTOR_BUFFER_SIZE/512));
+              DisableFpga();
+              blocks-=MIN(blocks, SECTOR_BUFFER_SIZE/512);
+            }
+#ifndef SD_NO_DIRECT_MODE
+          }
+#endif
           lba+=blk;
         }
       }
@@ -439,8 +457,26 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
       case HDF_CARDPART1:
       case HDF_CARDPART2:
       case HDF_CARDPART3:
-        MMC_ReadMultiple(lba+hdf[unit].offset,0,block_count);
-        lba+=block_count;
+#ifndef SD_NO_DIRECT_MODE
+        if (fat_uses_mmc()) {
+          disk_read(fs.pdrv, 0, lba+hdf[unit].offset, block_count);
+          lba+=block_count;
+        } else {
+#endif
+          int blocks = block_count;
+          while (blocks) {
+            disk_read(fs.pdrv, sector_buffer, lba+hdf[unit].offset, MIN(blocks, SECTOR_BUFFER_SIZE/512));
+            EnableFpga();
+            spi8(CMD_IDE_DATA_WR); // write data command
+            spi_n(0x00, 5);
+            spi_write(sector_buffer, 512*MIN(blocks, SECTOR_BUFFER_SIZE/512));
+            DisableFpga();
+            blocks-=MIN(blocks, SECTOR_BUFFER_SIZE/512);
+            lba+=MIN(blocks, SECTOR_BUFFER_SIZE/512);
+          }
+#ifndef SD_NO_DIRECT_MODE
+        }
+#endif
         break;
     }
 
@@ -533,10 +569,7 @@ static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, u
         case HDF_CARDPART1:
         case HDF_CARDPART2:
         case HDF_CARDPART3:
-          if (block_size == 1)
-            MMC_Write(lba, sector_buffer);
-          else
-            MMC_WriteMultiple(lba, sector_buffer, block_size);
+          disk_write(fs.pdrv, sector_buffer, lba, block_size);
           lba+=block_size;
           break;
       }
@@ -697,7 +730,7 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
       total = f_size(&pHDF->idxfile->file) / 512;
       break;
     case HDF_CARD:
-      total = MMC_GetCapacity();  // GetCapacity returns number of blocks, not bytes.
+      disk_ioctl(fs.pdrv, GET_SECTOR_COUNT, &total);
       break;
     case HDF_CARDPART0:
     case HDF_CARDPART1:

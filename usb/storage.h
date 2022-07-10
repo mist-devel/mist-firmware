@@ -143,7 +143,5 @@ typedef struct {
 
 // interface to usb core
 extern const usb_device_class_config_t usb_storage_class;
-extern unsigned char usb_storage_read(unsigned long lba, unsigned char *pReadBuffer);
-extern unsigned char usb_storage_write(unsigned long lba, unsigned char *pWriteBuffer);
 
 #endif // STORAGE_H

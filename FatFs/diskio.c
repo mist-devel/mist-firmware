@@ -12,6 +12,7 @@
 #include "diskio.h"		/* Declarations of disk functions */
 #include "hardware.h"
 #include "mmc.h"
+#include "usb/storage_ex.h"
 #include "fat_compat.h"
 
 /* Definitions of physical drive number for each drive */
@@ -21,6 +22,7 @@
 static char enable_cache = 0;
 static LBA_t cache_sector;
 static LBA_t database;
+extern char fat_device;
 
 void disk_cache_set(char enable, LBA_t base) {
 	cache_sector = -1;
@@ -39,7 +41,8 @@ DSTATUS disk_status (
 	DSTATUS stat;
 	int result;
 
-	switch (pdrv) {
+//	switch (pdrv) {
+	switch (fat_device) {
 
 	case DEV_MMC :
 		result = MMC_CheckCard();
@@ -47,14 +50,14 @@ DSTATUS disk_status (
 		// translate the reslut code here
                 stat = result ? 0 : STA_NOINIT;
 		return stat;
-/*
+#ifdef USB_STORAGE
 	case DEV_USB :
-		result = USB_disk_status();
+		//result = USB_disk_status();
 
 		// translate the reslut code here
+		return 0;
+#endif
 
-		return stat;
-*/
 	}
 
 	return STA_NOINIT;
@@ -73,21 +76,22 @@ DSTATUS disk_initialize (
 	DSTATUS stat;
 	int result;
 
-	switch (pdrv) {
+//	switch (pdrv) {
+	switch (fat_device) {
 	case DEV_MMC :
 		//result = MMC_disk_initialize();
 
 		// translate the reslut code here
 		stat = 0;
 		return stat;
-/*
+#ifdef USB_STORAGE
 	case DEV_USB :
-		result = USB_disk_initialize();
+		//result = USB_disk_initialize();
 
 		// translate the reslut code here
 
-		return stat;
-*/
+		return 0;
+#endif
 	}
 
 	return STA_NOINIT;
@@ -115,7 +119,8 @@ DRESULT disk_read (
 		return RES_OK;
 	}
 
-	switch (pdrv) {
+//	switch (pdrv) {
+	switch (fat_device) {
 	case DEV_MMC :
 		if(enable_cache && sector >= database) {
 			result = MMC_ReadMultiple(sector, sector_buffer, SECTOR_BUFFER_SIZE/512);
@@ -130,16 +135,17 @@ DRESULT disk_read (
 		// translate the reslut code here
 		res = result ? RES_OK : RES_ERROR;
 		return res;
-/*
+#ifdef USB_STORAGE
 	case DEV_USB :
 		// translate the arguments here
 
-		result = USB_disk_read(buff, sector, count);
+		result = usb_host_storage_read(sector, buff, count);
 
 		// translate the reslut code here
+		res = result ? RES_OK : RES_ERROR;
 
 		return res;
-*/
+#endif
 	}
 
 	return RES_PARERR;
@@ -165,7 +171,8 @@ DRESULT disk_write (
 
 	//iprintf("disk_write: %d LBA: %d count: %d\n", pdrv, sector, count);
 
-	switch (pdrv) {
+//	switch (pdrv) {
+	switch (fat_device) {
 	case DEV_MMC :
 		// translate the arguments here
 		if (count == 1)
@@ -176,23 +183,23 @@ DRESULT disk_write (
 		// translate the reslut code here
 		res = result ? RES_OK : RES_ERROR;
 		return res;
-/*
+#ifdef USB_STORAGE
 	case DEV_USB :
 		// translate the arguments here
 
-		result = USB_disk_write(buff, sector, count);
+		result = usb_host_storage_write(sector, buff, count);
 
 		// translate the reslut code here
+		res = result ? RES_OK : RES_ERROR;
 
 		return res;
-*/
+#endif
 	}
 
 	return RES_PARERR;
 }
 
-#endif
-
+#endif //FF_FS_READONLY
 
 /*-----------------------------------------------------------------------*/
 /* Miscellaneous Functions                                               */
@@ -207,19 +214,29 @@ DRESULT disk_ioctl (
 	DRESULT res;
 	int result;
 
-	switch (pdrv) {
+//	switch (pdrv) {
+	switch (fat_device) {
 	case DEV_MMC :
-
 		// Process of the command for the MMC/SD card
+		switch(cmd) {
+		case GET_SECTOR_COUNT:
+			*(uint32_t*)buff = MMC_GetCapacity();
+			break;
+		}
 
 		return RES_OK;
-/*
+#ifdef USB_STORAGE
 	case DEV_USB :
 
 		// Process of the command the USB drive
+		switch(cmd) {
+		case GET_SECTOR_COUNT:
+			*(uint32_t*)buff = usb_host_storage_capacity();
+			break;
+		}
 
-		return res;
-*/
+		return RES_OK;
+#endif
 	}
 
 	return RES_PARERR;

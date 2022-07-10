@@ -16,18 +16,25 @@ struct PartitionEntry partitions[4];             // lbastart and sectors will be
 int partitioncount;
 
 FATFS fs;
-
+char fat_device = 0;
 uint32_t      iPreviousDirectory = 0;
 
 #define PATHLEN 255
 static char cwd[PATHLEN];
 
 int8_t fat_uses_mmc(void) {
-	return(1);
+	return(fat_device == 0);
 }
 
 int8_t fat_medium_present() {
-	return MMC_CheckCard();
+	if (fat_device == 0)
+		return MMC_CheckCard();
+	else
+		return 1;
+}
+
+void fat_switch_to_usb() {
+	fat_device = 1;
 }
 
 // Convert XXXXXXXXYYY to XXXXXXXX.YYY
@@ -46,9 +53,9 @@ void fnameconv(char dest[11+2], const char *src) {
 // FindDrive() checks if a card is present and contains FAT formatted primary partition
 unsigned char FindDrive(void) {
 
+	char res;
 	partitioncount=0;
-	if (!MMC_Read(0, sector_buffer)) // read MBR
-		return(0);
+	if (disk_read(0, sector_buffer, 0, 1)) return(0);
 
 	struct MasterBootRecord *mbr=(struct MasterBootRecord *)sector_buffer;
 	memcpy(&partitions[0],&mbr->Partition[0],sizeof(struct PartitionEntry));

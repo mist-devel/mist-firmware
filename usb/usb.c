@@ -189,7 +189,7 @@ uint8_t usb_in_transfer( usb_device_t *dev, ep_t *ep, uint16_t *nbytesptr, uint8
 }
 
 uint8_t usb_OutTransfer(ep_t *pep, uint16_t nak_limit, 
-			uint16_t nbytes, uint8_t *data) {
+			uint16_t nbytes, const uint8_t *data) {
 	//  iprintf("%s(%d)\n", __FUNCTION__, nbytes);
 
 	uint8_t rcode = 0, retry_count;
@@ -267,7 +267,7 @@ uint8_t usb_OutTransfer(ep_t *pep, uint16_t nak_limit,
 /* OUT transfer to arbitrary endpoint. Handles multiple packets if necessary. Transfers 'nbytes' bytes. */
 /* Handles NAK bug per Maxim Application Note 4000 for single buffer transfer   */
 /* rcode 0 if no errors. rcode 01-0f is relayed from HRSL                       */
-uint8_t usb_out_transfer(usb_device_t *dev, ep_t *ep, uint16_t nbytes, uint8_t* data ) {
+uint8_t usb_out_transfer(usb_device_t *dev, ep_t *ep, uint16_t nbytes, const uint8_t* data ) {
 	uint16_t nak_limit = 0;
 
 	uint8_t rcode = usb_set_address(dev, ep, &nak_limit);

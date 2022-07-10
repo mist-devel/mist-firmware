@@ -9,19 +9,11 @@
 #include "usb.h"
 #include "storage.h"
 #include "timer.h"
-#include "mii.h"
 #include "max3421e.h"
-#include "hardware.h"
-#include "tos.h"
-#include "fat.h"
-#include "swap.h"
+#include "utils.h"
+#include "swab.h"
 
 uint8_t storage_devices = 0;
-
-uint32_t swap32(uint32_t x) {
-  return ((x&0x00ff0000)>>8) | ((x&0xff000000)>>24) | 
-    ((x&0x000000ff)<<24) | ((x&0x0000ff00)<<8);
-}
 
 static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len) {
   usb_storage_info_t *info = &(dev->storage_info);
@@ -80,7 +72,7 @@ static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	  info->ep[epidx].epAddr     = (p->ep_desc.bEndpointAddress & 0x0F);
 	  info->ep[epidx].maxPktSize = p->ep_desc.wMaxPacketSize[0];
 	  info->ep[epidx].epAttribs  = 0;
-	  info->ep[epidx].bmNakPower = USB_NAK_NOWAIT;
+	  info->ep[epidx].bmNakPower = USB_NAK_DEFAULT;
 	}
       }
       break;
@@ -156,7 +148,7 @@ static uint8_t handle_usb_error(usb_device_t *dev, uint8_t index) {
     case hrSTALL:
       info->last_error = clear_ep_halt(dev, index);
       break;
-      
+
     default:
       return STORAGE_ERR_GENERAL_USB_ERROR;
     }
@@ -164,62 +156,19 @@ static uint8_t handle_usb_error(usb_device_t *dev, uint8_t index) {
   } // while
 
   if(!count)
-    iprintf("handle_us_error retry timeout\n");
+    iprintf("handle_usb_error retry timeout\n");
 
   return STORAGE_ERR_SUCCESS;
 }
 
-// send with retry and timeout
-static uint8_t storage_out(usb_device_t *dev, ep_t *ep, uint16_t nbytes, uint8_t* data) {
-  uint8_t rcode;
-  uint16_t cnt = 0;
-
-  do {
-    rcode = usb_out_transfer(dev, ep, nbytes, data);
-    if(rcode == hrNAK) timer_delay_msec(1);
-    cnt++;
-  } while(rcode == hrNAK);
-
-  if(rcode == hrSTALL)
-    iprintf("out transfer stalled\n");
-
-  if(cnt > 1)
-    iprintf("ok %d\n", cnt);
-
-  if(rcode) iprintf("out error after %d retries: %d (%d bytes)\n", cnt-1, rcode, nbytes);
-
-  return rcode;
-}
-
-// receive with retry and timeout
-static uint8_t storage_in(usb_device_t *dev, ep_t *ep, uint16_t *nbytes, uint8_t* data) {
-  //  return usb_in_transfer(dev, ep, nbytes, data);
-  uint8_t rcode;
-  uint16_t count;
-  uint16_t cnt = 0;
-
-  do {
-    count = *nbytes;
-    rcode = usb_in_transfer(dev, ep, &count, data);
-    if(rcode == hrNAK) timer_delay_msec(1);
-    cnt++;
-  } while(rcode == hrNAK);
-
-  if(rcode == hrSTALL)
-    iprintf("in transfer stalled\n");
-
-  if(rcode) iprintf("in error after %d retries: %d\n", cnt-1, rcode); 
-
-  *nbytes = count;
-  return rcode;
-}
-
-static uint8_t transaction(usb_device_t *dev, command_block_wrapper_t *cbw, uint16_t size, void *buf) {
+static uint8_t transaction(usb_device_t *dev, command_block_wrapper_t *cbw, uint16_t size, char *readbuf, const char *writebuf) {
   usb_storage_info_t *info = &(dev->storage_info);
   uint16_t read;
   uint8_t ret;
 
-  info->last_error = storage_out(dev, &(info->ep[STORAGE_EP_OUT]), sizeof(command_block_wrapper_t), (uint8_t*)cbw);
+  storage_debugf("%s(%d)", __FUNCTION__, size);
+
+  info->last_error = usb_out_transfer(dev, &(info->ep[STORAGE_EP_OUT]), sizeof(command_block_wrapper_t), (uint8_t*)cbw);
   if(info->last_error)
     iprintf("last_erro = %d\n", info->last_error);
 
@@ -228,51 +177,10 @@ static uint8_t transaction(usb_device_t *dev, command_block_wrapper_t *cbw, uint
     return ret;
   }
 
-  if (size && buf) {
-    if (cbw->bmCBWFlags & STORAGE_CMD_DIR_IN) {
-      read = size;
-      info->last_error = storage_in(dev, &(info->ep[STORAGE_EP_IN]), &read, (uint8_t*)buf);
-
-      if(info->last_error == hrSTALL)
-	info->last_error = clear_ep_halt(dev, STORAGE_EP_IN);
-
-      if(info->last_error) {
-	iprintf("read error: %d\n", info->last_error);
-	//	hexdump(buf, (read>32)?32:read, 0);
-      }
-    } else {
-      storage_debugf("%s(%d)", __FUNCTION__, size);
-      hexdump(cbw, sizeof(*cbw), 0);
-
-      //      iprintf("TX %d (%d)\n", size, info->ep[STORAGE_EP_OUT].maxPktSize);
-
-      while(size) {
-	read = (size > info->ep[STORAGE_EP_OUT].maxPktSize)?info->ep[STORAGE_EP_OUT].maxPktSize:size;
-	info->last_error = storage_out(dev, &(info->ep[STORAGE_EP_OUT]), read, (uint8_t*)buf);
-
-	if(info->last_error == hrSTALL) {
-	  info->last_error = clear_ep_halt(dev, STORAGE_EP_OUT);
-
-	  mass_storage_reset(dev);
-
-	  iprintf("err after stall: %d\n", info->last_error);
-
-	  timer_delay_msec(1000);
-
-	  size = 0;
-
-	} else {
-	  buf += read;
-	  size -= read;
-	}
-      }
-
-      if(info->last_error != 0) {
-	iprintf("write failed: %d\n", info->last_error);
-	//	hexdump(buf, (read>32)?32:read, 0);
-      }
-    }
-  }
+  if (cbw->bmCBWFlags & STORAGE_CMD_DIR_IN)
+    info->last_error = usb_in_transfer(dev, &(info->ep[STORAGE_EP_IN]), &size, readbuf);
+  else
+    info->last_error = usb_out_transfer(dev, &(info->ep[STORAGE_EP_OUT]), size, writebuf);
 
   if(handle_usb_error(dev, (cbw->bmCBWFlags & STORAGE_CMD_DIR_IN) ? STORAGE_EP_IN: STORAGE_EP_OUT)) {
     storage_debugf("response failed");
@@ -281,19 +189,19 @@ static uint8_t transaction(usb_device_t *dev, command_block_wrapper_t *cbw, uint
 
   command_status_wrapper_t csw;
   uint8_t retry = 3;
-  
+
   do {
     read = sizeof(command_status_wrapper_t);
-    info->last_error = storage_in(dev, &(info->ep[STORAGE_EP_IN]), &read, (uint8_t*)&csw);
+    info->last_error = usb_in_transfer(dev, &(info->ep[STORAGE_EP_IN]), &read, (uint8_t*)&csw);
 
     if((ret = handle_usb_error(dev, STORAGE_EP_IN))) {
       storage_debugf("command status read failed");
       return ret;
     }
-    
+
     retry--;
   } while(ret && retry);
-  
+
   //  storage_debugf("status = %d:", csw.bCSWStatus);
   //  hexdump(&csw, sizeof(csw), 0);
 
@@ -305,10 +213,10 @@ static uint8_t transaction(usb_device_t *dev, command_block_wrapper_t *cbw, uint
 static uint8_t scsi_command_in(usb_device_t *dev, uint8_t lun, uint16_t bsize, uint8_t *buf,
 			       uint8_t cmd, uint8_t cblen) {
   uint8_t i;
-  command_block_wrapper_t cbw; 
+  command_block_wrapper_t cbw;
 
   memset(&cbw, 0, sizeof(cbw));
-	
+
   cbw.dCBWSignature		= STORAGE_CBW_SIGNATURE;
   cbw.dCBWTag			= 0xdeadbeef;
   cbw.dCBWDataTransferLength	= bsize;
@@ -319,7 +227,7 @@ static uint8_t scsi_command_in(usb_device_t *dev, uint8_t lun, uint16_t bsize, u
   cbw.CBWCB[0] = cmd;
   cbw.CBWCB[4] = bsize;
 
-  return transaction(dev, &cbw, bsize, buf);
+  return transaction(dev, &cbw, bsize, buf, 0);
 }
 
 static uint8_t inquiry(usb_device_t *dev, uint8_t lun, inquiry_response_t *buf) {
@@ -335,58 +243,60 @@ static uint8_t read_capacity(usb_device_t *dev, uint8_t lun, read_capacity_respo
 }
 
 static uint8_t test_unit_ready(usb_device_t *dev, uint8_t lun) {
-  //  return scsi_command_out(dev, lun, 0, NULL, SCSI_CMD_TEST_UNIT_READY, 6);
+  //return scsi_command_out(dev, lun, 0, NULL, SCSI_CMD_TEST_UNIT_READY, 6);
 }
 
 static uint8_t read(usb_device_t *dev, uint8_t lun, 
-		    uint32_t addr, uint16_t bsize, char *buf) {
+		    uint32_t addr, uint16_t len, char *buf) {
   command_block_wrapper_t cbw; 
   uint8_t i;
-  
+
   bzero(&cbw, sizeof(cbw));
 
   cbw.dCBWSignature             = STORAGE_CBW_SIGNATURE;
   cbw.dCBWTag                   = 0xdeadbeef;
-  cbw.dCBWDataTransferLength    = bsize;
+  cbw.dCBWDataTransferLength    = len*512;
   cbw.bmCBWFlags                = STORAGE_CMD_DIR_IN;
   cbw.bmCBWLUN                  = lun;
   cbw.bmCBWCBLength             = 10;
 
   cbw.CBWCB[0] = SCSI_CMD_READ_10;
-  cbw.CBWCB[8] = 1;
+  cbw.CBWCB[8] = len & 0xff;
+  cbw.CBWCB[7] = (len >> 8) & 0xff;
   cbw.CBWCB[5] = (addr & 0xff);
   cbw.CBWCB[4] = ((addr >> 8) & 0xff);
   cbw.CBWCB[3] = ((addr >> 16) & 0xff);
   cbw.CBWCB[2] = ((addr >> 24) & 0xff);
-  
-  return transaction(dev, &cbw, bsize, buf);
+
+  return transaction(dev, &cbw, len*512, buf, 0);
 }
 
 static uint8_t write(usb_device_t *dev, uint8_t lun, 
-		    uint32_t addr, uint16_t bsize, char *buf) {
+		    uint32_t addr, uint16_t len, const char *buf) {
   command_block_wrapper_t cbw; 
   uint8_t i;
-  
+
   bzero(&cbw, sizeof(cbw));
 
   cbw.dCBWSignature             = STORAGE_CBW_SIGNATURE;
   cbw.dCBWTag                   = 0xdeadbeef;
-  cbw.dCBWDataTransferLength    = bsize;
+  cbw.dCBWDataTransferLength    = len*512;
   cbw.bmCBWFlags                = STORAGE_CMD_DIR_OUT;
   cbw.bmCBWLUN                  = lun;
   cbw.bmCBWCBLength             = 10;
 
   cbw.CBWCB[0] = SCSI_CMD_WRITE_10;
-  cbw.CBWCB[8] = 1;
+  cbw.CBWCB[8] = len & 0xff;
+  cbw.CBWCB[7] = (len >> 8) & 0xff;
   cbw.CBWCB[5] = (addr & 0xff);
   cbw.CBWCB[4] = ((addr >> 8) & 0xff);
   cbw.CBWCB[3] = ((addr >> 16) & 0xff);
   cbw.CBWCB[2] = ((addr >> 24) & 0xff);
-  
-  return transaction(dev, &cbw, bsize, buf);
+
+  return transaction(dev, &cbw, len*512, 0, buf);
 }
 
-static uint8_t usb_storage_init(usb_device_t *dev) {
+static uint8_t usb_storage_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc) {
   usb_storage_info_t *info = &(dev->storage_info);
   uint8_t i, rcode = 0;
 
@@ -398,27 +308,19 @@ static uint8_t usb_storage_init(usb_device_t *dev) {
   storage_debugf("%s(%d)", __FUNCTION__, dev->bAddress);
 
   union {
-    usb_device_descriptor_t dev_desc;
     usb_configuration_descriptor_t conf_desc;
     inquiry_response_t inquiry_rsp;
     read_capacity_response_t read_cap_rsp;
     uint8_t data[12];
   } buf;
 
-  // read full device descriptor 
-  rcode = usb_get_dev_descr( dev, sizeof(usb_device_descriptor_t), &buf.dev_desc );
-  if( rcode ) {
-    storage_debugf("failed to get device descriptor");
-    return rcode;
-  }
-
-  if((buf.dev_desc.bDeviceClass != USB_CLASS_USE_CLASS_INFO) && 
-     (buf.dev_desc.bDeviceClass != USB_CLASS_MASS_STORAGE)) {
-    storage_debugf("Unsupported device class %x", buf.dev_desc.bDeviceClass);
+  if((dev_desc->bDeviceClass != USB_CLASS_USE_CLASS_INFO) && 
+     (dev_desc->bDeviceClass != USB_CLASS_MASS_STORAGE)) {
+    storage_debugf("Unsupported device class %x", dev_desc->bDeviceClass);
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
   }
 
-  uint8_t num_of_conf = buf.dev_desc.bNumConfigurations;
+  uint8_t num_of_conf = dev_desc->bNumConfigurations;
   storage_debugf("number of configurations: %d", num_of_conf);
 
   // scan all configurations for a usable one
@@ -470,11 +372,11 @@ static uint8_t usb_storage_init(usb_device_t *dev) {
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
   }
 
-  info->capacity = swap32(buf.read_cap_rsp.dwBlockAddress);
+  info->capacity = swab32(buf.read_cap_rsp.dwBlockAddress);
   iprintf("STORAGE: Capacity:     %ld blocks\n", info->capacity);
-  iprintf("STORAGE: Block length: %ld bytes\n", swap32(buf.read_cap_rsp.dwBlockLength));
+  iprintf("STORAGE: Block length: %ld bytes\n", swab32(buf.read_cap_rsp.dwBlockLength));
 
-  if(swap32(buf.read_cap_rsp.dwBlockLength) != 512) {
+  if(swab32(buf.read_cap_rsp.dwBlockLength) != 512) {
     storage_debugf("Sector size != 512");
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
   }
@@ -508,13 +410,13 @@ static uint8_t usb_storage_poll(usb_device_t *dev) {
     if(info->state == 1) {
       char b[512];
       iprintf("r 5831435\n");
-      usb_storage_read(5831435, b);
+      usb_host_storage_read(5831435, b);
       iprintf("w 5831435\n");
-      usb_storage_write(5831435, b);
+      usb_host_storage_write(5831435, b);
       iprintf("w 5831435\n");
-      usb_storage_write(5831435, b);
+      usb_host_storage_write(5831435, b);
       iprintf("w 5831435\n");
-      usb_storage_write(5831435, b);
+      usb_host_storage_write(5831435, b);
 
       //      fat_switch_to_usb();  // redirect file io to usb
       info->state = 2;
@@ -525,7 +427,7 @@ static uint8_t usb_storage_poll(usb_device_t *dev) {
   return rcode;
 }
 
-unsigned char usb_storage_read(unsigned long lba, unsigned char *pReadBuffer) {
+unsigned char usb_host_storage_read(unsigned long lba, unsigned char *pReadBuffer, uint16_t len) {
   uint8_t i, rcode = 0;
   usb_device_t *devs = usb_get_devices(), *dev = NULL;
 
@@ -541,9 +443,9 @@ unsigned char usb_storage_read(unsigned long lba, unsigned char *pReadBuffer) {
     return 0;
   }
 
-  //   iprintf("USB Read %d\n", lba);
+  // iprintf("USB Read %d %d\n", lba, len);
 
-  rcode = read(dev, 0, lba, 512, pReadBuffer);
+  rcode = read(dev, 0, lba, len, pReadBuffer);
   if(rcode) {
     storage_debugf("Read sector %d failed", lba);
     return 0;
@@ -551,7 +453,7 @@ unsigned char usb_storage_read(unsigned long lba, unsigned char *pReadBuffer) {
   return 1;
 }
 
-unsigned char usb_storage_write(unsigned long lba, unsigned char *pWriteBuffer) {
+unsigned char usb_host_storage_write(unsigned long lba, const unsigned char *pWriteBuffer, uint16_t len) {
   uint8_t i, rcode = 0;
   usb_device_t *devs = usb_get_devices(), *dev = NULL;
 
@@ -567,14 +469,28 @@ unsigned char usb_storage_write(unsigned long lba, unsigned char *pWriteBuffer) 
     return 0;
   }
 
-  //  iprintf("USB Write %d\n", lba);
-  rcode = write(dev, 0, lba, 512, pWriteBuffer);
+  // iprintf("USB Write %d %d\n", lba, len);
+  rcode = write(dev, 0, lba, len, pWriteBuffer);
   if(rcode) {
     storage_debugf("Write sector %d failed", lba);
     return 0;
   }
   
   return 1;
+}
+
+unsigned int usb_host_storage_capacity() {
+  uint8_t i, rcode = 0;
+  usb_device_t *devs = usb_get_devices(), *dev = NULL;
+
+  // find first storage device
+  for (i=0; i<USB_NUMDEVICES; i++) 
+    if(devs[i].bAddress && (devs[i].class == &usb_storage_class))
+      dev = devs+i;
+
+  if(!dev) return 0;
+
+  return (dev->storage_info.capacity);
 }
 
 const usb_device_class_config_t usb_storage_class = {
