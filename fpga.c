@@ -239,10 +239,10 @@ static inline void ShiftFpga(unsigned char data)
     for ( i = 0; i < 8; i++ )
     {
         /* Dump to DATA0 and insert a positive edge pulse at the same time */
-        FPGA_DATA0_CODR = ALTERA_DATA0;
-        FPGA_CODR = ALTERA_DCLK;
-        if(data & 1) FPGA_DATA0_SODR = ALTERA_DATA0;
-        FPGA_SODR = ALTERA_DCLK;
+        ALTERA_DATA0_RESET;
+        ALTERA_DCLK_RESET;
+        if(data & 1) ALTERA_DATA0_SET;
+        ALTERA_DCLK_SET;
         data >>= 1;
     }
 }
@@ -256,8 +256,9 @@ unsigned char ConfigureFpga(const char *name)
     UINT br;
 
     // set outputs
-    FPGA_SODR = ALTERA_DCLK | ALTERA_NCONFIG;
-    FPGA_DATA0_SODR = ALTERA_DATA0;
+    ALTERA_DCLK_SET;
+    ALTERA_NCONFIG_SET;
+    ALTERA_DATA0_SET;
 
     if(!name)
       name = "CORE.RBF";
@@ -277,14 +278,14 @@ unsigned char ConfigureFpga(const char *name)
 
     /* Drive a transition of 0 to 1 to NCONFIG to indicate start of configuration */
     for(i=0;i<10;i++)
-      FPGA_CODR = ALTERA_NCONFIG;  // must be low for at least 500ns
+      ALTERA_NCONFIG_RESET;  // must be low for at least 500ns
 
-    FPGA_SODR = ALTERA_NCONFIG;
+    ALTERA_NCONFIG_SET;
 
     // now wait for NSTATUS to go high
     // specs: max 800us
     i = 1000000;
-    while (!(FPGA_PDSR & ALTERA_NSTATUS))
+    while (!ALTERA_NSTATUS_STATE)
     {
         if (--i == 0)
         {
@@ -330,7 +331,7 @@ unsigned char ConfigureFpga(const char *name)
 
         /* Check for error through NSTATUS for every 10KB programmed and the last byte */
         if ( !(i % 10240) || (i == f_size(&file) - 1) ) {
-            if ( !FPGA_PDSR & ALTERA_NSTATUS ) {
+            if ( !ALTERA_NSTATUS_STATE ) {
                 iprintf("FPGA NSTATUS is NOT high!\r");
                 f_close(&file);
                 FatalError(5);
@@ -345,7 +346,7 @@ unsigned char ConfigureFpga(const char *name)
     DISKLED_OFF;
 
     // check if DONE is high
-    if (!(FPGA_DONE_PDSR & ALTERA_DONE)) {
+    if (!ALTERA_DONE_STATE) {
       iprintf("FPGA Configuration done but contains error... CONF_DONE is LOW\r");
       FatalError(5);
     }
@@ -363,17 +364,16 @@ unsigned char ConfigureFpga(const char *name)
     
     for ( i = 0; i < 50; i++ )
     {
-        FPGA_CODR = ALTERA_DCLK;
-        FPGA_SODR = ALTERA_DCLK;
+        ALTERA_DCLK_RESET;
+        ALTERA_DCLK_SET;
     }
 
     /* Initialization end */
 
-    if ( !(FPGA_PDSR & ALTERA_NSTATUS) || 
-         !(FPGA_DONE_PDSR & ALTERA_DONE)) {
+    if ( !ALTERA_NSTATUS_STATE || !ALTERA_DONE_STATE ) {
 
       iprintf("FPGA Initialization finish but contains error: NSTATUS is %s and CONF_DONE is %s.\r", 
-             ((FPGA_PDSR & ALTERA_NSTATUS)?"HIGH":"LOW"), ((FPGA_DONE_PDSR & ALTERA_DONE)?"HIGH":"LOW") );
+             ALTERA_NSTATUS_STATE?"HIGH":"LOW", ALTERA_DONE_STATE?"HIGH":"LOW" );
       FatalError(5);
     }
 
