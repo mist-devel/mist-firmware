@@ -305,6 +305,7 @@ static uint8_t asix_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len) {
 	
 	// Fill in the endpoint info structure
 	info->ep[epidx].epAddr	 = (p->ep_desc.bEndpointAddress & 0x0F);
+	info->ep[epidx].epType = p->ep_desc.bmAttributes & EP_TYPE_MSK;
 	info->ep[epidx].maxPktSize = p->ep_desc.wMaxPacketSize[0];
 	info->ep[epidx].epAttribs	 = 0;
 	info->ep[epidx].bmNakPower = USB_NAK_NOWAIT;
@@ -340,6 +341,7 @@ static uint8_t usb_asix_init(usb_device_t *dev, usb_device_descriptor_t *dev_des
 
   for(i=0;i<3;i++) {
     info->ep[i].epAddr	   = 1;
+    info->ep[i].epType	   = 0;
     info->ep[i].maxPktSize = 8;
     info->ep[i].epAttribs  = 0;
     info->ep[i].bmNakPower = USB_NAK_NOWAIT;

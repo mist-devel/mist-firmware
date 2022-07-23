@@ -203,6 +203,7 @@ static uint8_t pl2303_parse_conf0(usb_device_t *dev, uint16_t len) {
 	
 	// Fill in the endpoint info structure
 	info->ep[epidx].epAddr	   = (p->ep_desc.bEndpointAddress & 0x0F);
+	info->ep[epidx].epType     = (p->ep_desc.bmAttributes & EP_TYPE_MSK);
 	info->ep[epidx].maxPktSize = p->ep_desc.wMaxPacketSize[0];
 	info->ep[epidx].epAttribs  = 0;
 	info->ep[epidx].bmNakPower = USB_NAK_NOWAIT;

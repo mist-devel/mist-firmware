@@ -70,6 +70,7 @@ static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	if(epidx != -1) {
 	  // Fill in the endpoint info structure
 	  info->ep[epidx].epAddr     = (p->ep_desc.bEndpointAddress & 0x0F);
+	  info->ep[epidx].epType     = (p->ep_desc.bmAttributes & EP_TYPE_MSK);
 	  info->ep[epidx].maxPktSize = p->ep_desc.wMaxPacketSize[0];
 	  info->ep[epidx].epAttribs  = 0;
 	  info->ep[epidx].bmNakPower = USB_NAK_DEFAULT;
@@ -82,6 +83,7 @@ static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
     }
 
     // advance to next descriptor
+    if (!p->conf_desc.bLength || p->conf_desc.bLength > len) break;
     len -= p->conf_desc.bLength;
     p = (union buf_u*)(p->raw + p->conf_desc.bLength);
   }

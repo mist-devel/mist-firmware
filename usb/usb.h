@@ -12,9 +12,16 @@
 #define USB_NAK_NOWAIT	  1	//Single NAK stops transfer
 #define USB_NAK_NONAK	  0	//Do not count NAKs, stop retrying after USB Timeout
 
+#define EP_TYPE_CTRL                           0U
+#define EP_TYPE_ISOC                           1U
+#define EP_TYPE_BULK                           2U
+#define EP_TYPE_INTR                           3U
+#define EP_TYPE_MSK                            3U
+
 typedef struct {
   uint8_t epAddr;	// Endpoint address 
   uint8_t maxPktSize;	// Maximum packet size
+  uint8_t epType;
   
   union {
     uint8_t epAttribs;

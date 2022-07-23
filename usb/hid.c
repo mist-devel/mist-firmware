@@ -240,6 +240,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 						uint8_t epidx = info->bNumIfaces;
 						info->iface[epidx].interval = p->ep_desc.bInterval;
 						info->iface[epidx].ep.epAddr     = (p->ep_desc.bEndpointAddress & 0x0F);
+						info->iface[epidx].ep.epType     = (p->ep_desc.bmAttributes & EP_TYPE_MSK);
 						info->iface[epidx].ep.maxPktSize = p->ep_desc.wMaxPacketSize[0];
 						info->iface[epidx].ep.epAttribs  = 0;
 						info->iface[epidx].ep.bmNakPower = USB_NAK_NOWAIT;
@@ -268,6 +269,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 			}
 
 		// advance to next descriptor
+		if (!p->conf_desc.bLength || p->conf_desc.bLength > len) break;
 		len -= p->conf_desc.bLength;
 		p = (union buf_u*)(p->raw + p->conf_desc.bLength);
 	}
@@ -298,6 +300,7 @@ static uint8_t usb_hid_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
 	for(i=0;i<MAX_IFACES;i++) {
 		info->iface[i].qNextPollTime = 0;
 		info->iface[i].ep.epAddr     = i;
+		info->iface[i].ep.epType     = 0;
 		info->iface[i].ep.maxPktSize = 8;
 		info->iface[i].ep.epAttribs  = 0;
 		info->iface[i].ep.bmNakPower = USB_NAK_MAX_POWER;

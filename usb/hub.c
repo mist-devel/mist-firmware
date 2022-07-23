@@ -52,6 +52,7 @@ static uint8_t usb_hub_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
 
   info->ep.epAddr	= 1;
   info->ep.maxPktSize	= 8;  //kludge
+  info->ep.epType       = EP_TYPE_INTR;
   info->ep.epAttribs     = 0;
   info->ep.bmNakPower	= USB_NAK_NOWAIT;
 
