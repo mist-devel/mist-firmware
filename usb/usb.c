@@ -2,6 +2,7 @@
 
 #include "timer.h"
 #include "usb.h"
+#include "debug.h"
 
 static usb_device_t dev[USB_NUMDEVICES];
 
@@ -69,7 +70,8 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 
 		if(rcode = usb_get_dev_descr( d, 8, &dev_desc ))
 			return rcode;
-
+		d->ep0.maxPktSize = dev_desc.bMaxPacketSize0;
+		usb_debugf("EP0 max packet size: %d", d->ep0.maxPktSize);
 		// Assign new address to the device
 		// (address is simply the number of the free slot + 1)
 		iprintf("Setting addr %x\n", i+1);
