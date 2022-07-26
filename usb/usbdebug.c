@@ -20,6 +20,18 @@ void usb_dump_device_descriptor(usb_device_descriptor_t *desc) {
 	usb_debugf("  bNumConfigurations:   %d", desc->bNumConfigurations);
 }
 
+void usb_dump_device_qualifier_descriptor(usb_device_qualifier_descriptor_t *desc) {
+	usb_debugf("USB device qualifier descriptor:");
+	usb_debugf("  bLength:              %d", desc->bLength);
+	usb_debugf("  bDescriptorType:      %d", desc->bDescriptorType);
+	usb_debugf("  bcdUSB:               %x", desc->bcdUSB);
+	usb_debugf("  bDeviceClass:         %x", desc->bDeviceClass);
+	usb_debugf("  bDeviceSubClass:      %x", desc->bDeviceSubClass);
+	usb_debugf("  bDeviceProtocol:      %x", desc->bDeviceProtocol);
+	usb_debugf("  bMaxPacketSize0:      %d", desc->bMaxPacketSize0);
+	usb_debugf("  bNumConfigurations:   %d", desc->bNumConfigurations);
+}
+
 void usb_dump_conf_descriptor(usb_configuration_descriptor_t *desc) {
 	usb_debugf("USB configuration descriptor:");
 	usb_debugf("  bLength:              %d", desc->bLength);
