@@ -32,6 +32,58 @@ static uint8_t usb_hub_get_port_status(usb_device_t *dev, uint8_t port, uint16_t
        USB_REQUEST_GET_STATUS, 0, 0, port, nbytes, dataptr));
 }
 
+static uint8_t usb_hub_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len, ep_t *pep) {
+  usb_storage_info_t *info = &(dev->storage_info);
+  uint8_t rcode;
+  bool is_good_interface = false;
+
+  union buf_u {
+    usb_configuration_descriptor_t conf_desc;
+    usb_interface_descriptor_t iface_desc;
+    usb_endpoint_descriptor_t ep_desc;
+    uint8_t raw[len];
+  } buf, *p;
+
+  if(rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc))
+    return rcode;
+
+  /* scan through all descriptors */
+  p = &buf;
+  while(len > 0) {
+    switch(p->conf_desc.bDescriptorType) {
+
+    case USB_DESCRIPTOR_CONFIGURATION:
+      break;
+
+    case USB_DESCRIPTOR_INTERFACE:
+      usb_dump_interface_descriptor(&p->iface_desc);
+      break;
+
+    case USB_DESCRIPTOR_ENDPOINT:
+      usb_dump_endpoint_descriptor(&p->ep_desc);
+      pep->epAddr     = p->ep_desc.bEndpointAddress & 0x7f;
+      pep->maxPktSize = p->ep_desc.wMaxPacketSize[0];
+      if (pep->maxPktSize != 0) return 0;
+      break;
+
+    default:
+      iprintf("unsupported descriptor type %d size %d", p->raw[1], p->raw[0]);
+    }
+
+    // advance to next descriptor
+    if (!p->conf_desc.bLength || p->conf_desc.bLength > len) break;
+    len -= p->conf_desc.bLength;
+    p = (union buf_u*)(p->raw + p->conf_desc.bLength);
+  }
+
+  if(len != 0) {
+    iprintf("Config underrun: %d", len);
+    return USB_ERROR_CONFIGURAION_SIZE_MISMATCH;
+  }
+
+  return USB_ERROR_INVALID_MAX_PKT_SIZE;
+}
+
 static uint8_t usb_hub_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc) {
   iprintf("%s()\n", __FUNCTION__);
 
@@ -80,6 +132,7 @@ static uint8_t usb_hub_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
     puts("failed to read configuration descriptor");
     return rcode;
   }
+  usb_dump_conf_descriptor(&buf.conf_desc);
 
   // Set Configuration Value
   rcode = usb_set_conf(dev, buf.conf_desc.bConfigurationValue);
@@ -87,7 +140,13 @@ static uint8_t usb_hub_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
     iprintf("failed to set configuration to %d\n", buf.conf_desc.bConfigurationValue);
     return rcode;
   }
-    
+
+  rcode = usb_hub_parse_conf(dev, 0, buf.conf_desc.wTotalLength, &info->ep);
+  if (rcode) {
+    iprintf("failed to get endpoint data (%d)\n", rcode);
+    return rcode;
+  }
+
   // Power on all ports
   for (i=1; i<=info->bNbrPorts; i++)
     usb_hub_set_port_feature(dev, HUB_FEATURE_PORT_POWER, i, 0);	// HubPortPowerOn(i);
@@ -134,6 +193,7 @@ static void usb_hub_show_port_status(uint8_t port, uint16_t status, uint16_t cha
 
 static uint8_t usb_hub_port_status_change(usb_device_t *dev, uint8_t port, hub_event_t evt) {
   usb_hub_info_t *info = &(dev->hub_info);
+  uint8_t rcode;
 
   iprintf("status change on port %d, 0x%x\n", port, evt.bmEvent);
   usb_hub_show_port_status(port, evt.bmStatus, evt.bmChange);
@@ -178,9 +238,10 @@ static uint8_t usb_hub_port_status_change(usb_device_t *dev, uint8_t port, hub_e
     iprintf(" port %d reset complete!\n", port);
     usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_RESET, port, 0);
     usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_CONNECTION, port, 0);
-    
-    usb_configure(dev->bAddress, port, 
-	  (evt.bmStatus & USB_HUB_PORT_STATUS_PORT_LOW_SPEED)!=0 );
+
+    rcode = usb_configure(dev->bAddress, port,
+        (evt.bmStatus & USB_HUB_PORT_STATUS_PORT_LOW_SPEED)!=0 );
+    if (rcode) iprintf("USB configure error: %d\n", rcode);
 
     bResetInitiated = false;
     break;
