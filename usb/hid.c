@@ -820,6 +820,7 @@ static void usb_process_iface (usb_device_t *dev,
 				if(a[2] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_UP;
 				if(a[2] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_DOWN;
 				StateJoySetRight( jmap, idx);
+				StateJoySetAnalogue( a[0], a[1], a[3], a[2], idx );
 				// add it to vjoy (no remapping)
 				vjoy |= jmap<<16;
 

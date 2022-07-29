@@ -6,14 +6,17 @@
 void StateReset();
 
 //// type definitions ////
+
 typedef struct {
 	uint16_t vid;							// USB vendor ID
 	uint16_t pid;							// USB product ID
 	uint8_t  num_buttons; 		// number of physical buttons reported by HID parsing
 	uint8_t  state;   				// virtual joystick: current state of 4 direction + 4 first buttons
 	uint8_t  state_extra;  		 // current state of 8 more buttons
+	uint8_t  right;			 // right stick state
 	uint8_t  usb_state;				// raw USB state of direction and buttons
 	uint8_t  usb_state_extra; // raw USB state of 8 more buttons
+	uint8_t  analogue[4];
 	
 } mist_joystick_t;
 
@@ -43,6 +46,8 @@ uint8_t StateJoyGet(uint8_t joy_num);
 uint8_t StateJoyGetExtra(uint8_t joy_num);
 uint8_t StateJoyGetRight(uint8_t joy_num);
 
+void StateJoySetAnalogue(uint8_t lx, uint8_t ly, uint8_t rx, uint8_t ry, uint8_t joy_num);
+uint8_t StateJoyGetAnalogue(uint8_t idx, uint8_t joy_num);
 // Keep track of connected sticks
 uint8_t StateNumJoysticks();
 void StateNumJoysticksSet(uint8_t num);
