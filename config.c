@@ -45,7 +45,7 @@ static const ini_var_t config_ini_vars[] = {
   {"AR3_DISABLE",      (void*)&tmpconf.disable_ar3, UINT8, 0, 1, 1},
   {"IDE0_ENABLE",      (void*)&tmpconf.enable_ide[0], UINT8, 0, 1, 1},
   {"IDE1_ENABLE",      (void*)&tmpconf.enable_ide[1], UINT8, 0, 1, 1},
-  {"SCANLINES",        (void*)&tmpconf.scanlines, UINT8, 0, 2, 1},
+  {"SCANLINES",        (void*)&tmpconf.scanlines, UINT8, 0, 15, 1},
   {"HDD0_ENABLE",      (void*)&tmpconf.hardfile[0].enabled, UINT8, 0, 255, 1},
   {"HDD0",             (void*)tmpconf.hardfile[0].name, STRING, 1, 63, 1},
   {"HDD1_ENABLE",      (void*)&tmpconf.hardfile[1].enabled, UINT8, 0, 255, 1},
