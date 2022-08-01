@@ -238,7 +238,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 
 						// Fill in the endpoint info structure
 						uint8_t epidx = info->bNumIfaces;
-						info->iface[epidx].interval = p->ep_desc.bInterval;
+						info->iface[epidx].interval      = p->ep_desc.bInterval;
 						info->iface[epidx].ep.epAddr     = (p->ep_desc.bEndpointAddress & 0x0F);
 						info->iface[epidx].ep.epType     = (p->ep_desc.bmAttributes & EP_TYPE_MSK);
 						info->iface[epidx].ep.maxPktSize = p->ep_desc.wMaxPacketSize[0];
@@ -711,7 +711,6 @@ static void usb_process_iface (usb_device_t *dev,
 							}
 						}
 						int hrange = (max - min);
-						int dead = hrange/63;
 
 						// scale to 0-255
 						if (a[i] <= min) a[i] = min;
@@ -721,7 +720,8 @@ static void usb_process_iface (usb_device_t *dev,
 						else
 							a[i] = ((a[i]-min) * 255) / hrange;
 
-						if (a[i] > (127-dead) && a[i] < (127+dead)) a[i] = 127;
+						// apply dead range
+						if (a[i] > (127-mist_cfg.joystick_dead_range) && a[i] < (127+mist_cfg.joystick_dead_range)) a[i] = 127;
 					}
 				}
 

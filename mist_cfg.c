@@ -37,6 +37,7 @@ void mist_ini_parse()
   memset(&mist_cfg, 0, sizeof(mist_cfg));
   mist_cfg.mouse_speed = 100;
   mist_cfg.joystick_analog_mult = 128;
+  mist_cfg.joystick_dead_range = 4;
   minimig_cfg.kick1x_memory_detection_patch = 1;
   ini_parse(&mist_ini_cfg, user_io_get_core_name(), 0);
   data_io_rom_upload(NULL, 2);   // upload done
@@ -60,6 +61,7 @@ mist_cfg_t mist_cfg = {
   .joystick_analog_mult = 128,
   .joystick_analog_offset = 0,
   .joystick_autofire_combo = 0,
+  .joystick_dead_range = 4,
   .key_menu_as_rgui = 0,
   .keyrah_mode = 0,
   .reset_combo = 0,
@@ -107,6 +109,7 @@ const ini_var_t mist_ini_vars[] = {
   {"JOYSTICK_ANALOG_MULTIPLIER", (void*)(&(mist_cfg.joystick_analog_mult)), UINT8, 1, 128, 1},
   {"JOYSTICK_ANALOG_OFFSET", (void*)(&(mist_cfg.joystick_analog_offset)), INT8, -127, 127, 1},
   {"JOYSTICK_AUTOFIRE_COMBO", (void*)(&(mist_cfg.joystick_autofire_combo)), INT8, 0, 2, 1},
+  {"JOYSTICK_DEAD_RANGE", (void*)(&(mist_cfg.joystick_dead_range)), UINT8, 0, 255, 1},
   {"KEY_MENU_AS_RGUI", (void*)(&(mist_cfg.key_menu_as_rgui)), UINT8, 0, 1, 1},
   {"SDRAM64", (void*)(&(mist_cfg.sdram64)), UINT8, 0, 1, 1},
 #ifndef INI_PARSER_TEST
