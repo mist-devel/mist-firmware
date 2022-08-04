@@ -99,7 +99,7 @@ static uint8_t usb_hub_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
 
   // reset status
   info->bNbrPorts = 0; 
-  info->qNextPollTime = 0;
+  info->qLastPollTime = 0;
   info->bPollEnable = false;
 
   info->ep.epAddr	= 1;
@@ -315,9 +315,9 @@ static uint8_t usb_hub_poll(usb_device_t *dev) {
   if (!info->bPollEnable)
     return 0;
   
-  if (info->qNextPollTime <= timer_get_msec()) {
+  if (timer_check(info->qLastPollTime, 100)) { // poll 10 times a second
     rcode = usb_hub_check_hub_status(dev, info->bNbrPorts);
-    info->qNextPollTime = timer_get_msec() + 100;   // poll 10 times a second
+    info->qLastPollTime = timer_get_msec();
   }
 
   return rcode;

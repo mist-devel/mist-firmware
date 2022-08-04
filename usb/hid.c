@@ -298,7 +298,7 @@ static uint8_t usb_hid_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
 	info->bNumIfaces = 0;
 
 	for(i=0;i<MAX_IFACES;i++) {
-		info->iface[i].qNextPollTime = 0;
+		info->iface[i].qLastPollTime = 0;
 		info->iface[i].ep.epAddr     = i;
 		info->iface[i].ep.epType     = 0;
 		info->iface[i].ep.maxPktSize = 8;
@@ -873,7 +873,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 		usb_hid_iface_info_t *iface = info->iface+i;
 		if(iface->device_type != HID_DEVICE_UNKNOWN) {
 
-			if (iface->qNextPollTime <= timer_get_msec()) {
+			if (timer_check(iface->qLastPollTime, iface->interval)) { // poll at requested rate
 			//      hid_debugf("poll %d...", iface->ep.epAddr);
 				uint16_t read = iface->ep.maxPktSize;
 				uint8_t buf[iface->ep.maxPktSize];
@@ -886,7 +886,7 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 				} else {
 					usb_process_iface (dev, iface, read, buf);
 				}
-				iface->qNextPollTime = timer_get_msec() + iface->interval;   // poll at requested rate
+				iface->qLastPollTime = timer_get_msec();
 			}
 		} // end if known device
 	} // end for loop (bNumIfaces)

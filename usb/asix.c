@@ -335,7 +335,7 @@ static uint8_t usb_asix_init(usb_device_t *dev, usb_device_descriptor_t *dev_des
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
 
   // reset status
-  info->qNextIrqPollTime = info->qNextBulkPollTime = info->qNextMACSendTime = 0;
+  info->qLastIrqPollTime = info->qLastBulkPollTime = info->qLastMACSendTime = 0;
   info->bPollEnable = false;
   info->linkDetected = false;
 
@@ -527,18 +527,18 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
     return 0;
 
   // poll for MAC address and send it to the FPGA in every 2 secs
-  if (info->qNextMACSendTime <= timer_get_msec()) {
+  if (timer_check(info->qLastMACSendTime, 2000)) {
     if ((rcode = asix_read_cmd(dev, AX_CMD_READ_NODE_ID,
        0, 0, ETH_ALEN, info->mac)) != 0) {
       return rcode;
     }
 
     user_io_eth_send_mac(info->mac);
-    info->qNextMACSendTime = timer_get_msec() + 2000;
+    info->qLastMACSendTime = timer_get_msec();
   }
 
   // poll interrupt endpoint
-  if (info->qNextIrqPollTime <= timer_get_msec()) {
+  if (timer_check(info->qLastIrqPollTime, info->int_poll_ms)) {
     uint16_t read = info->ep[info->ep_int_idx].maxPktSize;
     uint8_t buf[info->ep[info->ep_int_idx].maxPktSize];
     uint8_t rcode = usb_in_transfer(dev, &(info->ep[info->ep_int_idx]), &read, buf);
@@ -562,11 +562,11 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
 	info->linkDetected = link_detected;
       }
     }
-    info->qNextIrqPollTime = timer_get_msec() + info->int_poll_ms;
+    info->qLastIrqPollTime = timer_get_msec();
   }
 
-  // Do RX/TX handling at 100Hz
-  if (info->qNextBulkPollTime <= timer_get_msec()) {
+  // bulk ep polling at fixed 500Hz
+  if (timer_check(info->qLastBulkPollTime, 2)) {
     uint8_t rcode;
     static uint32_t old_status = 0;
     uint32_t status = user_io_eth_get_status();
@@ -700,8 +700,7 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
       }
     }    
 
-    // bulk ep polling at fixed 500Hz
-    info->qNextBulkPollTime = timer_get_msec() + 2;
+    info->qLastBulkPollTime = timer_get_msec();
   }
 
   return rcode;

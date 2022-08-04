@@ -57,18 +57,18 @@ static uint8_t usb_set_address(usb_device_t *dev, ep_t *ep,
 static uint8_t usb_dispatchPkt( uint8_t token, uint8_t ep, uint16_t nak_limit ) {
 	//  iprintf("  %s(token=%x, ep=%d, nak_limit=%d)\n", 
 	//	  __FUNCTION__, token, ep, nak_limit);
-	unsigned long timeout = timer_get_msec() + USB_XFER_TIMEOUT;
+	unsigned long timeout = timer_get_msec();
 	uint8_t tmpdata;   
 	uint8_t rcode = 0x00;
 	uint8_t retry_count = 0;
 	uint16_t nak_count = 0;
 
-	while( timeout > timer_get_msec() )  {
+	while( !timer_check(timeout, USB_XFER_TIMEOUT) )  {
 		max3421e_write_u08( MAX3421E_HXFR, ( token|ep )); //launch the transfer
 		rcode = USB_ERROR_TRANSFER_TIMEOUT;
 
 		// wait for transfer completion
-		while( timer_get_msec() < timeout ) {
+		while( !timer_check(timeout, USB_XFER_TIMEOUT) ) {
 			tmpdata = max3421e_read_u08( MAX3421E_HIRQ );
 
 			if( tmpdata & MAX3421E_HXFRDNIRQ ) {
@@ -191,7 +191,7 @@ static uint8_t usb_OutTransfer(ep_t *pep, uint16_t nak_limit,
 	if (maxpktsize < 1 || maxpktsize > 64)
 		return USB_ERROR_INVALID_MAX_PKT_SIZE;
 
-	unsigned long timeout = timer_get_msec() + USB_XFER_TIMEOUT;
+	unsigned long timeout = timer_get_msec();
 
 	//set toggle value
 	max3421e_write_u08(MAX3421E_HCTL, 
@@ -216,7 +216,7 @@ static uint8_t usb_OutTransfer(ep_t *pep, uint16_t nak_limit,
 		max3421e_write_u08( MAX3421E_HIRQ, MAX3421E_HXFRDNIRQ );    //clear IRQ
 		rcode = max3421e_read_u08( MAX3421E_HRSL ) & 0x0f;
 
-		while( rcode && ( timeout > timer_get_msec())) {
+		while( rcode && ( !timer_check(timeout, USB_XFER_TIMEOUT) )) {
 			switch( rcode ) {
 			case hrNAK:
 				nak_count ++;
@@ -356,7 +356,7 @@ void usb_poll() {
 
 	case MAX3421E_STATE_FSHOST:
 		if(( usb_task_state & USB_STATE_MASK ) == USB_STATE_DETACHED ) {
-			delay = timer_get_msec() + USB_SETTLE_DELAY;
+			delay = timer_get_msec();
 			usb_task_state = USB_ATTACHED_SUBSTATE_SETTLE;
 		}
 		break;
@@ -364,8 +364,8 @@ void usb_poll() {
 
 	// max poll 1ms
 	static msec_t poll=0;
-	if(timer_get_msec() > poll) {
-		poll = timer_get_msec()+1;
+	if(timer_check(poll, 1)) {
+		poll = timer_get_msec();
 
 		// poll all configured devices
 		uint8_t i;
@@ -394,7 +394,7 @@ void usb_poll() {
 			break;
 
 		case USB_ATTACHED_SUBSTATE_SETTLE:              //settle time for just attached device
-			if( delay < timer_get_msec() ) 
+			if( timer_check(delay, USB_SETTLE_DELAY) ) 
 				usb_task_state = USB_ATTACHED_SUBSTATE_RESET_DEVICE;
 			break;
 
@@ -408,13 +408,13 @@ void usb_poll() {
 				tmpdata = max3421e_read_u08( MAX3421E_MODE ) | MAX3421E_SOFKAENAB;   // start SOF generation
 				max3421e_write_u08( MAX3421E_MODE, tmpdata );
 				usb_task_state = USB_ATTACHED_SUBSTATE_WAIT_SOF;
-				delay = timer_get_msec() + 20;                           //20ms wait after reset per USB spec
+				delay = timer_get_msec();                              //20ms wait after reset per USB spec
 			}
 			break;
 
 		case USB_ATTACHED_SUBSTATE_WAIT_SOF:  //todo: change check order
 			if( max3421e_read_u08( MAX3421E_HIRQ ) & MAX3421E_FRAMEIRQ ) { //when first SOF received we can continue
-				if( delay < timer_get_msec() ) //20ms passed
+				if( timer_check(delay, 20) ) //20ms passed
 					usb_task_state = USB_STATE_CONFIGURING;
 			}
 			break;

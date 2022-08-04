@@ -127,7 +127,7 @@ uint8_t usb_xbox_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc) {
 	dev->xbox_info.inEp.bmNakPower = USB_NAK_NOWAIT;
 	dev->xbox_info.inEp.bmSndToggle = 0;
 	dev->xbox_info.inEp.bmRcvToggle = 0;
-	dev->xbox_info.qNextPollTime = 0;
+	dev->xbox_info.qLastPollTime = 0;
 
 	// Set Configuration Value
 	if(rcode = usb_set_conf(dev, conf_desc.bConfigurationValue)) {
@@ -194,7 +194,7 @@ uint8_t usb_xbox_poll(usb_device_t *dev) {
 
 	if(!dev->xbox_info.bPollEnable)
 		return 0;
-	if (dev->xbox_info.qNextPollTime <= timer_get_msec()) {
+	if (timer_check(dev->xbox_info.qLastPollTime, dev->xbox_info.interval)) {
 		uint16_t read = dev->xbox_info.inEp.maxPktSize;
 		uint8_t buf[dev->xbox_info.inEp.maxPktSize];
 		// clear buffer
@@ -206,7 +206,7 @@ uint8_t usb_xbox_poll(usb_device_t *dev) {
 		} else {
 			usb_xbox_read_report(dev, read, buf);
 		}
-		dev->xbox_info.qNextPollTime = timer_get_msec() + dev->xbox_info.interval;   // poll at requested rate
+		dev->xbox_info.qLastPollTime = timer_get_msec();   // poll at requested rate
 	}
 	return 0;
 }

@@ -72,7 +72,7 @@ typedef struct {
   hid_report_t conf;
 
   uint8_t interval;
-  uint32_t qNextPollTime;     // next poll time
+  uint32_t qLastPollTime;     // last poll time
 
 } usb_hid_iface_info_t;
 

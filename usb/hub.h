@@ -6,7 +6,7 @@
 
 typedef struct {
   uint8_t  bNbrPorts;	    // number of ports
-  uint32_t qNextPollTime;   // next poll time
+  uint32_t qLastPollTime;   // last poll time
   bool	   bPollEnable;	    // poll enable flag
   ep_t ep;	            // interrupt endpoint info structure
 } usb_hub_info_t;

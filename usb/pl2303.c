@@ -264,8 +264,8 @@ static uint8_t pl2303_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc)
   pl2303_debugf("%s(%d)", __FUNCTION__, dev->bAddress);
 
   // reset status
-  info->qNextIrqPollTime = 0;
-  info->qNextBulkPollTime = 0;
+  info->qLastIrqPollTime = 0;
+  info->qLastBulkPollTime = 0;
   info->bPollEnable = false;
 
   // buffer should be empty
@@ -379,7 +379,7 @@ static uint8_t pl2303_poll(usb_device_t *dev) {
   
 #if 1 // no need to use the irq channel ...
   // poll interrupt endpoint
-  if (info->qNextIrqPollTime <= timer_get_msec()) {
+  if (timer_check(info->qLastIrqPollTime, info->int_poll_ms)) {
     uint16_t read = info->ep[info->ep_int_idx].maxPktSize;
     uint8_t buf[info->ep[info->ep_int_idx].maxPktSize];
     uint8_t rcode = usb_in_transfer(dev, &(info->ep[info->ep_int_idx]), &read, buf);
@@ -391,12 +391,12 @@ static uint8_t pl2303_poll(usb_device_t *dev) {
       pl2303_debugf("int %d bytes", read);
       hexdump(buf, read, 0);
     }
-    info->qNextIrqPollTime = timer_get_msec() + info->int_poll_ms;
+    info->qLastIrqPollTime = timer_get_msec();
   }
 #endif
 
   // Do TX/RX handling at 100Hz
-  if(info->qNextBulkPollTime <= timer_get_msec()) {
+  if(timer_check(info->qLastBulkPollTime, 10)) {
 
 #ifdef TX_TEST
     if(tx_test < 26) {
@@ -479,8 +479,7 @@ static uint8_t pl2303_poll(usb_device_t *dev) {
       }
     }
 
-    // bulk ep polling at fixed 100Hz
-    info->qNextBulkPollTime = timer_get_msec() + 10;
+    info->qLastBulkPollTime = timer_get_msec();
   }
 }
 
