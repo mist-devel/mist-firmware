@@ -80,9 +80,11 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 			iprintf("failed to assign address (rcode=%d)", rcode);
 			return rcode;
 		}
-
-		if(rcode = usb_get_dev_descr( d, 8, &dev_desc ))
-			return rcode;
+		uint32_t timer = timer_get_msec();
+		do {
+			rcode = usb_get_dev_descr( d, 8, &dev_desc );
+		} while (rcode && !timer_check(timer, 5)); // Some recovery interval (2 ms as USB 2.0 9.2.6.3)
+		if(rcode) return rcode;
 
 		// --- enumerate device ---
 		if(rcode = usb_get_dev_descr( d, sizeof(usb_device_descriptor_t), &dev_desc ))
