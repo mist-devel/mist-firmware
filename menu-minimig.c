@@ -84,8 +84,10 @@ static void InsertFloppy(adfTYPE *drive, const unsigned char *name)
 {
 	unsigned char i, j, readonly = false;
 	unsigned long tracks;
+	FRESULT res;
 
-	if (f_open(&drive->file, name, FA_READ | FA_WRITE) != FR_OK) {
+	if ((res = f_open(&drive->file, name, FA_READ | FA_WRITE)) != FR_OK) {
+		iprintf("Disk open failed (%d), trying read only mode\n", res);
 		readonly = true;
 		if (f_open(&drive->file, name, FA_READ) != FR_OK)
 		return;
@@ -116,11 +118,11 @@ static void InsertFloppy(adfTYPE *drive, const unsigned char *name)
 	drive->track_prev = -1;
 
 	// some debug info
-	menu_debugf("Inserting floppy: \"%s\"\r", name);
-	menu_debugf("file readonly: 0x%u\r", readonly);
-	menu_debugf("file size: %llu (%llu KB)\r", f_size(&drive->file), f_size(&drive->file) >> 10);
-	menu_debugf("drive tracks: %u\r", drive->tracks);
-	menu_debugf("drive status: 0x%02X\r", drive->status);
+	iprintf("Inserting floppy: \"%s\"\r", name);
+	iprintf("file readonly: 0x%u\r", readonly);
+	iprintf("file size: %llu (%llu KB)\r", f_size(&drive->file), f_size(&drive->file) >> 10);
+	iprintf("drive tracks: %u\r", drive->tracks);
+	iprintf("drive status: 0x%02X\r", drive->status);
 }
 
 static void inserttestfloppy() {

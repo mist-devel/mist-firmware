@@ -172,6 +172,7 @@ void ReadTrack(adfTYPE *drive)
     unsigned short dsksync;
     unsigned short dsklen;
     //unsigned short n;
+    fdd_debugf("Read track %d\r", drive->track);
 
     if (drive->track >= drive->tracks)
     {
@@ -192,6 +193,7 @@ void ReadTrack(adfTYPE *drive)
         sector = drive->sector_offset;
         f_lseek(&drive->file, (drive->track * SECTOR_COUNT + sector) * 512);
     }
+    fdd_debugf("sector: %d\r", sector);
 
     EnableFpga();
     status   = SPI(0); // read request signal
@@ -287,17 +289,23 @@ unsigned char FindSync(adfTYPE *drive)
         EnableFpga();
         c1 = SPI(0); // write request signal
         c2 = SPI(0); // track number (cylinder & head)
-        if (!(c1 & CMD_WRTRK))
+        if (!(c1 & CMD_WRTRK)) {
+            fdd_debugf("Not WRTRK?\r");
             break;
-        if (c2 != drive->track)
+        }
+        if (c2 != drive->track) {
+            fdd_debugf("Not on the same track (%d!=%d)\r", c2, drive->track);
             break;
+        }
         SPI(0); // disk sync high byte
         SPI(0); // disk sync low byte
         c3 = (SPI(0)) & 0xBF; // msb of mfm words to transfer
         c4 = SPI(0); // lsb of mfm words to transfer
 
-        if (c3 == 0 && c4 == 0)
+        if (c3 == 0 && c4 == 0) {
+            fdd_debugf("No sync?\r");
             break;
+        }
 
         n = ((c3 & 0x3F) << 8) + c4;
 
@@ -330,8 +338,10 @@ unsigned char GetHeader(unsigned char *pTrack, unsigned char *pSector)
         EnableFpga();
         c1 = SPI(0); // write request signal
         c2 = SPI(0); // track number (cylinder & head)
-        if (!(c1 & CMD_WRTRK))
+        if (!(c1 & CMD_WRTRK)) {
+            fdd_debugf("Not WRTRK?\r");
             break;
+        }
         SPI(0); // disk sync high byte
         SPI(0); // disk sync low byte
         c3 = SPI(0); // msb of mfm words to transfer
@@ -439,6 +449,7 @@ unsigned char GetHeader(unsigned char *pTrack, unsigned char *pSector)
 
             if (c1 != checksum[0] || c2 != checksum[1] || c3 != checksum[2] || c4 != checksum[3])
             {
+                fdd_debugf("Header checksum error\r");
                 Error = 26;
                 break;
             }
@@ -448,6 +459,7 @@ unsigned char GetHeader(unsigned char *pTrack, unsigned char *pSector)
         }
         else if ((c3 & 0x80) == 0) // not enough data for header and write dma is not active
         {
+            fdd_debugf("Header FIFO underrun\r");
             Error = 20;
             break;
         }
@@ -473,8 +485,10 @@ unsigned char GetData(void)
         EnableFpga();
         c1 = SPI(0); // write request signal
         c2 = SPI(0); // track number (cylinder & head)
-        if (!(c1 & CMD_WRTRK))
+        if (!(c1 & CMD_WRTRK)) {
+            fdd_debugf("Not WRTRK?\r");
             break;
+        }
         SPI(0); // disk sync high byte
         SPI(0); // disk sync low byte
         c3 = SPI(0); // msb of mfm words to transfer
@@ -556,6 +570,7 @@ unsigned char GetData(void)
 
             if (c1 != checksum[0] || c2 != checksum[1] || c3 != checksum[2] || c4 != checksum[3])
             {
+                fdd_debugf("Checksum error\r");
                 Error = 29;
                 break;
             }
@@ -565,6 +580,7 @@ unsigned char GetData(void)
         }
         else if ((c3 & 0x80) == 0) // not enough data in fifo and write dma is not active
         {
+            fdd_debugf("FIFO underrun\r");
             Error = 28;
             break;
         }
@@ -577,15 +593,12 @@ unsigned char GetData(void)
 
 void WriteTrack(adfTYPE *drive)
 {
-    unsigned char sector;
     unsigned char Track;
     unsigned char Sector;
+    FRESULT res;
+    FSIZE_t fpos;
 
-    // setting file pointer to begining of current track
-    f_lseek(&drive->file, drive->track * 11 * 512);
-    sector = 0;
-
-//    drive->track_prev = drive->track + 1; // This causes a read that directly follows a write to the previous track to return bad data.
+    fdd_debugf("Write track %d\r", drive->track);
     drive->track_prev = -1; // just to force next read from the start of current track
 
     while (FindSync(drive))
@@ -594,23 +607,19 @@ void WriteTrack(adfTYPE *drive)
         {
             if (Track == drive->track)
             {
-                while (sector != Sector)
-                {
-                    if (sector < Sector)
-                    {
-                        sector++;
-                    }
-                    else
-                    {
-                        f_lseek(&drive->file, drive->track * SECTOR_COUNT * 512);
-                        sector = 0;
-                    }
+                res = f_lseek(&drive->file, (drive->track * SECTOR_COUNT + Sector) * 512);
+                fpos = f_tell(&drive->file);
+                if (res || (fpos != (drive->track * SECTOR_COUNT + Sector) * 512)) {
+                    Error = res;
                 }
-
-                if (GetData())
+                else if (GetData())
                 {
                     if (drive->status & DSK_WRITABLE)
-                        FileWriteBlock(&drive->file, sector_buffer);
+                    {
+                        fdd_debugf("Write sector: %d\r", Sector);
+                        res = FileWriteBlock(&drive->file, sector_buffer);
+                        if (res) Error = res;
+                    }
                     else
                     {
                         Error = 30;
