@@ -905,7 +905,7 @@ unsigned char GetFPGAStatus(void)
 
 
 void fpga_init(const char *name) {
-  unsigned long time = GetTimer(0);
+  unsigned long time = GetRTTC();
   int loaded_from_usb = USB_LOAD_VAR;
 
   // load the global MISTCFG.INI here
@@ -920,8 +920,8 @@ void fpga_init(const char *name) {
     unsigned char ct;
 
     if (ConfigureFpga(name)) {
-      time = GetTimer(0) - time;
-      iprintf("FPGA configured in %lu ms\r", time >> 20);
+      time = GetRTTC() - time;
+      iprintf("FPGA configured in %lu ms\r", time);
     } else {
       iprintf("FPGA configuration failed\r");
       FatalError(8); // 3

@@ -924,7 +924,7 @@ static void tos_upload_mist1(const char *name) {
     }
 #endif
 
-    time = GetTimer(0);
+    time = GetRTTC();
     tos_debugf("Uploading ...");
 
     for(i=0;i<blocks;i++) {
@@ -1001,9 +1001,9 @@ static void tos_upload_mist1(const char *name) {
     }
 #endif
 
-    time = GetTimer(0) - time;
+    time = GetRTTC() - time;
     tos_debugf("TOS.IMG uploaded in %lu ms (%d kB/s / %d kBit/s)", 
-      time >> 20, f_size(&file)/(time >> 20), 8*f_size(&file)/(time >> 20));
+      time, f_size(&file)/(time >> 20), 8*f_size(&file)/time);
     f_close(&file);
   } else {
     tos_debugf("Unable to find tos.img");

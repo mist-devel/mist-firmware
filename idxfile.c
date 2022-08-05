@@ -7,7 +7,7 @@ IDXFile sd_image[SD_IMAGES];
 void IDXIndex(IDXFile *pIDXF) {
     // builds index to speed up hard file seek
     FIL *file = &pIDXF->file;
-    unsigned long  time = GetTimer(0);
+    unsigned long  time = GetRTTC();
     FRESULT res;
 
     pIDXF->clmt[0] = SZ_TBL;
@@ -19,8 +19,8 @@ void IDXIndex(IDXFile *pIDXF) {
       iprintf("Error indexing (%d), continuing without indices\n", res);
       file->cltbl = 0;
     } else {
-      time = GetTimer(0) - time;
-      iprintf("File indexed in %lu ms, index size = %d\n", time >> 16, pIDXF->clmt[0]);
+      time = GetRTTC() - time;
+      iprintf("File indexed in %lu ms, index size = %d\n", time, pIDXF->clmt[0]);
     }
 }
 
