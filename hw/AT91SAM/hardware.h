@@ -94,6 +94,9 @@
 #define VIDEO_SD_DISABLE_VAR (*(uint8_t*)0x0020FF15)
 #define VIDEO_YPBPR_VAR      (*(uint8_t*)0x0020FF16)
 
+#define USB_BOOT_VALUE       0x8007F007
+#define USB_BOOT_VAR         (*(int*)0x0020FF18)
+
 #define SECTOR_BUFFER_SIZE   4096
 
 char mmc_inserted(void);

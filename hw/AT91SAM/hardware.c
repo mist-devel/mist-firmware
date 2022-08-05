@@ -372,6 +372,7 @@ void InitADC(void) {
   PollOneADC();
   PollOneADC();
   PollOneADC();
+  PollOneADC();
 }
 
 // poll one adc channel every 25ms
