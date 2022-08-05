@@ -33,7 +33,6 @@ static uint8_t usb_hub_get_port_status(usb_device_t *dev, uint8_t port, uint16_t
 }
 
 static uint8_t usb_hub_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len, ep_t *pep) {
-  usb_storage_info_t *info = &(dev->storage_info);
   uint8_t rcode;
   bool is_good_interface = false;
 
