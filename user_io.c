@@ -150,8 +150,6 @@ void user_io_init() {
 	// mark remap table as unused
 	memset(key_remap_table, 0, sizeof(key_remap_table));
 
-	InitADC();
-
 	if(MenuButton()) DEBUG_MODE_VAR = DEBUG_MODE ? 0 : DEBUG_MODE_VALUE;
 	iprintf("debug_mode = %d\n", DEBUG_MODE);
 

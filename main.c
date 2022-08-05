@@ -106,6 +106,19 @@ void HandleFpga(void) {
 
 extern void inserttestfloppy();
 
+#ifdef USB_STORAGE
+int GetUSBStorageDevices()
+{
+  uint32_t to = GetTimer(2000);
+
+  // poll usb 2 seconds or until a mass storage device becomes ready
+  while(!storage_devices && !CheckTimer(to))
+    usb_poll();
+
+  return storage_devices;
+}
+#endif
+
 int main(void)
 {
     uint8_t mmc_ok = 0;
@@ -133,30 +146,36 @@ int main(void)
     if(MMC_Init()) mmc_ok = 1;
     else           spi_fast();
 
-    // TODO: If MMC fails try to wait for USB storage
-
     iprintf("spiclk: %u MHz\r", GetSPICLK());
 
     usb_init();
 
-    // mmc init failed, try to wait for usb
-    if(!mmc_ok) {
-      uint32_t to = GetTimer(2000);
+    InitADC();
 
 #ifdef USB_STORAGE
-      // poll usb 2 seconds or until a mass storage device becomes ready
-      while(!storage_devices && !CheckTimer(to)) 
-	usb_poll();
+    if(UserButton()) USB_BOOT_VAR = (USB_BOOT_VAR == USB_BOOT_VALUE) ? 0 : USB_BOOT_VALUE;
 
-      // no usb storage device after 2 seconds ...
-      if(!storage_devices)
-        FatalError(1);	
-
-      fat_switch_to_usb();  // redirect file io to usb
-#else
-      FatalError(1);	
+    if(USB_BOOT_VAR == USB_BOOT_VALUE)
+      if (!GetUSBStorageDevices()) {
+        if(!mmc_ok)
+          FatalError(1);
+      } else
+        fat_switch_to_usb();  // redirect file io to usb
+    else {
 #endif
+      if(!mmc_ok) {
+#ifdef USB_STORAGE
+        if(!GetUSBStorageDevices())
+          FatalError(1);
+
+        fat_switch_to_usb();  // redirect file io to usb
+#else
+        FatalError(1);
+#endif
+      }
+#ifdef USB_STORAGE
     }
+#endif
 
     if (!FindDrive())
         FatalError(2);

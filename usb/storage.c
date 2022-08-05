@@ -2,6 +2,7 @@
 // storage.c
 //
 
+#ifdef USB_STORAGE
 #include <stdio.h>
 #include <string.h>
 
@@ -497,3 +498,4 @@ unsigned int usb_host_storage_capacity() {
 
 const usb_device_class_config_t usb_storage_class = {
   usb_storage_init, usb_storage_release, usb_storage_poll };  
+#endif
