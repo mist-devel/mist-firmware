@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include "cue_parser.h"
 #ifdef CUE_PARSER_TEST
 #define cue_parser_debugf(a, ...) printf(a"\n", ## __VA_ARGS__)
@@ -19,6 +20,7 @@
 #define TOKEN_AUDIO             "AUDIO"
 #define TOKEN_MODE1_2048        "MODE1/2048"
 #define TOKEN_MODE1_2352        "MODE1/2352"
+#define TOKEN_MODE2_2352        "MODE2/2352"
 #define TOKEN_PREGAP            "PREGAP"
 #define TOKEN_INDEX             "INDEX"
 
@@ -143,143 +145,177 @@ char cue_parse(const char *filename, IDXFile *image)
   int track = 0, x, pregap = 0, tracklen;
   msf_t msf;
   int lba, lastindex1 = 0;
+  char e[3];
 
   memset(&toc, 0, sizeof(toc));
 
-  // open ini file
-  #ifdef CUE_PARSER_TEST
-  if ((cue_fp = fopen(filename, "rb")) == NULL) {
-  #else
-  if (f_open(&cue_file, filename, FA_READ) != FR_OK) {
-  #endif
-    cue_parser_debugf("Can't open file %s !", filename);
-    return CUE_RES_NOTFOUND;
+  const char *ext = GetExtension(filename);
+  e[0] = e[1] = e[2] = ' ';
+  if (ext) {
+    if (ext[0]) e[0] = toupper(ext[0]);
+    if (ext[1]) e[1] = toupper(ext[1]);
+    if (ext[2]) e[2] = toupper(ext[2]);
   }
-
-  #ifdef CUE_PARSER_TEST
-  fseek(cue_fp, 0L, SEEK_END);
-  cue_size = ftell(cue_fp);
-  fseek(cue_fp, 0L, SEEK_SET);
-  #else
-  cue_parser_debugf("Opened file %s with size %llu bytes.", filename, f_size(&cue_file));
-  #endif
-  cue_pt = 0;
-
-  // parse ini
-  while (1) {
-    // get line
-    word_status = cue_getword(word);
-    if (word_status != CUE_NOWORD) {
-      //cue_parser_debugf("next word(%d): \"%s\".", word_status, word);
-      switch (mode) {
-        case MODE_NONE:
-          submode = 0;
-          if (!strcmp(word, TOKEN_FILE))   mode = MODE_FILE; else
-          if (!strcmp(word, TOKEN_TRACK))  mode = MODE_TRACK; else
-          if (!strcmp(word, TOKEN_PREGAP)) mode = MODE_PREGAP; else
-          if (!strcmp(word, TOKEN_INDEX))  mode = MODE_INDEX;
-          break;
-        case MODE_FILE:
-          if (submode == 0) {
-            pregap = 0;
-            cue_parser_debugf("Filename: %s", word);
-            if (bin_valid) {
-              // only one .bin supported
-              error = CUE_RES_UNS;
-            } else {
-            #ifdef CUE_PARSER_TEST
-              bin_valid = 1;
-            }
-            #else
-              toc.file = image;
-              if (IDXOpen(toc.file, word, FA_READ) == FR_OK)
-                bin_valid = 1;
-              else
-                error = CUE_RES_BINERR;
-            }
-            #endif
-          } else if (submode == 1) {
-            cue_parser_debugf("Filemode: %s", word);
-            mode = 0;
-          }
-          submode++;
-          break;
-        case MODE_TRACK:
-          if (submode == 0) {
-            x = strtol(word, 0, 10);
-            cue_parser_debugf("Trackno: %d -> %d (%s)", track, x, word);
-            if (!x || x > 99 || x != (track + 1)) error = CUE_RES_INVALID; else track = x;
-          } else if (submode == 1) {
-            cue_parser_debugf("Trackmode: %s", word);
-            if (!strcmp(word, TOKEN_AUDIO)) {
-              toc.tracks[track-1].sector_size = 2352;
-              toc.tracks[track-1].type = SECTOR_AUDIO;
-            } else if (!strcmp(word, TOKEN_MODE1_2352)) {
-              toc.tracks[track-1].sector_size = 2352;
-              toc.tracks[track-1].type = SECTOR_DATA;
-            } else if (!strcmp(word, TOKEN_MODE1_2048)) {
-              toc.tracks[track-1].sector_size = 2048;
-              toc.tracks[track-1].type = SECTOR_DATA;
-            } else {
-              error = CUE_RES_INVALID;
-            }
-            mode = 0;
-          }
-          submode++;
-          break;
-        case MODE_PREGAP:
-          cue_parser_debugf("Pregap size: %s", word);
-            if (!ParseMSF(word, &msf)) {
-              error = CUE_RES_INVALID;
-            } else {
-              pregap += MSF2LBA(msf.m, msf.s, msf.f) + 150;
-            }
-          mode = 0;
-          break;
-        case MODE_INDEX:
-          if (submode == 0) {
-            cue_parser_debugf("Index: %s", word);
-            index = strtol(word, 0, 10);
-          } else if (submode == 1) {
-            if (!ParseMSF(word, &msf)) {
-              error = CUE_RES_INVALID;
-            } else {
-              lba = MSF2LBA(msf.m, msf.s, msf.f);
-              if (index == 0) {
-                if (track > 1 && !toc.tracks[track - 2].end) {
-                  toc.tracks[track - 2].end =  lba + 150 + pregap;
-                }
-              } else if (index == 1) {
-                toc.tracks[track - 1].start = lba + 150 + pregap;
-                if (track > 1) {
-                  tracklen = lba - lastindex1;
-                  toc.tracks[track - 1].offset = toc.tracks[track - 2].offset + (tracklen * toc.tracks[track - 2].sector_size);
-                  if (!toc.tracks[track-2].end) toc.tracks[track - 2].end = toc.tracks[track - 1].start - 1;
-                } else {
-                  toc.tracks[0].offset = (lba + 150) * toc.tracks[0].sector_size;
-                }
-                lastindex1 = lba;
-              }
-            }
-            cue_parser_debugf("Pos: (%s) = %d:%d:%d (%d)", word, msf.m, msf.s, msf.f, error);
-            mode = 0;
-          }
-          submode++;
-          break;
-      }
+  if (!memcmp(e, "ISO", 3)) {
+    // open iso file
+    #ifdef CUE_PARSER_TEST
+    bin_valid = 1;
+    #else
+    toc.file = image;
+    if (IDXOpen(toc.file, filename, FA_READ) == FR_OK) {
+      bin_valid = 1;
+      track = 1;
+      toc.tracks[0].sector_size = 2048;
+      toc.tracks[0].type = SECTOR_DATA;
+      toc.tracks[0].offset = 0;
+      toc.tracks[0].start = 0;
+    } else {
+      error = CUE_RES_BINERR;
     }
-    // if end of file or error, stop
-    if (word_status == CUE_EOT || error) break;
+    #endif
+  } else {
+    // open cue file
+    #ifdef CUE_PARSER_TEST
+    if ((cue_fp = fopen(filename, "rb")) == NULL) {
+    #else
+    if (f_open(&cue_file, filename, FA_READ) != FR_OK) {
+    #endif
+      cue_parser_debugf("Can't open file %s !", filename);
+      return CUE_RES_NOTFOUND;
+    }
+
+    #ifdef CUE_PARSER_TEST
+    fseek(cue_fp, 0L, SEEK_END);
+    cue_size = ftell(cue_fp);
+    fseek(cue_fp, 0L, SEEK_SET);
+    #else
+    cue_parser_debugf("Opened file %s with size %llu bytes.", filename, f_size(&cue_file));
+    #endif
+    cue_pt = 0;
+
+    // parse cue
+    while (1) {
+      // get line
+      word_status = cue_getword(word);
+      if (word_status != CUE_NOWORD) {
+        //cue_parser_debugf("next word(%d): \"%s\".", word_status, word);
+        switch (mode) {
+          case MODE_NONE:
+            submode = 0;
+            if (!strcmp(word, TOKEN_FILE))   mode = MODE_FILE; else
+            if (!strcmp(word, TOKEN_TRACK))  mode = MODE_TRACK; else
+            if (!strcmp(word, TOKEN_PREGAP)) mode = MODE_PREGAP; else
+            if (!strcmp(word, TOKEN_INDEX))  mode = MODE_INDEX;
+            break;
+          case MODE_FILE:
+            if (submode == 0) {
+              pregap = 0;
+              cue_parser_debugf("Filename: %s", word);
+              if (bin_valid) {
+                // only one .bin supported
+                error = CUE_RES_UNS;
+              } else {
+              #ifdef CUE_PARSER_TEST
+                bin_valid = 1;
+              }
+              #else
+                toc.file = image;
+                if (IDXOpen(toc.file, word, FA_READ) == FR_OK)
+                  bin_valid = 1;
+                else
+                  error = CUE_RES_BINERR;
+              }
+              #endif
+              } else if (submode == 1) {
+              cue_parser_debugf("Filemode: %s", word);
+              mode = 0;
+            }
+            submode++;
+            break;
+          case MODE_TRACK:
+            if (submode == 0) {
+              x = strtol(word, 0, 10);
+              cue_parser_debugf("Trackno: %d -> %d (%s)", track, x, word);
+              if (!x || x > 99 || x != (track + 1)) error = CUE_RES_INVALID; else track = x;
+            } else if (submode == 1) {
+              cue_parser_debugf("Trackmode: %s", word);
+              if (!strcmp(word, TOKEN_AUDIO)) {
+                toc.tracks[track-1].sector_size = 2352;
+                toc.tracks[track-1].type = SECTOR_AUDIO;
+              } else if (!strcmp(word, TOKEN_MODE1_2352)) {
+                toc.tracks[track-1].sector_size = 2352;
+                toc.tracks[track-1].type = SECTOR_DATA;
+              } else if (!strcmp(word, TOKEN_MODE2_2352)) {
+                toc.tracks[track-1].sector_size = 2352;
+                toc.tracks[track-1].type = SECTOR_DATA;
+              } else if (!strcmp(word, TOKEN_MODE1_2048)) {
+                toc.tracks[track-1].sector_size = 2048;
+                toc.tracks[track-1].type = SECTOR_DATA;
+              } else {
+                error = CUE_RES_INVALID;
+              }
+              mode = 0;
+            }
+            submode++;
+            break;
+          case MODE_PREGAP:
+            cue_parser_debugf("Pregap size: %s", word);
+              if (!ParseMSF(word, &msf)) {
+                error = CUE_RES_INVALID;
+              } else {
+                pregap += MSF2LBA(msf.m, msf.s, msf.f) + 150;
+              }
+            mode = 0;
+            break;
+          case MODE_INDEX:
+            if (submode == 0) {
+              cue_parser_debugf("Index: %s", word);
+              index = strtol(word, 0, 10);
+            } else if (submode == 1) {
+              if (!ParseMSF(word, &msf)) {
+                error = CUE_RES_INVALID;
+              } else {
+                lba = MSF2LBA(msf.m, msf.s, msf.f);
+                if (index == 0) {
+                  if (track > 1 && !toc.tracks[track - 2].end) {
+                    toc.tracks[track - 2].end =  lba + 150 + pregap;
+                  }
+                } else if (index == 1) {
+                  toc.tracks[track - 1].start = lba + 150 + pregap;
+                  if (track > 1) {
+                    tracklen = lba - lastindex1;
+                    toc.tracks[track - 1].offset = toc.tracks[track - 2].offset + (tracklen * toc.tracks[track - 2].sector_size);
+                    if (!toc.tracks[track-2].end) toc.tracks[track - 2].end = toc.tracks[track - 1].start - 1;
+                  } else {
+                    toc.tracks[0].offset = (lba + 150) * toc.tracks[0].sector_size;
+                  }
+                  lastindex1 = lba;
+                }
+              }
+              cue_parser_debugf("Pos: (%s) = %d:%d:%d (%d)", word, msf.m, msf.s, msf.f, error);
+              mode = 0;
+            }
+            submode++;
+            break;
+        }
+      }
+      // if end of file or error, stop
+      if (word_status == CUE_EOT || error) break;
+    }
+
+    #ifdef CUE_PARSER_TEST
+    // close file
+    fclose(cue_fp);
+    #else
+    f_close(&cue_file);
+    #endif
   }
 
-  #ifdef CUE_PARSER_TEST
-  // close file
-  fclose(cue_fp);
-  #else
-  f_close(&cue_file);
+  #ifndef CUE_PARSET_TEST
   if (!bin_valid)
     error = CUE_RES_BINERR;
-  else if (error) f_close(&toc.file->file);
+  else if (error) 
+    f_close(&toc.file->file);
   else {
     IDXIndex(toc.file);
     if (track > 0) {
@@ -293,6 +329,7 @@ char cue_parse(const char *filename, IDXFile *image)
   } else {
     toc.last = track;
     toc.end = toc.tracks[track-1].end;
+    toc.valid = 1;
   }
 
   iprintf("Tracks in the CUE file %s : %d\n", filename, toc.last);

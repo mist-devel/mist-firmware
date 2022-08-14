@@ -26,9 +26,9 @@ typedef struct
 
 typedef struct
 {
+        int valid;
         int end;
         int last;
-        int sectorSize;
         cd_track_t tracks[100];
 #ifndef CUE_PARSER_TEST
         IDXFile *file; // the .bin file

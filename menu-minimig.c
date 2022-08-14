@@ -13,6 +13,7 @@
 #include "boot.h"
 #include "user_io.h"
 #include "misc_cfg.h"
+#include "cue_parser.h"
 
 // TODO!
 #define SPIN() asm volatile ( "mov r0, r0\n\t" \
@@ -199,6 +200,20 @@ static char HardFileSelected(uint8_t idx, const char *SelectedName) {
 			config.hardfile[hdf_idx].present = 0;
 	}
 	return 0;
+}
+
+static char CueISOFileSelected(uint8_t idx, const char *SelectedName) {
+	int hdf_idx;
+	if (idx == 10) // master drive selected
+		hdf_idx = t_ide_idx << 1;
+	else if (idx == 12) // slave drive selected
+		hdf_idx = (t_ide_idx << 1) + 1;
+	else // invalid
+		return 0;
+
+	char res;
+	res = cue_parse(SelectedName, &sd_image[hdf_idx]);
+	if (res) ErrorMessage(cue_error_msg[res-1], res);
 }
 
 static char KickstartReload(uint8_t idx) {
@@ -409,6 +424,8 @@ static char GetMenuItem_Minimig(uint8_t idx, char action, menu_item_t *item) {
 					strcpy(s, slave ? "  Slave : " : " Master : ");
 					if(config.hardfile[(t_ide_idx << 1)+slave].enabled==(HDF_FILE|HDF_SYNTHRDB))
 						strcat(s,"Hardfile (filesys)");
+					else if(config.hardfile[(t_ide_idx << 1)+slave].enabled==HDF_CDROM)
+						strcat(s,"CDROM");
 					else
 						strcat(s, config_hdf_msg[config.hardfile[(t_ide_idx << 1)+slave].enabled & HDF_TYPEMASK]);
 					item->item = s;
@@ -421,11 +438,14 @@ static char GetMenuItem_Minimig(uint8_t idx, char action, menu_item_t *item) {
 					uint8_t slave = idx == 12;
 					if (config.hardfile[(t_ide_idx << 1)+slave].present) {
 						strcpy(s, "                                ");
-						strncpy(&s[14], config.hardfile[(t_ide_idx << 1)+slave].name, sizeof(config.hardfile[0].name));
+						if(config.hardfile[(t_ide_idx << 1)+slave].enabled == HDF_CDROM)
+							strcpy(&s[14], toc.valid ? "* Inserted *" : "* Empty *");
+						else
+							strncpy(&s[14], config.hardfile[(t_ide_idx << 1)+slave].name, sizeof(config.hardfile[0].name));
 					} else
 						strcpy(s, "       ** file not found **");
 					item->item = s;
-					item->active = config.enable_ide[t_ide_idx] && ((config.hardfile[(t_ide_idx << 1)+slave].enabled&HDF_TYPEMASK)==HDF_FILE);
+					item->active = config.enable_ide[t_ide_idx] && (config.hardfile[(t_ide_idx << 1)+slave].enabled&HDF_TYPEMASK&(HDF_FILE | HDF_CDROM));
 					item->stipple = !item->active;
 					}
 					break;
@@ -623,15 +643,35 @@ static char GetMenuItem_Minimig(uint8_t idx, char action, menu_item_t *item) {
 					} else if(config.hardfile[hdf_idx].enabled==(HDF_FILE|HDF_SYNTHRDB)) {
 						config.hardfile[hdf_idx].enabled&=~HDF_SYNTHRDB;
 						config.hardfile[hdf_idx].enabled +=1;
+					} else if(config.hardfile[hdf_idx].enabled==(HDF_CARDPART0+partitioncount)) {
+						// only one CDROM is supported, so check if already choosen
+						if (config.hardfile[0].enabled != HDF_CDROM &&
+						    config.hardfile[1].enabled != HDF_CDROM &&
+						    config.hardfile[2].enabled != HDF_CDROM &&
+						    config.hardfile[3].enabled != HDF_CDROM) {
+							config.hardfile[hdf_idx].enabled = HDF_CDROM;
+						} else {
+							config.hardfile[hdf_idx].enabled = HDF_FILE;
+						}
+					} else if(config.hardfile[hdf_idx].enabled==HDF_CDROM) {
+						config.hardfile[hdf_idx].enabled = HDF_FILE;
 					} else {
 						config.hardfile[hdf_idx].enabled +=1;
-						config.hardfile[hdf_idx].enabled %=HDF_CARDPART0+partitioncount;
 					}
 					}
 					break;
 				case 10:
-				case 12:
-					SelectFileNG("HDF", SCAN_LFN, HardFileSelected, 0);
+				case 12: {
+					uint8_t hdf_idx = (t_ide_idx << 1) + (idx == 12);
+					if(config.hardfile[hdf_idx].enabled==HDF_CDROM) {
+						if(toc.valid)
+							toc.valid = 0;
+						else
+							SelectFileNG("CUEISO", SCAN_DIR | SCAN_LFN, CueISOFileSelected, 0);
+					} else {
+						SelectFileNG("HDF", SCAN_LFN, HardFileSelected, 0);
+					}
+					}
 					break;
 
 				// Page 2 - Settings

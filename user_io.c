@@ -10,6 +10,7 @@
 #include "data_io.h"
 #include "archie.h"
 #include "pcecd.h"
+#include "hdd.h"
 #include "cdc_control.h"
 #include "usb.h"
 #include "debug.h"
@@ -37,7 +38,6 @@ unsigned char key_remap_table[MAX_REMAP][2];
 #define BREAK  0x8000
 
 static char umounted; // 1st image is file or direct SD?
-static char cue_valid = 0;
 static char buffer[512];
 static uint8_t buffer_drive_index = 0;
 static uint32_t buffer_lba = 0xffffffff;
@@ -114,6 +114,9 @@ static uint32_t autofire_map;
 static uint32_t autofire_mask;
 static char autofire_joy;
 
+// ATA drives
+hardfileTYPE  hardfiles[4];
+
 char user_io_osd_is_visible() {
 	return osd_is_visible;
 }
@@ -122,11 +125,15 @@ void user_io_reset() {
 	// no sd card image selected, SD card accesses will go directly
 	// to the card (first slot, and only until the first unmount)
 	umounted = 0;
-	cue_valid = 0;
+	toc.valid = 0;
 	sd_image[0].valid = 0;
 	sd_image[1].valid = 0;
 	sd_image[2].valid = 0;
 	sd_image[3].valid = 0;
+	hardfiles[0].enabled = HDF_DISABLED;
+	hardfiles[1].enabled = HDF_DISABLED;
+	hardfiles[2].enabled = HDF_DISABLED;
+	hardfiles[3].enabled = HDF_CDROM;
 	core_mod = 0;
 	core_features = 0;
 	ps2_kbd_state = PS2_KBD_IDLE;
@@ -376,6 +383,28 @@ void user_io_detect_core_type() {
 						user_io_file_mount(s, i);
 					}
 				}
+				// check for <core>.IDx files (IDE drives)
+				if(core_features & FEAT_IDE) {
+					for (int i = 0; i < SD_IMAGES; i++) {
+						hardfile[i] = &hardfiles[i];
+					}
+
+					if(!user_io_create_config_name(s, "ID0", CONFIG_ROOT | CONFIG_VHD)) {
+						for (int i = 0; i < HARDFILES-1; i++) {
+							if (!user_io_is_mounted(i)) {
+								s[strlen(s)-1] = '0'+i;
+								iprintf("Looking for %s\n", s);
+								hardfiles[i].enabled = HDF_FILE;
+								strncpy(hardfiles[i].name, s, sizeof(hardfiles[0].name)); 
+								hardfiles[i].name[sizeof(hardfiles[0].name)-1] = 0;
+								OpenHardfile(i);
+							}
+						}
+					}
+					OpenHardfile(3); // CDROM
+
+				}
+
 			}
 		}
 
@@ -706,23 +735,22 @@ static void kbd_fifo_poll() {
 
 
 char user_io_is_cue_mounted() {
-	return cue_valid;
+	return toc.valid;
 }
 
 char user_io_cue_mount(const unsigned char *name) {
 	char res = CUE_RES_OK;
-	cue_valid = 0;
+	toc.valid = 0;
 	if (name) {
 		res = cue_parse(name, &sd_image[3]);
-		if (res == CUE_RES_OK) cue_valid = 1;
 	}
 
 	// send mounted image size first then notify about mounting
 	EnableIO();
 	SPI(UIO_SET_SDINFO);
 	// use LE version, so following BYTE(s) may be used for size extension in the future.
-	spi32le(cue_valid ? f_size(&toc.file->file) : 0);
-	spi32le(cue_valid ? f_size(&toc.file->file) >> 32 : 0);
+	spi32le(toc.valid ? f_size(&toc.file->file) : 0);
+	spi32le(toc.valid ? f_size(&toc.file->file) >> 32 : 0);
 	spi32le(0); // reserved for future expansion
 	spi32le(0); // reserved for future expansion
 	DisableIO();
@@ -1620,6 +1648,21 @@ void user_io_poll() {
 
 	if(core_type == CORE_TYPE_ARCHIE) 
 		archie_poll();
+
+	if(core_features & FEAT_IDE)
+	{
+		unsigned char  c1;
+
+		EnableFpga();
+		c1 = SPI(0); // cmd request
+		SPI(0);
+		SPI(0);
+		SPI(0);
+		SPI(0);
+		SPI(0);
+		DisableFpga();
+		HandleHDD(c1, 0, 1);
+	}
 
 	if((core_type == CORE_TYPE_MINIMIG2) ||
 	   (core_type == CORE_TYPE_MIST2) ||

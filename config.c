@@ -488,6 +488,9 @@ static void ApplyConfiguration(char reloadkickstart)
         case HDF_CARD:
           siprintf(s, "\nHardfile %d: using entire SD card", i);
           break;
+        case HDF_CDROM:
+          siprintf(s, "\nHardfile %d: CDROM", i);
+          break;
         default:
           siprintf(s, "\nHardfile %d: using SD card partition %d", i, hdf[i].type-HDF_CARD);  // Number from 1
           break;

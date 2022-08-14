@@ -80,6 +80,8 @@
 
 #define FEAT_MENU       0x01 // menu core
 #define FEAT_PCECD      0x02 // call pcecd_poll()
+#define FEAT_QSPI       0x04 // QSPI connection to FPGA
+#define FEAT_IDE        0x08 // call HandleHDD()
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
