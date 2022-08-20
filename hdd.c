@@ -338,7 +338,7 @@ static void WritePacket(unsigned char unit, const unsigned char *buf, unsigned s
 {
   unsigned short bytes;
   while (bufsize) {
-    bytes = MIN(bufsize, 2048);
+    bytes = MIN(bufsize, 2352);
     while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
     WriteTaskFile(0, 0x02, 0, bytes & 0xff, (bytes>>8) & 0xff, 0xa0 | ((unit & 0x01)<<4));
     EnableFpga();
