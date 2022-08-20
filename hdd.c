@@ -55,6 +55,7 @@ typedef struct
   unsigned char key;
   unsigned char asc;
   unsigned char ascq;
+  unsigned short blocksize;
   unsigned int currentlba;
   unsigned int endlba;
   unsigned char audiostatus;
@@ -376,40 +377,58 @@ static void cdrom_send_error(unsigned char unit)
   WriteStatus(IDE_STATUS_END | IDE_STATUS_ERR | IDE_STATUS_IRQ);
 }
 
-static void PKT_Read(unsigned char unit, unsigned int lba, unsigned int len, unsigned short bytelimit)
+static void cdrom_generate_header(unsigned char *pBuffer, unsigned int lba)
+{
+  // TODO: implement
+}
+
+static void cdrom_generate_ecc(unsigned char *pBuffer, unsigned int lba)
+{
+  // TODO: implement
+}
+
+static void PKT_Read(unsigned char unit, unsigned int lba, unsigned int len, unsigned short bytelimit, unsigned short blocksize)
 {
   UINT br;
+  unsigned char *pBuffer;
   if (!toc.valid) {
     cdrom_setsense(SENSEKEY_NOT_READY, 0x3a, 0);
     cdrom_send_error(unit);
     return;
   }
   cdrom.audiostatus = AUDIO_NOSTAT;
-
+  cdrom_ok();
   WriteStatus(IDE_STATUS_RDY | IDE_STATUS_PKT); // pio in (class 1) command type
 
-  while ((bytelimit >= 2048) && (len--)) {
+  while ((bytelimit >= blocksize) && (len--)) {
     unsigned char track = cue_gettrackbylba(lba);
     int offset = (lba - toc.tracks[track].start) * toc.tracks[track].sector_size + toc.tracks[track].offset;
     hdd_debugf("lba: %d track: %d, offset: %d", lba, track, offset);
 
-    if (toc.tracks[track].type != SECTOR_DATA) {
+    if ((blocksize == 2048 && toc.tracks[track].type != SECTOR_DATA) ||
+        (blocksize != 2048 && blocksize !=2352) ||
+        (toc.tracks[track].sector_size != 2048 && toc.tracks[track].sector_size != 2352)) {
       cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x26, 2);
       cdrom_send_error(unit);
       return;
     }
+    pBuffer = sector_buffer;
     cdrom.currentlba = lba;
-    if (toc.tracks[track].sector_size != 2048) offset+=16;
+    if (blocksize == 2048 && toc.tracks[track].sector_size == 2352) offset+=16;
+    if (blocksize == 2352 && toc.tracks[track].sector_size == 2048) {
+       cdrom_generate_header(pBuffer, lba);
+       pBuffer+=16;
+    }
     f_lseek(&toc.file->file, offset);
-    f_read(&toc.file->file, sector_buffer, 2048, &br);
+    f_read(&toc.file->file, pBuffer, MIN(toc.tracks[track].sector_size, blocksize), &br);
+    if (blocksize == 2352 && toc.tracks[track].sector_size == 2048) {
+       cdrom_generate_ecc(sector_buffer, lba);
+    }
 
-    bytelimit-=2048;
+    bytelimit-=blocksize;
     lba++;
-
-    WritePacket(unit, sector_buffer, 2048, bytelimit < 2048);
+    WritePacket(unit, sector_buffer, blocksize, bytelimit < blocksize);
   }
-  cdrom_ok();
-  WriteStatus(IDE_STATUS_END);
 }
 
 static void PKT_Read12(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
@@ -417,7 +436,7 @@ static void PKT_Read12(unsigned char *cmd, unsigned char unit, unsigned short by
   hdd_debugf("IDE%d: PKT_Read12 (bufsize=%d)", unit, bytelimit);
   unsigned int lba = cmd[5] | (cmd[4] << 8) | (cmd[3] << 16) | (cmd[2] << 24);
   unsigned int len = cmd[9] | (cmd[8] << 8) | (cmd[7] << 16) | (cmd[6] << 24);
-  PKT_Read(unit, lba, len, bytelimit);
+  PKT_Read(unit, lba, len, bytelimit, cdrom.blocksize);
 }
 
 static void PKT_Read10(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
@@ -425,7 +444,49 @@ static void PKT_Read10(unsigned char *cmd, unsigned char unit, unsigned short by
   hdd_debugf("IDE%d: PKT_Read10 (bufsize=%d)", unit, bytelimit);
   unsigned int lba = cmd[5] | (cmd[4] << 8) | (cmd[3] << 16) | (cmd[2] << 24);
   unsigned int len = cmd[8] | (cmd[7] << 8);
-  PKT_Read(unit, lba, len, bytelimit);
+  PKT_Read(unit, lba, len, bytelimit, cdrom.blocksize);
+}
+
+static void PKT_DoReadCD(unsigned char *cmd, unsigned char unit, unsigned short bytelimit, unsigned int lba, unsigned int len)
+{
+  unsigned char errorfield = (cmd[9] & 0x06) >> 1;
+  unsigned char edcecc = (cmd[9] & 0x08) >> 3;
+  unsigned char userdata = (cmd[9] & 0x10) >> 4;
+  unsigned char header = (cmd[9] & 0x60) >> 5;
+  unsigned char sync = (cmd[9] & 0x80) >> 7;
+  // FIXME: userdata only or full sector (without subchannels) are allowed
+  if (!userdata || ((edcecc || header || sync) != (edcecc && header && sync))) {
+    cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x24, 0);
+    cdrom_send_error(unit);
+    return;
+  }
+  unsigned char track = cue_gettrackbylba(lba);
+  unsigned short blocksize = 2048;
+  if (toc.tracks[track].type == SECTOR_AUDIO || (edcecc && header && sync))
+    blocksize = 2352;
+  hdd_debugf("ReadCD: lba=%d len=%d blocksize=%d", lba, len, blocksize);
+  PKT_Read(unit, lba, len, bytelimit, blocksize);
+}
+
+static void PKT_ReadCD(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
+{
+  hdd_debugf("IDE%d: PKT_ReadCD (bufsize=%d)", unit, bytelimit);
+  unsigned int lba = cmd[5] | (cmd[4] << 8) | (cmd[3] << 16) | (cmd[2] << 24);
+  unsigned int len = cmd[8] | (cmd[7] << 8) | (cmd[6] << 16);
+  PKT_DoReadCD(cmd, unit, bytelimit, lba, len);
+}
+
+static void PKT_ReadCDMSF(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
+{
+  hdd_debugf("IDE%d: PKT_ReadCDMSF (bufsize=%d)", unit, bytelimit);
+  unsigned int start = MSF2LBA(cmd[3], cmd[4], cmd[5]);
+  unsigned int end = MSF2LBA(cmd[6], cmd[7], cmd[8]);
+  if (start > end) {
+    cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x24, 0);
+    cdrom_send_error(unit);
+    return;
+  }
+  PKT_DoReadCD(cmd, unit, bytelimit, start, end-start);
 }
 
 static void PKT_PlayAudio(unsigned char unit, unsigned int start, unsigned int end)
@@ -534,7 +595,6 @@ static void PKT_SubChannel(unsigned char *cmd, unsigned char unit, unsigned shor
       sector_buffer[6] = track + 1;
       sector_buffer[7] = cdrom.currentlba >= toc.tracks[track].start ? 1 : 0; // TODO: support more than 1 indices
       unsigned int rellba = cdrom.currentlba - toc.tracks[track].start;
-      iprintf("track = %d, rellba = %d\n", track, rellba);
       if (msftime) {
         msf_t MSF;
         LBA2MSF(cdrom.currentlba+150, &MSF);
@@ -594,7 +654,7 @@ static void PKT_ReadCapacity(unsigned char *cmd, unsigned char unit, unsigned sh
   sector_buffer[4] = sector_buffer[5] = 0;
   sector_buffer[6] = (2048 >> 8) & 0xff;
   sector_buffer[7] = 2048 & 0xff;
-  hexdump(sector_buffer, 8, 0);
+  //hexdump(sector_buffer, 8, 0);
   cdrom_ok();
   WriteStatus(IDE_STATUS_RDY | IDE_STATUS_PKT); // pio in (class 1) command type
   WritePacket(unit, sector_buffer, MIN(bytelimit, 8), 1);
@@ -606,7 +666,7 @@ static void PKT_ReadTOC(unsigned char *cmd, unsigned char unit, unsigned short b
   unsigned short bufsize = MIN(bytelimit, (cmd[7] << 8) | cmd[8]);
   unsigned char track = cmd[6];
   unsigned char msftime = cmd[1] & 0x02;
-  unsigned short tocsize = 2;
+  unsigned short tocsize = 4;
   unsigned char *p = sector_buffer;
   int lba;
 
@@ -681,14 +741,14 @@ static void PKT_ReadTOC(unsigned char *cmd, unsigned char unit, unsigned short b
       if (msftime) {
           msf_t MSF;
           LBA2MSF(lba+150, &MSF);
-          sector_buffer[5] = MSF.m;
-          sector_buffer[6] = MSF.s;
-          sector_buffer[7] = MSF.f;
+          sector_buffer[9] = MSF.m;
+          sector_buffer[10] = MSF.s;
+          sector_buffer[11] = MSF.f;
         } else {
-          sector_buffer[4] = (lba >> 24) & 0xff;
-          sector_buffer[5] = (lba >> 16) & 0xff;
-          sector_buffer[6] = (lba >> 8) & 0xff;
-          sector_buffer[7] = lba & 0xff;
+          sector_buffer[8] = (lba >> 24) & 0xff;
+          sector_buffer[9] = (lba >> 16) & 0xff;
+          sector_buffer[10] = (lba >> 8) & 0xff;
+          sector_buffer[11] = lba & 0xff;
         }
       break;
     default:
@@ -696,14 +756,81 @@ static void PKT_ReadTOC(unsigned char *cmd, unsigned char unit, unsigned short b
       cdrom_send_error(unit);
       return;
   }
-  sector_buffer[0] = (tocsize>>8) & 0xff;
-  sector_buffer[1] = tocsize & 0xff;
+  sector_buffer[0] = ((tocsize-2)>>8) & 0xff;
+  sector_buffer[1] = (tocsize-2) & 0xff;
 
   cdrom_ok();
   bufsize = MIN(bufsize, tocsize);
-  hexdump(sector_buffer, bufsize, 0);
+  //hexdump(sector_buffer, bufsize, 0);
   WriteStatus(IDE_STATUS_RDY | IDE_STATUS_PKT); // pio in (class 1) command type
   WritePacket(unit, sector_buffer, bufsize, 1);
+}
+
+static void PKT_ModeSelect(unsigned char unit, unsigned short bytelimit, char sel10)
+{
+  WriteTaskFile(0, 0, 0, bytelimit & 0xff, (bytelimit>>8) & 0xff, 0xa0 | ((unit & 0x01)<<4));
+  WriteStatus(IDE_STATUS_REQ | IDE_STATUS_PKT | IDE_STATUS_IRQ); // wait for parameter list
+  unsigned long to = GetTimer(100);
+  while (!(GetFPGAStatus() & CMD_IDEDAT)) { // wait for full write buffer
+    if (CheckTimer(to)) {
+      cdrom_setsense(SENSEKEY_NOT_READY, 0x04, 0);
+      cdrom_send_error(unit);
+      return;
+    }
+  }
+  EnableFpga();
+  SPI(CMD_IDE_DATA_RD); // read parameter list
+  SPI(0x00);
+  SPI(0x00);
+  SPI(0x00);
+  SPI(0x00);
+  SPI(0x00);
+  for (int i=0; i<bytelimit; i++) {
+    sector_buffer[i] = SPI(0xFF);
+  }
+  DisableFpga();
+
+  //hexdump(sector_buffer, bytelimit, 0);
+  unsigned short dlen = sel10 ? (sector_buffer[1] | (sector_buffer[0] << 8)) : sector_buffer[0];
+  unsigned short blen = sel10 ? (sector_buffer[7] | (sector_buffer[6] << 8)) : sector_buffer[3];
+  unsigned char *pBuffer = sel10 ? sector_buffer + 8 : sector_buffer + 4;
+  if ((sel10 && bytelimit < 8) || (!sel10 && bytelimit < 4)) {
+    cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x1A, 0);
+    cdrom_send_error(unit);
+    return;
+  }
+  bytelimit -= sel10 ? 8 : 4;
+  // parse block descriptor(s)
+  while (blen >= 8) {
+    if (bytelimit < 8) {
+      cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x1A, 0);
+      cdrom_send_error(unit);
+      return;
+    }
+    cdrom.blocksize = pBuffer[7] | (pBuffer[6] << 8);
+    iprintf("CDROM blocksize changed to: %d\n", cdrom.blocksize);
+    pBuffer+=8;
+    blen-=8;
+    bytelimit-=8;
+  }
+
+  cdrom_ok();
+  WriteTaskFile(0, 0x03, 0, 0, 0, 0xa0 | ((unit & 0x01)<<4));
+  WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
+}
+
+static void PKT_ModeSelect10(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
+{
+  hdd_debugf("IDE%d: PKT_ModeSelect10 (bufsize=%d)", unit, bytelimit);
+  unsigned short bufsize = MIN(bytelimit, (cmd[7] << 8) | cmd[8]);
+  PKT_ModeSelect(unit, bufsize, 1);
+}
+
+static void PKT_ModeSelect6(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
+{
+  hdd_debugf("IDE%d: PKT_ModeSelect6 (bufsize=%d)", unit, bytelimit);
+  unsigned short bufsize = MIN(bytelimit, cmd[4]);
+  PKT_ModeSelect(unit, bufsize, 0);
 }
 
 static void PKT_ModeSense(unsigned char *cmd, unsigned char unit, unsigned short bytelimit, unsigned char page)
@@ -751,7 +878,6 @@ static void PKT_Inquiry(unsigned char *cmd, unsigned char unit, unsigned short b
 static void PKT_TestUnitReady(unsigned char *cmd, unsigned char unit)
 {
   hdd_debugf("IDE%d: PKT_TestUnitReady", unit);
-  WriteTaskFile(0, 0x03, 0, 0, 0, 0xa0 | ((unit & 0x01)<<4));
   if (toc.valid) {
     cdrom_ok();
     WriteTaskFile(0, 0x03, 0, 0, 0, 0xa0 | ((unit & 0x01)<<4));
@@ -759,7 +885,6 @@ static void PKT_TestUnitReady(unsigned char *cmd, unsigned char unit)
   } else {
     cdrom_setsense(SENSEKEY_NOT_READY, 0x3a, 0);
     cdrom_send_error(unit);
-    WriteStatus(IDE_STATUS_END | IDE_STATUS_ERR | IDE_STATUS_IRQ);
   }
 }
 
@@ -849,6 +974,12 @@ static inline void ATA_Packet(unsigned char *tfr, unsigned char unit, unsigned s
     case 0x5a:
       PKT_ModeSense10(cmdpkt, unit, bytelimit);
       break;
+    case 0x15:
+      PKT_ModeSelect6(cmdpkt, unit, bytelimit);
+      break;
+    case 0x55:
+      PKT_ModeSelect10(cmdpkt, unit, bytelimit);
+      break;
     case 0x43:
       PKT_ReadTOC(cmdpkt, unit, bytelimit);
       break;
@@ -860,6 +991,12 @@ static inline void ATA_Packet(unsigned char *tfr, unsigned char unit, unsigned s
       break;
     case 0xA8:
       PKT_Read12(cmdpkt, unit, bytelimit);
+      break;
+    case 0xBE:
+      PKT_ReadCD(cmdpkt, unit, bytelimit);
+      break;
+    case 0xB9:
+      PKT_ReadCDMSF(cmdpkt, unit, bytelimit);
       break;
     case 0x42:
       PKT_SubChannel(cmdpkt, unit, bytelimit);
@@ -1457,6 +1594,7 @@ unsigned char OpenHardfile(unsigned char unit)
       cdrom.key = cdrom.asc = cdrom.ascq = 0;
       cdrom.currentlba = 0;
       cdrom.audiostatus = AUDIO_NOSTAT;
+      cdrom.blocksize = 2048;
       return 1;
       break;
   }
