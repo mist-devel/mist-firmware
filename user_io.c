@@ -133,7 +133,7 @@ void user_io_reset() {
 	hardfiles[0].enabled = HDF_DISABLED;
 	hardfiles[1].enabled = HDF_DISABLED;
 	hardfiles[2].enabled = HDF_DISABLED;
-	hardfiles[3].enabled = HDF_CDROM;
+	hardfiles[3].enabled = HDF_DISABLED;
 	core_mod = 0;
 	core_features = 0;
 	ps2_kbd_state = PS2_KBD_IDLE;
@@ -368,43 +368,39 @@ void user_io_detect_core_type() {
 				f_close(&file);
 			}
 		}
-
+		for (int i = 0; i < SD_IMAGES; i++) {
+			if ((core_features & (FEAT_IDE0 << (2*i))) == (FEAT_IDE0_CDROM << (2*i))) {
+				iprintf("IDE %d: ATAPI CDROM\n", i);
+				hardfile[i] = &hardfiles[i];
+				hardfiles[i].enabled = HDF_CDROM;
+				OpenHardfile(i);
+			}
+		}
 
 		// check if there's a <core>.vhd present
 		if(!user_io_create_config_name(s, "VHD", CONFIG_ROOT | CONFIG_VHD)) {
 			iprintf("Looking for %s\n", s);
-			user_io_file_mount(s, 0);
+			if (!(core_features & FEAT_IDE0))
+				 user_io_file_mount(s, 0);
+
 			if (!user_io_is_mounted(0)) {
 				// check for <core>.HD0/1 files
 				if(!user_io_create_config_name(s, "HD0", CONFIG_ROOT | CONFIG_VHD)) {
 					for (int i = 0; i < SD_IMAGES; i++) {
 						s[strlen(s)-1] = '0'+i;
 						iprintf("Looking for %s\n", s);
-						user_io_file_mount(s, i);
-					}
-				}
-				// check for <core>.IDx files (IDE drives)
-				if(core_features & FEAT_IDE) {
-					for (int i = 0; i < SD_IMAGES; i++) {
-						hardfile[i] = &hardfiles[i];
-					}
-
-					if(!user_io_create_config_name(s, "ID0", CONFIG_ROOT | CONFIG_VHD)) {
-						for (int i = 0; i < HARDFILES-1; i++) {
-							if (!user_io_is_mounted(i)) {
-								s[strlen(s)-1] = '0'+i;
-								iprintf("Looking for %s\n", s);
-								hardfiles[i].enabled = HDF_FILE;
-								strncpy(hardfiles[i].name, s, sizeof(hardfiles[0].name)); 
-								hardfiles[i].name[sizeof(hardfiles[0].name)-1] = 0;
-								OpenHardfile(i);
-							}
+						if ((core_features & (FEAT_IDE0 << (2*i))) == (FEAT_IDE0_ATA << (2*i))) {
+							iprintf("IDE %d: ATA Hard Disk\n", i);
+							hardfile[i] = &hardfiles[i];
+							hardfiles[i].enabled = HDF_FILE;
+							strncpy(hardfiles[i].name, s, sizeof(hardfiles[0].name));
+							hardfiles[i].name[sizeof(hardfiles[0].name)-1] = 0;
+							OpenHardfile(i);
+						} else {
+							user_io_file_mount(s, i);
 						}
 					}
-					OpenHardfile(3); // CDROM
-
 				}
-
 			}
 		}
 
@@ -738,11 +734,11 @@ char user_io_is_cue_mounted() {
 	return toc.valid;
 }
 
-char user_io_cue_mount(const unsigned char *name) {
+char user_io_cue_mount(const unsigned char *name, unsigned char index) {
 	char res = CUE_RES_OK;
 	toc.valid = 0;
 	if (name) {
-		res = cue_parse(name, &sd_image[3]);
+		res = cue_parse(name, &sd_image[index]);
 	}
 
 	// send mounted image size first then notify about mounting
@@ -1649,7 +1645,7 @@ void user_io_poll() {
 	if(core_type == CORE_TYPE_ARCHIE) 
 		archie_poll();
 
-	if(core_features & FEAT_IDE)
+	if(core_features & FEAT_IDE_MASK)
 	{
 		unsigned char  c1;
 

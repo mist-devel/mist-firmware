@@ -139,7 +139,7 @@ static char CueFileSelected(uint8_t idx, const char *SelectedName) {
 	char res;
 	iprintf("Cue file selected: %s\n", SelectedName);
 	data_io_set_index(user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | (menusub+1));
-	res = user_io_cue_mount(SelectedName);
+	res = user_io_cue_mount(SelectedName, selected_drive_slot);
 	if (res) ErrorMessage(cue_error_msg[res-1], res);
 	else     CloseMenu();
 	return 0;
@@ -234,11 +234,17 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 	if(p && ((p[0] == 'F') || (p[0] == 'S'))) {
 		if(action == MENU_ACT_SEL) {
 			static char ext[13];
+			char iscue = 0;
 			selected_drive_slot = 0;
+			if (p[0]=='S' && (p[1]=='C' || (p[1] && p[1] != ',' && p[2] == 'C'))) {
+				// S[0-9]C - select CUE/ISO file
+				selected_drive_slot = 3;
+				iscue = 1;
+			}
 			if (p[1]>='0' && p[1]<='9') selected_drive_slot = p[1]-'0';
 			substrcpy(ext, p, 1);
 			while(strlen(ext) < 3) strcat(ext, " ");
-			SelectFileNG(ext, SCAN_DIR | SCAN_LFN, (p[0] == 'F')?RomFileSelected:(p[1] == 'C')?CueFileSelected:ImageFileSelected, 1);
+			SelectFileNG(ext, SCAN_DIR | SCAN_LFN, (p[0] == 'F')?RomFileSelected:iscue?CueFileSelected:ImageFileSelected, 1);
 		} else if (action == MENU_ACT_BKSP) {
 			if (p[0] == 'S' && p[1] && p[2] == 'U') {
 				// umount image
@@ -249,10 +255,10 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 				}
 			}
 
-			if (p[0] == 'S' && p[1] == 'C') {
+			if (p[0] == 'S' && (p[1]=='C' || (p[1] && p[1] != ',' && p[2] == 'C'))) {
 				// umount cue
 				if (user_io_is_cue_mounted())
-				user_io_cue_mount(NULL);
+					user_io_cue_mount(NULL, 0);
 			}
 		} else if (action == MENU_ACT_GET) {
 			substrcpy(s, p, 2);

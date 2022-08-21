@@ -78,10 +78,22 @@
 
 #define UIO_GET_FEATS   0x80 // get core features (only once after fpga init)
 
-#define FEAT_MENU       0x01 // menu core
-#define FEAT_PCECD      0x02 // call pcecd_poll()
-#define FEAT_QSPI       0x04 // QSPI connection to FPGA
-#define FEAT_IDE        0x08 // call HandleHDD()
+#define FEAT_MENU       0x0001 // menu core
+#define FEAT_PCECD      0x0002 // call pcecd_poll()
+#define FEAT_QSPI       0x0004 // QSPI connection to FPGA
+#define FEAT_IDE0       0x0030 // enable primary master IDE (0 - off, 1 - ATA - 2 ATAPI CDROM)
+#define FEAT_IDE0_ATA   0x0010
+#define FEAT_IDE0_CDROM 0x0020
+#define FEAT_IDE1       0x00c0 // enable primary slave IDE
+#define FEAT_IDE1_ATA   0x0040
+#define FEAT_IDE1_CDROM 0x0080
+#define FEAT_IDE2       0x0300 // enable secondary master IDE
+#define FEAT_IDE2_ATA   0x0100
+#define FEAT_IDE2_CDROM 0x0200
+#define FEAT_IDE3       0x0c00 // enable secondary slave IDE
+#define FEAT_IDE3_ATA   0x0400
+#define FEAT_IDE3_CDROM 0x0800
+#define FEAT_IDE_MASK   0x0FF0
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
@@ -193,7 +205,7 @@ char user_io_serial_status(serial_status_t *, uint8_t);
 char user_io_is_mounted(unsigned char index);
 void user_io_file_mount(const unsigned char*, unsigned char);
 char user_io_is_cue_mounted();
-char user_io_cue_mount(const unsigned char*);
+char user_io_cue_mount(const unsigned char*, unsigned char);
 char *user_io_get_core_name();
 void user_io_set_core_mod(char);
 
