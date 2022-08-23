@@ -281,7 +281,7 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 					s[0] = '\x1e';
 				}
 			}
-			if (p[0] == 'S' && p[1] == 'C') {
+			if (p[0] == 'S' && (p[1]=='C' || (p[1] && p[1] != ',' && p[2] == 'C'))) {
 				if (user_io_is_cue_mounted())
 					s[0] = '\x1f';
 			}
