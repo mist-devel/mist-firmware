@@ -436,16 +436,18 @@ static char GetMenuItem_Minimig(uint8_t idx, char action, menu_item_t *item) {
 				case 10:
 				case 12: {
 					uint8_t slave = idx == 12;
+					uint8_t enabled = config.hardfile[(t_ide_idx << 1)+slave].enabled;
 					if (config.hardfile[(t_ide_idx << 1)+slave].present) {
 						strcpy(s, "                                ");
-						if(config.hardfile[(t_ide_idx << 1)+slave].enabled == HDF_CDROM)
+						if(enabled == HDF_CDROM)
 							strcpy(&s[14], toc.valid ? "* Inserted *" : "* Empty *");
 						else
 							strncpy(&s[14], config.hardfile[(t_ide_idx << 1)+slave].name, sizeof(config.hardfile[0].name));
 					} else
 						strcpy(s, "       ** file not found **");
 					item->item = s;
-					item->active = config.enable_ide[t_ide_idx] && (config.hardfile[(t_ide_idx << 1)+slave].enabled&HDF_TYPEMASK&(HDF_FILE | HDF_CDROM));
+					item->active = config.enable_ide[t_ide_idx] &&
+					   (((enabled&HDF_TYPEMASK) == HDF_FILE) || ((enabled&HDF_TYPEMASK) == HDF_CDROM));
 					item->stipple = !item->active;
 					}
 					break;
@@ -651,10 +653,10 @@ static char GetMenuItem_Minimig(uint8_t idx, char action, menu_item_t *item) {
 						    config.hardfile[3].enabled != HDF_CDROM) {
 							config.hardfile[hdf_idx].enabled = HDF_CDROM;
 						} else {
-							config.hardfile[hdf_idx].enabled = HDF_FILE;
+							config.hardfile[hdf_idx].enabled = 0;
 						}
 					} else if(config.hardfile[hdf_idx].enabled==HDF_CDROM) {
-						config.hardfile[hdf_idx].enabled = HDF_FILE;
+						config.hardfile[hdf_idx].enabled = 0;
 					} else {
 						config.hardfile[hdf_idx].enabled +=1;
 					}
