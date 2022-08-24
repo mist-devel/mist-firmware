@@ -891,7 +891,9 @@ static void PKT_TestUnitReady(unsigned char *cmd, unsigned char unit)
 static void PKT_RequestSense(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
   hdd_debugf("IDE%d: PKT_RequestSense (bufsize=%d)", unit, bytelimit);
-  unsigned short bufsize = MIN(bytelimit, cmd[4]);
+  unsigned char alloclen = cmd[4];
+  if(!alloclen) alloclen = 4;
+  unsigned short bufsize = MIN(bytelimit, alloclen);
   SENSEDATA_t *sense = (SENSEDATA_t*)&sector_buffer;
 
   memset(sector_buffer, 0, 16);
