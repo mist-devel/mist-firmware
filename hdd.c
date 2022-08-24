@@ -337,26 +337,28 @@ static void WriteStatus(unsigned char status)
 static void WritePacket(unsigned char unit, const unsigned char *buf, unsigned short bufsize, char lastpacket)
 {
   unsigned short bytes;
-  while (bufsize) {
+  do {
     bytes = MIN(bufsize, 2352);
     while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
     WriteTaskFile(0, 0x02, 0, bytes & 0xff, (bytes>>8) & 0xff, 0xa0 | ((unit & 0x01)<<4));
-    EnableFpga();
-    SPI(CMD_IDE_DATA_WR); // write data command
-    SPI(0x00);
-    SPI(0x00);
-    SPI(0x00);
-    SPI(0x00);
-    SPI(0x00);
-    spi_write(buf, bytes);
-    DisableFpga();
+    if (bytes) {
+      EnableFpga();
+      SPI(CMD_IDE_DATA_WR); // write data command
+      SPI(0x00);
+      SPI(0x00);
+      SPI(0x00);
+      SPI(0x00);
+      SPI(0x00);
+      spi_write(buf, bytes);
+      DisableFpga();
+    }
     buf += bytes;
     bufsize -= bytes;
     if (lastpacket && !bufsize)
       WriteStatus(IDE_STATUS_IRQ | IDE_STATUS_END);
     else
       WriteStatus(IDE_STATUS_IRQ);
-  }
+  } while (bufsize);
 }
 
 static void cdrom_setsense(unsigned char key, unsigned char asc, unsigned char ascq)
