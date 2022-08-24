@@ -1631,3 +1631,17 @@ unsigned char GetHDFFileType(const char *filename)
   f_close(&rdbfile);
   return(res);
 }
+
+void SendHDFCfg()
+{
+  int i;
+  unsigned char cfg = 0;
+  for (int i=0; i<HARDFILES; i++) {
+    if(hardfile[i]->present) cfg |= (1<<i);
+  }
+
+  EnableFpga();
+  SPI(CMD_IDE_CFG_WR);
+  SPI(cfg);
+  DisableFpga();
+}

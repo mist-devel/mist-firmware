@@ -16,6 +16,8 @@
 #define CMD_IDE_DATA_RD   0xB0
 #define CMD_IDE_STATUS_WR 0xF0
 
+#define CMD_IDE_CFG_WR    0xFA
+
 #define IDE_STATUS_END  0x80
 #define IDE_STATUS_PKT  0x20
 #define IDE_STATUS_IRQ  0x10
@@ -92,7 +94,7 @@ void HandleHDD(unsigned char c1, unsigned char c2, unsigned char cs1ena);
 void GetHardfileGeometry(hdfTYPE *hdf);
 unsigned char OpenHardfile(unsigned char unit);
 unsigned char GetHDFFileType(const char *filename);
-
+void SendHDFCfg();
 
 #endif // __HDD_H__
 

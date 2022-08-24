@@ -115,7 +115,7 @@ static uint32_t autofire_mask;
 static char autofire_joy;
 
 // ATA drives
-hardfileTYPE  hardfiles[4];
+static hardfileTYPE  hardfiles[4];
 
 char user_io_osd_is_visible() {
 	return osd_is_visible;
@@ -130,10 +130,10 @@ void user_io_reset() {
 	sd_image[1].valid = 0;
 	sd_image[2].valid = 0;
 	sd_image[3].valid = 0;
-	hardfiles[0].enabled = HDF_DISABLED;
-	hardfiles[1].enabled = HDF_DISABLED;
-	hardfiles[2].enabled = HDF_DISABLED;
-	hardfiles[3].enabled = HDF_DISABLED;
+	for (int i=0; i<HARDFILES; i++) {
+		hardfiles[i].enabled = HDF_DISABLED;
+		hardfiles[i].present = 0;
+	}
 	core_mod = 0;
 	core_features = 0;
 	ps2_kbd_state = PS2_KBD_IDLE;
@@ -369,9 +369,9 @@ void user_io_detect_core_type() {
 			}
 		}
 		for (int i = 0; i < SD_IMAGES; i++) {
+			hardfile[i] = &hardfiles[i];
 			if ((core_features & (FEAT_IDE0 << (2*i))) == (FEAT_IDE0_CDROM << (2*i))) {
 				iprintf("IDE %d: ATAPI CDROM\n", i);
-				hardfile[i] = &hardfiles[i];
 				hardfiles[i].enabled = HDF_CDROM;
 				OpenHardfile(i);
 			}
@@ -391,7 +391,6 @@ void user_io_detect_core_type() {
 						iprintf("Looking for %s\n", s);
 						if ((core_features & (FEAT_IDE0 << (2*i))) == (FEAT_IDE0_ATA << (2*i))) {
 							iprintf("IDE %d: ATA Hard Disk\n", i);
-							hardfile[i] = &hardfiles[i];
 							hardfiles[i].enabled = HDF_FILE;
 							strncpy(hardfiles[i].name, s, sizeof(hardfiles[0].name));
 							hardfiles[i].name[sizeof(hardfiles[0].name)-1] = 0;
@@ -403,6 +402,8 @@ void user_io_detect_core_type() {
 				}
 			}
 		}
+		if (core_features & FEAT_IDE_MASK)
+			SendHDFCfg();
 
 		// release reset
 		user_io_8bit_set_status(0, UIO_STATUS_RESET);
