@@ -804,6 +804,8 @@ static void PKT_ModeSelect(unsigned char unit, unsigned short bytelimit, char se
   }
   bytelimit -= sel10 ? 8 : 4;
   // parse block descriptor(s)
+  // disabled, as ATAPI compliance doesn't use block descriptors (MMC-3 B.2.2)
+#if 0
   while (blen >= 8) {
     if (bytelimit < 8) {
       cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x1A, 0);
@@ -816,7 +818,8 @@ static void PKT_ModeSelect(unsigned char unit, unsigned short bytelimit, char se
     blen-=8;
     bytelimit-=8;
   }
-
+#endif
+  // TODO: parse page descriptors
   cdrom_ok();
   WriteTaskFile(0, 0x03, 0, 0, 0, 0xa0 | ((unit & 0x01)<<4));
   WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
