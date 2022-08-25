@@ -429,7 +429,7 @@ static void PKT_Read(unsigned char unit, unsigned int lba, unsigned int len, uns
 
     bytelimit-=blocksize;
     lba++;
-    WritePacket(unit, sector_buffer, blocksize, bytelimit < blocksize);
+    WritePacket(unit, sector_buffer, blocksize, (bytelimit < blocksize) || !len);
   }
 }
 
