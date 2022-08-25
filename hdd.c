@@ -770,6 +770,7 @@ static void PKT_ReadTOC(unsigned char *cmd, unsigned char unit, unsigned short b
 
 static void PKT_ModeSelect(unsigned char unit, unsigned short bytelimit, char sel10)
 {
+  bytelimit = MIN(bytelimit, SECTOR_BUFFER_SIZE);
   WriteTaskFile(0, 0, 0, bytelimit & 0xff, (bytelimit>>8) & 0xff, 0xa0 | ((unit & 0x01)<<4));
   WriteStatus(IDE_STATUS_REQ | IDE_STATUS_PKT | IDE_STATUS_IRQ); // wait for parameter list
   unsigned long to = GetTimer(100);
