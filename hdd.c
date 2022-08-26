@@ -260,7 +260,8 @@ static void IdentifyPacketDevice(unsigned short *pBuffer, unsigned char unit)
   memcpy((char*)&pBuffer[27], "                                        ", 40); // Model number - byte swapped
   pBuffer[49] = 0x0100;
   pBuffer[53] = 1;
-  pBuffer[82] = 0x4214;
+  pBuffer[82] = 0x4214;  // command set supported (NOP, DEVICE RESET, PACKET, Removable media)
+  pBuffer[126] = 0xfffe; // byte count = 0 behavior
 }
 
 // chs2lba()
@@ -334,11 +335,11 @@ static void WriteStatus(unsigned char status)
   DisableFpga();
 }
 
-static void WritePacket(unsigned char unit, const unsigned char *buf, unsigned short bufsize, char lastpacket)
+static void WritePacket(unsigned char unit, const unsigned char *buf, unsigned short bufsize, unsigned short bytelimit, char lastpacket)
 {
   unsigned short bytes;
   do {
-    bytes = MIN(bufsize, 2352);
+    bytes = MIN(bufsize, bytelimit);
     while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
     WriteTaskFile(0, 0x02, 0, bytes & 0xff, (bytes>>8) & 0xff, 0xa0 | ((unit & 0x01)<<4));
     if (bytes) {
@@ -402,7 +403,7 @@ static void PKT_Read(unsigned char unit, unsigned int lba, unsigned int len, uns
   cdrom_ok();
   WriteStatus(IDE_STATUS_RDY | IDE_STATUS_PKT); // pio in (class 1) command type
 
-  while ((bytelimit >= blocksize) && (len--)) {
+  while (len--) {
     unsigned char track = cue_gettrackbylba(lba);
     int offset = (lba - toc.tracks[track].start) * toc.tracks[track].sector_size + toc.tracks[track].offset;
     hdd_debugf("lba: %d track: %d, offset: %d", lba, track, offset);
@@ -427,15 +428,14 @@ static void PKT_Read(unsigned char unit, unsigned int lba, unsigned int len, uns
        cdrom_generate_ecc(sector_buffer, lba);
     }
 
-    //bytelimit-=blocksize;
     lba++;
-    WritePacket(unit, sector_buffer, blocksize, (bytelimit < blocksize) || !len);
+    WritePacket(unit, sector_buffer, blocksize, bytelimit, !len);
   }
 }
 
 static void PKT_Read12(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_Read12 (bufsize=%d)", unit, bytelimit);
+  hdd_debugf("IDE%d: PKT_Read12 (bytelimit=%d)", unit, bytelimit);
   unsigned int lba = cmd[5] | (cmd[4] << 8) | (cmd[3] << 16) | (cmd[2] << 24);
   unsigned int len = cmd[9] | (cmd[8] << 8) | (cmd[7] << 16) | (cmd[6] << 24);
   PKT_Read(unit, lba, len, bytelimit, cdrom.blocksize);
@@ -443,7 +443,7 @@ static void PKT_Read12(unsigned char *cmd, unsigned char unit, unsigned short by
 
 static void PKT_Read10(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_Read10 (bufsize=%d)", unit, bytelimit);
+  hdd_debugf("IDE%d: PKT_Read10 (bytelimit=%d)", unit, bytelimit);
   unsigned int lba = cmd[5] | (cmd[4] << 8) | (cmd[3] << 16) | (cmd[2] << 24);
   unsigned int len = cmd[8] | (cmd[7] << 8);
   PKT_Read(unit, lba, len, bytelimit, cdrom.blocksize);
@@ -472,7 +472,7 @@ static void PKT_DoReadCD(unsigned char *cmd, unsigned char unit, unsigned short 
 
 static void PKT_ReadCD(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_ReadCD (bufsize=%d)", unit, bytelimit);
+  hdd_debugf("IDE%d: PKT_ReadCD (bytelimit=%d)", unit, bytelimit);
   unsigned int lba = cmd[5] | (cmd[4] << 8) | (cmd[3] << 16) | (cmd[2] << 24);
   unsigned int len = cmd[8] | (cmd[7] << 8) | (cmd[6] << 16);
   PKT_DoReadCD(cmd, unit, bytelimit, lba, len);
@@ -480,7 +480,7 @@ static void PKT_ReadCD(unsigned char *cmd, unsigned char unit, unsigned short by
 
 static void PKT_ReadCDMSF(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_ReadCDMSF (bufsize=%d)", unit, bytelimit);
+  hdd_debugf("IDE%d: PKT_ReadCDMSF (bytelimit=%d)", unit, bytelimit);
   unsigned int start = MSF2LBA(cmd[3], cmd[4], cmd[5]);
   unsigned int end = MSF2LBA(cmd[6], cmd[7], cmd[8]);
   if (start > end) {
@@ -572,8 +572,8 @@ static void PKT_StopPlayScan(unsigned char *cmd, unsigned char unit)
 
 static void PKT_SubChannel(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_SubChannel (bufsize=%d)", unit, bytelimit);
-  unsigned short bufsize = MIN(bytelimit, (cmd[7] << 8) | cmd[8]);
+  hdd_debugf("IDE%d: PKT_SubChannel (bytelimit=%d)", unit, bytelimit);
+  unsigned short bufsize = (cmd[7] << 8) | cmd[8];
   unsigned char track;
   unsigned char msftime = cmd[1] & 0x02;
   unsigned short respsize = 0;
@@ -637,12 +637,12 @@ static void PKT_SubChannel(unsigned char *cmd, unsigned char unit, unsigned shor
   cdrom_ok();
   bufsize = MIN(bufsize, respsize);
   WriteStatus(IDE_STATUS_RDY | IDE_STATUS_PKT); // pio in (class 1) command type
-  WritePacket(unit, sector_buffer, bufsize, 1);
+  WritePacket(unit, sector_buffer, bufsize, bytelimit, 1);
 }
 
 static void PKT_ReadCapacity(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_ReadCapacity (bufsize=%d)", unit, bytelimit);
+  hdd_debugf("IDE%d: PKT_ReadCapacity (bytelimit=%d)", unit, bytelimit);
   if (!toc.valid) {
     cdrom_setsense(SENSEKEY_NOT_READY, 0x3a, 0);
     cdrom_send_error(unit);
@@ -659,13 +659,13 @@ static void PKT_ReadCapacity(unsigned char *cmd, unsigned char unit, unsigned sh
   //hexdump(sector_buffer, 8, 0);
   cdrom_ok();
   WriteStatus(IDE_STATUS_RDY | IDE_STATUS_PKT); // pio in (class 1) command type
-  WritePacket(unit, sector_buffer, MIN(bytelimit, 8), 1);
+  WritePacket(unit, sector_buffer, 8, bytelimit, 1);
 }
 
 static void PKT_ReadTOC(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_ReadTOC (bufsize=%d)", unit, bytelimit);
-  unsigned short bufsize = MIN(bytelimit, (cmd[7] << 8) | cmd[8]);
+  hdd_debugf("IDE%d: PKT_ReadTOC (bytelimit=%d)", unit, bytelimit);
+  unsigned short bufsize = (cmd[7] << 8) | cmd[8];
   unsigned char track = cmd[6];
   unsigned char msftime = cmd[1] & 0x02;
   unsigned short tocsize = 4;
@@ -765,7 +765,7 @@ static void PKT_ReadTOC(unsigned char *cmd, unsigned char unit, unsigned short b
   bufsize = MIN(bufsize, tocsize);
   //hexdump(sector_buffer, bufsize, 0);
   WriteStatus(IDE_STATUS_RDY | IDE_STATUS_PKT); // pio in (class 1) command type
-  WritePacket(unit, sector_buffer, bufsize, 1);
+  WritePacket(unit, sector_buffer, bufsize, bytelimit, 1);
 }
 
 static void PKT_ModeSelect(unsigned char unit, unsigned short bytelimit, char sel10)
@@ -827,19 +827,19 @@ static void PKT_ModeSelect(unsigned char unit, unsigned short bytelimit, char se
 
 static void PKT_ModeSelect10(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_ModeSelect10 (bufsize=%d)", unit, bytelimit);
+  hdd_debugf("IDE%d: PKT_ModeSelect10 (bytelimit=%d)", unit, bytelimit);
   unsigned short bufsize = MIN(bytelimit, (cmd[7] << 8) | cmd[8]);
   PKT_ModeSelect(unit, bufsize, 1);
 }
 
 static void PKT_ModeSelect6(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_ModeSelect6 (bufsize=%d)", unit, bytelimit);
+  hdd_debugf("IDE%d: PKT_ModeSelect6 (bytelimit=%d)", unit, bytelimit);
   unsigned short bufsize = MIN(bytelimit, cmd[4]);
   PKT_ModeSelect(unit, bufsize, 0);
 }
 
-static void PKT_ModeSense(unsigned char *cmd, unsigned char unit, unsigned short bytelimit, unsigned char page)
+static void PKT_ModeSense(unsigned char *cmd, unsigned char unit, unsigned short bytelimit, unsigned short bufsize, unsigned char page)
 {
   //TODO: implement
   cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x20, 0);
@@ -848,24 +848,24 @@ static void PKT_ModeSense(unsigned char *cmd, unsigned char unit, unsigned short
 
 static void PKT_ModeSense10(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_ModeSense10 (bufsize=%d)", unit, bytelimit);
-  unsigned short bufsize = MIN(bytelimit, (cmd[7] << 8) | cmd[8]);
+  hdd_debugf("IDE%d: PKT_ModeSense10 (bytelimit=%d)", unit, bytelimit);
+  unsigned short bufsize = (cmd[7] << 8) | cmd[8];
   unsigned char page = cmd[2] & 0x3f;
-  PKT_ModeSense(cmd, unit, bytelimit, page);
+  PKT_ModeSense(cmd, unit, bytelimit, bufsize, page);
 }
 
 static void PKT_ModeSense6(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_ModeSense6 (bufsize=%d)", unit, bytelimit);
-  unsigned short bufsize = MIN(bytelimit, cmd[4]);
+  hdd_debugf("IDE%d: PKT_ModeSense6 (bytelimit=%d)", unit, bytelimit);
+  unsigned short bufsize = cmd[4];
   unsigned char page = cmd[2] & 0x3f;
-  PKT_ModeSense(cmd, unit, bytelimit, page);
+  PKT_ModeSense(cmd, unit, bytelimit, bufsize, page);
 }
 
 static void PKT_Inquiry(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_Inquiry (bufsize=%d)", unit, bytelimit);
-  unsigned short bufsize = MIN(bytelimit, (cmd[3] << 8) | cmd[4]);
+  hdd_debugf("IDE%d: PKT_Inquiry (bytelimit=%d)", unit, bytelimit);
+  unsigned short bufsize = (cmd[3] << 8) | cmd[4];
   INQUIRYDATA_t *inq = (INQUIRYDATA_t*)&sector_buffer;
 
   memset(sector_buffer, 0, 36);
@@ -878,7 +878,7 @@ static void PKT_Inquiry(unsigned char *cmd, unsigned char unit, unsigned short b
   bufsize = MIN(bufsize, 36);
   cdrom_ok();
   WriteStatus(IDE_STATUS_RDY | IDE_STATUS_PKT); // pio in (class 1) command type
-  WritePacket(unit, sector_buffer, bufsize, 1);
+  WritePacket(unit, sector_buffer, bufsize, bytelimit, 1);
 }
 
 static void PKT_TestUnitReady(unsigned char *cmd, unsigned char unit)
@@ -896,10 +896,8 @@ static void PKT_TestUnitReady(unsigned char *cmd, unsigned char unit)
 
 static void PKT_RequestSense(unsigned char *cmd, unsigned char unit, unsigned short bytelimit)
 {
-  hdd_debugf("IDE%d: PKT_RequestSense (bufsize=%d)", unit, bytelimit);
-  unsigned char alloclen = cmd[4];
-  if(!alloclen) alloclen = 4;
-  unsigned short bufsize = MIN(bytelimit, alloclen);
+  hdd_debugf("IDE%d: PKT_RequestSense (bytelimit=%d)", unit, bytelimit);
+  unsigned short bufsize = MIN(cmd[4] ? cmd[4] : 4, 16);
   SENSEDATA_t *sense = (SENSEDATA_t*)&sector_buffer;
 
   memset(sector_buffer, 0, 16);
@@ -908,9 +906,8 @@ static void PKT_RequestSense(unsigned char *cmd, unsigned char unit, unsigned sh
   sense->SenseKey = cdrom.key;
   sense->AdditionalSenseCode = cdrom.asc;
   sense->AdditionalSenseCodeQualifier = cdrom.ascq;
-  bufsize = MIN(bufsize, 16);
   WriteStatus(IDE_STATUS_RDY | IDE_STATUS_PKT); // pio in (class 1) command type
-  WritePacket(unit, sector_buffer, bufsize, 1);
+  WritePacket(unit, sector_buffer, bufsize, bytelimit, 1);
 }
 
 static void PKT_StartStopUnit(unsigned char *cmd, unsigned char unit)
@@ -939,7 +936,7 @@ static inline void ATA_Packet(unsigned char *tfr, unsigned char unit, unsigned s
     WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ | IDE_STATUS_ERR);
     return;
   }
-  if (!bytelimit) bytelimit = 0xfffe;
+  if (!bytelimit || bytelimit == 0xffff) bytelimit = 0xfffe;
   tfr[TFR_ERR] = 0x00;
   tfr[TFR_SCOUNT] = 0x01; //C/D flag
   WriteTaskFile(tfr[1], tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
