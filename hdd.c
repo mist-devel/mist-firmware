@@ -427,7 +427,7 @@ static void PKT_Read(unsigned char unit, unsigned int lba, unsigned int len, uns
        cdrom_generate_ecc(sector_buffer, lba);
     }
 
-    bytelimit-=blocksize;
+    //bytelimit-=blocksize;
     lba++;
     WritePacket(unit, sector_buffer, blocksize, (bytelimit < blocksize) || !len);
   }
