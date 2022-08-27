@@ -14,6 +14,8 @@
 #define CMD_IDE_REGS_WR   0x90
 #define CMD_IDE_DATA_WR   0xA0
 #define CMD_IDE_DATA_RD   0xB0
+#define CMD_IDE_CDDA_RD   0xC0 // status bit read, since no free CMD_xxx :(
+#define CMD_IDE_CDDA_WR   0xD0
 #define CMD_IDE_STATUS_WR 0xF0
 
 #define CMD_IDE_CFG_WR    0xFA

@@ -390,6 +390,32 @@ static void cdrom_generate_ecc(unsigned char *pBuffer, unsigned int lba)
   // TODO: implement
 }
 
+static void cdrom_playaudio()
+{
+  UINT br;
+  unsigned char track = cue_gettrackbylba(cdrom.currentlba);
+  if ((toc.tracks[track].type != SECTOR_AUDIO) || (toc.tracks[track].sector_size != 2352)) {
+    cdrom.audiostatus = AUDIO_ERROR;
+    return;
+  }
+  int offset = (cdrom.currentlba - toc.tracks[track].start) * toc.tracks[track].sector_size + toc.tracks[track].offset;
+  f_lseek(&toc.file->file, offset);
+  f_read(&toc.file->file, sector_buffer, 2352, &br);
+  EnableFpga();
+  SPI(CMD_IDE_CDDA_WR); // write cdda command
+  SPI(0x00);
+  SPI(0x00);
+  SPI(0x00);
+  SPI(0x00);
+  SPI(0x00);
+  spi_write(sector_buffer, 2352);
+  DisableFpga();
+  if (cdrom.currentlba == cdrom.endlba)
+    cdrom.audiostatus = AUDIO_COMPLETE;
+  else
+    cdrom.currentlba++;
+}
+
 static void PKT_Read(unsigned char unit, unsigned int lba, unsigned int len, unsigned short bytelimit, unsigned short blocksize)
 {
   UINT br;
@@ -1465,6 +1491,20 @@ void HandleHDD(unsigned char c1, unsigned char c2, unsigned char cs1ena)
     }
     DISKLED_OFF;
   }
+
+  // CDDA
+  if (cdrom.audiostatus != AUDIO_PLAYING) return;
+  EnableFpga();
+  SPI(CMD_IDE_CDDA_RD); // read cdda FIFO status
+  SPI(0x00);
+  SPI(0x00);
+  SPI(0x00);
+  SPI(0x00);
+  SPI(0x00);
+  SPI(0x00);
+  c1=SPI(0x00);
+  DisableFpga();
+  if (c1 & 0x01) cdrom_playaudio();
 }
 
 
