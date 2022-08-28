@@ -1191,6 +1191,38 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
     WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
     while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
 
+    /* Advance CHS address while DRQ is not asserted with the address of last (anticipated) read. */
+    int block_count_tmp = block_count;
+    while(block_count_tmp--)
+    {
+      if (sector_count!=1)
+      {
+        if (sector == hdf[unit].sectors)
+        {
+          sector = 1;
+          head++;
+          if (head == hdf[unit].heads)
+          {
+            head = 0;
+            cylinder++;
+          }
+        }
+        else
+        sector++;
+      }
+      --sector_count;
+    }
+    if (lbamode) {
+      long newlba = lba+block_count;
+      sector = newlba & 0xff;
+      cylinder = newlba >> 8;
+      head = newlba >> 24;
+    }
+
+    /* Update task file with CHS address */
+    WriteTaskFile(0, tfr[2], sector, cylinder, (cylinder >> 8), (tfr[6] & 0xF0) | head);
+
+    // Indicate the start of the transfer
     WriteStatus(IDE_STATUS_IRQ);
 
     switch(hdf[unit].type)
@@ -1280,35 +1312,6 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
 #endif
         break;
     }
-
-    /* Advance CHS address - address of last read remains. */
-    while(block_count--)
-    {
-      if (sector_count!=1)
-      {
-        if (sector == hdf[unit].sectors)
-        {
-          sector = 1;
-          head++;
-          if (head == hdf[unit].heads)
-          {
-            head = 0;
-            cylinder++;
-          }
-        }
-        else
-        sector++;
-      }
-      --sector_count;
-    }
-    if (lbamode) {
-      sector = lba & 0xff;
-      cylinder = lba >> 8;
-      head = lba >> 24;
-    }
-    /* Update task file with CHS address */
-    WriteTaskFile(0, tfr[2], sector, cylinder, (cylinder >> 8), (tfr[6] & 0xF0) | head);
-
   }
   WriteStatus(IDE_STATUS_END);
 }
