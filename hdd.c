@@ -362,6 +362,14 @@ static void WritePacket(unsigned char unit, const unsigned char *buf, unsigned s
   } while (bufsize);
 }
 
+static void cdrom_reset()
+{
+  cdrom.key = cdrom.asc = cdrom.ascq = 0;
+  cdrom.currentlba = 0;
+  cdrom.audiostatus = AUDIO_NOSTAT;
+  cdrom.blocksize = 2048;
+}
+
 static void cdrom_setsense(unsigned char key, unsigned char asc, unsigned char ascq)
 {
   cdrom.key = key;
@@ -661,7 +669,6 @@ static void PKT_SubChannel(unsigned char *cmd, unsigned char unit, unsigned shor
       break;
   }
   sector_buffer[3] = respsize - 4;
-
   cdrom_ok();
   bufsize = MIN(bufsize, respsize);
   WriteStatus(IDE_STATUS_RDY | IDE_STATUS_PKT); // pio in (class 1) command type
@@ -1498,6 +1505,7 @@ void HandleHDD(unsigned char c1, unsigned char c2, unsigned char cs1ena)
   }
 
   // CDDA
+  if (!toc.valid) cdrom.audiostatus = AUDIO_NOSTAT;
   if (cdrom.audiostatus != AUDIO_PLAYING) return;
   EnableFpga();
   SPI(CMD_IDE_CDDA_RD); // read cdda FIFO status
@@ -1641,10 +1649,7 @@ unsigned char OpenHardfile(unsigned char unit)
     case HDF_CDROM:
       hdf[unit].type = HDF_CDROM;
       hardfile[unit]->present = 1;
-      cdrom.key = cdrom.asc = cdrom.ascq = 0;
-      cdrom.currentlba = 0;
-      cdrom.audiostatus = AUDIO_NOSTAT;
-      cdrom.blocksize = 2048;
+      cdrom_reset();
       return 1;
       break;
   }
