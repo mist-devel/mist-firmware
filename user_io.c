@@ -348,14 +348,23 @@ void user_io_detect_core_type() {
 			}
 		}
 
-		for (char root = 0; root <= 1; root++) {
-			// check if there's a <core>.rom present, send it via index 0
-			if (!user_io_create_config_name(s, "ROM", root)) {
-				iprintf("Looking for %s\n", s);
-				if (f_open(&file, s, FA_READ) == FR_OK) {
-					data_io_file_tx(&file, 0, "ROM");
-					f_close(&file);
-					break;
+		// check if there's a <core>.rom or <core>.r0[1-6] present, send it via index 0-6
+		for (int i = 0; i < 7; i++) {
+			char ext[4];
+			if (!i) {
+				strcpy(ext, "ROM");
+			} else {
+				strcpy(ext, "R01");
+				ext[2] = '0'+i;
+			}
+			for (char root = 0; root <= 1; root++) {
+				if (!user_io_create_config_name(s, ext, root)) {
+					iprintf("Looking for %s\n", s);
+					if (f_open(&file, s, FA_READ) == FR_OK) {
+						data_io_file_tx(&file, i, ext);
+						f_close(&file);
+						break;
+					}
 				}
 			}
 		}
