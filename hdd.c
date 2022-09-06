@@ -442,11 +442,10 @@ static void PKT_Read(unsigned char unit, unsigned int lba, unsigned int len, uns
   while (len--) {
     unsigned char track = cue_gettrackbylba(lba);
     int offset = (lba - toc.tracks[track].start) * toc.tracks[track].sector_size + toc.tracks[track].offset;
-    hdd_debugf("lba: %d track: %d, offset: %d", lba, track, offset);
 
-    if ((blocksize == 2048 && toc.tracks[track].type != SECTOR_DATA) ||
+    if ((blocksize == 2048 && toc.tracks[track].type != SECTOR_DATA_MODE1 && toc.tracks[track].type != SECTOR_DATA_MODE2) ||
         (blocksize != 2048 && blocksize !=2352) ||
-        (toc.tracks[track].sector_size != 2048 && toc.tracks[track].sector_size != 2352)) {
+        (toc.tracks[track].sector_size != 2048 && toc.tracks[track].sector_size != 2352 && toc.tracks[track].sector_size != 2336)) {
       cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x26, 2);
       cdrom_send_error(unit);
       return;
@@ -454,10 +453,12 @@ static void PKT_Read(unsigned char unit, unsigned int lba, unsigned int len, uns
     pBuffer = sector_buffer;
     cdrom.currentlba = lba;
     if (blocksize == 2048 && toc.tracks[track].sector_size == 2352) offset+=16;
-    if (blocksize == 2352 && toc.tracks[track].sector_size == 2048) {
+    if (blocksize == 2048 && toc.tracks[track].sector_size >= 2336 && toc.tracks[track].type == SECTOR_DATA_MODE2) offset+=8; // CD-XA with 8 subheader bytes
+    if (blocksize == 2352 && (toc.tracks[track].sector_size == 2048 || toc.tracks[track].sector_size == 2336)) {
        cdrom_generate_header(pBuffer, lba);
        pBuffer+=16;
     }
+    hdd_debugf("lba: %d track: %d, offset: %d, blocksize: %d sector_size: %d", lba, track, offset, blocksize, toc.tracks[track].sector_size);
     f_lseek(&toc.file->file, offset);
     f_read(&toc.file->file, pBuffer, MIN(toc.tracks[track].sector_size, blocksize), &br);
     if (blocksize == 2352 && toc.tracks[track].sector_size == 2048) {
@@ -629,7 +630,7 @@ static void PKT_SubChannel(unsigned char *cmd, unsigned char unit, unsigned shor
       // current position
       respsize = (cmd[2] & 0x40) ? 16 : 4;
       sector_buffer[4] = 0x01;
-      sector_buffer[5] = (1 << 4) | ((toc.tracks[track-1].type == SECTOR_DATA) ? 4 : 0);
+      sector_buffer[5] = (1 << 4) | (toc.tracks[track-1].type == SECTOR_AUDIO ? 0 : 4);
       sector_buffer[6] = track + 1;
       sector_buffer[7] = cdrom.currentlba >= toc.tracks[track].start ? 1 : 0; // TODO: support more than 1 indices
       unsigned int rellba = cdrom.currentlba - toc.tracks[track].start;
@@ -726,7 +727,7 @@ static void PKT_ReadTOC(unsigned char *cmd, unsigned char unit, unsigned short b
       for (int i=1; i<=toc.last; i++) {
         if (i>=track) {
           p[0] = p[3] =  0;
-          p[1] = (1 << 4) | ((toc.tracks[i-1].type == SECTOR_DATA) ? 4 : 0);
+          p[1] = (1 << 4) | (toc.tracks[i-1].type == SECTOR_AUDIO ? 0 : 4);
           p[2] = i;
           lba = toc.tracks[i-1].start;
           hdd_debugf("track %d lba: %d", i, lba);
@@ -772,7 +773,7 @@ static void PKT_ReadTOC(unsigned char *cmd, unsigned char unit, unsigned short b
       tocsize = 12;
       memset(sector_buffer, 0, tocsize);
       sector_buffer[2] = sector_buffer[3] = 1; // first/last session numbers
-      sector_buffer[5] = (1 << 4) | ((toc.tracks[0].type == SECTOR_DATA) ? 4 : 0);
+      sector_buffer[5] = (1 << 4) | (toc.tracks[0].type == SECTOR_AUDIO ? 0 : 4);
       sector_buffer[6] = 1;
       lba = toc.tracks[0].start;
       if (msftime) {

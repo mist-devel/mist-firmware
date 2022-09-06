@@ -7,7 +7,8 @@
 #endif
 
 #define SECTOR_AUDIO 0
-#define SECTOR_DATA 1
+#define SECTOR_DATA_MODE1 1
+#define SECTOR_DATA_MODE2 2
 
 #define CUE_RES_OK       0
 #define CUE_RES_NOTFOUND 1

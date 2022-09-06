@@ -21,6 +21,7 @@
 #define TOKEN_MODE1_2048        "MODE1/2048"
 #define TOKEN_MODE1_2352        "MODE1/2352"
 #define TOKEN_MODE2_2352        "MODE2/2352"
+#define TOKEN_MODE2_2336        "MODE2/2336"
 #define TOKEN_PREGAP            "PREGAP"
 #define TOKEN_INDEX             "INDEX"
 
@@ -166,7 +167,7 @@ char cue_parse(const char *filename, IDXFile *image)
       bin_valid = 1;
       track = 1;
       toc.tracks[0].sector_size = 2048;
-      toc.tracks[0].type = SECTOR_DATA;
+      toc.tracks[0].type = SECTOR_DATA_MODE1;
       toc.tracks[0].offset = 0;
       toc.tracks[0].start = 0;
     } else {
@@ -244,13 +245,16 @@ char cue_parse(const char *filename, IDXFile *image)
                 toc.tracks[track-1].type = SECTOR_AUDIO;
               } else if (!strcmp(word, TOKEN_MODE1_2352)) {
                 toc.tracks[track-1].sector_size = 2352;
-                toc.tracks[track-1].type = SECTOR_DATA;
+                toc.tracks[track-1].type = SECTOR_DATA_MODE1;
               } else if (!strcmp(word, TOKEN_MODE2_2352)) {
                 toc.tracks[track-1].sector_size = 2352;
-                toc.tracks[track-1].type = SECTOR_DATA;
+                toc.tracks[track-1].type = SECTOR_DATA_MODE2;
+              } else if (!strcmp(word, TOKEN_MODE2_2336)) {
+                toc.tracks[track-1].sector_size = 2336;
+                toc.tracks[track-1].type = SECTOR_DATA_MODE2;
               } else if (!strcmp(word, TOKEN_MODE1_2048)) {
                 toc.tracks[track-1].sector_size = 2048;
-                toc.tracks[track-1].type = SECTOR_DATA;
+                toc.tracks[track-1].type = SECTOR_DATA_MODE1;
               } else {
                 error = CUE_RES_INVALID;
               }
