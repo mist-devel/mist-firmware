@@ -475,6 +475,7 @@ static void PKT_Read12(unsigned char *cmd, unsigned char unit, unsigned short by
   hdd_debugf("IDE%d: PKT_Read12 (bytelimit=%d)", unit, bytelimit);
   unsigned int lba = cmd[5] | (cmd[4] << 8) | (cmd[3] << 16) | (cmd[2] << 24);
   unsigned int len = cmd[9] | (cmd[8] << 8) | (cmd[7] << 16) | (cmd[6] << 24);
+  cdrom.audiostatus = AUDIO_NOSTAT;
   PKT_Read(unit, lba, len, bytelimit, cdrom.blocksize);
 }
 
@@ -483,6 +484,7 @@ static void PKT_Read10(unsigned char *cmd, unsigned char unit, unsigned short by
   hdd_debugf("IDE%d: PKT_Read10 (bytelimit=%d)", unit, bytelimit);
   unsigned int lba = cmd[5] | (cmd[4] << 8) | (cmd[3] << 16) | (cmd[2] << 24);
   unsigned int len = cmd[8] | (cmd[7] << 8);
+  cdrom.audiostatus = AUDIO_NOSTAT;
   PKT_Read(unit, lba, len, bytelimit, cdrom.blocksize);
 }
 
@@ -512,6 +514,7 @@ static void PKT_ReadCD(unsigned char *cmd, unsigned char unit, unsigned short by
   hdd_debugf("IDE%d: PKT_ReadCD (bytelimit=%d)", unit, bytelimit);
   unsigned int lba = cmd[5] | (cmd[4] << 8) | (cmd[3] << 16) | (cmd[2] << 24);
   unsigned int len = cmd[8] | (cmd[7] << 8) | (cmd[6] << 16);
+  cdrom.audiostatus = AUDIO_NOSTAT;
   PKT_DoReadCD(cmd, unit, bytelimit, lba, len);
 }
 
@@ -520,6 +523,7 @@ static void PKT_ReadCDMSF(unsigned char *cmd, unsigned char unit, unsigned short
   hdd_debugf("IDE%d: PKT_ReadCDMSF (bytelimit=%d)", unit, bytelimit);
   unsigned int start = MSF2LBA(cmd[3], cmd[4], cmd[5]);
   unsigned int end = MSF2LBA(cmd[6], cmd[7], cmd[8]);
+  cdrom.audiostatus = AUDIO_NOSTAT;
   if (start > end) {
     cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x24, 0);
     cdrom_send_error(unit);
@@ -559,6 +563,7 @@ static void PKT_PlayAudioMSF(unsigned char *cmd, unsigned char unit)
   hdd_debugf("IDE%d: PKT_PlayAudioMSF", unit);
   unsigned int start = (cmd[2] == 0xff && cmd[3] == 0xff && cmd[5] == 0xff) ? cdrom.currentlba : MSF2LBA(cmd[3], cmd[4], cmd[5]);
   unsigned int end = MSF2LBA(cmd[6], cmd[7], cmd[8]);
+  cdrom.audiostatus = AUDIO_NOSTAT;
   PKT_PlayAudio(unit, start, end);
 }
 
@@ -568,7 +573,28 @@ static void PKT_PlayAudio10(unsigned char *cmd, unsigned char unit)
   unsigned int start = (cmd[2] << 24) | (cmd[3] << 16) | (cmd[4] << 8) | cmd[5];
   if (start == 0xffffffff) start = cdrom.currentlba;
   unsigned int end = start + (cmd[7] << 8) + cmd[8];
+  cdrom.audiostatus = AUDIO_NOSTAT;
   PKT_PlayAudio(unit, start, end);
+}
+
+// obsolete, but used by Napalm
+static void PKT_PlayAudioTrackIndex(unsigned char *cmd, unsigned char unit)
+{
+  hdd_debugf("IDE%d: PKT_PlayAudioTrackIndex", unit);
+  unsigned char starttrack = cmd[4];
+  unsigned char endtrack = cmd[7];
+  cdrom.audiostatus = AUDIO_NOSTAT;
+  if (!toc.valid) {
+    cdrom_setsense(SENSEKEY_NOT_READY, 0x3a, 0);
+    cdrom_send_error(unit);
+    return;
+  }
+  if (starttrack > endtrack || starttrack >= toc.last || !starttrack || !endtrack || endtrack >= toc.last) {
+    cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x21, 0);
+    cdrom_send_error(unit);
+    return;
+  }
+  PKT_PlayAudio(unit, toc.tracks[starttrack-1].start, toc.tracks[endtrack-1].end);
 }
 
 static void PKT_PauseResume(unsigned char *cmd, unsigned char unit)
@@ -950,6 +976,7 @@ static void PKT_StartStopUnit(unsigned char *cmd, unsigned char unit)
 {
   hdd_debugf("IDE%d: PKT_StartStopUnit", unit);
   char start = cmd[4] & 0x01;
+  cdrom.audiostatus = AUDIO_NOSTAT;
 
   if ((start && toc.valid) || !start) {
     cdrom_ok();
@@ -1047,6 +1074,9 @@ static inline void ATA_Packet(unsigned char *tfr, unsigned char unit, unsigned s
       break;
     case 0x47:
       PKT_PlayAudioMSF(cmdpkt, unit);
+      break;
+    case 0x48:
+      PKT_PlayAudioTrackIndex(cmdpkt, unit); // obsolete, but used in some games (Napalm)
       break;
     case 0x4B:
       PKT_PauseResume(cmdpkt, unit);
