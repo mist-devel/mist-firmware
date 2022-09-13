@@ -180,14 +180,16 @@ static uint8_t transaction(usb_device_t *dev, command_block_wrapper_t *cbw, uint
     return ret;
   }
 
-  if (cbw->bmCBWFlags & STORAGE_CMD_DIR_IN)
-    info->last_error = usb_in_transfer(dev, &(info->ep[STORAGE_EP_IN]), &size, readbuf);
-  else
-    info->last_error = usb_out_transfer(dev, &(info->ep[STORAGE_EP_OUT]), size, writebuf);
+  if(size) {
+    if (cbw->bmCBWFlags & STORAGE_CMD_DIR_IN)
+      info->last_error = usb_in_transfer(dev, &(info->ep[STORAGE_EP_IN]), &size, readbuf);
+    else
+      info->last_error = usb_out_transfer(dev, &(info->ep[STORAGE_EP_OUT]), size, writebuf);
 
-  if(handle_usb_error(dev, (cbw->bmCBWFlags & STORAGE_CMD_DIR_IN) ? STORAGE_EP_IN: STORAGE_EP_OUT)) {
-    storage_debugf("response failed");
-    return STORAGE_ERR_GENERAL_USB_ERROR;
+    if(handle_usb_error(dev, (cbw->bmCBWFlags & STORAGE_CMD_DIR_IN) ? STORAGE_EP_IN: STORAGE_EP_OUT)) {
+      storage_debugf("response failed");
+      return STORAGE_ERR_GENERAL_USB_ERROR;
+    }
   }
 
   command_status_wrapper_t csw;
@@ -228,7 +230,8 @@ static uint8_t scsi_command_in(usb_device_t *dev, uint8_t lun, uint16_t bsize, u
   cbw.bmCBWCBLength		= cblen;
 
   cbw.CBWCB[0] = cmd;
-  cbw.CBWCB[4] = bsize;
+  if((cmd == SCSI_CMD_INQUIRY) || (cmd == SCSI_CMD_REQUEST_SENSE))
+    cbw.CBWCB[4] = bsize;
 
   return transaction(dev, &cbw, bsize, buf, 0);
 }
@@ -246,7 +249,7 @@ static uint8_t read_capacity(usb_device_t *dev, uint8_t lun, read_capacity_respo
 }
 
 static uint8_t test_unit_ready(usb_device_t *dev, uint8_t lun) {
-  //return scsi_command_out(dev, lun, 0, NULL, SCSI_CMD_TEST_UNIT_READY, 6);
+  return scsi_command_in(dev, lun, 0, NULL, SCSI_CMD_TEST_UNIT_READY, 6);
 }
 
 static uint8_t read(usb_device_t *dev, uint8_t lun, 
@@ -368,6 +371,15 @@ static uint8_t usb_storage_init(usb_device_t *dev, usb_device_descriptor_t *dev_
   iprintf("STORAGE: Product:   %.16s\n", buf.inquiry_rsp.ProductID);
   iprintf("STORAGE: Rev:       %.4s\n", buf.inquiry_rsp.RevisionID);
   iprintf("STORAGE: Removable: %s\n", buf.inquiry_rsp.Removable?"yes":"no");
+
+  uint8_t retry = 3;
+
+  do {
+    rcode = test_unit_ready(dev, 0);
+    if(rcode) timer_delay_msec(1);
+
+    retry--;
+  } while(rcode && retry);
 
   rcode = read_capacity(dev, 0, &buf.read_cap_rsp);
   if(rcode) {
