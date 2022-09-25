@@ -92,14 +92,14 @@
 #endif
 
 #if 0
-// usb rts debug output in blue
+// usb rtc debug output in blue
 #define usbrtc_debugf(a, ...) iprintf("\033[1;34mUSBRTC: " a "\033[0m\n", ##__VA_ARGS__)
 #else
 #define usbrtc_debugf(...)
 #endif
 
 #if 0
-// usb rts debug output in blue
+// usb pl2303 debug output in blue
 #define pl2303_debugf(a, ...) iprintf("\033[1;34mPL2303: " a "\033[0m\n", ##__VA_ARGS__)
 #else
 #define pl2303_debugf(...)

@@ -91,7 +91,7 @@ static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
   
   if(len != 0) {
     storage_debugf("Config underrun: %d", len);
-    return USB_ERROR_CONFIGURAION_SIZE_MISMATCH;
+    return USB_ERROR_CONFIGURATION_SIZE_MISMATCH;
   }
 
   return is_good_interface?0:USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
@@ -173,7 +173,7 @@ static uint8_t transaction(usb_device_t *dev, command_block_wrapper_t *cbw, uint
 
   info->last_error = usb_out_transfer(dev, &(info->ep[STORAGE_EP_OUT]), sizeof(command_block_wrapper_t), (uint8_t*)cbw);
   if(info->last_error)
-    iprintf("last_erro = %d\n", info->last_error);
+    iprintf("last_error = %d\n", info->last_error);
 
   if((ret= handle_usb_error(dev, STORAGE_EP_OUT))) {
     storage_debugf("Sending CBW failed");

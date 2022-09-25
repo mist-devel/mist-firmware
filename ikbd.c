@@ -537,7 +537,7 @@ void ikbd_poll(void) {
     DisableIO();
   }
 
-  // everything below must not happen faster than 1khz
+  // everything below must not happen faster than 1kHz
   static unsigned long rtimer = 0;
   if(!CheckTimer(rtimer))
     return;
