@@ -119,6 +119,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options);
 void ChangeDirectoryName(unsigned char *name);
 
 void fat_switch_to_usb(void);
+char *fs_type_to_string(void);
 int8_t fat_medium_present(void);
 int8_t fat_uses_mmc(void);
 

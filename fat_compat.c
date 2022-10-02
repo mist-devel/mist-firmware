@@ -37,6 +37,36 @@ void fat_switch_to_usb() {
 	fat_device = 1;
 }
 
+static char fs_type_none[] = "NONE";
+static char fs_type_fat12[] = "FAT12";
+static char fs_type_fat16[] = "FAT16";
+static char fs_type_fat32[] = "FAT32";
+static char fs_type_exfat[] = "EXFAT";
+static char fs_type_unknown[] = "UNKNOWN";
+
+char *fs_type_to_string(void) {
+	switch (fs.fs_type) {
+	case 0:
+		return (char *)&fs_type_none;
+		break;
+	case FS_FAT12:
+		return (char *)&fs_type_fat12;
+		break;
+	case FS_FAT16:
+		return (char *)&fs_type_fat16;
+		break;
+	case FS_FAT32:
+		return (char *)&fs_type_fat32;
+		break;
+	case FS_EXFAT:
+		return (char *)&fs_type_exfat;
+		break;
+	default:
+		return (char *)&fs_type_unknown;
+		break;
+	}
+}
+
 // Convert XXXXXXXXYYY to XXXXXXXX.YYY
 void fnameconv(char dest[11+2], const char *src) {
 	char *c;
@@ -82,26 +112,7 @@ unsigned char FindDrive(void) {
 	// some debug output
 
 	iprintf("Partition type: ");
-	switch (fs.fs_type) {
-	case 0:
-		iprintf("NONE");
-		break;
-	case FS_FAT12:
-		iprintf("FAT12");
-		break;
-	case FS_FAT16:
-		iprintf("FAT16");
-		break;
-	case FS_FAT32:
-		iprintf("FAT32");
-		break;
-	case FS_EXFAT:
-		iprintf("EXFAT");
-		break;
-	default:
-		iprintf("UNKNOWN");
-		break;
-	}
+	iprintf(fs_type_to_string());
 	iprintf("\n");
 	iprintf("fat_size: %lu\n", fs.fsize);
 	iprintf("fat_number: %u\n", fs.n_fats);

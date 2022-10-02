@@ -59,6 +59,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "usbdev.h"
 #include "cdc_control.h"
 #include "storage_control.h"
+#include "FatFs/diskio.h"
 
 #ifndef _WANT_IO_LONG_LONG
 #error "newlib lacks support of long long type in IO functions. Please use a toolchain that was compiled with option --enable-newlib-io-long-long."
@@ -68,6 +69,8 @@ const char version[] = {"$VER:ATH" VDATE};
 
 unsigned char Error;
 char s[FF_LFN_BUF + 1];
+
+unsigned long storage_size = 0;
 
 void FatalError(unsigned long error) {
   unsigned long i;
@@ -179,6 +182,9 @@ int main(void)
 
     if (!FindDrive())
         FatalError(2);
+
+    disk_ioctl(fs.pdrv, GET_SECTOR_COUNT, &storage_size);
+    storage_size >>= 11;
 
     ChangeDirectoryName("/");
 

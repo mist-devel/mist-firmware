@@ -86,6 +86,8 @@ extern const char version[];
 
 extern char s[FF_LFN_BUF + 1];
 
+extern unsigned long storage_size;
+
 extern FILINFO  DirEntries[MAXDIRENTRIES];
 extern unsigned char sort_table[MAXDIRENTRIES];
 extern unsigned char nDirEntries;
@@ -478,13 +480,13 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 	item->newpage = 0;
 	item->newsub = 0;
 	item->item = "";
-	if(idx<=5) item->page = 0;
-	else if (idx<=12) item->page = 1;
-	else if (idx<=19) item->page = 2;
-	else if (idx<=25) item->page = 3;
-	else if (idx<=32) {item->page = (page_idx>=4 && page_idx<=7) ? page_idx : 4; item->active = 0;}
-	else if (idx<=36) {item->page = 8; item->active = 0;}
-	else if (idx<=42) {item->page = 9; item->active = 0;}
+	if(idx<=6) item->page = 0;
+	else if (idx<=13) item->page = 1;
+	else if (idx<=20) item->page = 2;
+	else if (idx<=26) item->page = 3;
+	else if (idx<=33) {item->page = (page_idx>=4 && page_idx<=7) ? page_idx : 4; item->active = 0;}
+	else if (idx<=37) {item->page = 8; item->active = 0;}
+	else if (idx<=43) {item->page = 9; item->active = 0;}
 	else return 0;
 	if (item->page != page_idx) return 1; // shortcut
 
@@ -526,13 +528,19 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = " About";
 					break;
 
-				// page 1 - firmware & core
 				case 6:
+					siprintf(s, " %-3s / %9luMB / %-7s", fat_uses_mmc() ? "SD" : "USB", storage_size, fs_type_to_string());
+					item->item = s;
+					item->active = 0;
+					break;
+
+				// page 1 - firmware & core
+				case 7:
 					siprintf(s, "   ARM  s/w ver. %s", version + 5);
 					item->item = s;
 					item->active = 0;
 					break;
-				case 7: {
+				case 8: {
 					char *v = GetFirmwareVersion("/FIRMWARE.UPG");
 					if(v)
 						siprintf(s, "   FILE s/w ver. %s", v);
@@ -542,16 +550,16 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->active = 0;
 					}
 					break;
-				case 8:
+				case 9:
 					item->item = "           Update";
 					item->active = fat_uses_mmc();
 					item->stipple = !item->active;
 					break;
-				case 9:
-				case 11:
+				case 10:
+				case 12:
 					item->active = 0;
 					break;
-				case 10:
+				case 11:
 					if(strlen(OsdCoreName())<26) {
 						siprintf(s, "%*s%s", (29-strlen(OsdCoreName()))/2, " ", OsdCoreName());
 					}
@@ -560,61 +568,61 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					item->active = 0;
 					break;
-				case 12:
+				case 13:
 					item->item = "      Change FPGA core";
 					break;
 
 				// page 2 - RTC
-				case 13:
+				case 14:
 					GetRTC((uint8_t*)&date);
 					siprintf(s, "       Year      %4d", 1900+date[0]);
 					item->item = s;
 					break;
-				case 14:
+				case 15:
 					siprintf(s, "       Month       %2d", date[1]);
 					item->item = s;
 					break;
-				case 15:
+				case 16:
 					siprintf(s, "       Date        %2d", date[2]);
 					item->item = s;
 					break;
-				case 16:
+				case 17:
 					siprintf(s, "       Hour        %2d", date[3]);
 					item->item = s;
 					break;
-				case 17:
+				case 18:
 					siprintf(s, "       Minute      %2d", date[4]);
 					item->item = s;
 					break;
-				case 18:
+				case 19:
 					siprintf(s, "       Second      %2d", date[5]);
 					item->item = s;
 					break;
-				case 19:
+				case 20:
 					siprintf(s, "       Day  %9s", date[6] <= 7 ? days[date[6]-1] : "--------");
 					item->item = s;
 					break;
 
 				// page 3 - Inputs
-				case 20:
 				case 21:
 				case 22:
 				case 23:
-					siprintf(s, " Joystick %d Setup/Test", idx-19);
-					item->item = s;
-					item->newpage = 4+idx-20; // page 4-7
-					break;
 				case 24:
+					siprintf(s, " Joystick %d Setup/Test", idx-20);
+					item->item = s;
+					item->newpage = 4+idx-21; // page 4-7
+					break;
+				case 25:
 					item->item = " Keyboard Test";
 					item->newpage = 8;
 					break;
-				case 25:
+				case 26:
 					item->item = " USB status";
 					item->newpage = 9;
 					break;
 
 				// page 4-7 - joy test
-				case 26:
+				case 27:
 					if (!setup_phase) {
 						get_joystick_state(joy_string, joy_string2, page_idx-4); //grab state of joy
 						siprintf(s, "       Test Joystick %d", page_idx-4+1);
@@ -623,11 +631,11 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					}
 					item->item = s;
 					break;
-				case 27:
+				case 28:
 					get_joystick_id(s, page_idx-4, 0);
 					item->item = s;
 					break;
-				case 29:
+				case 30:
 					if (!setup_phase) {
 						item->item = joy_string;
 					} else {
@@ -662,30 +670,30 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 						item->item = s;
 					}
 					break;
-				case 30:
+				case 31:
 					if (!setup_phase) {
 						item->item = joy_string2;
 					} else {
 						item->item = "    F1 - skip this button";
 					}
 					break;
-				case 32:
+				case 33:
 					get_joystick_state_usb(s, page_idx-4);
 					item->item = s;
 					break;
 
 				// page 8 - keyboard test
-				case 33:
+				case 34:
 					item->item = "       USB scancodes";
 					break;
-				case 34: {
+				case 35: {
 					uint8_t keys[6]={0,0,0,0,0,0};
 					StateKeyboardPressed(keys);
 					siprintf(s, "     %2x   %2x   %2x   %2x", keys[0], keys[1], keys[2], keys[3]); // keys[4], keys[5]);
 					item->item = s;
 					};
 					break;
-				case 35: {
+				case 36: {
 					uint8_t mod = StateKeyboardModifiers();
 					char usb_id[32];
 					strcpy(usb_id, "                      ");
@@ -694,7 +702,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					};
 					break;
-				case 36: {
+				case 37: {
 					uint8_t mod = StateKeyboardModifiers();
 					uint16_t keys_ps2[6]={0,0,0,0,0,0};
 					StateKeyboardPressedPS2(keys_ps2);
@@ -705,15 +713,15 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					break;
 
 				// page 9 - USB status
-				case 37:
 				case 38:
 				case 39:
 				case 40:
 				case 41:
-				case 42: {
+				case 42:
+				case 43: {
 					char usb_id[32];
-					get_joystick_id( usb_id, idx-37, 1);
-					siprintf(s, " Joy%d - %s", idx-36, usb_id);
+					get_joystick_id( usb_id, idx-38, 1);
+					siprintf(s, " Joy%d - %s", idx-37, usb_id);
 					item->item = s;
 					break;
 					}
@@ -756,7 +764,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					break;
 
 				// page 1 - firmware & core
-				case 8:
+				case 9:
 					if (fat_uses_mmc()) {
 						if (CheckFirmware("/FIRMWARE.UPG"))
 							DialogBox("\n     Update the firmware\n        Are you sure?", MENU_DIALOG_YESNO, FirmwareUpdateDialog);
@@ -764,19 +772,19 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 							FirmwareUpdateError();
 					}
 					break;
-				case 12:
+				case 13:
 					SelectFileNG("RBFARC", SCAN_LFN | SCAN_SYSDIR, CoreFileSelected, 0);
 					break;
-				case 20:
 				case 21:
 				case 22:
 				case 23:
-					item->newpage = 4+idx-20; // page 4-7
-					break;
 				case 24:
-					item->newpage = 8;
+					item->newpage = 4+idx-21; // page 4-7
 					break;
 				case 25:
+					item->newpage = 8;
+					break;
+				case 26:
 					item->newpage = 9;
 					break;
 			}
