@@ -190,7 +190,7 @@ unsigned char ConfigureFpga(const char *name)
             if ((t & 0x1FF) == 0)
                 iprintf("*");
 
-            if (!f_read(&file, sector_buffer, 512, &br) != FR_OK) {
+            if (f_read(&file, sector_buffer, 512, &br) != FR_OK) {
                 f_close(&file);
                 return(0);
             }
