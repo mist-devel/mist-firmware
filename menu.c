@@ -830,15 +830,15 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					maxday = mdays[month-1] + (month == 2 && is_leap);
 
 					switch(idx) {
-						case 13: if (left) date[0]--; else date[0]++; break;
-						case 14: if (left) date[1] = decval(date[1], 1, 12); else date[1] = incval(date[1], 1, 12); break;
-						case 15: if (left) date[2] = decval(date[2], 1, maxday); else date[2] = incval(date[2], 1, maxday); break;
-						case 16: if (left) date[3] = decval(date[3], 0, 23); else date[3] = incval(date[3], 0, 23); break;
-						case 17: if (left) date[4] = decval(date[4], 0, 59); else date[4] = incval(date[4], 0, 59); break;
-						case 18: if (left) date[5] = decval(date[5], 0, 59); else date[5] = incval(date[5], 0, 59); break;
-						case 19: if (left) date[6] = decval(date[6], 1, 7); else date[6] = incval(date[6], 1, 7); break;
+						case 14: if (left) date[0]--; else date[0]++; break;
+						case 15: if (left) date[1] = decval(date[1], 1, 12); else date[1] = incval(date[1], 1, 12); break;
+						case 16: if (left) date[2] = decval(date[2], 1, maxday); else date[2] = incval(date[2], 1, maxday); break;
+						case 17: if (left) date[3] = decval(date[3], 0, 23); else date[3] = incval(date[3], 0, 23); break;
+						case 18: if (left) date[4] = decval(date[4], 0, 59); else date[4] = incval(date[4], 0, 59); break;
+						case 19: if (left) date[5] = decval(date[5], 0, 59); else date[5] = incval(date[5], 0, 59); break;
+						case 20: if (left) date[6] = decval(date[6], 1, 7); else date[6] = incval(date[6], 1, 7); break;
 					}
-					if (idx>=13 && idx<=19) SetRTC((uint8_t*)&date);
+					if (idx>=14 && idx<=20) SetRTC((uint8_t*)&date);
 				}
 			}
 			break;
