@@ -12,9 +12,9 @@ typedef struct {
 	char mod;
 	uint64_t conf_default;
 	char rbfname[33];
-	char corename[33];
-	char dirname[33];
-	char vhdname[33];
+	char corename[17];
+	char dirname[17];
+	char vhdname[17];
 	char conf[MAX_CONF_SIZE];
 } arc_t;
 
