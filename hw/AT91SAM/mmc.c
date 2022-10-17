@@ -554,7 +554,7 @@ static unsigned char MMC_CMD12(void)
     SPI(0x00);
     SPI(0x00);
     SPI(0x00);
-    SPI(0x00); // dummy CRC7
+    SPI(0x61); // real CRC7
     SPI(0xFF); // skip stuff byte
 
     unsigned char Ncr = 100;  // Ncr = 0..8 (SD) / 1..8 (MMC)
