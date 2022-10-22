@@ -173,7 +173,7 @@ void OsdSetTitle(char *s,int a)
 		int c=s[i++];
 		if(c && (outp<64))
 		{
-	        unsigned char *p = &charfont[c][0];
+			unsigned char *p = &charfont[c][0];
 			for(j=0;j<8;++j)
 			{
 				unsigned char nc=*p++;
@@ -222,114 +222,29 @@ void OsdSetTitle(char *s,int a)
 
 void OsdWrite(unsigned char n, char *s, unsigned char invert, unsigned char stipple)
 {
-	OsdWriteOffset(n,s,invert,stipple,0);
+  OsdWriteOffset(n, s, invert, stipple, 0);
 }
 
 // write a null-terminated string <s> to the OSD buffer starting at line <n>
 void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned char stipple,char offset)
 {
-  unsigned short i;
-  unsigned char b;
-  const unsigned char *p;
-  unsigned char stipplemask=0xff;
-  int linelimit=OSDLINELEN;
-  int arrowmask=arrow;
-  if(n==7 && (arrow & OSD_ARROW_RIGHT))
-    linelimit-=22;
-
-  if(stipple) {
-    stipplemask=0x55;
-    stipple=0xff;
-  } else
-    stipple=0;
-
-  // select buffer and line to write to
-  if(!minimig_v2())
-    spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
-  else
-    spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
-
-  if(invert)
-    invert=255;
-
-  i = 0;
-  // send all characters in string to OSD
-  while (1) {
-    if(i==0) {	// Render sidestripe
-      unsigned char j;
-
-      p = &titlebuffer[(7-n)*8];
-
-      spi16(0xffff);  // left white border
-
-      for(j=0;j<8;j++)
-          spi_n(255^*p++, 2);
-
-      spi16(0xffff);  // right white border
-      spi16(0x0000);  // blue gap
-      i += 22;
-    } else if(n==7 && (arrowmask & OSD_ARROW_LEFT)) {	// Draw initial arrow
-      unsigned char b;
-
-      spi24(0x00);
-      p = &charfont[0x10][0];
-      for(b=0;b<8;b++) spi8(*p++<<offset);
-      p = &charfont[0x14][0];
-      for(b=0;b<8;b++) spi8(*p++<<offset);
-      spi24(0x00);
-      spi_n(invert, 2);
-      i+=24;
-      arrowmask&=~OSD_ARROW_LEFT;
-      if(*s++ == 0) break;	// Skip 3 characters, to keep alignent the same.
-      if(*s++ == 0) break;
-      if(*s++ == 0) break;
-    } else {
-      b = *s++;
-
-      if (b == 0) // end of string
-        break;
-
-      else if (b == 0x0d || b == 0x0a) { // cariage return / linefeed, go to next line
-        // increment line counter
-        if (++n >= linelimit)
-          n = 0;
-
-        // send new line number to OSD
-        DisableOsd();
-
-        if(!minimig_v2())
-          spi_osd_cmd_cont(MM1_OSDCMDWRITE | n);
-        else
-          spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
-      }
-      else if(i<(linelimit-8)) { // normal character
-        unsigned char c;
-        p = &charfont[b][0];
-        for(c=0;c<8;c++) {
-          spi8(((*p++<<offset)&stipplemask)^invert);
-          stipplemask^=stipple;
-        }
-        i += 8;
-      }
+  char *text = s;
+  char arrowline[31];
+  if(n==OSDNLINE-1 && arrow) {
+    text = arrowline;
+    memset(arrowline, 32, sizeof(arrowline));
+    memcpy(&arrowline, s, strnlen(s, sizeof(arrowline)));
+    arrowline[30] = 0;
+    if (arrow & OSD_ARROW_LEFT) {
+      arrowline[0] = 0x10;
+      arrowline[1] = 0x14;
+    }
+    if (arrow & OSD_ARROW_RIGHT) {
+      arrowline[28] = 0x15;
+      arrowline[28] = 0x11;
     }
   }
-
-  for (; i < linelimit; i++) // clear end of line
-    spi8(invert);
-
-  if(n==7 && (arrowmask & OSD_ARROW_RIGHT)) {	// Draw final arrow if needed
-    unsigned char c;
-    spi24(0x00);
-    p = &charfont[0x15][0];
-    for(c=0;c<8;c++) spi8(*p++<<offset);
-    p = &charfont[0x11][0];
-    for(c=0;c<8;c++) spi8(*p++<<offset);
-    spi24(0x00);
-    i+=22;
-  }
-
-  // deselect OSD SPI device
-  DisableOsd();
+  OsdPrintText(n, text, 22, OSDLINELEN-3*8, 0, offset, invert, stipple);
 }
 
 
@@ -403,17 +318,27 @@ void OsdDrawLogo(unsigned char n, char row,char superimpose) {
 
 
 // write a null-terminated string <s> to the OSD buffer starting at line <n>
-void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned long width, unsigned long offset, unsigned char invert)
+void OsdPrintText(unsigned char line, char *text, unsigned long start, unsigned long width, unsigned long xoffset, unsigned char yoffset, unsigned char invert, unsigned char stipple)
 {
   // line : OSD line number (0-7)
   // text : pointer to null-terminated string
   // start : start position (in pixels)
   // width : printed text length in pixels
-  // offset : scroll offset in pixels counting from the start of the string (0-7)
+  // xoffset : scroll offset in pixels counting from the start of the string (0-7)
+  // yoffset : first raster line of the text to display (0-7)
   // invert : invertion flag
+  // stipple : disabled item flag
 
   const unsigned char *p;
+  char c;
   int i,j;
+  unsigned char stipplemask=0xff;
+
+  if(stipple) {
+    stipplemask=0x55;
+    stipple=0xff;
+  } else
+    stipple=0;
 
   // select buffer and line to write to
   if(!minimig_v2())
@@ -446,24 +371,33 @@ void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned
   while (start--)
     spi8(0x00);
 
-  if (offset) {
-    width -= 8 - offset;
-    p = &charfont[*text++][offset];
-    for (; offset < 8; offset++)
+  if (xoffset) {
+    width -= 8 - xoffset;
+    p = &charfont[*text++][xoffset];
+    for (; xoffset < 8; xoffset++)
       spi8(*p++^invert);
   }
 
   while (width > 8) {
     unsigned char b;
-    p = &charfont[*text++][0];
-    for(b=0;b<8;b++) spi8(*p++^invert);
+    c = *text;
+    if(c)text++;
+    p = &charfont[c][0];
+    for(b=0;b<8;b++) {
+      spi8(((*p++<<yoffset)&stipplemask)^invert);
+      stipplemask^=stipple;
+    }
     width -= 8;
   }
-  
+
   if (width) {
-    p = &charfont[*text++][0];
-    while (width--)
-      spi8(*p++^invert);
+    c = *text;
+    if(c)text++;
+    p = &charfont[c][0];
+    while (width--) {
+      spi8(((*p++<<yoffset)&stipplemask)^invert);
+      stipplemask^=stipple;
+    }
   }
 
   DisableOsd();
@@ -717,7 +651,7 @@ void ScrollText(char n, const char *str, int len, int max_len, unsigned char inv
             if (len < max_len - BLANKSPACE) // file name substring and blank space is shorter than display line size
                 strncpy(s + len + BLANKSPACE, str, max_len - len - BLANKSPACE); // repeat the name after its end and predefined number of blank space
 
-            OSD_PrintText(n, s, 22, (max_len - 1) << 3, (scroll_offset & 0x7), invert); // OSD print function with pixel precision
+            OsdPrintText(n, s, 22, (max_len - 1) << 3, (scroll_offset & 0x7), 0, invert, 0); // OSD print function with pixel precision
         }
     }
 }

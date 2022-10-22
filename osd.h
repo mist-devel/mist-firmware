@@ -105,6 +105,7 @@
 void OsdSetTitle(char *s,int arrow);	// arrow > 0 = display right arrow in bottom right, < 0 = display left arrow
 void OsdWrite(unsigned char n, char *s, unsigned char inver, unsigned char stipple);
 void OsdWriteOffset(unsigned char n, char *s, unsigned char inver, unsigned char stipple, char offset); // Used for scrolling "Exit" text downwards...
+void OsdPrintText(unsigned char line, char *text, unsigned long start, unsigned long width, unsigned long xoffset, unsigned char yoffset, unsigned char invert, unsigned char stipple);
 void OsdClear(void);
 void OsdEnable(unsigned char mode);
 void OsdDisable(void);
@@ -126,7 +127,6 @@ void ConfigFeatures(unsigned char audiofiltermode, unsigned char powerledoffstat
 unsigned char OsdGetCtrl(void);
 void OsdDisableMenuButton(unsigned char disable);
 unsigned char GetASCIIKey(unsigned char c);
-void OSD_PrintText(unsigned char line, char *text, unsigned long start, unsigned long width, unsigned long offset, unsigned char invert);
 void OsdWriteDoubleSize(unsigned char n, char *s, unsigned char pass);
 //void OsdDrawLogo(unsigned char n, char row);
 void OsdDrawLogo(unsigned char n, char row,char superimpose);
