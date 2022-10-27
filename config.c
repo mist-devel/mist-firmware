@@ -103,6 +103,7 @@ char UploadKickstart(char *name)
   UINT br;
   FIL romfile, keyfile;
 
+  ResetMenu();
   ChangeDirectoryName("/");
 
   BootPrint("Checking for Amiga Forever key file:");
@@ -472,6 +473,7 @@ static void ApplyConfiguration(char reloadkickstart)
   for (int i = 0; i < HARDFILES; i++)
     hardfile[i] = &config.hardfile[i];
 
+  ResetMenu();
   ChangeDirectoryName("/");
 
   // Whether or not we uploaded a kickstart image we now need to set various parameters from the config.
