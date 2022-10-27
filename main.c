@@ -197,10 +197,18 @@ int main(void)
     // tos config also contains cdc redirect settings used by minimig
     tos_config_load(-1);
 
-    char mod = 0;
+    char mod = -1;
 
-    if((USB_LOAD_VAR != USB_LOAD_VALUE) && !user_io_dip_switch1())
+    if((USB_LOAD_VAR != USB_LOAD_VALUE) && !user_io_dip_switch1()) {
         mod = arc_open("/CORE.ARC");
+    } else {
+        user_io_detect_core_type();
+        if(user_io_core_type() != CORE_TYPE_UNKNOWN && !user_io_create_config_name(s, "ARC", CONFIG_ROOT)) {
+            // when loaded from USB, try to load the development ARC file
+            iprintf("Load development ARC: %s\n", s);
+            mod = arc_open(s);
+        }
+    }
 
     if(mod < 0 || !strlen(arc_get_rbfname())) {
         fpga_init(NULL); // error opening default ARC, try with default RBF

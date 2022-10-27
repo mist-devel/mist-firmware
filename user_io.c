@@ -304,7 +304,7 @@ void user_io_detect_core_type() {
 		archie_init();
 		break;
 
-	case CORE_TYPE_8BIT: {
+	case CORE_TYPE_8BIT:
 		puts("Identified 8BIT core");
 
 		// send core variant first to allow the FPGA choosing the config string
@@ -322,6 +322,16 @@ void user_io_detect_core_type() {
 
 		// get requested features
 		user_io_read_core_features();
+		break;
+
+	default:
+		iprintf("Unable to identify core (%x)!\n", core_type);
+		core_type = CORE_TYPE_UNKNOWN;
+	}
+}
+
+void user_io_init_core() {
+	if(core_type == CORE_TYPE_8BIT) {
 
 		// send a reset
 		user_io_8bit_set_status(UIO_STATUS_RESET, ~0);
@@ -416,14 +426,8 @@ void user_io_detect_core_type() {
 
 		// release reset
 		user_io_8bit_set_status(0, UIO_STATUS_RESET);
-
-	} break;
-	default:
-		iprintf("Unable to identify core (%x)!\n", core_type);
-		core_type = CORE_TYPE_UNKNOWN;
 	}
 }
-
 
 static unsigned short usb2amiga( unsigned  char k ) {
 	//  replace MENU key by RGUI to allow using Right Amiga on reduced keyboards

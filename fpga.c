@@ -940,6 +940,7 @@ void fpga_init(const char *name) {
   }
 
   user_io_detect_core_type();
+  user_io_init_core();
   mist_ini_parse();
   user_io_send_buttons(true);
   InitDB9();

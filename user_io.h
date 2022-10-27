@@ -189,6 +189,7 @@ typedef struct {
 void user_io_reset();
 void user_io_init();
 void user_io_detect_core_type();
+void user_io_init_core();
 unsigned char user_io_core_type();
 uint32_t user_io_get_core_features();
 char minimig_v1();
