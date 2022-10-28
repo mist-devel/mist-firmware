@@ -65,23 +65,7 @@ struct star
 
 struct star stars[64];
 
-char framebuffer[8][256];
-void framebuffer_clear()
-{
-	int i,j;
-	for(i=0;i<8;++i)
-	{
-		for(j=0;j<256;++j)
-		{
-			framebuffer[i][j]=0;
-		}
-	}
-}
-
-void framebuffer_plot(int x,int y)
-{
-	framebuffer[y/8][x]|=(1<<(y & 7));
-}
+static char linebuffer[256];
 
 static int quickrand()
 {
@@ -112,7 +96,6 @@ void StarsInit()
 
 void StarsUpdate()
 {
-	framebuffer_clear();
 	int i;
 	for(i=0;i<64;++i)
 	{
@@ -125,8 +108,7 @@ void StarsUpdate()
 			stars[i].y=(quickrand()%56)<<4;
 			stars[i].dx=-(quickrand()&7)-3;
 			stars[i].dy=0;
-		}			
-		framebuffer_plot(stars[i].x>>4,stars[i].y>>4);
+		}
 	}
 }
 
@@ -267,10 +249,15 @@ void OsdDrawLogo(unsigned char n, char row,char superimpose) {
   // send all characters in string to OSD
 
   if(superimpose) {
-    char *bg=framebuffer[n];
+    int j;
+    memset(linebuffer, 0, sizeof(linebuffer));
+    for (j=0; j<64; j++) {
+      if(stars[j].y>>7 == n) linebuffer[stars[j].x>>4] |= (1<<((stars[j].y>>4) & 7));
+    }
+    char *bg = linebuffer;
+
     while (bytes) {
       if(i==0) {	// Render sidestripe
-        unsigned char j;
         p = &titlebuffer[(7-n)*8];
         spi16(0xffff);
         for(j=0;j<8;j++) spi_n(255^*p++, 2);
