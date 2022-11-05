@@ -334,6 +334,22 @@ static uint8_t usb_asix_init(usb_device_t *dev, usb_device_descriptor_t *dev_des
   if(eth_present)
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
 
+  // If device class is not vendor specific return
+  if (dev_desc->bDeviceClass != USB_CLASS_VENDOR_SPECIFIC)
+    return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
+
+  asix_debugf("vid/pid = %x/%x", dev_desc->idVendor, dev_desc->idProduct);
+
+  // search for vid/pid in supported device list
+  for(i=0;asix_devs[i].type &&
+    ((asix_devs[i].vid != dev_desc->idVendor) ||
+    (asix_devs[i].pid != dev_desc->idProduct));i++);
+
+  if(!asix_devs[i].type) {
+    asix_debugf("Not a supported ASIX device");
+    return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
+  }
+
   // reset status
   info->qLastIrqPollTime = info->qLastBulkPollTime = info->qLastMACSendTime = 0;
   info->bPollEnable = false;
@@ -349,42 +365,37 @@ static uint8_t usb_asix_init(usb_device_t *dev, usb_device_descriptor_t *dev_des
 
   asix_debugf("%s(%d)", __FUNCTION__, dev->bAddress);
 
-  usb_configuration_descriptor_t conf_desc;
+  union {
+    usb_device_descriptor_t dev_desc;
+    usb_configuration_descriptor_t conf_desc;
+  } buf;
 
-  // If device class is not vendor specific return
-  if (dev_desc->bDeviceClass != USB_CLASS_VENDOR_SPECIFIC)
-    return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
- 
-  asix_debugf("vid/pid = %x/%x", dev_desc->idVendor, dev_desc->idProduct);
-
-  // search for vid/pid in supported device list
-  for(i=0;asix_devs[i].type && 
-	((asix_devs[i].vid != dev_desc->idVendor) ||
-	 (asix_devs[i].pid != dev_desc->idProduct));i++);
-
-  if(!asix_devs[i].type) {
-    asix_debugf("Not a supported ASIX device");
-    return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
+  // read full device descriptor
+  rcode = usb_get_dev_descr( dev, sizeof(usb_device_descriptor_t), &buf.dev_desc );
+  if( rcode ) {
+    asix_debugf("failed to get device descriptor");
+    return rcode;
   }
+
     
   // Set Configuration Value
-  //  iprintf("conf value = %d\n", conf_desc.bConfigurationValue);
-  rcode = usb_set_conf(dev, conf_desc.bConfigurationValue);
-
-  uint8_t num_of_conf = dev_desc->bNumConfigurations;
+  //  iprintf("conf value = %d\n", buf.conf_desc.bConfigurationValue);
+  rcode = usb_set_conf(dev, buf.conf_desc.bConfigurationValue);
+  
+  uint8_t num_of_conf = buf.dev_desc.bNumConfigurations;
   //  iprintf("number of configurations: %d\n", num_of_conf);
 
   for(i=0; i<num_of_conf; i++) {
-    if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &conf_desc)) 
+    if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &buf.conf_desc)) 
       return rcode;
     
-    //    iprintf("conf descriptor %d has total size %d\n", i, conf_desc.wTotalLength);
+    //    iprintf("conf descriptor %d has total size %d\n", i, buf.conf_desc.wTotalLength);
 
     // extract number of interfaces
-    //    iprintf("number of interfaces: %d\n", conf_desc.bNumInterfaces);
+    //    iprintf("number of interfaces: %d\n", buf.conf_desc.bNumInterfaces);
     
     // parse directly if it already fitted completely into the buffer
-    if((rcode = asix_parse_conf(dev, i, conf_desc.wTotalLength)) != 0) {
+    if((rcode = asix_parse_conf(dev, i, buf.conf_desc.wTotalLength)) != 0) {
       asix_debugf("parse conf failed");
       return rcode;
     }
