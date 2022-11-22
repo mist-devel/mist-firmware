@@ -907,6 +907,7 @@ unsigned char GetFPGAStatus(void)
 void fpga_init(const char *name) {
   unsigned long time = GetRTTC();
   int loaded_from_usb = USB_LOAD_VAR;
+  unsigned char ct;
 
   // load the global MISTCFG.INI here
   // loading between the FPGA init and detect_core_type breaks with some SD-Cards. Reason unknown.
@@ -917,7 +918,6 @@ void fpga_init(const char *name) {
   USB_LOAD_VAR = 0;
 
   if((loaded_from_usb != USB_LOAD_VALUE) && !user_io_dip_switch1()) {
-    unsigned char ct;
 
     if (ConfigureFpga(name)) {
       time = GetRTTC() - time;
@@ -926,18 +926,18 @@ void fpga_init(const char *name) {
       iprintf("FPGA configuration failed\r");
       FatalError(8); // 3
     }
-
-    // wait max 100 msec for a valid core type
-    time = GetTimer(100);
-    do {
-      EnableIO();
-      ct = SPI(0xff);
-      DisableIO();
-      SPI(0xff);         // for old minimig core
-    } while( ((ct == 0) || (ct == 0xff)) && !CheckTimer(time));
-
-    iprintf("ident = %x\n", ct);
   }
+
+  // wait max 100 msec for a valid core type
+  time = GetTimer(100);
+  do {
+    EnableIO();
+    ct = SPI(0xff);
+    DisableIO();
+    SPI(0xff);         // for old minimig core
+  } while( ((ct == 0) || (ct == 0xff)) && !CheckTimer(time));
+
+  iprintf("ident = %x\n", ct);
 
   user_io_detect_core_type();
   user_io_init_core();
