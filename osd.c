@@ -222,7 +222,7 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
       arrowline[1] = 0x14;
     }
     if (arrow & OSD_ARROW_RIGHT) {
-      arrowline[28] = 0x15;
+      arrowline[27] = 0x15;
       arrowline[28] = 0x11;
     }
   }
