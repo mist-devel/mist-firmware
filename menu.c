@@ -54,9 +54,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #define ALLOW_TEST_MENU 0 //remove to disable in prod version
 
 
-// other constants
-#define DIRSIZE OSDNLINE // number of items in directory display window
-
 static uint8_t menu_last, scroll_down, scroll_up;
 static uint8_t page_idx, last_page[4], last_menusub[4], last_menu_first[4], page_level;
 static menu_item_t menu_item;
@@ -1718,7 +1715,7 @@ static void PrintDirectory(void)
 
     ScrollReset();
 
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < OSDNLINE; i++)
     {
         memset(s, ' ', 32); // clear line buffer
         if (i < nDirEntries)
