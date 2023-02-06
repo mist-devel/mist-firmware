@@ -448,6 +448,8 @@ static unsigned short usb2ps2code( unsigned char k) {
 }
 
 void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY, char valueX2, char valueY2) {
+	if(osd_is_visible) return;
+
 	if(core_type == CORE_TYPE_8BIT || core_type == CORE_TYPE_MINIMIG2) {
 		int16_t valueXX = valueX*mist_cfg.joystick_analog_mult/128 + mist_cfg.joystick_analog_offset;
 		int16_t valueYY = valueY*mist_cfg.joystick_analog_mult/128 + mist_cfg.joystick_analog_offset;
@@ -489,6 +491,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 void user_io_digital_joystick_ext(unsigned char joystick, uint32_t map) {
 	// "only" 6 joysticks are supported
 	if(joystick > 5) return;
+	if(osd_is_visible) return;
 	//iprintf("ext j%d: %x\n", joystick, map);
 	spi_uio_cmd32(UIO_JOYSTICK0_EXT + joystick, 0x000fffff & map);
 	if (autofire && (map & 0x30)) {
