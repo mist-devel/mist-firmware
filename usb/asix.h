@@ -21,5 +21,6 @@ typedef struct {
 // interface to usb core
 extern const usb_device_class_config_t usb_asix_class;
 void usb_asix_xmit(uint16_t len);
+uint8_t *get_mac(void);
 
 #endif // ASIX_H

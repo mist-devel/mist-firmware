@@ -49,6 +49,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "menu-minimig.h"
 #include "menu-8bit.h"
 #include "settings.h"
+#include "usb.h"
 
 // test features (not used right now)
 // #define ALLOW_TEST_MENU 0 //remove to disable in prod version
@@ -461,6 +462,10 @@ static char GetMenuPage_System(uint8_t idx, char action, menu_page_t *page) {
 			page->title = "USB";
 			page->timer = 10;
 			break;
+		case 10:
+			page->title = "Status";
+			page->timer = 10;
+			break;
 	}
 	return 0;
 }
@@ -484,6 +489,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 	else if (idx<=33) {item->page = (page_idx>=4 && page_idx<=7) ? page_idx : 4; item->active = 0;}
 	else if (idx<=37) {item->page = 8; item->active = 0;}
 	else if (idx<=43) {item->page = 9; item->active = 0;}
+	else if (idx<=49) {item->page = 10; item->active = 0;}
 	else return 0;
 	if (item->page != page_idx) return 1; // shortcut
 
@@ -522,13 +528,11 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 						item->item = " Save settings";
 					break;
 				case 5:
-					item->item = " About";
+					item->item = " Status";
+					item->newpage = 10;
 					break;
-
 				case 6:
-					siprintf(s, " %-3s / %9luMB / %-7s", fat_uses_mmc() ? "SD" : "USB", storage_size, fs_type_to_string());
-					item->item = s;
-					item->active = 0;
+					item->item = " About";
 					break;
 
 				// page 1 - firmware & core
@@ -722,6 +726,50 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					break;
 					}
+
+				// page 10 - System status
+				case 44:
+					siprintf(s, " Boot device:    %11s", fat_uses_mmc() ? "    SD card" : "USB storage");
+					item->item = s;
+					break;
+				case 45:
+					siprintf(s, " Medium: %7s / %7luMB", fs_type_to_string(), storage_size);
+					item->item = s;
+					break;
+				case 46:
+					unsigned char keyboard_count = get_keyboards();
+					siprintf(s, " Keyboard:");
+					keyboard_count ? siprintf(s + 10, " %8u", keyboard_count) : siprintf(s + 10, "     none");
+					siprintf(s + 19, " detected");
+					item->item = s;
+					break;
+				case 47:
+					unsigned char mouse_count = get_mice();
+					siprintf(s, " Mouse:");
+					mouse_count ? siprintf(s + 7, " %11u", mouse_count) : siprintf(s + 7, "        none");
+					siprintf(s + 19, " detected");
+					item->item = s;
+					break;
+				case 48:
+					uint8_t *mac = get_mac();
+					siprintf(s, " Network:");
+					if (mac) {
+						siprintf(s + 9, "  %02x:%02x:%02x:%02x:%02x:%02x",
+							mac[0], mac[1], mac[2],
+							mac[3], mac[4], mac[5]);
+					} else {
+						siprintf(s + 9, "      none detected");
+					}
+					item->item = s;
+					break;
+				case 49:
+					uint8_t pl2303_count = get_pl2303s();
+					siprintf(s, " Serial:");
+					pl2303_count ? siprintf(s + 8, " %10u", pl2303_count) : siprintf(s + 8, "       none");
+					siprintf(s + 19, " detected");
+					item->item = s;
+					break;
+
 				default:
 					item->active = 0;
 			}
@@ -756,6 +804,9 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 						ErrorMessage("\n   Error writing settings!\n", 0);
 					break;
 				case 5:
+					item->newpage = 10;
+					break;
+				case 6:
 					parentstate = MENU_8BIT_ABOUT1;
 					menusub = 0;
 					break;
@@ -1350,7 +1401,7 @@ void HandleUI(void)
 			// menu key closes menu
 			if (menu || select || left) {
 				menustate = MENU_NG;
-				menusub = 5;
+				menusub = 6;
 			}
 			break;
 /*

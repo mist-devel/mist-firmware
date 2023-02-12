@@ -18,7 +18,16 @@
 
 
 static unsigned char kbd_led_state = 0;  // default: all leds off
+static unsigned char keyboards = 0;      // number of detected usb keyboards
 static unsigned char mice      = 0;      // number of detected usb mice
+
+unsigned char get_keyboards(void) {
+	return keyboards;
+}
+
+unsigned char get_mice(void) {
+	return mice;
+}
 
 // up to 8 buttons can be remapped
 #define MAX_JOYSTICK_BUTTON_REMAP 8
@@ -206,6 +215,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 					case HID_PROTOCOL_KEYBOARD:
 						hid_debugf("HID protocol is KEYBOARD");
 						info->iface[info->bNumIfaces].device_type = HID_DEVICE_KEYBOARD;
+						keyboards++;
 						break;
 
 					case HID_PROTOCOL_MOUSE:
@@ -345,7 +355,7 @@ static uint8_t usb_hid_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
 				return rcode;
 			}
 
-			if(info->iface[i].device_type == REPORT_TYPE_NONE) {
+			if(info->iface[i].device_type == HID_DEVICE_UNKNOWN) {
 				// bInterfaceProtocol was 0 ("none") -> try to parse anyway
 				iprintf("HID NONE: report type = %d, size = %d\n",
 				info->iface[i].conf.type, info->iface[i].conf.report_size);
@@ -355,19 +365,19 @@ static uint8_t usb_hid_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
 				if((info->iface[i].conf.type == REPORT_TYPE_KEYBOARD) &&
 				   (info->iface[i].conf.report_size == 8)) {
 				  iprintf("HID NONE: is keyboard (arduino?)\n");
-				  info->iface[i].device_type = REPORT_TYPE_KEYBOARD;
+				  info->iface[i].device_type = HID_DEVICE_KEYBOARD;
 				  info->iface[i].has_boot_mode = true;   // assume that the report is boot mode style as it's 8 bytes in size
 				}
 			}
 
-			if(info->iface[i].device_type == REPORT_TYPE_MOUSE) {
+			if(info->iface[i].device_type == HID_DEVICE_MOUSE) {
 				iprintf("MOUSE: report type = %d, id = %d, size = %d\n", 
 				  info->iface[i].conf.type,
 				  info->iface[i].conf.report_id,
 				  info->iface[i].conf.report_size);
 			}
 
-			if(info->iface[i].device_type == REPORT_TYPE_JOYSTICK) {
+			if(info->iface[i].device_type == HID_DEVICE_JOYSTICK) {
 				char k;
 
 				iprintf("JOYSTICK: report type = %d, id = %d, size = %d\n", 
@@ -454,6 +464,11 @@ static uint8_t usb_hid_release(usb_device_t *dev) {
 			uint8_t c_jindex = joystick_index(info->iface[i].jindex);
 			hid_debugf("releasing joystick #%d, renumbering", c_jindex);
 			joystick_release(c_jindex);
+		}
+
+		// check if a keyboard is released
+		if(info->iface[i].device_type == HID_DEVICE_KEYBOARD) {
+			keyboards--;
 		}
 
 		// check if a mouse is released
