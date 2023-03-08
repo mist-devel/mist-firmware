@@ -1282,10 +1282,12 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
 
             // adjust checksum by the difference between old and new flag value
             struct RigidDiskBlock *rdb = (struct RigidDiskBlock *)sector_buffer;
-            rdb->rdb_ChkSum = swab32(swab32(rdb->rdb_ChkSum) + swab32(rdb->rdb_Flags) - 0x12);
+            if (!memcmp(&rdb->rdb_ID, "RDSK", 4)) {
+              rdb->rdb_ChkSum = swab32(swab32(rdb->rdb_ChkSum) + swab32(rdb->rdb_Flags) - 0x12);
 
-            // adjust flags
-            rdb->rdb_Flags=swab32(0x12);
+              // adjust flags
+              rdb->rdb_Flags=swab32(0x12);
+            }
           }
           EnableFpga();
           spi8(CMD_IDE_DATA_WR); // write data command
