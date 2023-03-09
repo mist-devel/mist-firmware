@@ -478,7 +478,7 @@ static void ApplyConfiguration(char reloadkickstart)
 
   // Whether or not we uploaded a kickstart image we now need to set various parameters from the config.
   for (int i = 0; i < HARDFILES; i++) {
-    if(OpenHardfile(i)) {
+    if(OpenHardfile(i, true)) {
       switch(hdf[i].type) {
         // Customise message for SD card acces
         case (HDF_FILE | HDF_SYNTHRDB):

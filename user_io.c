@@ -392,7 +392,7 @@ void user_io_init_core() {
 			if ((core_features & (FEAT_IDE0 << (2*i))) == (FEAT_IDE0_CDROM << (2*i))) {
 				iprintf("IDE %d: ATAPI CDROM\n", i);
 				hardfiles[i].enabled = HDF_CDROM;
-				OpenHardfile(i);
+				OpenHardfile(i, false);
 			}
 		}
 
@@ -413,7 +413,7 @@ void user_io_init_core() {
 							hardfiles[i].enabled = HDF_FILE;
 							strncpy(hardfiles[i].name, s, sizeof(hardfiles[0].name));
 							hardfiles[i].name[sizeof(hardfiles[0].name)-1] = 0;
-							OpenHardfile(i);
+							OpenHardfile(i, false);
 						} else {
 							user_io_file_mount(s, i);
 						}

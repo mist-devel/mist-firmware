@@ -150,7 +150,7 @@ static char HardFileChanged(uint8_t idx) {
 			if ((config.hardfile[i].enabled != t_hardfile[i].enabled)
 			    || (strncmp(config.hardfile[i].name, t_hardfile[i].name, sizeof(t_hardfile[0].name)) != 0))
 			{
-				OpenHardfile(i);
+				OpenHardfile(i, true);
 				//if((config.hardfile[0].enabled == HDF_FILE) && !FindRDB(0))
 				//	menustate = MENU_SYNTHRDB1;
 			}

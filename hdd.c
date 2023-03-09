@@ -1283,6 +1283,7 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
             // adjust checksum by the difference between old and new flag value
             struct RigidDiskBlock *rdb = (struct RigidDiskBlock *)sector_buffer;
             if (!memcmp(&rdb->rdb_ID, "RDSK", 4)) {
+              hdd_debugf("Adjusting rdb checksum for unit %d", unit);
               rdb->rdb_ChkSum = swab32(swab32(rdb->rdb_ChkSum) + swab32(rdb->rdb_Flags) - 0x12);
 
               // adjust flags
@@ -1556,7 +1557,7 @@ void HandleHDD(unsigned char c1, unsigned char c2, unsigned char cs1ena)
 
 // GetHardfileGeometry()
 // this function comes from WinUAE, should return the same CHS as WinUAE
-void GetHardfileGeometry(hdfTYPE *pHDF)
+static void GetHardfileGeometry(hdfTYPE *pHDF, bool amiga)
 {
   unsigned long total=0;
   unsigned long i, head, cyl, spt;
@@ -1609,23 +1610,50 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
       break;
   }
 
-  for (i = 0; sptt[i] != 0; i++) {
-    spt = sptt[i];
-    for (head = 4; head <= 16; head++) {
-      cyl = total / (head * spt);
-      if (total <= 1024 * 1024) {
-        if (cyl <= 1023) break;
-      } else {
-        if (cyl < 16383)
-            break;
-        if (cyl < 32767 && head >= 5)
-            break;
-        if (cyl <= cyllimit)  // Should there some head constraint here?
-            break;
+  if (amiga) {
+    // Amiga (WinUAE) compatible geometry
+    for (i = 0; sptt[i] != 0; i++) {
+      spt = sptt[i];
+      for (head = 4; head <= 16; head++) {
+        cyl = total / (head * spt);
+        if (total <= 1024 * 1024) {
+          if (cyl <= 1023) break;
+        } else {
+          if (cyl < 16383)
+              break;
+          if (cyl < 32767 && head >= 5)
+              break;
+          if (cyl <= cyllimit)  // Should there some head constraint here?
+              break;
+        }
       }
+      if (head <= 16) break;
     }
-    if (head <= 16) break;
+  } else {
+    // PC (PCEm) compatible geometry
+    if ((total % 17) == 0 && total <= 278528) {
+      spt = 17;
+
+      if (total <= 52224)
+        head = 4;
+      else if ((total % 6) == 0 && total <= 104448)
+        head = 6;
+      else {
+        int c;
+        for (c=5;c<16;c++) {
+          if((total % c) == 0 && total <= 1024*c*17) break;
+          if (c == 5) c++;
+        }
+        head = c;
+      }
+      cyl = total / head / 17;
+    } else {
+      spt = 63;
+      head = 16;
+      cyl = total / 16 / 63;
+    }
   }
+
   if(pHDF->type == (HDF_FILE | HDF_SYNTHRDB))
   ++cyl;	// Add an extra cylinder for the fake RDB
   pHDF->cylinders = (unsigned short)cyl;
@@ -1636,7 +1664,7 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
 
 
 // OpenHardfile()
-unsigned char OpenHardfile(unsigned char unit)
+unsigned char OpenHardfile(unsigned char unit, bool amiga)
 {
   hdf[unit].idxfile = &sd_image[unit];
 
@@ -1646,7 +1674,7 @@ unsigned char OpenHardfile(unsigned char unit)
       hdf[unit].type=hardfile[unit]->enabled;
         if (IDXOpen(hdf[unit].idxfile, hardfile[unit]->name, FA_READ | FA_WRITE) == FR_OK) {
           IDXIndex(hdf[unit].idxfile);
-          GetHardfileGeometry(&hdf[unit]);
+          GetHardfileGeometry(&hdf[unit], amiga);
           hdd_debugf("HARDFILE %d:", unit);
           hdd_debugf("file: \"%s\"", hardfile[unit]->name);
           hdd_debugf("size: %llu (%lu MB)", f_size(&hdf[unit].idxfile->file), f_size(&hdf[unit].idxfile->file) >> 20);
@@ -1665,7 +1693,7 @@ unsigned char OpenHardfile(unsigned char unit)
       hdf[unit].type=HDF_CARD;
       hardfile[unit]->present = 1;
       hdf[unit].offset=0;
-      GetHardfileGeometry(&hdf[unit]);
+      GetHardfileGeometry(&hdf[unit], amiga);
       return 1;
       break;
     case HDF_CARDPART0:
@@ -1676,7 +1704,7 @@ unsigned char OpenHardfile(unsigned char unit)
       hdf[unit].partition=hdf[unit].type-HDF_CARDPART0;
       hardfile[unit]->present = 1;
       hdf[unit].offset=partitions[hdf[unit].partition].startlba;
-      GetHardfileGeometry(&hdf[unit]);
+      GetHardfileGeometry(&hdf[unit], amiga);
       return 1;
       break;
     case HDF_CDROM:

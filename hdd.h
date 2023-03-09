@@ -4,6 +4,7 @@
 #ifndef __HDD_H__
 #define __HDD_H__
 
+#include <stdbool.h>
 #include "idxfile.h"
 
 // defines
@@ -93,8 +94,7 @@ extern hdfTYPE hdf[HARDFILES];
 
 // functions
 void HandleHDD(unsigned char c1, unsigned char c2, unsigned char cs1ena);
-void GetHardfileGeometry(hdfTYPE *hdf);
-unsigned char OpenHardfile(unsigned char unit);
+unsigned char OpenHardfile(unsigned char unit, bool amiga);
 unsigned char GetHDFFileType(const char *filename);
 void SendHDFCfg();
 
