@@ -247,8 +247,8 @@ void archie_init(void) {
   hardfile[0] = &config.hardfile[0];
   hardfile[1] = &config.hardfile[1];
 
-  OpenHardfile(0, false);
-  OpenHardfile(1, false);
+  OpenHardfile(0, true);
+  OpenHardfile(1, true);
 
   archie_kbd_send(STATE_RAK1, HRST);
   ack_timeout = GetTimer(20);  // give archie 20ms to reply
