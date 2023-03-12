@@ -212,7 +212,7 @@ void archie_init(void) {
     if(f_size(&file) == sizeof(archie_config_t))
       f_read(&file, &config, sizeof(archie_config_t), &br);
     else
-      archie_debugf("Unexpected config size %d != %d", f_size(&file), sizeof(archie_config_t));
+      archie_debugf("Unexpected config size %llu != %u", f_size(&file), sizeof(archie_config_t));
     f_close(&file);
   } else
     archie_debugf("No %.11s config found", CONFIG_FILENAME);
