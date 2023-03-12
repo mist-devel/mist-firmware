@@ -27,6 +27,15 @@ static uint16_t tx_cnt, tx_offset;
 
 bool eth_present = 0;
 
+usb_asix_info_t *eth_info;
+
+uint8_t *get_mac(void) {
+  if (eth_present) {
+    return eth_info->mac;
+  }
+  return NULL;
+}
+
 // currently only AX88772 is supported as that's the only
 // device i have
 #define ASIX_TYPE_AX88772 0x01
@@ -505,6 +514,7 @@ static uint8_t usb_asix_init(usb_device_t *dev, usb_device_descriptor_t *dev_des
   // finally inform core about ethernet support
   tos_update_sysctrl(tos_system_ctrl() | TOS_CONTROL_ETHERNET);
 
+  eth_info = info;
   eth_present = 1;
 
   return 0;

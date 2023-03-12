@@ -100,6 +100,8 @@ extern const usb_device_class_config_t usb_hid_class;
 void hid_set_kbd_led(unsigned char led, bool on);
 uint8_t hid_get_joysticks(void);
 int8_t hid_keyboard_present(void);
+unsigned char get_keyboards(void);
+unsigned char get_mice(void);
 
 // HID low-level remapping - do not confuse with virtual joystick in joymapping.h
 void hid_joystick_button_remap_init(void);

@@ -76,5 +76,6 @@ void pl2303_tx_byte(uint8_t byte);
 uint8_t pl2303_rx_available(void);
 uint8_t pl2303_rx(void);
 int8_t pl2303_is_blocked(void);
+uint8_t get_pl2303s(void);
 
 #endif // PL2303_H
