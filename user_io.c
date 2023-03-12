@@ -733,7 +733,7 @@ static void kbd_fifo_enqueue(unsigned short code) {
 
 // send pending bytes if timer has run up
 static void kbd_fifo_poll() {
-	// timer enabled and runnig?
+	// timer enabled and running?
 	if(kbd_timer && !CheckTimer(kbd_timer))
 		return;
 

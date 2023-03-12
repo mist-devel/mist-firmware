@@ -88,11 +88,11 @@ typedef struct {
 } __attribute__((packed)) setup_pkt_t;
 
 // Additional Error Codes
-#define USB_ERROR_INVALID_MAX_PKT_SIZE			    0xDA
+#define USB_ERROR_INVALID_MAX_PKT_SIZE                      0xDA
 #define USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED           0xDB
-#define USB_ERROR_CONFIGURAION_SIZE_MISMATCH                0xDC
+#define USB_ERROR_CONFIGURATION_SIZE_MISMATCH               0xDC
 #define USB_ERROR_NO_SUCH_DEVICE                            0xDE
-#define USB_ERROR_TRANSFER_TIMEOUT			    0xFF
+#define USB_ERROR_TRANSFER_TIMEOUT                          0xFF
 
 struct usb_device_entry;
 struct usb_device_descriptor;
@@ -116,7 +116,7 @@ typedef struct {
 
 // entry used for list of connected devices
 typedef struct usb_device_entry {
-  const usb_device_class_config_t *class;  // pointer to class hadlers
+  const usb_device_class_config_t *class;  // pointer to class handlers
   ep_t ep0;                            // information about endpoint 0
   uint8_t bAddress;	                   // device address
   uint8_t parent;                          // parent device address

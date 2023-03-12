@@ -251,7 +251,7 @@ static uint8_t pl2303_parse_conf0(usb_device_t *dev, uint16_t len) {
   
   if(len != 0) {
     pl2303_debugf("Config underrun: %d", len);
-    return USB_ERROR_CONFIGURAION_SIZE_MISMATCH;
+    return USB_ERROR_CONFIGURATION_SIZE_MISMATCH;
   }
 
   return 0;

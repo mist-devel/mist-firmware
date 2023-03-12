@@ -4,7 +4,7 @@
 #include "spi.h"
 
 #define MAXDIRENTRIES 8
-// Sector buffer size for 4 consequitive sectors
+// Sector buffer size for 4 consecutive sectors
 #define SECTOR_BUFFER_SIZE 4
 
 typedef struct
@@ -120,8 +120,8 @@ extern unsigned char fat32;
 // options flags
 #define SCAN_DIR     1 // include subdirectories
 #define SCAN_LFN     2 // include long file names
-#define FIND_DIR     4 // find first directory beginning with given charater
-#define FIND_FILE    8 // find first file entry beginning with given charater
+#define FIND_DIR     4 // find first directory beginning with given character
+#define FIND_FILE    8 // find first file entry beginning with given character
 #define SCAN_SYSDIR 16 // include subdirectories with system attribute
 
 

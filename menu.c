@@ -1687,10 +1687,10 @@ static void ScrollLongName(void)
 
 static char* GetDiskInfo(char* lfn, long len)
 {
-// extracts disk number substring form file name
+// extracts disk number substring from file name
 // if file name contains "X of Y" substring where X and Y are one or two digit number
 // then the number substrings are extracted and put into the temporary buffer for further processing
-// comparision is case sensitive
+// comparison is case sensitive
 
     short i, k;
     static char info[] = "XX/XX"; // temporary buffer

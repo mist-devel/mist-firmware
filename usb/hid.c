@@ -286,7 +286,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 
 	if(len != 0) {
 		hid_debugf("Config underrun: %d", len);
-		return USB_ERROR_CONFIGURAION_SIZE_MISMATCH;
+		return USB_ERROR_CONFIGURATION_SIZE_MISMATCH;
 	}
 
 	return 0;

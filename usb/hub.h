@@ -77,7 +77,7 @@ typedef struct {
 typedef struct {
   uint8_t bDescLength;		// descriptor length
   uint8_t bDescriptorType;	// descriptor type
-  uint8_t bNbrPorts;		// number of ports a hub equiped with
+  uint8_t bNbrPorts;		// number of ports a hub equipped with
   
   struct {
     uint16_t LogPwrSwitchMode	     : 2;

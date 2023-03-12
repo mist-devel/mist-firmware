@@ -83,8 +83,8 @@ static inline void SPI_WRITE(unsigned char outByte) {
   *AT91C_SPI_TDR = outByte;
 }
 
-#define SPI_SDC_CLK_VALUE 2     // 24 Mhz
-#define SPI_MMC_CLK_VALUE 3     // 16 Mhz
+#define SPI_SDC_CLK_VALUE 2     // 24 MHz
+#define SPI_MMC_CLK_VALUE 3     // 16 MHz
 #define SPI_SLOW_CLK_VALUE 120  // 400kHz
 
 #endif // SPI_H
