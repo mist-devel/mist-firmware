@@ -55,7 +55,7 @@ unsigned char CheckFirmware(char *name)
     if (f_open(&file, name, FA_READ) == FR_OK)
     {
         Error = ERROR_INVALID_DATA;
-        iprintf("Upgrade file size     : %lu\r", f_size(&file));
+        iprintf("Upgrade file size     : %llu\r", f_size(&file));
         iprintf("Upgrade header size   : %lu\r", (unsigned long)sizeof(UPGRADE));
 
         if (f_size(&file) >= sizeof(UPGRADE))
@@ -97,13 +97,13 @@ unsigned char CheckFirmware(char *name)
                         }
                         else iprintf("ROM CRC mismatch! from header: %08lX, calculated: %08lX\r", rom_crc, ~crc);
                     }
-                    else iprintf("ROM size mismatch! from header: %lu, from file: %lu\r", pUpgrade->rom.size, f_size(&file)-sizeof(UPGRADE));
+                    else iprintf("ROM size mismatch! from header: %lu, from file: %llu\r", pUpgrade->rom.size, f_size(&file)-sizeof(UPGRADE));
                 }
                 else iprintf("Invalid upgrade file header!\r");
             }
             else iprintf("Header CRC mismatch! from header: %08lX, calculated: %08lX\r", pUpgrade->crc, crc);
         }
-        else iprintf("Upgrade file size too small: %lu\r", f_size(&file));
+        else iprintf("Upgrade file size too small: %llu\r", f_size(&file));
         f_close(&file);
     }
     else iprintf("Cannot open firmware file!\r");
