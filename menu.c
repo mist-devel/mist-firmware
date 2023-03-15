@@ -736,21 +736,23 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					siprintf(s, " Medium: %7s / %7luMB", fs_type_to_string(), storage_size);
 					item->item = s;
 					break;
-				case 46:
+				case 46: {
 					unsigned char keyboard_count = get_keyboards();
 					siprintf(s, " Keyboard:");
 					keyboard_count ? siprintf(s + 10, " %8u", keyboard_count) : siprintf(s + 10, "     none");
 					siprintf(s + 19, " detected");
 					item->item = s;
+					}
 					break;
-				case 47:
+				case 47: {
 					unsigned char mouse_count = get_mice();
 					siprintf(s, " Mouse:");
 					mouse_count ? siprintf(s + 7, " %11u", mouse_count) : siprintf(s + 7, "        none");
 					siprintf(s + 19, " detected");
 					item->item = s;
+					}
 					break;
-				case 48:
+				case 48: {
 					uint8_t *mac = get_mac();
 					siprintf(s, " Network:");
 					if (mac) {
@@ -761,13 +763,15 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 						siprintf(s + 9, "      none detected");
 					}
 					item->item = s;
+					}
 					break;
-				case 49:
+				case 49: {
 					uint8_t pl2303_count = get_pl2303s();
 					siprintf(s, " Serial:");
 					pl2303_count ? siprintf(s + 8, " %10u", pl2303_count) : siprintf(s + 8, "       none");
 					siprintf(s + 19, " detected");
 					item->item = s;
+					}
 					break;
 
 				default:
