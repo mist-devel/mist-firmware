@@ -1180,6 +1180,10 @@ static inline void ATA_SetMultipleMode(unsigned char* tfr, unsigned char unit)
   // Set Multiple Mode (0xc6)
   hdd_debugf("Set Multiple Mode");
   hdd_debugf("IDE%d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X", unit, tfr[0], tfr[1], tfr[2], tfr[3], tfr[4], tfr[5], tfr[6], tfr[7]);
+  if (tfr[2] > 16) {
+    WriteStatus(IDE_STATUS_END | IDE_STATUS_ERR | IDE_STATUS_IRQ);
+    return;
+  }
   hdf[unit].sectors_per_block = tfr[2];
   WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
 }
@@ -1219,7 +1223,6 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
 
   lba=chs2lba(cylinder, head, sector, unit, lbamode);
   hdd_debugf("IDE%d: read %s, %d.%d.%d:%d, %d", unit, (lbamode ? "LBA" : "CHS"), cylinder, head, sector, lba, sector_count);
-
   while (sector_count)
   {
     block_count = multiple ? sector_count : 1;
@@ -1228,7 +1231,6 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
 
     WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
     while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
-
     /* Advance CHS address while DRQ is not asserted with the address of last (anticipated) read. */
     int block_count_tmp = block_count;
     while(block_count_tmp--)
