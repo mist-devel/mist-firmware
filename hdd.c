@@ -1214,7 +1214,7 @@ static inline void ATA_DeviceReset(unsigned char *tfr, unsigned char unit)
 }
 
 // ATA_ReadSectors()
-static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, unsigned char multiple, char lbamode)
+static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, bool multiple, char lbamode, bool verify)
 {
   // Read Sectors (0x20)
   long lba;
@@ -1229,8 +1229,10 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
     if (multiple && block_count > hdf[unit].sectors_per_block)
       block_count = hdf[unit].sectors_per_block;
 
-    WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
-    while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
+    if (!verify) {
+      WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
+      while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
+    }
     /* Advance CHS address while DRQ is not asserted with the address of last (anticipated) read. */
     int block_count_tmp = block_count;
     while(block_count_tmp--)
@@ -1263,7 +1265,7 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
     WriteTaskFile(0, tfr[2], sector, cylinder, (cylinder >> 8), (tfr[6] & 0xF0) | head);
 
     // Indicate the start of the transfer
-    WriteStatus(IDE_STATUS_IRQ);
+    if (!verify) WriteStatus(IDE_STATUS_IRQ);
 
     switch(hdf[unit].type)
     {
@@ -1292,11 +1294,13 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
               rdb->rdb_Flags=swab32(0x12);
             }
           }
-          EnableFpga();
-          spi8(CMD_IDE_DATA_WR); // write data command
-          spi_n(0x00, 5);
-          spi_block_write(sector_buffer);
-          DisableFpga();
+          if (!verify) {
+            EnableFpga();
+            spi8(CMD_IDE_DATA_WR); // write data command
+            spi_n(0x00, 5);
+            spi_block_write(sector_buffer);
+            DisableFpga();
+          }
           ++lba;
           --blk;
         }
@@ -1304,18 +1308,20 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
         {
           HardFileSeek(&hdf[unit], lba + hdf[unit].offset);
 #ifndef SD_NO_DIRECT_MODE
-          if (fat_uses_mmc()) {
+          if (fat_uses_mmc() && !verify) {
             FileReadBlockEx(&hdf[unit].idxfile->file, 0, blk); // NULL enables direct transfer to the FPGA
           } else {
 #endif
             int blocks = blk;
             while (blocks) {
               FileReadBlockEx(&hdf[unit].idxfile->file, sector_buffer, MIN(blocks, SECTOR_BUFFER_SIZE/512));
-              EnableFpga();
-              spi8(CMD_IDE_DATA_WR); // write data command
-              spi_n(0x00, 5);
-              spi_write(sector_buffer, 512*MIN(blocks, SECTOR_BUFFER_SIZE/512));
-              DisableFpga();
+              if (!verify) {
+                EnableFpga();
+                spi8(CMD_IDE_DATA_WR); // write data command
+                spi_n(0x00, 5);
+                spi_write(sector_buffer, 512*MIN(blocks, SECTOR_BUFFER_SIZE/512));
+                DisableFpga();
+              }
               blocks-=MIN(blocks, SECTOR_BUFFER_SIZE/512);
             }
 #ifndef SD_NO_DIRECT_MODE
@@ -1334,7 +1340,7 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
       case HDF_CARDPART2:
       case HDF_CARDPART3:
 #ifndef SD_NO_DIRECT_MODE
-        if (fat_uses_mmc()) {
+        if (fat_uses_mmc() && !verify) {
           disk_read(fs.pdrv, 0, lba+hdf[unit].offset, block_count);
           lba+=block_count;
         } else {
@@ -1342,11 +1348,13 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
           int blocks = block_count;
           while (blocks) {
             disk_read(fs.pdrv, sector_buffer, lba+hdf[unit].offset, MIN(blocks, SECTOR_BUFFER_SIZE/512));
-            EnableFpga();
-            spi8(CMD_IDE_DATA_WR); // write data command
-            spi_n(0x00, 5);
-            spi_write(sector_buffer, 512*MIN(blocks, SECTOR_BUFFER_SIZE/512));
-            DisableFpga();
+            if (!verify) {
+              EnableFpga();
+              spi8(CMD_IDE_DATA_WR); // write data command
+              spi_n(0x00, 5);
+              spi_write(sector_buffer, 512*MIN(blocks, SECTOR_BUFFER_SIZE/512));
+              DisableFpga();
+            }
             blocks-=MIN(blocks, SECTOR_BUFFER_SIZE/512);
             lba+=MIN(blocks, SECTOR_BUFFER_SIZE/512);
           }
@@ -1356,12 +1364,16 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
         break;
     }
   }
-  WriteStatus(IDE_STATUS_END);
+  if (verify) {
+    WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
+  } else {
+    WriteStatus(IDE_STATUS_END);
+  }
 }
 
 
 // ATA_WriteSectors()
-static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, char multiple, char lbamode)
+static inline void ATA_WriteSectors(unsigned char* tfr, unsigned short sector, unsigned short cylinder, unsigned char head, unsigned char unit, unsigned short sector_count, bool multiple, char lbamode)
 {
   unsigned short i;
   unsigned short block_count, block_size, sectors;
@@ -1518,13 +1530,15 @@ void HandleHDD(unsigned char c1, unsigned char c2, unsigned char cs1ena)
     } else if (tfr[7] == ACMD_SET_MULTIPLE_MODE) {
       ATA_SetMultipleMode(tfr, unit);
     } else if (tfr[7] == ACMD_READ_SECTORS) {
-      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count, 0, lbamode);
+      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count, false, lbamode, false);
     } else if (tfr[7] == ACMD_READ_MULTIPLE) {
-      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count, 1, lbamode);
+      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count, true, lbamode, false);
     } else if (tfr[7] == ACMD_WRITE_SECTORS) {
-      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count ,0, lbamode);
+      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count ,false, lbamode);
     } else if (tfr[7] == ACMD_WRITE_MULTIPLE) {
-      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count, 1, lbamode);
+      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count, true, lbamode);
+    } else if (tfr[7] == ACMD_READ_VERIFY_SECTORS) {
+      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count, false, lbamode, true);
     } else if (tfr[7] == ACMD_PACKET) {
       ATA_Packet(tfr, unit, cylinder);
     } else if (tfr[7] == ACMD_DEVICE_RESET) {
