@@ -258,6 +258,7 @@ static void user_io_read_core_features() {
 		core_features = (core_features<<8) | spi_in();
 	}
 	DisableIO();
+	if (core_features & FEAT_PS2REP) ps2_typematic_rate = 0x08;
 }
 
 void user_io_detect_core_type() {

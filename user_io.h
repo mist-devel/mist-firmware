@@ -94,6 +94,7 @@
 #define FEAT_IDE3_ATA   0x0400
 #define FEAT_IDE3_CDROM 0x0800
 #define FEAT_IDE_MASK   0x0FF0
+#define FEAT_PS2REP     0x1000 // typematic repeat by default
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
