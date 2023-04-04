@@ -44,16 +44,12 @@
 
 static inline void arch_irq_enable(void)
 {
-	uint32_t cpsr;
-	asm("mrs %0, cpsr" : "=r"(cpsr));
-	asm("msr cpsr_c, %0" :: "r"(cpsr & ~0x80));
+	asm volatile("mrs r12, cpsr; and r12, r12, #0xFF3F; msr cpsr_c, r12" ::: "r12", "cc");
 }
 
 static inline void arch_irq_disable(void)
 {
-	uint32_t cpsr;
-	asm("mrs %0, cpsr" : "=r"(cpsr));
-	asm("msr cpsr_c, %0" :: "r"(cpsr | 0x80));
+	asm volatile("mrs r12, cpsr; orr r12, r12, #0xC0; msr cpsr_c, r12" ::: "r12", "cc");
 }
 
 #elif defined(CONFIG_ARCH_ARMV7A)
