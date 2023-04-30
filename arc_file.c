@@ -7,6 +7,7 @@
 #include "debug.h"
 
 #define MAX_CONF_SIZE 512
+#define MAX_BUTTONS_SIZE 128
 
 typedef struct {
 	char mod;
@@ -16,6 +17,7 @@ typedef struct {
 	char dirname[17];
 	char vhdname[17];
 	char conf[MAX_CONF_SIZE];
+	char buttons_str[MAX_BUTTONS_SIZE+1];
 } arc_t;
 
 static arc_t arc;
@@ -37,6 +39,7 @@ const ini_var_t arc_ini_vars[] = {
 	{"DIR", (void*)arc.dirname, STRING, 1, 16, 1},
 	{"VHD", (void*)arc.vhdname, STRING, 1, 16, 1},
 	{"CONF", (void*)arc_set_conf, CUSTOM_HANDLER, 0, 0, 1},
+	{"BUTTONS", (void*)arc.buttons_str, STRING, 1, MAX_BUTTONS_SIZE, 1}
 };
 
 char arc_set_conf(char *c, char action, int tag)
@@ -101,4 +104,31 @@ char *arc_get_conf()
 uint64_t arc_get_default()
 {
 	return arc.conf_default;
+}
+
+const char *arc_get_buttons()
+{
+	return arc.buttons_str;
+}
+
+const char *arc_get_button(int index)
+{
+	int i = 0;
+	char *str = arc.buttons_str;
+	static char btn[15];
+	if (!str) return 0;
+	while (*str) {
+		if (i == index) {
+			i = 0;
+			while (*str && *str != ',' && i < 14) {
+				btn[i] = *str++;
+				i++;
+			}
+			btn[i] = 0;
+			return btn;
+		}
+		if (*str == ',') i++;
+		str++;
+	}
+	return 0;
 }
