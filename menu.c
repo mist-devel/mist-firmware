@@ -557,7 +557,6 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->stipple = !item->active;
 					break;
 				case 10:
-				case 12:
 					item->active = 0;
 					break;
 				case 11:
@@ -567,6 +566,13 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					else strcpy(s, OsdCoreName());
 					s[28] = 0;
 					item->item = s;
+					item->active = 0;
+					break;
+				case 12:
+					if(arc_get_rbfname() && *arc_get_rbfname()) {
+						siprintf(s, "%*s%s.RBF", (29-strlen(arc_get_rbfname()))/2-2, " ", arc_get_rbfname());
+						item->item = s;
+					}
 					item->active = 0;
 					break;
 				case 13:
