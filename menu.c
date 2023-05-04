@@ -657,17 +657,27 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 							virtual_joystick_remap_update(&mapping);
 							break;
 						}
-
-						siprintf(s, "      Press button %s", buttons[setup_phase - 1]);
-						joy = StateUsbJoyGet(joy_num);
-						joy |= StateUsbJoyGetExtra(joy_num) << 8;
-						if (!joy_prev && joy) {
-							for (int i = 0; i<16; i++) {
-								if (joy & (1<<i)) mapping.mapping[i] = 1<<(setup_phase - 1);
-							}
+						const char *button = arc_get_buttons();
+						if (setup_phase > 4 && button && *button)
+							button = arc_get_button(setup_phase - 5);
+						else
+							button = buttons[setup_phase - 1];
+						if (!button || !*button || *button == '-') {
+							// skip this button
 							setup_phase++;
+							s[0] = 0;
+						} else {
+							siprintf(s, "      Press button %s", button);
+							joy = StateUsbJoyGet(joy_num);
+							joy |= StateUsbJoyGetExtra(joy_num) << 8;
+							if (!joy_prev && joy) {
+								for (int i = 0; i<16; i++) {
+									if (joy & (1<<i)) mapping.mapping[i] = 1<<(setup_phase - 1);
+								}
+								setup_phase++;
+							}
+							joy_prev = joy;
 						}
-						joy_prev = joy;
 						item->item = s;
 					}
 					break;
