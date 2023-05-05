@@ -673,7 +673,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 							setup_phase++;
 							s[0] = 0;
 						} else {
-							siprintf(s, "      Press button %s", button);
+							siprintf(s, "%*sPress button %s", (29-13-strlen(button))/2, " ", button);
 							joy = StateUsbJoyGet(joy_num);
 							joy |= StateUsbJoyGetExtra(joy_num) << 8;
 							if (!joy_prev && joy) {
