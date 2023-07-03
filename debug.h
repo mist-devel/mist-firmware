@@ -126,4 +126,11 @@
 #define pcecd_debugf(...)
 #endif
 
+#if 0
+// neocd debug output
+#define neocd_debugf(a, ...) iprintf("\033[1;34mNEOCD : " a "\033[0m\n",## __VA_ARGS__)
+#else
+#define neocd_debugf(...)
+#endif
+
 #endif // DEBUG_H

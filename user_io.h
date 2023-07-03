@@ -81,6 +81,7 @@
 #define FEAT_MENU       0x0001 // menu core
 #define FEAT_PCECD      0x0002 // call pcecd_poll()
 #define FEAT_QSPI       0x0004 // QSPI connection to FPGA
+#define FEAT_NEOCD      0x0008 // call neocd_poll()
 #define FEAT_IDE0       0x0030 // enable primary master IDE (0 - off, 1 - ATA - 2 ATAPI CDROM)
 #define FEAT_IDE0_ATA   0x0010
 #define FEAT_IDE0_CDROM 0x0020

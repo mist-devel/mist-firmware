@@ -10,6 +10,7 @@
 #include "data_io.h"
 #include "archie.h"
 #include "pcecd.h"
+#include "neocd.h"
 #include "hdd.h"
 #include "cdc_control.h"
 #include "usb.h"
@@ -1412,6 +1413,8 @@ void user_io_poll() {
 
 	if((core_type == CORE_TYPE_8BIT) && (!strcmp(user_io_get_core_name(), "TGFX16") || (core_features & FEAT_PCECD)))
 		pcecd_poll();
+	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_NEOCD))
+		neocd_poll();
 
 	// sd card emulation
 	if((core_type == CORE_TYPE_8BIT) ||
