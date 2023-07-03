@@ -570,7 +570,7 @@ static void pcecd_command() {
 	}
 }
 
-void pcecd_data() {
+static void pcecd_data() {
 	uint8_t data[10];
 
 	EnableFpga();
@@ -584,12 +584,12 @@ void pcecd_data() {
 		data[5], data[6], data[7], data[8], data[9]);
 }
 
-void pcecd_clear_busy() {
+static void pcecd_clear_busy() {
 	//pcecd_debugf("Clear busy");
 	pcecdd.can_read_next = 1;
 }
 
-void pcecd_reset() {
+static void pcecd_reset() {
 	pcecd_debugf("Reset request");
 	pcecdd.latency = 0;
 	pcecdd.index = 0;
