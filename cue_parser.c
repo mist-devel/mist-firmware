@@ -31,7 +31,7 @@
 #define MODE_PREGAP             3
 #define MODE_INDEX              4
 
-#define CUE_WORD_SIZE           64
+#define CUE_WORD_SIZE           128
 
 #define CUE_EOT                 4
 #define CUE_NOWORD              3
