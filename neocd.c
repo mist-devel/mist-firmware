@@ -179,7 +179,7 @@ static void neocd_run() {
 
 	if (neocdd.latency > 0) {
 		if(!CheckTimer(neocd_read_timer)) return;
-		neocd_read_timer = GetTimer(13);
+		neocd_read_timer = GetTimer(10);
 		neocdd.latency--;
 		return;
 	}
@@ -672,7 +672,7 @@ void neocd_poll() {
 	neocd_run();
 
 	if(CheckTimer(neocd_timer)) {
-		neocd_timer = GetTimer(13);
+		neocd_timer = GetTimer(10);
 		if (neocdd.has_command) {
 			neocdd.has_command = 0;
 			neocd_sendstatus();
