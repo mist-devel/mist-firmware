@@ -144,6 +144,11 @@ static uint64_t GetStatus(uint8_t crc_start) {
 		((uint64_t)(neocdd.stat[0] & 0xF) << 0);
 }
 
+static void SetError() {
+	neocdd.stat[0] = CD_STAT_ERROR;
+	neocdd.stat[1] = neocdd.stat[2] = neocdd.stat[3] = neocdd.stat[4] = neocdd.stat[5] = neocdd.stat[6] = neocdd.stat[7] = neocdd.stat[8] = neocdd.stat[9] = 0;
+}
+
 static void neocd_reset() {
 	neocdd.latency = 10;
 	neocdd.index = 0;
@@ -289,18 +294,19 @@ static void neocd_command() {
 	DisableFpga();
 	//neocd_debugf("command: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
 	//	command[0], command[1], command[2], command[3], command[4], command[5], command[6], command[7], command[8], command[9]);
-        neocd_debugf("Command: %02x", command[0]);
 
 	uint8_t crc = (~(5 + command[0] + command[1] + command[2] + command[3] + command[4] + command[5] + command[6] + command[7] + command[8])) & 0xF;
-	if (command[9] != crc)
+	if (command[9] != crc) {
 		neocd_debugf("Command CRC error");
+		SetError();
+		return;
+	}
 
 	if ((neocdd.status == CD_STAT_OPEN || neocdd.status == CD_STAT_NO_DISC) &&
 	    (command[0] != CD_COMM_IDLE &&
 	     command[0] != CD_COMM_TRAY_OPEN &&
 	     command[0] != CD_COMM_TRAY_CLOSE)) {
-		neocdd.stat[0] = CD_STAT_ERROR;
-		neocdd.stat[1] = neocdd.stat[2] = neocdd.stat[3] = neocdd.stat[4] = neocdd.stat[5] = neocdd.stat[6] = neocdd.stat[7] = neocdd.stat[8] = neocdd.stat[9] = 0;
+		SetError();
 		return;
 	}
 
@@ -346,7 +352,7 @@ static void neocd_command() {
 				neocdd.stat[2] = (neocdd.index < toc.last) ? bin2bcd(neocdd.index + 1) >> 4 : 0xA;
 				neocdd.stat[3] = (neocdd.index < toc.last) ? bin2bcd(neocdd.index + 1) & 0xF : 0xA;
 			}
-			neocd_debugf("Command IDLE status=%02x", neocdd.status);
+			//neocd_debugf("Command IDLE status=%02x", neocdd.status);
 		}
 		break;
 
@@ -453,6 +459,10 @@ static void neocd_command() {
 
 		case 5: {
 			int track = command[4] * 10 + command[5];
+			if (track > toc.last) {
+				SetError();
+				return;
+			}
 			int lba_ = toc.tracks[track - 1].start + 150;
 			LBA2MSF(lba_, &msf);
 
@@ -575,6 +585,10 @@ static void neocd_command() {
 		{
 			index -= 1;
 		}
+		if (index >= toc.last) {
+			SetError();
+			return;
+		}
 		int lba = toc.tracks[index].start;
 
 		SeekToLBA(lba, 1);
@@ -614,6 +628,7 @@ static void neocd_command() {
 		break;
 
 	default:
+		neocdd.stat[0] = neocdd.status;
 		neocd_debugf("command undefined: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
 			command[0], command[1], command[2], command[3], command[4], command[5], command[6], command[7], command[8], command[9]);
 		break;
