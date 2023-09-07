@@ -67,6 +67,7 @@ unsigned char settings_load(char global)
 
 	ini_parse(&core_ini_cfg, 0, global ? 1 : 2);
 	if (!global) user_io_8bit_set_status(status, ~1);
+	return 1;
 };
 
 unsigned char settings_save(char global)
@@ -77,4 +78,5 @@ unsigned char settings_save(char global)
 	if (!global) status = user_io_8bit_set_status(0,0);
 	virtual_joystick_remap_init(true);
 	ini_save(&core_ini_cfg, global ? 1 : 2);
+	return 1;
 }
