@@ -118,7 +118,7 @@ static char RomFileSelected(uint8_t idx, const char *SelectedName) {
 	FIL file;
 	// this assumes that further file entries only exist if the first one also exists
 	if (f_open(&file, SelectedName, FA_READ) == FR_OK) {
-		data_io_file_tx(&file, user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | (menusub+1), GetExtension(SelectedName));
+		data_io_file_tx(&file, user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | selected_drive_slot, GetExtension(SelectedName));
 		f_close(&file);
 	}
 	// close menu afterwards
@@ -129,7 +129,7 @@ static char RomFileSelected(uint8_t idx, const char *SelectedName) {
 static char ImageFileSelected(uint8_t idx, const char *SelectedName) {
 	// select image for SD card
 	iprintf("Image selected: %s\n", SelectedName);
-	data_io_set_index(user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | (menusub+1));
+	data_io_set_index(user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | selected_drive_slot);
 	user_io_file_mount(SelectedName, selected_drive_slot);
 	CloseMenu();
 	return 0;
@@ -138,7 +138,7 @@ static char ImageFileSelected(uint8_t idx, const char *SelectedName) {
 static char CueFileSelected(uint8_t idx, const char *SelectedName) {
 	char res;
 	iprintf("Cue file selected: %s\n", SelectedName);
-	data_io_set_index(user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | (menusub+1));
+	data_io_set_index(user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | selected_drive_slot);
 	res = user_io_cue_mount(SelectedName, selected_drive_slot);
 	if (res) ErrorMessage(cue_error_msg[res-1], res);
 	else     CloseMenu();
@@ -235,7 +235,7 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 		if(action == MENU_ACT_SEL) {
 			static char ext[13];
 			char iscue = 0;
-			selected_drive_slot = 0;
+			selected_drive_slot = (p[0] == 'F') ? (menusub + 1) : 0;
 			if (p[0]=='S' && (p[1]=='C' || (p[1] && p[1] != ',' && p[2] == 'C'))) {
 				// S[0-9]C - select CUE/ISO file
 				selected_drive_slot = 3;
