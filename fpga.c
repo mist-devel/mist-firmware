@@ -961,6 +961,7 @@ void fpga_init(const char *name) {
       minimig_ver_minion = SPI(0xff);
       DisableOsd();
       SPIN(); SPIN(); SPIN(); SPIN();
+      EnableOsd();
       SPI(OSD_CMD_RST);
       rstval = (SPI_RST_USR | SPI_RST_CPU | SPI_CPU_HLT);
       SPI(rstval);
