@@ -97,6 +97,8 @@ int main(int argc, char **argv) {
   unsigned char *bin = malloc(size);
   if(fread(bin, 1, size, inf) != size) {
     printf("Read error on %s\n", argv[1]);
+    free(bin);
+    fclose(inf);
     return -1;
   }
   fclose(inf);
@@ -129,6 +131,7 @@ int main(int argc, char **argv) {
   fwrite(&upgrade, 1, sizeof(UPGRADE), outf);
   fwrite(bin, 1, size, outf);
 
+  free(bin);
   fclose(outf);
 
   return 0;

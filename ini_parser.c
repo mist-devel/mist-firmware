@@ -287,7 +287,8 @@ void ini_parse(const ini_cfg_t* cfg, const char *alter_section, int tag)
   int section = INI_SECTION_INVALID_ID;
   int line_status;
 
-  ini_parser_debugf("Start INI parser for core \"%s\".", alter_section);
+  if (alter_section)
+    ini_parser_debugf("Start INI parser for core \"%s\".", alter_section);
 
   // open ini file
   #ifdef INI_PARSER_TEST
@@ -430,4 +431,3 @@ void ini_save(const ini_cfg_t* cfg, int tag)
   #endif
 
 }
-
