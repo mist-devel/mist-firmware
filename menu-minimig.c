@@ -214,6 +214,7 @@ static char CueISOFileSelected(uint8_t idx, const char *SelectedName) {
 	char res;
 	res = cue_parse(SelectedName, &sd_image[hdf_idx]);
 	if (res) ErrorMessage(cue_error_msg[res-1], res);
+	return 0;
 }
 
 static char KickstartReload(uint8_t idx) {

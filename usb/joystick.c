@@ -82,4 +82,6 @@ uint8_t joystick_release(uint8_t c_jindex) {
 	StateNumJoysticksSet(joysticks);
 	if (joysticks < 6)
 		StateUsbIdSet(0, 0, 0, joysticks);
+
+	return 0;
 }

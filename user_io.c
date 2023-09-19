@@ -2235,7 +2235,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 			{
 				if(emu_mode == EMU_MOUSE)
 				{
-					unsigned char b;
+					unsigned char b = 0;
 					if(emu_state & JOY_BTN1) b |= 1;
 					if(emu_state & JOY_BTN2) b |= 2;
 					user_io_mouse(0, b, 0, 0, 0);
@@ -2315,7 +2315,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 							user_io_joystick_emu();
 							if(keyrah == 2) 
 							{
-								unsigned char b;
+								unsigned char b = 0;
 								if(emu_state & JOY_BTN1) b |= 1;
 								if(emu_state & JOY_BTN2) b |= 2;
 								user_io_mouse(0, b, 0, 0, 0);
@@ -2382,7 +2382,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 							user_io_joystick_emu();
 							if(keyrah == 2) 
 							{
-								unsigned char b;
+								unsigned char b = 0;
 								if(emu_state & JOY_BTN1) b |= 1;
 								if(emu_state & JOY_BTN2) b |= 2;
 								user_io_mouse(0, b, 0, 0, 0);
