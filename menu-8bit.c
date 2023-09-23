@@ -191,6 +191,7 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 				static char ext[13];
 				strncpy(ext, p, 13);
 				while(strlen(ext) < 3) strcat(ext, " ");
+				selected_drive_slot = 1;
 				SelectFileNG(ext, SCAN_DIR | SCAN_LFN, RomFileSelected, 1);
 			} else if (action == MENU_ACT_GET) {
 				//menumask = 1;
