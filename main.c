@@ -161,7 +161,7 @@ int main(void)
     if(USB_BOOT_VAR == USB_BOOT_VALUE)
       if (!GetUSBStorageDevices()) {
         if(!mmc_ok)
-          FatalError(1);
+          FatalError(ERROR_FILE_NOT_FOUND);
       } else
         fat_switch_to_usb();  // redirect file io to usb
     else {
@@ -169,11 +169,11 @@ int main(void)
       if(!mmc_ok) {
 #ifdef USB_STORAGE
         if(!GetUSBStorageDevices())
-          FatalError(1);
+          FatalError(ERROR_FILE_NOT_FOUND);
 
         fat_switch_to_usb();  // redirect file io to usb
 #else
-        FatalError(1);
+        FatalError(ERROR_FILE_NOT_FOUND);
 #endif
       }
 #ifdef USB_STORAGE
@@ -181,7 +181,7 @@ int main(void)
 #endif
 
     if (!FindDrive())
-        FatalError(2);
+        FatalError(ERROR_INVALID_DATA);
 
     disk_ioctl(fs.pdrv, GET_SECTOR_COUNT, &storage_size);
     storage_size >>= 11;

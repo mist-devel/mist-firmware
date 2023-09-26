@@ -267,7 +267,7 @@ unsigned char ConfigureFpga(const char *name)
     if (f_open(&file, name, FA_READ) != FR_OK)
     {
         iprintf("No FPGA configuration file found!\r");
-        FatalError(4);
+        FatalError(ERROR_BITSTREAM_OPEN);
     }
 
     iprintf("FPGA bitstream file %s opened, file size = %llu\r", name, f_size(&file));
@@ -291,7 +291,7 @@ unsigned char ConfigureFpga(const char *name)
         {
             iprintf("FPGA NSTATUS is NOT high!\r");
             f_close(&file);
-            FatalError(3);
+            FatalError(ERROR_UPDATE_INIT_FAILED);
         }
     }
 
@@ -316,7 +316,7 @@ unsigned char ConfigureFpga(const char *name)
 
             if (f_read(&file, sector_buffer, SECTOR_BUFFER_SIZE, &br) != FR_OK) {
                 f_close(&file);
-                return(0);
+                FatalError(ERROR_READ_BITSTREAM_FAILED);
             }
 
             ptr = sector_buffer;
@@ -334,7 +334,7 @@ unsigned char ConfigureFpga(const char *name)
             if ( !ALTERA_NSTATUS_STATE ) {
                 iprintf("FPGA NSTATUS is NOT high!\r");
                 f_close(&file);
-                FatalError(5);
+                FatalError(ERROR_UPDATE_PROGRESS_FAILED);
             }
         }
     }
@@ -348,7 +348,7 @@ unsigned char ConfigureFpga(const char *name)
     // check if DONE is high
     if (!ALTERA_DONE_STATE) {
       iprintf("FPGA Configuration done but contains error... CONF_DONE is LOW\r");
-      FatalError(5);
+      FatalError(ERROR_UPDATE_FAILED);
     }
 
     
@@ -374,7 +374,7 @@ unsigned char ConfigureFpga(const char *name)
 
       iprintf("FPGA Initialization finish but contains error: NSTATUS is %s and CONF_DONE is %s.\r", 
              ALTERA_NSTATUS_STATE?"HIGH":"LOW", ALTERA_DONE_STATE?"HIGH":"LOW" );
-      FatalError(5);
+      FatalError(ERROR_UPDATE_FAILED);
     }
 
     return 1;
@@ -923,8 +923,9 @@ void fpga_init(const char *name) {
       time = GetRTTC() - time;
       iprintf("FPGA configured in %lu ms\r", time);
     } else {
+      // should not reach this code
       iprintf("FPGA configuration failed\r");
-      FatalError(8); // 3
+      FatalError(ERROR_UPDATE_FAILED);
     }
   }
 

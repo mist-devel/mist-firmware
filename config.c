@@ -453,7 +453,7 @@ static void ApplyConfiguration(char reloadkickstart)
         if (!UploadKickstart(config.kickstart)) {
           strcpy(config.kickstart, "AROS.ROM");
           if (!UploadKickstart(config.kickstart)) {
-            FatalError(6);
+            FatalError(ERROR_KICKSTART_UPLOAD);
           }
         }
       }
@@ -587,7 +587,7 @@ static void ApplyConfiguration(char reloadkickstart)
       if (!UploadKickstart(config.kickstart)) {
         strcpy(config.kickstart, "KICK.ROM");
         if (!UploadKickstart(config.kickstart)) {
-          FatalError(6);
+          FatalError(ERROR_KICKSTART_UPLOAD);
         }
       }
     }
