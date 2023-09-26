@@ -17,6 +17,7 @@
 #include "idxfile.h"
 #include "font.h"
 #include "mmc.h"
+#include "utils.h"
 #include "FatFs/diskio.h"
 
 #define CONFIG_FILENAME  "MIST    CFG"
@@ -155,16 +156,13 @@ static void mist2_spi_set_speed(unsigned char speed)
   if (user_io_core_type() == CORE_TYPE_MIST2) spi_set_speed(speed);
 }
 
-static void mist_memory_write(char *data, unsigned long words) {
+static void mist_memory_write(const char *data, unsigned long words) {
   spi_speed = spi_get_speed();
   mist2_spi_set_speed(spi_newspeed);
   EnableFpga();
   SPI(MIST_WRITE_MEMORY);
 
-  while(words--) {
-    SPI_WRITE(*data++);
-    SPI_WRITE(*data++);
-  }
+  spi_write(data, words*2);
 
   DisableFpga();
   mist2_spi_set_speed(spi_speed);
@@ -182,7 +180,7 @@ static void mist_memory_read_block(char *data) {
   mist2_spi_set_speed(spi_speed);
 }
 
-static void mist_memory_write_block(char *data) {
+static void mist_memory_write_block(const char *data) {
   EnableFpga();
   SPI(MIST_WRITE_MEMORY);
 
@@ -191,13 +189,25 @@ static void mist_memory_write_block(char *data) {
   DisableFpga();
 }
 
+static void mist_memory_write_blocks(const char *data, int count) {
+  spi_speed = spi_get_speed();
+  mist2_spi_set_speed(spi_newspeed);
+  EnableFpga();
+  SPI(MIST_WRITE_MEMORY);
+
+  spi_write(data, 512*count);
+
+  DisableFpga();
+  mist2_spi_set_speed(spi_speed);
+}
+
 void mist_memory_set(char data, unsigned long words) {
   EnableFpga();
   SPI(MIST_WRITE_MEMORY);
 
   while(words--) {
-    SPI_WRITE(data);
-    SPI_WRITE(data);
+    SPI(data);
+    SPI(data);
   }
 
   DisableFpga();
@@ -356,18 +366,19 @@ static void handle_acsi(unsigned char *buffer) {
           } else {
 #endif
             while(length) {
+              int blocksize = MIN(length, SECTOR_BUFFER_SIZE/512);
               if(hdd_direct && target == 0) {
                 if(user_io_dip_switch1())
                   tos_debugf("ACSI: direct read %ld", lba);
-                disk_read(fs.pdrv, sector_buffer, lba++, 1);
+                disk_read(fs.pdrv, sector_buffer, lba, blocksize);
               } else {
                 IDXSeek(&sd_image[target+2], lba);
-                FileReadBlock(&sd_image[target+2].file, sector_buffer);
-                lba++;
+                FileReadBlockEx(&sd_image[target+2].file, sector_buffer, blocksize);
               }
               // hexdump(sector_buffer, 32, 0);
-              mist_memory_write_block(sector_buffer);
-              length--;
+              mist_memory_write_blocks(sector_buffer, blocksize);
+              length-=blocksize;
+              lba+=blocksize;
             }
 #ifndef SD_NO_DIRECT_MODE
           }
