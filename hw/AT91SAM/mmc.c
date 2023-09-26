@@ -87,15 +87,15 @@ unsigned char MMC_Init(void)
     spi_slow();     // set slow clock
     DisableCard();  // CS = 1
     SPI(0xff);      // DI = 1
-    TIMER_wait(20);  // 20ms delay
+    WaitTimer(20);  // 20ms delay
     for (n=0; n<10; n++) SPI(0xff); // 80 dummy clocks, DI = 1
-    TIMER_wait(20);  // 20ms delay
+    WaitTimer(20);  // 20ms delay
     EnableCard();
 
     CardType = CARDTYPE_NONE;
 
     for(n=0; n<16; n++) {
-      TIMER_wait(1);
+      WaitTimer(1);
       if (MMC_Command(CMD0, 0) == 0x01) break; // try to send CMD0 multiple times
     }
     if (n<16) // got CMD0 IDLE response

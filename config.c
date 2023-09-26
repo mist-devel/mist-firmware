@@ -576,7 +576,7 @@ static void ApplyConfiguration(char reloadkickstart)
 
     if(reloadkickstart) {
       iprintf("Reloading kickstart ...\r");
-      TIMER_wait(1000);
+      WaitTimer(1000);
       EnableOsd();
       SPI(OSD_CMD_RST);
       rstval |= (SPI_RST_CPU | SPI_CPU_HLT);

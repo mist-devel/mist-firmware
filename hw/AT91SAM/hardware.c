@@ -301,10 +301,6 @@ void WaitTimer(unsigned long time)
     while (!CheckTimer(time));
 }
 
-void TIMER_wait(unsigned long ms) {
-  WaitTimer(ms);
-}
-
 inline char mmc_inserted() {
   return !(*AT91C_PIOA_PDSR & SD_CD);
 }
