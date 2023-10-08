@@ -1355,8 +1355,8 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
               spi_write(sector_buffer, 512*MIN(blocks, SECTOR_BUFFER_SIZE/512));
               DisableFpga();
             }
-            blocks-=MIN(blocks, SECTOR_BUFFER_SIZE/512);
             lba+=MIN(blocks, SECTOR_BUFFER_SIZE/512);
+            blocks-=MIN(blocks, SECTOR_BUFFER_SIZE/512);
           }
 #ifndef SD_NO_DIRECT_MODE
         }
