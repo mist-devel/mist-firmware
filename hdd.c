@@ -1531,10 +1531,14 @@ void HandleHDD(unsigned char c1, unsigned char c2, unsigned char cs1ena)
       ATA_SetMultipleMode(tfr, unit);
     } else if (tfr[7] == ACMD_READ_SECTORS) {
       ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count, false, lbamode, false);
+    } else if (tfr[7] == ACMD_READ_SECTORS1) {
+      ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count, false, lbamode, false);
     } else if (tfr[7] == ACMD_READ_MULTIPLE) {
       ATA_ReadSectors(tfr, sector, cylinder, head, unit, sector_count, true, lbamode, false);
     } else if (tfr[7] == ACMD_WRITE_SECTORS) {
-      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count ,false, lbamode);
+      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count, false, lbamode);
+    } else if (tfr[7] == ACMD_WRITE_SECTORS1) {
+      ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count, false, lbamode);
     } else if (tfr[7] == ACMD_WRITE_MULTIPLE) {
       ATA_WriteSectors(tfr, sector, cylinder, head, unit, sector_count, true, lbamode);
     } else if (tfr[7] == ACMD_READ_VERIFY_SECTORS) {

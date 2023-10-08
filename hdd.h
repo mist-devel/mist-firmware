@@ -35,7 +35,9 @@
 #define ACMD_IDENTIFY_DEVICE              0xEC
 #define ACMD_INITIALIZE_DEVICE_PARAMETERS 0x91
 #define ACMD_READ_SECTORS                 0x20
+#define ACMD_READ_SECTORS1                0x21
 #define ACMD_WRITE_SECTORS                0x30
+#define ACMD_WRITE_SECTORS1               0x31
 #define ACMD_READ_VERIFY_SECTORS          0x40
 #define ACMD_READ_MULTIPLE                0xC4
 #define ACMD_WRITE_MULTIPLE               0xC5
