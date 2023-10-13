@@ -5,7 +5,7 @@
 
 #include "FatFs/ff.h"
 
-#define MAXDIRENTRIES 8
+#define MAXDIRENTRIES 16
 
 struct PartitionEntry
 {

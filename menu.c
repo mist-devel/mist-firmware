@@ -59,7 +59,7 @@ static uint8_t menu_last, scroll_down, scroll_up;
 static uint8_t page_idx, last_page[4], last_menusub[4], last_menu_first[4], page_level;
 static menu_item_t menu_item;
 static menu_page_t menu_page;
-static uint8_t menuidx[OSDNLINE];
+static uint8_t menuidx[16];
 const char *helptext;
 
 static const char *dialog_text;
@@ -1004,6 +1004,8 @@ void HandleUI(void)
 	static long helptext_timer;
 	static long page_timer;
 	static char helpstate=0;
+	int osdlines = OsdLines();
+	int firstline = osdlines <= 8 ? 0 : 2;
 	uint8_t keys[6] = {0,0,0,0,0,0};
 
 	// get user control codes
@@ -1106,7 +1108,7 @@ void HandleUI(void)
 			{
 				helptext_timer=GetTimer(FRAME_DELAY);
 				if (menu_page.stdexit)
-					OsdWriteOffset(OSDNLINE-1,menu_page.stdexit == 1 ? STD_EXIT : menu_page.stdexit == 2 ? STD_SPACE_EXIT : STD_COMBO_EXIT,0,0,helpstate);
+					OsdWriteOffset(osdlines-1,menu_page.stdexit == 1 ? STD_EXIT : menu_page.stdexit == 2 ? STD_SPACE_EXIT : STD_COMBO_EXIT,0,0,helpstate);
 				++helpstate;
 			}
 		}
@@ -1116,7 +1118,7 @@ void HandleUI(void)
 			++helpstate;
 		}
 		else
-			ScrollText(OSDNLINE-1,helptext,0,0,0,0);
+			ScrollText(osdlines-1,helptext,0,0,0,0);
 	}
 
 	// Standardised menu up/down.
@@ -1214,37 +1216,49 @@ void HandleUI(void)
 			char idx, itemidx, valid, *item;
 			menumask=0;
 			itemidx = menuidx[0];
-			for(idx=0; idx<OSDNLINE; idx++) {
+			for(idx=0; idx<osdlines; idx++) {
 				valid = 0;
 				item = "";
 				menu_item.page = page_idx;
-				while(menu_item_callback(itemidx++, 0, &menu_item)) {
-					menu_debugf("menu_ng: idx: %d, item: %d, '%s', stipple %d page %d\n",idx, itemidx-1, menu_item.item, menu_item.stipple, menu_item.page);
-					if (menu_item.page == page_idx) {
-						valid = 1;
-						if (menu_page.stdexit && idx == OSDNLINE-1)
+				if (idx >= firstline) {
+					while(menu_item_callback(itemidx++, 0, &menu_item)) {
+						menu_debugf("menu_ng: idx: %d, item: %d, '%s', stipple %d page %d\n",idx, itemidx-1, menu_item.item, menu_item.stipple, menu_item.page);
+						if (menu_item.page == page_idx) {
+							valid = 1;
+							if (menu_page.stdexit && idx == osdlines-1)
+								break;
+							menuidx[idx-firstline] = itemidx-1;
+							menu_last = idx-firstline;
+							if(menu_item.newpage) {
+								char l = 25-strlen(menu_item.item);
+								strcpy(s, menu_item.item);
+								while(l--) strcat(s, " ");
+								strcat(s,"\x16"); // right arrow
+								item = s;
+							} else {
+								item = menu_item.item;
+							}
+							if (menu_item.active) menumask |= 1<<idx;
 							break;
-						menuidx[idx] = itemidx-1;
-						menu_last = idx;
-						if(menu_item.newpage) {
-							char l = 25-strlen(menu_item.item);
-							strcpy(s, menu_item.item);
-							while(l--) strcat(s, " ");
-							strcat(s,"\x16"); // right arrow
-							item = s;
-						} else {
-							item = menu_item.item;
 						}
-						if (menu_item.active) menumask |= 1<<idx;
-						break;
+						menu_item.page = page_idx;
 					}
-					menu_item.page = page_idx;
+				} else {
+					if (idx == 0) {
+						uint8_t date[7];
+						menu_item.stipple = GetRTC((uint8_t*)&date);
+						siprintf(s, " %04d/%02d/%02d %02d:%02d:%02d %s", 1900+date[0], date[1], date[2], date[3], date[4], date[5], date[6] <= 7 ? days[date[6]-1] : "--------");
+						item = s;
+						if (!menu_page.timer) menu_page.timer = 1000;
+					} else {
+						item = "";
+					}
 				}
-				if (menu_page.stdexit && idx == OSDNLINE-1) {
+				if (menu_page.stdexit && idx == osdlines-1) {
 					switch(menu_page.stdexit) {
 						case 1:
 							item = STD_EXIT;
-							if (!valid) menumask |= 1<<(OSDNLINE-1);
+							if (!valid) menumask |= 1<<(osdlines-1);
 							break;
 						case 2:
 							item = STD_SPACE_EXIT;
@@ -1259,7 +1273,7 @@ void HandleUI(void)
 					menu_item.stipple = 0;
 				}
 				if (!(menumask & 1<<idx) && menusub == idx) menusub++;
-				if (!(helpstate && idx == OSDNLINE-1))
+				if (!(helpstate && idx == osdlines-1))
 					OsdWrite(idx, item, menusub == idx, menu_item.stipple);
 			}
 			if (menu_page.timer) page_timer = GetTimer(menu_page.timer);
@@ -1281,17 +1295,17 @@ void HandleUI(void)
 				}
 			} else if (menu_page.stdexit == MENU_STD_SPACE_EXIT) {
 				if (c==KEY_SPACE) stdexit = 1;
-			} else if (menu || (menu_page.stdexit && select && menusub == OSDNLINE - 1)) {
+			} else if (menu || (menu_page.stdexit && select && menusub == osdlines - 1)) {
 				stdexit = 1;
 			}
 
 			if (c == KEY_PGDN) {
-				if (menusub < (OSDNLINE - 1 - (menu_page.stdexit?1:0))) {
-					menusub = OSDNLINE - 1 - (menu_page.stdexit?1:0);
+				if (menusub < (osdlines - 1 - (menu_page.stdexit?1:0))) {
+					menusub = osdlines - 1 - (menu_page.stdexit?1:0);
 					while((menumask & (1<<menusub)) == 0) menusub--;
 					menustate = parentstate;
 				} else {
-					scroll_down = OSDNLINE - (menu_page.stdexit?1:0);
+					scroll_down = osdlines - (menu_page.stdexit?1:0);
 				}
 			}
 
@@ -1303,8 +1317,8 @@ void HandleUI(void)
 						items++;
 						if (!newidx) newidx = idx;           // the next invisible item
 						if (menu_item.active) {              // any selectable?
-							menuidx[0] = items < (OSDNLINE - (menu_page.stdexit?1:0)) ? menuidx[items] : newidx; // then scroll down
-							menusub = OSDNLINE - 1 - (menu_page.stdexit?1:0);
+							menuidx[0] = items < (osdlines - (menu_page.stdexit?1:0)) ? menuidx[items] : newidx; // then scroll down
+							menusub = osdlines - 1 - (menu_page.stdexit?1:0);
 							if (!--scroll_down) break;
 						}
 					}
@@ -1315,13 +1329,13 @@ void HandleUI(void)
 			}
 
 			if (c == KEY_PGUP) {
-				if (menusub > 0) {
-					menusub = 0;
-					while((menumask & (1<<menusub)) == 0 && menusub<OSDNLINE) menusub++;
-					if(menusub == OSDNLINE) menusub = 0;
+				if (menusub > firstline) {
+					menusub = firstline;
+					while((menumask & (1<<menusub)) == 0 && menusub<osdlines) menusub++;
+					if(menusub == osdlines) menusub = firstline;
 					menustate = parentstate;
 				} else {
-					scroll_up = OSDNLINE - (menu_page.stdexit?1:0);
+					scroll_up = osdlines - firstline - (menu_page.stdexit?1:0);
 				}
 			}
 
@@ -1332,7 +1346,7 @@ void HandleUI(void)
 					while(menu_item_callback(idx, 0, &menu_item)) {// are more items there?
 						if (menu_item.page == page_idx && menu_item.active) {     // any selectable?
 							menuidx[0] = idx; // then scroll up
-							menusub = 0;
+							menusub = firstline;
 							if (!--scroll_up) break;
 						}
 						if (!idx) break;
@@ -1367,7 +1381,7 @@ void HandleUI(void)
 
 			if (action != MENU_ACT_NONE) {
 				menu_item.page = page_idx;
-				if (menu_item_callback(menuidx[menusub], action, &menu_item)) {
+				if (menu_item_callback(menuidx[menusub-firstline], action, &menu_item)) {
 					if (menu_item.newpage) {
 						parentstate = MENU_NG;
 						last_menu_first[page_level] = menuidx[0];
@@ -1396,32 +1410,26 @@ void HandleUI(void)
 			OsdSetTitle("About", 0); 
 			menustate = MENU_8BIT_ABOUT2;
 			parentstate=MENU_8BIT_ABOUT1;
-			OsdDrawLogo(0,0,1);
-			OsdDrawLogo(1,1,1);
-			OsdDrawLogo(2,2,1);
-			OsdDrawLogo(3,3,1);
-			OsdDrawLogo(4,4,1);
-			OsdDrawLogo(6,6,1);
-			OsdWrite(5, "", 0, 0);
-			OsdWrite(6, "", 0, 0);
-			OsdWrite(7, STD_EXIT, menusub==0, 0);
+			for (int i=0; i<osdlines-2; i++) {
+				OsdDrawLogo(i,i,1);
+			}
+			OsdWrite(osdlines-3, "", 0, 0);
+			OsdWrite(osdlines-2, "", 0, 0);
+			OsdWrite(osdlines-1, STD_EXIT, menusub==0, 0);
 			StarsInit();
 			ScrollReset();
 			break;
 
 		case MENU_8BIT_ABOUT2:
 			StarsUpdate();
-			OsdDrawLogo(0,0,1);
-			OsdDrawLogo(1,1,1);
-			OsdDrawLogo(2,2,1);
-			OsdDrawLogo(3,3,1);
-			OsdDrawLogo(4,4,1);
-			OsdDrawLogo(6,6,1);
-			ScrollText(5,"                                 MiST by Till Harbaum, based on Minimig by Dennis van Weeren and other projects. MiST hardware and software is distributed under the terms of the GNU General Public License version 3. MiST FPGA cores are the work of their respective authors under individual licensing.", 0, 0, 0, 0);
+			for (int i=0; i<osdlines-2; i++) {
+				if (i!=osdlines-3) OsdDrawLogo(i,i,1);
+			}
+			ScrollText(osdlines-3,"                                 MiST by Till Harbaum, based on Minimig by Dennis van Weeren and other projects. MiST hardware and software is distributed under the terms of the GNU General Public License version 3. MiST FPGA cores are the work of their respective authors under individual licensing.", 0, 0, 0, 0);
 			// menu key closes menu
 			if (menu || select || left) {
 				menustate = MENU_NG;
-				menusub = 6;
+				menusub = 6+firstline;
 			}
 			break;
 /*
@@ -1612,7 +1620,7 @@ void HandleUI(void)
 			break;
 
 		case MENU_FILE_SELECT_EXIT:
-			menu_select_callback(menuidx[menusub], SelectedName);
+			menu_select_callback(menuidx[menusub-firstline], SelectedName);
 			menustate = parentstate;
 			break;
 
@@ -1624,6 +1632,8 @@ void HandleUI(void)
 			const char *message = dialog_text;
 			menumask = 0;
 			parentstate = menustate;
+			s[0]=0;
+			while (l<firstline) OsdWrite(l++, s, 0, 0);
 			do {
  
 				// line full or line break
@@ -1636,7 +1646,7 @@ void HandleUI(void)
 				}
 			} while(*message++);
 
-			if(dialog_errorcode && (l < OSDNLINE)) {
+			if(dialog_errorcode && (l < osdlines)) {
 				siprintf(s, " Code: #%d", dialog_errorcode);
 				OsdWrite(l++, s, 0,0);
 			}
@@ -1653,7 +1663,7 @@ void HandleUI(void)
 					OsdWrite(l++, "             no", menusub == 1,0);
 				}
 			}
-			while(l < OSDNLINE) OsdWrite(l++, "", 0,0);
+			while(l < osdlines) OsdWrite(l++, "", 0,0);
 			menustate = MENU_DIALOG2;
 		}
 		break;
@@ -1786,7 +1796,7 @@ static void PrintDirectory(void)
 
     ScrollReset();
 
-    for (i = 0; i < OSDNLINE; i++)
+    for (i = 0; i < OsdLines(); i++)
     {
         memset(s, ' ', 32); // clear line buffer
         if (i < nDirEntries)

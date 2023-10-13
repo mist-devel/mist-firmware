@@ -236,7 +236,8 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 		if(action == MENU_ACT_SEL) {
 			static char ext[13];
 			char iscue = 0;
-			selected_drive_slot = (p[0] == 'F') ? (menusub + 1) : 0;
+			unsigned char firstline = OsdLines() <= 8 ? 0 : 2;
+			selected_drive_slot = (p[0] == 'F') ? (menusub - firstline + 1) : 0;
 			if (p[0]=='S' && (p[1]=='C' || (p[1] && p[1] != ',' && p[2] == 'C'))) {
 				// S[0-9]C - select CUE/ISO file
 				selected_drive_slot = 3;

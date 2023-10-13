@@ -5,6 +5,7 @@
 #include "mmc.h"
 #include "fat_compat.h"
 #include "fpga.h"
+#include "osd.h"
 #include "attrs.h"
 #include "utils.h"
 
@@ -339,12 +340,13 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 	char initial = 1;
 	int i;
 	unsigned char x;
+	int maxdirentries = OsdLines();
 
 	if (mode == SCAN_INIT || mode == SCAN_INIT_FIRST)
 	{
 		nDirEntries = 0;
 		iSelectedEntry = 0;
-		for (i = 0; i < MAXDIRENTRIES; i++)
+		for (i = 0; i < maxdirentries; i++)
 			sort_table[i] = i;
 		if (f_opendir(&dir, ".") != FR_OK) return 0;
 	}
@@ -360,7 +362,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 				iSelectedEntry++;
 				return 0;
 			}
-			if (nDirEntries < MAXDIRENTRIES)
+			if (nDirEntries < maxdirentries)
 				return 0;
 		}
 		else if (mode == SCAN_PREV)
@@ -378,7 +380,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 				iSelectedEntry = nDirEntries - 1;
 				return 0;
 			}
-			if (nDirEntries < MAXDIRENTRIES)
+			if (nDirEntries < maxdirentries)
 				return 0;
 		}
 		else if (mode == SCAN_PREV_PAGE)
@@ -419,13 +421,13 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
                     || (options & SCAN_SYSDIR && fil.fattrib & AM_DIR && (fil.fattrib & AM_SYS || (fil.fname[0] == '.' && fil.fname[1] == '.')))))
 		{
 			if (mode == SCAN_INIT) { // initial directory scan (first 8 entries)
-				if (nDirEntries < MAXDIRENTRIES) {
+				if (nDirEntries < maxdirentries) {
 					//iprintf("fname=%s, altname=%s\n", fil.fname, fil.altname);
 					DirEntries[nDirEntries] = fil;
 					nDirEntries++;
-				} else if (CompareDirEntries(&fil, &DirEntries[sort_table[MAXDIRENTRIES-1]]) < 0) {// compare new entry with the l
+				} else if (CompareDirEntries(&fil, &DirEntries[sort_table[maxdirentries-1]]) < 0) {// compare new entry with the l
 					// replace the last entry with the new one if appropriate
-					DirEntries[sort_table[MAXDIRENTRIES-1]] = fil;
+					DirEntries[sort_table[maxdirentries-1]] = fil;
 				}
 				for (i = nDirEntries - 1; i > 0; i--) {// one pass bubble-sorting (table is already sorted, only the new item must be placed in order)
 					if (CompareDirEntries(&DirEntries[sort_table[i]], &DirEntries[sort_table[i-1]])<0) // compare items
@@ -440,7 +442,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 			} else if (mode == SCAN_INIT_FIRST) {
 				// find a dir entry with given cluster number and store it in the buffer
 				if (fil.fclust == iPreviousDirectory) { // directory entry found
-					for (i = 0; i< MAXDIRENTRIES; i++)
+					for (i = 0; i< maxdirentries; i++)
 						sort_table[i] = i; // init sorting table
 
 					nDirEntries = 1;
@@ -451,14 +453,14 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 					break;
 				}
 			} else if (mode == SCAN_INIT_NEXT) {
-				// scan the directory table and return next MAXDIRENTRIES-1 alphabetically sorted entries (first entry is in the buffer)
+				// scan the directory table and return next maxdirentries-1 alphabetically sorted entries (first entry is in the buffer)
 				if (CompareDirEntries(&fil, &DirEntries[sort_table[0]]) > 0) {// compare new entry with the first one
-					if (nDirEntries < MAXDIRENTRIES) {// initial directory scan (first 8 entries)
+					if (nDirEntries < maxdirentries) {// initial directory scan (first 8 entries)
 						DirEntries[nDirEntries] = fil; // add new entry at first empty slot in storage buffer
 						nDirEntries++;
 					} else {
-						if (CompareDirEntries(&fil, &DirEntries[sort_table[MAXDIRENTRIES-1]]) < 0) {// compare new entry with the last already found
-							DirEntries[sort_table[MAXDIRENTRIES-1]] = fil; // replace the last entry with the new one if appropriate
+						if (CompareDirEntries(&fil, &DirEntries[sort_table[maxdirentries-1]]) < 0) {// compare new entry with the last already found
+							DirEntries[sort_table[maxdirentries-1]] = fil; // replace the last entry with the new one if appropriate
 						}
 					}
 
@@ -473,31 +475,31 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 				}
 			} else if (mode == SCAN_NEXT) {
 				if (nNewEntries == 0) {// no entry higher than the last one has been found yet
-					if (CompareDirEntries(&fil, &DirEntries[sort_table[MAXDIRENTRIES-1]]) > 0) { // found entry higher than the
+					if (CompareDirEntries(&fil, &DirEntries[sort_table[maxdirentries-1]]) > 0) { // found entry higher than the
 						nNewEntries++;
 						DirEntries[sort_table[0]] = fil;
 						// scroll entries' indices
 						x = sort_table[0];
-						for (i = 0; i < MAXDIRENTRIES-1; i++)
+						for (i = 0; i < maxdirentries-1; i++)
 							sort_table[i] = sort_table[i+1];
-						sort_table[MAXDIRENTRIES-1] = x; // last entry is the found one
+						sort_table[maxdirentries-1] = x; // last entry is the found one
 					}
 				} else {// higher entry already found but we need to check the remaining ones if any of them is lower then the already found one
 					// check if the found entry is lower than the last one and higher than the last but one, if so then replace the last one with it
-					if (CompareDirEntries(&fil, &DirEntries[sort_table[MAXDIRENTRIES-1]]) < 0)
-						if (CompareDirEntries(&fil, &DirEntries[sort_table[MAXDIRENTRIES-2]]) > 0) {
-							DirEntries[sort_table[MAXDIRENTRIES-1]] = fil;
+					if (CompareDirEntries(&fil, &DirEntries[sort_table[maxdirentries-1]]) < 0)
+						if (CompareDirEntries(&fil, &DirEntries[sort_table[maxdirentries-2]]) > 0) {
+							DirEntries[sort_table[maxdirentries-1]] = fil;
 						}
 				}
 			} else if (mode == SCAN_PREV) {
 				if (nNewEntries == 0) {// no entry lower than the first one has been found yet
 					if (CompareDirEntries(&fil, &DirEntries[sort_table[0]]) < 0) {// found entry lower than the first one
 						nNewEntries++;
-						if (nDirEntries < MAXDIRENTRIES) nDirEntries++;
-						DirEntries[sort_table[MAXDIRENTRIES-1]] = fil;
+						if (nDirEntries < maxdirentries) nDirEntries++;
+						DirEntries[sort_table[maxdirentries-1]] = fil;
 						// scroll entries' indices
-						x = sort_table[MAXDIRENTRIES-1];
-						for (i = MAXDIRENTRIES - 1; i > 0; i--)
+						x = sort_table[maxdirentries-1];
+						for (i = maxdirentries - 1; i > 0; i--)
 							sort_table[i] = sort_table[i-1];
 						sort_table[0] = x; // the first entry is the found one
 					}
@@ -509,28 +511,28 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 						}
 				}
 			} else if (mode == SCAN_NEXT_PAGE) {
-				if (CompareDirEntries(&fil, &DirEntries[sort_table[MAXDIRENTRIES-1]]) > 0) { // compare with the last visible en
-					if (nNewEntries < MAXDIRENTRIES) {// initial directory scan (first 8 entries)
+				if (CompareDirEntries(&fil, &DirEntries[sort_table[maxdirentries-1]]) > 0) { // compare with the last visible en
+					if (nNewEntries < maxdirentries) {// initial directory scan (first 8 entries)
 						//iprintf("fname=%s, altname=%s\n", fil.fname, fil.altname);
 						t_DirEntries[nNewEntries] = fil;
 						t_sort_table[nNewEntries] = nNewEntries; // init sorting table
 						nNewEntries++;
 						SortTempTable(-1);
-					} else if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[MAXDIRENTRIES-1]]) < 0) {// compare new entr
-						t_DirEntries[t_sort_table[MAXDIRENTRIES-1]] = fil;
+					} else if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[maxdirentries-1]]) < 0) {// compare new entr
+						t_DirEntries[t_sort_table[maxdirentries-1]] = fil;
 						SortTempTable(-1);
 					}
 				}
 			} else if (mode == SCAN_PREV_PAGE) {
 				if (CompareDirEntries(&fil, &DirEntries[sort_table[0]]) < 0) { // compare with the last visible en
-					if (nNewEntries < MAXDIRENTRIES) {// initial directory scan (first 8 entries)
+					if (nNewEntries < maxdirentries) {// initial directory scan (first 8 entries)
 						//iprintf("fname=%s, altname=%s\n", fil.fname, fil.altname);
 						t_DirEntries[nNewEntries] = fil;
 						t_sort_table[nNewEntries] = nNewEntries; // init sorting table
 						nNewEntries++;
 						SortTempTable(1);
-					} else if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[MAXDIRENTRIES-1]]) > 0) {// compare new entry
-						t_DirEntries[t_sort_table[MAXDIRENTRIES-1]] = fil;
+					} else if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[maxdirentries-1]]) > 0) {// compare new entry
+						t_DirEntries[t_sort_table[maxdirentries-1]] = fil;
 						SortTempTable(1);
 					}
 				}
@@ -543,13 +545,13 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 					x = (CompareDirEntries(&fil, &DirEntries[sort_table[iSelectedEntry]]) > 0); // compare with the last visible entry
 
 				if (x) {
-					if (nNewEntries < MAXDIRENTRIES) {// initial directory scan (first 8 entries)
+					if (nNewEntries < maxdirentries) {// initial directory scan (first 8 entries)
 						t_DirEntries[nNewEntries] = fil;
 						t_sort_table[nNewEntries] = nNewEntries; // init sorting table
 						nNewEntries++;
 						SortTempTable(-1);
-					} else if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[MAXDIRENTRIES-1]]) < 0) { // compare new entry with the last already found
-						t_DirEntries[t_sort_table[MAXDIRENTRIES-1]] = fil;
+					} else if (CompareDirEntries(&fil, &t_DirEntries[t_sort_table[maxdirentries-1]]) < 0) { // compare new entry with the last already found
+						t_DirEntries[t_sort_table[maxdirentries-1]] = fil;
 						SortTempTable(-1);
 					}
 				}
@@ -560,7 +562,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 
 	if (nNewEntries) {
 		if (mode == SCAN_NEXT_PAGE) {
-			unsigned char j = 8 - nNewEntries; // number of remaining old entries to scroll
+			unsigned char j = maxdirentries - nNewEntries; // number of remaining old entries to scroll
 			for (i = 0; i < j; i++) {
 				x = sort_table[i];
 				sort_table[i] = sort_table[i + nNewEntries];
@@ -572,7 +574,7 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 			}
 		} else if (mode == SCAN_PREV_PAGE) { // note: temporary buffer entries are in reverse order
 			unsigned char j = nNewEntries - 1;
-			for (i = 7; i > j; i--) {
+			for (i = maxdirentries - 1; i > j; i--) {
 				x = sort_table[i];
 				sort_table[i] = sort_table[i - nNewEntries];
 				sort_table[i - nNewEntries] = x;
@@ -582,8 +584,8 @@ char ScanDirectory(unsigned long mode, char *extension, unsigned char options) {
 				DirEntries[sort_table[j-i]] = t_DirEntries[t_sort_table[i]];
 			}
 			nDirEntries += nNewEntries;
-			if (nDirEntries > MAXDIRENTRIES)
-				nDirEntries = MAXDIRENTRIES;
+			if (nDirEntries > maxdirentries)
+				nDirEntries = maxdirentries;
 		} else if ((mode >= '0' && mode <= '9') || (mode >= 'A' && mode <= 'Z')) {
 			if (tolower(t_DirEntries[t_sort_table[0]].fname[0]) == tolower(mode)) {
 				x = 1; // if we were looking for a file we couldn't find anything other

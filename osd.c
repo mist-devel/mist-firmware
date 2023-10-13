@@ -85,11 +85,12 @@ static int quickrand()
 void StarsInit()
 {
 	int i;
+	int lines=OsdLines()*8 - 10;
 	for(i=0;i<64;++i)
 	{
 		stars[i].x=(quickrand()%228)<<4;	// X centre
-		stars[i].y=(quickrand()%56)<<4;	// Y centre
-			stars[i].dx=-(quickrand()&7)-3;
+		stars[i].y=(quickrand()%(lines))<<4;	// Y centre
+		stars[i].dx=-(quickrand()&7)-3;
 		stars[i].dy=0;
 	}
 }
@@ -97,15 +98,16 @@ void StarsInit()
 void StarsUpdate()
 {
 	int i;
+	int lines=OsdLines()*8 - 10;
 	for(i=0;i<64;++i)
 	{
 		stars[i].x+=stars[i].dx;
 		stars[i].y+=stars[i].dy;
 		if((stars[i].x<0)||(stars[i].x>(228<<4)) ||
-			(stars[i].y<0)||(stars[i].y>(56<<4)))
+			(stars[i].y<0)||(stars[i].y>(lines<<4)))
 		{
 			stars[i].x=228<<4;
-			stars[i].y=(quickrand()%56)<<4;
+			stars[i].y=(quickrand()%lines)<<4;
 			stars[i].dx=-(quickrand()&7)-3;
 			stars[i].dy=0;
 		}
@@ -124,7 +126,7 @@ static unsigned long scroll_timer=0;  // file/dir name scrolling timer
 extern char s[FF_LFN_BUF + 1];
 
 static int arrow;
-static unsigned char titlebuffer[64];
+static unsigned char titlebuffer[128];
 
 static void rotatechar(unsigned char *in,unsigned char *out)
 {
@@ -148,12 +150,13 @@ void OsdSetTitle(char *s,int a)
 	// Compose the title, condensing character gaps
 	arrow=a;
 	char zeros=0;
-	char i=0,j=0;
-	char outp=0;
+	int i=0,j=0;
+	int outp=0;
+	int bufsize = 8*OsdLines();
 	while(1)
 	{
 		int c=s[i++];
-		if(c && (outp<64))
+		if(c && (outp<bufsize))
 		{
 			unsigned char *p = &charfont[c][0];
 			for(j=0;j<8;++j)
@@ -169,21 +172,21 @@ void OsdSetTitle(char *s,int a)
 					titlebuffer[outp++]=0;
 					zeros=1;
 				}
-				if(outp>63)
+				if(outp>(bufsize-1))
 					break;
 			}
 		}
 		else
 			break;
 	}
-	for(i=outp;i<64;++i)
+	for(i=outp;i<bufsize;++i)
 	{
 		titlebuffer[i]=0;
 	}
 
 	// Now centre it:
-	int c=(63-outp)/2;
-	for(i=(63-c);i>=0;--i)
+	int c=(bufsize-1-outp)/2;
+	for(i=(bufsize-1-c);i>=0;--i)
 	{
 		titlebuffer[i+c]=titlebuffer[i];
 	}
@@ -191,7 +194,7 @@ void OsdSetTitle(char *s,int a)
 		titlebuffer[i]=0;
 
 	// Finally rotate it.
-	for(i=0;i<64;i+=8)
+	for(i=0;i<bufsize;i+=8)
 	{
 		unsigned char tmp[8];
 		rotatechar(&titlebuffer[i],tmp);
@@ -200,6 +203,14 @@ void OsdSetTitle(char *s,int a)
 			titlebuffer[i+c]=tmp[c];
 		}
 	}
+}
+
+char OsdLines()
+{
+  if (user_io_core_type() == CORE_TYPE_8BIT && (user_io_get_core_features() & FEAT_BIGOSD))
+    return 16;
+  else
+    return 8;
 }
 
 void OsdWrite(unsigned char n, char *s, unsigned char invert, unsigned char stipple)
@@ -212,7 +223,7 @@ void OsdWriteOffset(unsigned char n, char *s, unsigned char invert, unsigned cha
 {
   char *text = s;
   char arrowline[31];
-  if(n==OSDNLINE-1 && arrow) {
+  if(n==OsdLines()-1 && arrow) {
     text = arrowline;
     memset(arrowline, 32, sizeof(arrowline));
     memcpy(&arrowline, s, strnlen(s, sizeof(arrowline)));
@@ -241,10 +252,14 @@ void OsdDrawLogo(unsigned char n, char row,char superimpose) {
   else
     spi_osd_cmd32_cont(OSD_CMD_OSD_WR, n);
 
-  const unsigned char *lp=logodata[row];
+  const unsigned char *lp;
   int bytes=sizeof(logodata[0]);
-  if(row>=(sizeof(logodata)/bytes))
+  int logoheight = (sizeof(logodata)/bytes);
+  int startrow = (OsdLines()-2-logoheight)/2;
+  if(row>=startrow+logoheight || row<startrow)
     lp=0;
+  else
+    lp=logodata[row-startrow];
   i = 0;
   // send all characters in string to OSD
 
@@ -258,7 +273,7 @@ void OsdDrawLogo(unsigned char n, char row,char superimpose) {
 
     while (bytes) {
       if(i==0) {	// Render sidestripe
-        p = &titlebuffer[(7-n)*8];
+        p = &titlebuffer[(OsdLines()-1-n)*8];
         spi16(0xffff);
         for(j=0;j<8;j++) spi_n(255^*p++, 2);
         spi16(0xffff);
@@ -280,7 +295,7 @@ void OsdDrawLogo(unsigned char n, char row,char superimpose) {
     while (bytes) {
       if(i==0) { // Render sidestripe
         unsigned char b;
-        p = &titlebuffer[(7-n)*8];
+        p = &titlebuffer[(OsdLines()-1-n)*8];
         spi16(0xffff);
         for(b=0;b<8;b++) spi_n(255^*p++, 2);
         spi16(0xffff);
@@ -336,7 +351,7 @@ void OsdPrintText(unsigned char line, char *text, unsigned long start, unsigned 
   if(invert)
     invert=0xff;
 
-  p = &titlebuffer[(7-line)*8];
+  p = &titlebuffer[(OsdLines()-1-line)*8];
   if(start>2) {
     spi16(0xffff);
     start-=2;
@@ -400,7 +415,7 @@ void OsdClear(void)
       spi_osd_cmd32_cont(OSD_CMD_OSD_WR, 0x18);
 
     // clear buffer
-    spi_n(0x00, OSDLINELEN * OSDNLINE);
+    spi_n(0x00, OSDLINELEN * OsdLines());
 
     // deselect OSD SPI device
     DisableOsd();

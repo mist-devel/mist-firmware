@@ -10,7 +10,6 @@
 #define OSDCTRLLEFT      0x20        /*OSD left control*/
 
 // some constants
-#define OSDNLINE         8           // number of lines of OSD
 #define OSDLINELEN       256         // single line length in bytes
 
 // ---- old Minimig v1 constants -------
@@ -134,6 +133,7 @@ void ScrollText(char n, const char *str, int len, int max_len, unsigned char inv
 void ScrollReset();
 void StarsInit();
 void StarsUpdate();
+char OsdLines();
 
 void OsdKeySet(unsigned char);
 unsigned char OsdKeyGet();
