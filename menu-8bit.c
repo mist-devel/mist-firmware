@@ -376,6 +376,12 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 	item->item = s;
 	item->active = 1;
 	item->page = page;
+
+	// Check for separator ("-")
+	if(p && (p[0] == '-')) {
+		item->item = "";
+		item->active = 0;
+	}
 	return 1;
 }
 
