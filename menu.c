@@ -1301,9 +1301,15 @@ void HandleUI(void)
 
 			if (c == KEY_PGDN) {
 				if (menusub < (osdlines - 1 - (menu_page.stdexit?1:0))) {
+					unsigned char save_menusub = menusub;
 					menusub = osdlines - 1 - (menu_page.stdexit?1:0);
 					while((menumask & (1<<menusub)) == 0) menusub--;
-					menustate = parentstate;
+					if (menusub == save_menusub) {
+						// at the last active line, try to scroll down
+						scroll_down = osdlines - (menu_page.stdexit?1:0);
+					} else {
+						menustate = parentstate;
+					}
 				} else {
 					scroll_down = osdlines - (menu_page.stdexit?1:0);
 				}
@@ -1330,10 +1336,16 @@ void HandleUI(void)
 
 			if (c == KEY_PGUP) {
 				if (menusub > firstline) {
+					unsigned char save_menusub = menusub;
 					menusub = firstline;
 					while((menumask & (1<<menusub)) == 0 && menusub<osdlines) menusub++;
 					if(menusub == osdlines) menusub = firstline;
-					menustate = parentstate;
+					if (menusub == save_menusub) {
+						// at the first active line, try to scroll up
+						scroll_up = osdlines - (menu_page.stdexit?1:0);
+					} else {
+						menustate = parentstate;
+					}
 				} else {
 					scroll_up = osdlines - firstline - (menu_page.stdexit?1:0);
 				}
