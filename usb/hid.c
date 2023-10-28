@@ -841,9 +841,11 @@ static void usb_process_iface (usb_device_t *dev,
 
 				// swap joystick 0 and 1 since 1 is the one 
 				// used primarily on most systems
-				if(idx == 0)      idx = 1;
-				else if(idx == 1) idx = 0;
-				//StateJoySetExtra( btn_extra, idx); 
+				if(!mist_cfg.joystick_disable_swap || user_io_core_type() != CORE_TYPE_8BIT) {
+					if(idx == 0)      idx = 1;
+					else if(idx == 1) idx = 0;
+				//StateJoySetExtra( btn_extra, idx);
+				}
 
 				// if real DB9 mouse is preffered, switch the id back to 1
 				idx = (idx == 0) && mist_cfg.joystick0_prefer_db9 ? 1 : idx;
