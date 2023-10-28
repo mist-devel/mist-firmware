@@ -2545,3 +2545,35 @@ void user_io_change_into_core_dir(void) {
 	ChangeDirectoryName(s);
 
 }
+
+static char user_io_i2c_stat(unsigned char *data) {
+	unsigned char c, d;
+	while(1) {
+		spi_uio_cmd_cont(UIO_I2C_GET);
+		c = SPI(0xff);
+		d = SPI(0xff);
+		DisableIO();
+		if (c & 1) { // end flag
+			if (data) *data = d;
+			return (c & 2); // ack flag
+		}
+	}
+}
+
+char user_io_i2c_write(unsigned char addr, unsigned char subaddr, unsigned char data) {
+	spi_uio_cmd_cont(UIO_I2C_SEND);
+	spi8(addr << 1);
+	spi8(subaddr);
+	spi8(data);
+	DisableIO();
+	return user_io_i2c_stat(0);
+}
+
+char user_io_i2c_read(unsigned char addr, unsigned char subaddr, unsigned char *data) {
+	spi_uio_cmd_cont(UIO_I2C_SEND);
+	spi8(addr << 1 | 1); // read request
+	spi8(subaddr);
+	spi8(0xff);
+	DisableIO();
+	return user_io_i2c_stat(data);
+}

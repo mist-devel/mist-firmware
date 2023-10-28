@@ -59,6 +59,10 @@
 #define UIO_SET_RTC     0x22  // send real-time-clock data
 #define UIO_SD_ACK      0x23  // send ack for sector read/write
 
+// I2c bridge
+#define UIO_I2C_SEND    0x30  // start i2c transaction on the FPGA side
+#define UIO_I2C_GET     0x31  // get i2c status and result from the FPGA
+
 // extended joystick control (32 bit value)
 #define UIO_JOYSTICK0_EXT   0x60
 #define UIO_JOYSTICK1_EXT   0x61
@@ -231,6 +235,8 @@ void user_io_digital_joystick_ext(unsigned char, uint32_t);
 void user_io_analog_joystick(unsigned char, char, char, char, char);
 char user_io_osd_is_visible();
 void user_io_send_buttons(char);
+char user_io_i2c_write(unsigned char addr, unsigned char subaddr, unsigned char data);
+char user_io_i2c_read(unsigned char addr, unsigned char subaddr, unsigned char *data);
 
 char user_io_key_remap(char *, char, int);
 void add_modifiers(uint8_t mod, uint16_t* keys_ps2);
