@@ -606,7 +606,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					break;
 				case 20:
-					siprintf(s, "       Day  %9s", date[6] <= 7 ? days[date[6]-1] : "--------");
+					siprintf(s, "       Day  %9s", (date[6] && date[6] <= 7) ? days[date[6]-1] : "--------");
 					item->item = s;
 					break;
 
@@ -1246,10 +1246,15 @@ void HandleUI(void)
 				} else {
 					if (idx == 0) {
 						uint8_t date[7];
-						menu_item.stipple = GetRTC((uint8_t*)&date);
-						siprintf(s, " %04d/%02d/%02d %02d:%02d:%02d %s", 1900+date[0], date[1], date[2], date[3], date[4], date[5], date[6] <= 7 ? days[date[6]-1] : "--------");
+						char rtc = GetRTC((uint8_t*)&date);
+						if (rtc) {
+							siprintf(s, "%s%04d/%02d/%02d %02d:%02d:%02d %s", date[6]==4 ? "" : " ",1900+date[0], date[1], date[2], date[3], date[4], date[5], (date[6] && date[6] <= 7) ? days[date[6]-1] : "--------");
+							if (!menu_page.timer) menu_page.timer = 1000;
+						} else {
+							int len = strlen(OsdCoreName());
+							siprintf(s,"%.*s%s", (len>28 ? 0 : (28-len)/2), "                            ", OsdCoreName());
+						}
 						item = s;
-						if (!menu_page.timer) menu_page.timer = 1000;
 					} else {
 						item = "";
 					}
