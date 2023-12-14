@@ -288,7 +288,7 @@ RAMFUNC unsigned long GetTimer(unsigned long offset)
     return (systimer); // valid bits [31:20]
 }
 
-unsigned long CheckTimer(unsigned long time)
+RAMFUNC unsigned long CheckTimer(unsigned long time)
 {
     unsigned long systimer = (*AT91C_PITC_PIIR & AT91C_PITC_PICNT);
     time -= systimer;
