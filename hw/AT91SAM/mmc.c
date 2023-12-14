@@ -284,10 +284,10 @@ unsigned long MMC_GetCapacity()
 
 RAMFUNC static unsigned char MMC_WaitBusy(unsigned long timeout)
 {
-    unsigned long timer = GetTimer(timeout);
+    unsigned long timer = RAMGetTimer(timeout);
     while (1) {
         if (SPI(0xFF) == 0xFF) return 1; // OK
-        if (CheckTimer(timer)) return 0; // timeout
+        if (RAMCheckTimer(timer)) return 0; // timeout
     }
 }
 

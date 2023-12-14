@@ -109,6 +109,8 @@ unsigned long CheckButton(void);
 void Timer_Init(void);
 unsigned long GetTimer(unsigned long offset);
 unsigned long CheckTimer(unsigned long t);
+unsigned long RAMGetTimer(unsigned long offset);
+unsigned long RAMCheckTimer(unsigned long t);
 void WaitTimer(unsigned long time);
 
 void TIMER_wait(unsigned long ms);
