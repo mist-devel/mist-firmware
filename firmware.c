@@ -26,6 +26,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "fat_compat.h"
 #include "firmware.h"
 
+static DWORD clmt[99];
+
 unsigned long CalculateCRC32(unsigned long crc, unsigned char *pBuffer, unsigned long nSize) {
    int i, j;
    unsigned long byte, mask;
@@ -60,7 +62,10 @@ unsigned char CheckFirmware(char *name)
 
         if (f_size(&file) >= sizeof(UPGRADE))
         {
-            FileReadBlock(&file, sector_buffer);
+          clmt[0] = 99;
+          file.cltbl = clmt;
+          if (f_lseek(&file, CREATE_LINKMAP) == FR_OK) {
+            FileReadNextBlock(&file, sector_buffer);
             crc = ~CalculateCRC32(-1, sector_buffer, sizeof(UPGRADE) - 4);
             iprintf("Upgrade ROM size      : %lu\r", pUpgrade->rom.size);
             iprintf("Upgrade header CRC    : %08lX\r", pUpgrade->crc);
@@ -83,7 +88,7 @@ unsigned char CheckFirmware(char *name)
                             else
                                read_size = size;
 
-                            FileReadBlock(&file, sector_buffer);
+                            FileReadNextBlock(&file, sector_buffer);
                             crc = CalculateCRC32(crc, sector_buffer, read_size);
                             size -= read_size;
                         }
@@ -102,6 +107,8 @@ unsigned char CheckFirmware(char *name)
                 else iprintf("Invalid upgrade file header!\r");
             }
             else iprintf("Header CRC mismatch! from header: %08lX, calculated: %08lX\r", pUpgrade->crc, crc);
+          }
+          else iprintf("Error creating linkmap\r");
         }
         else iprintf("Upgrade file size too small: %llu\r", f_size(&file));
         f_close(&file);
@@ -141,7 +148,6 @@ RAMFUNC void WriteFirmware(char *name)
     unsigned long *pDst;
     FSIZE_t size;
     FIL file;
-    static DWORD clmt[99];
 
 
     // Since the file may have changed in the meantime, it needs to be
