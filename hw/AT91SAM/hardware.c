@@ -281,14 +281,14 @@ void Timer_Init(void) {
 }
 
 // 12 bits accuracy at 1ms = 4096 ms 
-unsigned long GetTimer(unsigned long offset)
+RAMFUNC unsigned long GetTimer(unsigned long offset)
 {
     unsigned long systimer = (*AT91C_PITC_PIIR & AT91C_PITC_PICNT);
     systimer += offset << 20;
     return (systimer); // valid bits [31:20]
 }
 
-unsigned long CheckTimer(unsigned long time)
+RAMFUNC unsigned long CheckTimer(unsigned long time)
 {
     unsigned long systimer = (*AT91C_PITC_PIIR & AT91C_PITC_PICNT);
     time -= systimer;
