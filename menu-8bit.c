@@ -295,8 +295,8 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 	// check for 'T'oggle strings
 	if(p && (p[0] == 'T')) {
 		if (action == MENU_ACT_SEL || action == MENU_ACT_PLUS || action == MENU_ACT_MINUS) {
-			unsigned long long mask = 1<<getIdx(p);
-			menu_debugf("Option %s %x\n", p, status ^ mask);
+			unsigned long long mask = (unsigned long long)1<<getIdx(p);
+			menu_debugf("Option %s %llx\n", p, status ^ mask);
 			// change bit
 			user_io_8bit_set_status(status ^ mask, mask);
 			// ... and change it again in case of a toggle bit
