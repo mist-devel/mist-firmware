@@ -184,7 +184,7 @@ static void usb_hub_show_port_status(uint8_t port, uint16_t status, uint16_t cha
 
   iprintf("Changes on port %d:\n", port);
   if(changed & USB_HUB_PORT_STATUS_PORT_CONNECTION)   puts(" connected");
-  if(changed & USB_HUB_PORT_STATUS_PORT_ENABLE)       puts(" enabled");
+  if(changed & USB_HUB_PORT_STATUS_PORT_ENABLE)       puts(" error");
   if(changed & USB_HUB_PORT_STATUS_PORT_SUSPEND)      puts(" suspended");
   if(changed & USB_HUB_PORT_STATUS_PORT_OVER_CURRENT) puts(" over current");
   if(changed & USB_HUB_PORT_STATUS_PORT_RESET)        puts(" reset");
@@ -221,6 +221,7 @@ static uint8_t usb_hub_port_status_change(usb_device_t *dev, uint8_t port, hub_e
     
     // Device disconnected event
   case USB_HUB_PORT_EVENT_DISCONNECT:
+  case USB_HUB_PORT_EVENT_DISCONNECT_ERROR:
     iprintf(" port %d disconnect!\n", port);
 
     usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_ENABLE, port, 0);
