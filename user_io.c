@@ -473,7 +473,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 	if(joystick > 5)
 		return;
 	// if osd is open, control it via joystick
-	if(osd_is_visible)
+	if(osd_is_visible && map)
 		return;
 
 	//iprintf("j%d: %x\n", joystick, map);
@@ -493,7 +493,7 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 void user_io_digital_joystick_ext(unsigned char joystick, uint32_t map) {
 	// "only" 6 joysticks are supported
 	if(joystick > 5) return;
-	if(osd_is_visible) return;
+	if(osd_is_visible && map) return;
 	//iprintf("ext j%d: %x\n", joystick, map);
 	spi_uio_cmd32(UIO_JOYSTICK0_EXT + joystick, 0x000fffff & map);
 	if (autofire && (map & 0x30)) {
