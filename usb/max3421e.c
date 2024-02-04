@@ -196,10 +196,10 @@ uint8_t max3421e_poll() {
     max3421e_write_u08( MAX3421E_HIRQ, MAX3421E_SNDBAVIRQ);
   }
 
-  if( hirq & MAX3421E_FRAMEIRQ) {
+  //if( hirq & MAX3421E_FRAMEIRQ) {
     //    iprintf("=> MAX3421E_FRAMEIRQ\n");
-    max3421e_write_u08( MAX3421E_HIRQ, MAX3421E_FRAMEIRQ);
-  }
+    //max3421e_write_u08( MAX3421E_HIRQ, MAX3421E_FRAMEIRQ);
+  //}
 
 #if 0  
   int i;

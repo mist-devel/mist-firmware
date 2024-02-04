@@ -365,6 +365,10 @@ void usb_poll() {
 	// max poll 1ms
 	static msec_t poll=0;
 	if(timer_check(poll, 1)) {
+		if (usb_task_state != USB_ATTACHED_SUBSTATE_WAIT_SOF && (max3421e_read_u08( MAX3421E_HIRQ ) & MAX3421E_FRAMEIRQ )) {
+			max3421e_write_u08( MAX3421E_HIRQ, MAX3421E_FRAMEIRQ); // clear SOF irq
+		}
+
 		poll = timer_get_msec();
 
 		// poll all configured devices
@@ -412,10 +416,12 @@ void usb_poll() {
 			}
 			break;
 
-		case USB_ATTACHED_SUBSTATE_WAIT_SOF:  //todo: change check order
-			if( max3421e_read_u08( MAX3421E_HIRQ ) & MAX3421E_FRAMEIRQ ) { //when first SOF received we can continue
-				if( timer_check(delay, 20) ) //20ms passed
+		case USB_ATTACHED_SUBSTATE_WAIT_SOF:
+			if( timer_check(delay, 20) ) {//20ms passed
+				if( max3421e_read_u08( MAX3421E_HIRQ ) & MAX3421E_FRAMEIRQ ) { //when first SOF received we can continue
+					max3421e_write_u08( MAX3421E_HIRQ, MAX3421E_FRAMEIRQ);
 					usb_task_state = USB_STATE_CONFIGURING;
+				}
 			}
 			break;
 
