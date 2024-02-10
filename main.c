@@ -222,6 +222,9 @@ int main(void)
     usb_dev_open();
 
     while (1) {
+      if (fat_uses_mmc())
+        MMC_CheckCard();
+
       cdc_control_poll();
       storage_control_poll();
 
