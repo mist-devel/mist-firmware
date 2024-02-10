@@ -222,8 +222,7 @@ int main(void)
     usb_dev_open();
 
     while (1) {
-      if (fat_uses_mmc())
-        MMC_CheckCard();
+      mmc_ok = fat_medium_present();
 
       cdc_control_poll();
       storage_control_poll();
@@ -235,20 +234,20 @@ int main(void)
       // MIST (atari) core supports the same UI as Minimig
       if((user_io_core_type() == CORE_TYPE_MIST) ||
          (user_io_core_type() == CORE_TYPE_MIST2)) {
-	if(!fat_medium_present()) 
-	  tos_eject_all();
+         if(!mmc_ok)
+             tos_eject_all();
 
-	HandleUI();
+         HandleUI();
       }
 
       // call original minimig handlers if minimig core is found
       if((user_io_core_type() == CORE_TYPE_MINIMIG) ||
-	 (user_io_core_type() == CORE_TYPE_MINIMIG2)) {
-	if(!fat_medium_present()) 
-	  EjectAllFloppies();
+        (user_io_core_type() == CORE_TYPE_MINIMIG2)) {
+        if(!mmc_ok)
+            EjectAllFloppies();
 
-	HandleFpga();
-	HandleUI();
+        HandleFpga();
+        HandleUI();
       }
 
       // 8 bit cores can also have a ui if a valid config string can be read from it
