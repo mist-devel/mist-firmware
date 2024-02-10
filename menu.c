@@ -89,6 +89,7 @@ extern unsigned long storage_size;
 extern FILINFO  DirEntries[MAXDIRENTRIES];
 extern unsigned char sort_table[MAXDIRENTRIES];
 extern unsigned char nDirEntries;
+extern unsigned char maxDirEntries;
 extern unsigned char iSelectedEntry;
 char DirEntryInfo[MAXDIRENTRIES][5]; // disk number info of dir entries
 char DiskInfo[5]; // disk number info of selected entry
@@ -1496,6 +1497,8 @@ void HandleUI(void)
 			OsdSetTitle("Select",0);
 			helptext=helptexts[HELPTEXT_NONE];
 			menustate = parentstate = MENU_FILE_SELECT1;
+			if (iSelectedEntry >= osdlines) iSelectedEntry = 0;
+			if (maxDirEntries != osdlines) ScanDirectory(0, fs_pFileExt, fs_Options);
 			//break; // fall through
 
 		case MENU_FILE_SELECT1 :
