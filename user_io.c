@@ -1357,14 +1357,14 @@ void user_io_poll() {
 						spi_uio_cmd_cont(UIO_MOUSE);
 						spi8(x);
 						spi8(y);
-						spi8(mouse_flags[idx] & 0x03);
+						spi8(mouse_flags[idx] & 0x07);
 						DisableIO();
 					}
 
 					spi_uio_cmd_cont(UIO_MOUSE0_EXT + idx);
 					spi8(x);
 					spi8(y);
-					spi8(mouse_flags[idx] & 0x03);
+					spi8(mouse_flags[idx] & 0x07);
 					spi8(z);
 					DisableIO();
 
@@ -1842,7 +1842,7 @@ void user_io_mouse(unsigned char idx, unsigned char b, char x, char y, char z) {
 		mouse_pos[idx][X] += x;
 		mouse_pos[idx][Y] += y;
 		mouse_pos[idx][Z] += z;
-		mouse_flags[idx] |= 0x80 | (b&3);
+		mouse_flags[idx] |= 0x80 | (b&7);
 	}
 
 	// 8 bit core expects ps2 like data
