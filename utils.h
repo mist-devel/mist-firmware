@@ -2,6 +2,7 @@
 #define _UTILS_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 

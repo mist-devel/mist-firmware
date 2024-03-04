@@ -2,6 +2,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifndef FW_ID
+#define FW_ID "MNMGUPG"
+#endif
+
 typedef struct
 {
     unsigned int flags;
@@ -110,7 +114,7 @@ int main(int argc, char **argv) {
   memset(&upgrade, 0, sizeof(upgrade));
   strcpy(upgrade.version,"ATH");
   strncpy(upgrade.version+3,argv[3],6);
-  strcpy(upgrade.id, "MNMGUPG");
+  strcpy(upgrade.id, FW_ID);
   upgrade.rom.size = size;
   upgrade.rom.crc = ~CalculateCRC32(-1, bin, size);
   upgrade.rom.size = size;

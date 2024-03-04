@@ -26,6 +26,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "fat_compat.h"
 #include "firmware.h"
 
+#ifndef FW_ID
+#define FW_ID "MNMGUPG"
+#endif
+
 static DWORD clmt[99];
 
 unsigned long CalculateCRC32(unsigned long crc, unsigned char *pBuffer, unsigned long nSize) {
@@ -72,7 +76,7 @@ unsigned char CheckFirmware(char *name)
             iprintf("Calculated header CRC : %08lX\r", crc);
             if (pUpgrade->crc == crc)
             {
-                if (strncmp((const char*)pUpgrade->id, "MNMGUPG", 7) == 0 && pUpgrade->id[7] == 0)
+                if (strncmp((const char*)pUpgrade->id, FW_ID, 7) == 0 && pUpgrade->id[7] == 0)
                 {
                     if (pUpgrade->rom.size == f_size(&file) - sizeof(UPGRADE))
                     {

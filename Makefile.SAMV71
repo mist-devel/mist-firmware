@@ -1,0 +1,103 @@
+#BASE ?= /opt/arm-none-eabi/bin/arm-none-eabi
+BASE ?= arm-none-eabi
+
+CC      = $(BASE)-gcc
+LD      = $(BASE)-gcc
+AS      = $(BASE)-as
+CP      = $(BASE)-objcopy
+DUMP    = $(BASE)-objdump
+
+TODAY = `date +"%m/%d/%y"`
+
+PRJ = firmware
+SRC = hw/ATSAMV71/cstartup.c hw/ATSAMV71/hardware.c hw/ATSAMV71/spi.c hw/ATSAMV71/qspi.c hw/ATSAMV71/mmc.c hw/ATSAMV71/usbdev.c  hw/ATSAMV71/eth.c hw/ATSAMV71/irq/nvic.c
+SRC += hw/ATSAMV71/network/intmath.c hw/ATSAMV71/network/gmac.c hw/ATSAMV71/network/gmacd.c hw/ATSAMV71/network/phy.c hw/ATSAMV71/network/ethd.c
+SRC += fdd.c firmware.c fpga.c hdd.c  main.c  menu.c menu-minimig.c menu-8bit.c osd.c state.c syscalls.c user_io.c settings.c data_io.c boot.c idxfile.c config.c tos.c ikbd.c xmodem.c ini_parser.c cue_parser.c mist_cfg.c archie.c pcecd.c neocd.c arc_file.c font.c utils.c
+SRC += it6613/HDMI_TX.c it6613/it6613_drv.c it6613/it6613_sys.c it6613/EDID.c it6613/hdmitx_mist.c
+SRC += usb/usbdebug.c usb/hub.c usb/xboxusb.c usb/hid.c usb/hidparser.c usb/timer.c usb/asix.c usb/pl2303.c usb/usbrtc.c usb/joymapping.c usb/joystick.c
+SRC += usb/usb.c usb/max3421e.c usb/usb-max3421e.c
+#SRC += usb/usb-samv71.c
+SRC += fat_compat.c
+SRC += FatFs/diskio.c FatFs/ff.c FatFs/ffunicode.c
+SRC += cdc_control.c storage_control.c
+
+OBJ = $(SRC:.c=.o)
+DEP = $(SRC:.c=.d)
+
+LINKMAP  = hw/ATSAMV71/flash.ld
+LIBDIR   = 
+
+# Commandline options for each tool.
+# for ESA11 add -DEMIST
+DFLAGS  = -I. -Iarch -Icmsis -Iusb -Ihw/ATSAMV71 -DMIST -DCONFIG_HAVE_NVIC -DCONFIG_HAVE_ETH -DCONFIG_HAVE_GMAC -DCONFIG_HAVE_GMAC_QUEUES -DGMAC_QUEUE_COUNT=6 -DCONFIG_ARCH_ARM -DCONFIG_ARCH_ARMV7M -DCONFIG_CHIP_SAMV71 -DCONFIG_PACKAGE_100PIN
+DFLAGS += -DFW_ID=\"SIDIUPG\" -DDEFAULT_CORE_NAME=\"SIDI128.RBF\" -DFATFS_NO_TINY -DSD_NO_DIRECT_MODE -DJOY_DB9_MD -DHAVE_QSPI -DHAVE_HDMI
+#DFLAGS += -DPROTOTYPE
+CFLAGS  = $(DFLAGS) -march=armv7-m -mtune=cortex-m7 -mthumb -ffunction-sections -fsigned-char -c -g -O2 --std=gnu99 -DVDATE=\"`date +"%y%m%d"`\"
+CFLAGS += $(CFLAGS-$@)
+AFLAGS  = -ahls -mapcs-32
+LFLAGS  = -march=armv7-m -mtune=cortex-m7 -mthumb -Wl,-Map,$(PRJ).map -T$(LINKMAP) $(LIBDIR)
+CPFLAGS = --output-target=ihex
+
+MKUPG = mkupg
+
+# Libraries.
+LIBS       =
+
+# Our target.
+all: $(PRJ).hex $(PRJ).upg
+
+clean:
+	rm -f *.d *.o *.hex *.elf *.map *.lst core *~ */*.d */*.o */*/*.d */*/*.o */*/*/*.d */*/*/*.o  $(MKUPG) *.bin *.upg *.exe
+
+INTERFACE=-f interface/ftdi/olimex-arm-usb-tiny-h.cfg -f interface/ftdi/olimex-arm-jtag-swd.cfg
+#INTERFACE=interface/busblaster.cfg
+#INTERFACE=openocd/interface/esa11-ft4232-generic.cfg
+ADAPTER_KHZ=1800
+
+reset:
+	openocd $(INTERFACE) -f target/atsamv.cfg --command "adapter speed $(ADAPTER_KHZ); init; reset init; resume; shutdown"
+
+debug:
+	openocd $(INTERFACE) -f target/atsamv.cfg --command "adapter speed $(ADAPTER_KHZ); init; reset init; resume"
+
+$(MKUPG): $(MKUPG).c
+	gcc  -DFW_ID=\"SIDIUPG\" -o $@ $<
+
+flash: $(PRJ).hex $(PRJ).upg $(PRJ).bin
+	openocd $(INTERFACE) -f target/atsamv.cfg --command "adapter speed $(ADAPTER_KHZ); init; reset init; sleep 1; flash protect 0 0 last off; flash erase_sector 0 0 last; sleep 10; flash write_bank 0 firmware.bin 0; mww 0x400e0c04 0x5a00010b; resume; shutdown"
+
+flash_sam: $(PRJ).hex
+	Sam_I_Am -x flash_sam_i_am
+
+# Convert ELF binary to bin file.
+$(PRJ).bin: $(PRJ).elf
+	$(CP) -O binary $< $@
+
+# Convert ELF binary to Intel HEX file.
+$(PRJ).hex: $(PRJ).elf
+	$(CP) $(CPFLAGS) $< $@
+
+# Link - this produces an ELF binary.
+$(PRJ).elf: $(OBJ)
+	$(LD) $(LFLAGS) -o $@ $+ $(LIBS)
+
+$(PRJ).upg: $(PRJ).bin $(MKUPG)
+	./$(MKUPG) $< $@ `date +"%y%m%d"`
+
+%.o: %.c
+	$(CC) $(CFLAGS)  -o $@ -c $<
+
+# Automatic dependencies
+-include $(DEP)
+%.d: %.c
+	$(CC) $(DFLAGS) -MM $< -MT $@ -MT $*.o -MF $@
+
+# Ensure correct time stamp
+main.o: $(filter-out main.o, $(OBJ))
+
+sections: $(PRJ).elf
+	$(DUMP) --section-headers $<
+
+release:
+	make $(PRJ).hex $(PRJ).bin $(PRJ).upg
+	cp $(PRJ).hex $(PRJ).bin $(PRJ).upg ../bin/firmware

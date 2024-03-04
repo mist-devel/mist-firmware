@@ -225,7 +225,11 @@
 / System Configurations
 /---------------------------------------------------------------------------*/
 
+#ifdef FATFS_NO_TINY
+#define FF_FS_TINY		0
+#else
 #define FF_FS_TINY		1
+#endif
 /* This option switches tiny buffer configuration. (0:Normal or 1:Tiny)
 /  At the tiny configuration, size of file object (FIL) is shrinked FF_MAX_SS bytes.
 /  Instead of private sector buffer eliminated from the file object, common sector

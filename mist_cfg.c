@@ -114,6 +114,9 @@ const ini_var_t mist_ini_vars[] = {
   {"JOYSTICK_DEAD_RANGE", (void*)(&(mist_cfg.joystick_dead_range)), UINT8, 0, 255, 1},
   {"KEY_MENU_AS_RGUI", (void*)(&(mist_cfg.key_menu_as_rgui)), UINT8, 0, 1, 1},
   {"SDRAM64", (void*)(&(mist_cfg.sdram64)), UINT8, 0, 1, 1},
+#ifdef JOY_DB9_MD
+  {"JOYSTICK_DB9_MD", (void*)(&(mist_cfg.joystick_db9_md)), UINT8, 0, 2, 1},
+#endif
 #ifndef INI_PARSER_TEST
   {"KEY_REMAP", (void*)user_io_key_remap, CUSTOM_HANDLER, 0, 0, 1},
   {"HID_BUTTON_REMAP", (void*)hid_joystick_button_remap, CUSTOM_HANDLER, 0, 0, 1},

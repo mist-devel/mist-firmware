@@ -7,6 +7,7 @@
 #define USER_IO_H
 
 #include <inttypes.h>
+#include <stdbool.h>
 #include "fat_compat.h"
 
 #define UIO_STATUS      0x00
@@ -84,7 +85,7 @@
 
 #define FEAT_MENU       0x0001 // menu core
 #define FEAT_PCECD      0x0002 // call pcecd_poll()
-#define FEAT_QSPI       0x0004 // QSPI connection to FPGA
+#define FEAT_QSPI       0x0004 // QSPI connection to FPGA@24MHz
 #define FEAT_NEOCD      0x0008 // call neocd_poll()
 #define FEAT_IDE0       0x0030 // enable primary master IDE (0 - off, 1 - ATA - 2 ATAPI CDROM)
 #define FEAT_IDE0_ATA   0x0010
@@ -101,6 +102,7 @@
 #define FEAT_IDE_MASK   0x0FF0
 #define FEAT_PS2REP     0x1000 // typematic repeat by default
 #define FEAT_BIGOSD     0x2000 // 16 line tall OSD
+#define FEAT_HDMI       0x4000 // HDMI output
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
@@ -244,5 +246,7 @@ void add_modifiers(uint8_t mod, uint16_t* keys_ps2);
 unsigned char user_io_ext_idx(const char*, const char*);
 
 void user_io_change_into_core_dir(void);
+
+bool user_io_hdmi_detected();
 
 #endif // USER_IO_H

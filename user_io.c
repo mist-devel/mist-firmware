@@ -31,6 +31,9 @@
 #include "usb/joystick.h"
 #include "FatFs/diskio.h"
 #include "menu.h"
+#ifdef HAVE_HDMI
+#include "it6613/HDMI_TX.h"
+#endif
 
 // up to 16 key can be remapped
 #define MAX_REMAP  16
@@ -117,6 +120,16 @@ static char autofire_joy;
 
 // ATA drives
 static hardfileTYPE  hardfiles[4];
+
+static uint8_t i2c_flags;
+
+#ifdef HAVE_HDMI
+static unsigned long hdmi_timer;
+static bool hdmi_detected = 0;
+static uint8_t hdmi_hiclk = 0;
+#define HDMI_FREQ 1000
+#endif
+
 
 char user_io_osd_is_visible() {
 	return osd_is_visible;
@@ -426,9 +439,20 @@ void user_io_init_core() {
 		if (core_features & FEAT_IDE_MASK)
 			SendHDFCfg();
 
+
 		// release reset
 		user_io_8bit_set_status(0, UIO_STATUS_RESET);
 	}
+
+#ifdef HAVE_HDMI
+	hdmi_detected = false;
+	hdmi_hiclk = 0;
+	if ((core_type == CORE_TYPE_8BIT && core_features & FEAT_HDMI) || core_type == CORE_TYPE_MIST2 || core_type == CORE_TYPE_MINIMIG2 || core_type == CORE_TYPE_ARCHIE) {
+		hdmi_detected = HDMITX_Init();
+		if (hdmi_detected) HDMITX_ChangeVideoTiming(1);
+	}
+#endif
+
 }
 
 static unsigned short usb2amiga( unsigned  char k ) {
@@ -514,7 +538,7 @@ static char dig2ana(char min, char max) {
 	return 0;
 }
 
-void user_io_joystick(unsigned char joystick, unsigned char map) {
+void user_io_joystick(unsigned char joystick, uint16_t map) {
   // digital joysticks also send analog signals
 	user_io_digital_joystick(joystick, map);
 	user_io_digital_joystick_ext(joystick, map);
@@ -666,7 +690,8 @@ void user_io_eth_receive_tx_frame(uint8_t *d, uint16_t len) {
 // write ethernet frame to FPGAs rx buffer
 void user_io_eth_send_rx_frame(uint8_t *s, uint16_t len) {
 	spi_uio_cmd_cont(UIO_ETH_FRM_OUT);
-	spi_write(s, len);
+	while(len--) SPI(*s++);
+	//spi_write(s, len);
 	spi8(0);     // one additional byte to allow fpga to store the previous one
 	DisableIO();
 }
@@ -1165,7 +1190,7 @@ void user_io_poll() {
 	EnableIO();
 	ct = SPI(0xff);
 	DisableIO();
-	SPI(0xff);      // needed for old minimig core
+	SPI_MINIMIGV1_HACK
 
 	if((ct&0xef) == core_type)
 		ct_cnt = 0;        // same core type, everything is fine
@@ -1178,7 +1203,7 @@ void user_io_poll() {
 				EnableIO();
 				ct = SPI(0xff);
 				DisableIO();
-				SPI(0xff);      // needed for old minimig core
+				SPI_MINIMIGV1_HACK
 			}
 
 			// reset io controller to cope with new core
@@ -1253,7 +1278,7 @@ void user_io_poll() {
 	}
 
 	// poll db9 joysticks
-	unsigned char joy_map = 0;
+	uint16_t joy_map = 0;
 
 	if(GetDB9(0, &joy_map)) {
 
@@ -1262,6 +1287,7 @@ void user_io_poll() {
 		uint8_t idx = joystick_renumber(0);
 		if (!user_io_osd_is_visible()) user_io_joystick(idx, joy_map);
 		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count()); // send to OSD
+		StateJoySetExtra(joy_map >> 8, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count()); // send to OSD
 		virtual_joystick_keyboard(joy_map);
 	}
 	if(GetDB9(1, &joy_map)) {
@@ -1271,6 +1297,7 @@ void user_io_poll() {
 		uint8_t idx = joystick_renumber(1);
 		if (!user_io_osd_is_visible()) user_io_joystick(idx, joy_map);
 		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count() + 1); // send to OSD
+		StateJoySetExtra(joy_map >> 8, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count() + 1); // send to OSD
 		virtual_joystick_keyboard(joy_map);
 	}
 
@@ -1761,6 +1788,20 @@ void user_io_poll() {
 		OsdDisableMenuButton(0);
 		ypbpr_toggle = 0;
 	}
+
+#ifdef HAVE_HDMI
+	if (hdmi_detected) {
+		if(CheckTimer(hdmi_timer)) {
+			hdmi_timer = GetTimer(HDMI_FREQ);
+			HDMITX_DevLoopProc();
+			if ((i2c_flags & 1) != hdmi_hiclk) {
+				hdmi_hiclk = i2c_flags & 1;
+				if (hdmi_detected) HDMITX_ChangeVideoTiming(hdmi_hiclk ? 16 : 1);
+			}
+		}
+	}
+#endif
+
 }
 
 char user_io_dip_switch1() {
@@ -2555,6 +2596,7 @@ static char user_io_i2c_stat(unsigned char *data) {
 		DisableIO();
 		if (c & 1) { // end flag
 			if (data) *data = d;
+			i2c_flags = c >> 2;
 			return (c & 2); // ack flag
 		}
 	}
@@ -2576,4 +2618,12 @@ char user_io_i2c_read(unsigned char addr, unsigned char subaddr, unsigned char *
 	spi8(0xff);
 	DisableIO();
 	return user_io_i2c_stat(data);
+}
+
+bool user_io_hdmi_detected() {
+#ifdef HAVE_HDMI
+	return hdmi_detected;
+#else
+	return false;
+#endif
 }

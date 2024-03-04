@@ -2,7 +2,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include "hardware.h"
+#include <stdio.h>
 
 // ------------ generic debugging -----------
 
@@ -55,6 +55,27 @@
 #else
 #define archie_debugf(...)
 #endif
+
+// ------------ Ethernet debugging -----------
+#if 0
+#define eth_debug(a, ...) iprintf("\033[1;32mETH: " a "\033[0m\n", ##__VA_ARGS__)
+#else
+#define eth_debug(...)
+#endif
+
+#if 1
+#define eth_error(a, ...) iprintf("\033[1;32mETH: " a "\033[0m\n", ##__VA_ARGS__)
+#else
+#define eth_error(...)
+#endif
+
+#if 1
+#define eth_info(a, ...) iprintf("\033[1;32mETH: " a "\033[0m\n", ##__VA_ARGS__)
+#else
+#define eth_info(...)
+#endif
+
+#define eth_info_wp eth_info
 
 // ------------ usb debugging -----------
 #if 0
@@ -131,6 +152,13 @@
 #define neocd_debugf(a, ...) iprintf("\033[1;34mNEOCD : " a "\033[0m\n",## __VA_ARGS__)
 #else
 #define neocd_debugf(...)
+#endif
+
+#if 1
+// HDMI debug output
+#define hdmi_debugf(a, ...) iprintf("\033[1;34mHDMI : " a "\033[0m",## __VA_ARGS__)
+#else
+#define hdmi_debugf(...)
 #endif
 
 #endif // DEBUG_H

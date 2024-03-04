@@ -29,7 +29,7 @@ bool eth_present = 0;
 
 usb_asix_info_t *eth_info;
 
-uint8_t *get_mac(void) {
+uint8_t *asix_get_mac(void) {
   if (eth_present) {
     return eth_info->mac;
   }

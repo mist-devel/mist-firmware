@@ -50,6 +50,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "menu-8bit.h"
 #include "settings.h"
 #include "usb.h"
+#ifdef CONFIG_HAVE_ETH
+#include "eth.h"
+#endif
+
+#ifdef HAVE_HDMI
+extern bool bHDMIMode;
+extern BYTE HPD;
+#endif
 
 // test features (not used right now)
 // #define ALLOW_TEST_MENU 0 //remove to disable in prod version
@@ -490,7 +498,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 	else if (idx<=33) {item->page = (page_idx>=4 && page_idx<=7) ? page_idx : 4; item->active = 0;}
 	else if (idx<=37) {item->page = 8; item->active = 0;}
 	else if (idx<=43) {item->page = 9; item->active = 0;}
-	else if (idx<=49) {item->page = 10; item->active = 0;}
+	else if (idx<=52) {item->page = 10; item->active = 0;}
 	else return 0;
 	if (item->page != page_idx) return 1; // shortcut
 
@@ -770,14 +778,14 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					}
 					break;
 				case 48: {
-					uint8_t *mac = get_mac();
-					siprintf(s, " Network:");
+					uint8_t *mac = asix_get_mac();
+					siprintf(s, " Net(USB):");
 					if (mac) {
-						siprintf(s + 9, "  %02x:%02x:%02x:%02x:%02x:%02x",
+						siprintf(s + 10, " %02x:%02x:%02x:%02x:%02x:%02x",
 							mac[0], mac[1], mac[2],
 							mac[3], mac[4], mac[5]);
 					} else {
-						siprintf(s + 9, "      none detected");
+						siprintf(s + 10, "     none detected");
 					}
 					item->item = s;
 					}
@@ -790,7 +798,42 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					}
 					break;
-
+#ifdef CONFIG_HAVE_ETH
+				case 50: {
+					uint8_t mac[6];
+					eth_get_mac(mac);
+					siprintf(s, " Network:");
+					siprintf(s + 9, "  %02x:%02x:%02x:%02x:%02x:%02x",
+						mac[0], mac[1], mac[2],
+						mac[3], mac[4], mac[5]);
+					item->item = s;
+					break;
+				}
+				case 51: {
+					uint8_t link = eth_get_link_status();
+					siprintf(s, " Network link:");
+					if (!link) {
+						siprintf(s + 14, "  not detected");
+					} else {
+						siprintf(s+14, "    %sMBps", link & 0x02 ? "100" : " 10");
+						siprintf(s+25, "/%s", link & 0x04 ? "FD" : "HD");
+					}
+					item->item = s;
+					break;
+				}
+#endif
+#ifdef HAVE_HDMI
+				case 52: {
+					siprintf(s, " Digital video:");
+					if (!user_io_hdmi_detected()) {
+						siprintf(s + 15, "  not detected");
+					} else {
+						siprintf(s + 15, " %s", HPD ? (bHDMIMode ? "        HDMI" : "         DVI") : "disconnected");
+					}
+					item->item = s;
+					break;
+				}
+#endif
 				default:
 					item->active = 0;
 			}

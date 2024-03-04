@@ -60,6 +60,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "cdc_control.h"
 #include "storage_control.h"
 #include "FatFs/diskio.h"
+#ifdef HAVE_QSPI
+#include "qspi.h"
+#endif
+#include "eth.h"
 
 #ifndef _WANT_IO_LONG_LONG
 #error "newlib lacks support of long long type in IO functions. Please use a toolchain that was compiled with option --enable-newlib-io-long-long."
@@ -145,6 +149,9 @@ int main(void)
     iprintf("Version %s\r\r", version+5);
 
     spi_init();
+#ifdef HAVE_QSPI
+    qspi_init();
+#endif
 
     if(MMC_Init()) mmc_ok = 1;
     else           spi_fast();
@@ -185,6 +192,8 @@ int main(void)
 
     disk_ioctl(fs.pdrv, GET_SECTOR_COUNT, &storage_size);
     storage_size >>= 11;
+
+    eth_init();
 
     ChangeDirectoryName("/");
 
@@ -230,6 +239,8 @@ int main(void)
       user_io_poll();
 
       usb_poll();
+
+      eth_poll();
 
       // MIST (atari) core supports the same UI as Minimig
       if((user_io_core_type() == CORE_TYPE_MIST) ||

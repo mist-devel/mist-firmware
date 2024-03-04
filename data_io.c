@@ -7,6 +7,9 @@
 #include "data_io.h"
 #include "debug.h"
 #include "spi.h"
+#ifdef HAVE_QSPI
+#include "qspi.h"
+#endif
 
 // core supports direct ROM upload via SS4
 char rom_direct_upload = 0;
@@ -58,10 +61,16 @@ static void data_io_file_tx_prepare(FIL *file, char index, const char *ext) {
   DisableFpga();
 
   // prepare transmission of new file
+
   EnableFpga();
   SPI(DIO_FILE_TX);
   SPI(0xff);
   DisableFpga();
+
+#ifdef HAVE_QSPI
+  if (user_io_get_core_features() & FEAT_QSPI)
+    qspi_start_write();
+#endif
 }
 
 static void data_io_file_tx_send(FIL *file) {
@@ -90,14 +99,22 @@ static void data_io_file_tx_send(FIL *file) {
       f_read(file, sector_buffer, chunk, &br);
       DISKLED_OFF
 
-      EnableFpga();
-      SPI(DIO_FILE_TX_DAT);
+#ifdef HAVE_QSPI
+      if (user_io_get_core_features() & FEAT_QSPI) {
+        qspi_write_block(sector_buffer, chunk);
+      } else {
+#endif
+        EnableFpga();
+        SPI(DIO_FILE_TX_DAT);
 
 //      spi_write(sector_buffer, chunk); // DMA -- too fast for some cores
-      for(p = sector_buffer, c=0;c < chunk;c++)
-        SPI(*p++);
+        for(p = sector_buffer, c=0;c < chunk;c++)
+          SPI(*p++);
 
-      DisableFpga();
+        DisableFpga();
+#ifdef HAVE_QSPI
+      }
+#endif
       bytes2send -= chunk;
     }
   }
@@ -105,11 +122,16 @@ static void data_io_file_tx_send(FIL *file) {
 
 static void data_io_file_tx_done(void) {
   // signal end of transmission
+
   EnableFpga();
   SPI(DIO_FILE_TX);
   SPI(0x00);
   DisableFpga();
 
+#ifdef HAVE_QSPI
+  if (user_io_get_core_features() & FEAT_QSPI)
+    qspi_end();
+#endif
   iprintf("\n");
 }
 

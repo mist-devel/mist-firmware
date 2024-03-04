@@ -1,6 +1,8 @@
 #ifndef MENU_H
 #define MENU_H
 
+#include <stdint.h>
+
 /*menu states*/
 enum MENU
 {

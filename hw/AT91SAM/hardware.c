@@ -397,7 +397,7 @@ unsigned char UserButton() {
 void InitDB9() {}
 
 // poll db9 joysticks
-char GetDB9(char index, unsigned char *joy_map) {
+char GetDB9(char index, uint16_t *joy_map) {
   static int joy0_state = JOY0;
   static int joy1_state = JOY1;
   if (!index) {
