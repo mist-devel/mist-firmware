@@ -40,14 +40,14 @@ typedef struct
 
 extern IDXFile sd_image[SD_IMAGES];
 
-static inline unsigned char IDXRead(IDXFile *file, unsigned char *pBuffer) {
+static inline unsigned char IDXRead(IDXFile *file, unsigned char *pBuffer, uint8_t blksz) {
   UINT br;
-  return f_read(&(file->file), pBuffer, 512, &br);
+  return f_read(&(file->file), pBuffer, 512<<blksz, &br);
 }
 
-static inline unsigned char IDXWrite(IDXFile *file, unsigned char *pBuffer) {
+static inline unsigned char IDXWrite(IDXFile *file, unsigned char *pBuffer, uint8_t blksz) {
   UINT bw;
-  return f_write(&(file->file), pBuffer, 512, &bw);
+  return f_write(&(file->file), pBuffer, 512<<blksz, &bw);
 }
 
 unsigned char IDXOpen(IDXFile *file, const char *name, char mode);

@@ -11,6 +11,7 @@
 #include "archie.h"
 #include "pcecd.h"
 #include "neocd.h"
+#include "psx.h"
 #include "hdd.h"
 #include "cdc_control.h"
 #include "usb.h"
@@ -42,7 +43,7 @@ unsigned char key_remap_table[MAX_REMAP][2];
 #define BREAK  0x8000
 
 static char umounted; // 1st image is file or direct SD?
-static char buffer[512];
+static char cache_buffer[1024];
 static uint8_t buffer_drive_index = 0;
 static uint32_t buffer_lba = 0xffffffff;
 
@@ -629,21 +630,26 @@ void user_io_sd_set_config(void) {
 	//  hexdump(data, sizeof(data), 0);
 }
 
-static void user_io_sd_ack(char drive_index) {
+void user_io_sd_ack(char drive_index) {
 	spi_uio_cmd_cont(UIO_SD_ACK);
 	spi8(drive_index);
 	DisableIO();
 }
 
 // read 8+32 bit sd card status word from FPGA
-uint8_t user_io_sd_get_status(uint32_t *lba, uint8_t *drive_index) {
+uint8_t user_io_sd_get_status(uint32_t *lba, uint8_t *drive_index, uint8_t *blksz) {
 	uint32_t s;
 	uint8_t c; 
 
 	*drive_index = 0;
+	*blksz = 0;
 	spi_uio_cmd_cont(UIO_GET_SDSTAT);
 	c = spi_in();
-	if ((c & 0xf0) == 0x60) *drive_index = spi_in() & 0x03;
+	if ((c & 0xf0) == 0x60) {
+		uint8_t tmp = spi_in();
+		*drive_index = tmp & 0x03;
+		*blksz = (tmp >> 4) & 0x01;
+	}
 	s = spi_in();
 	s = (s<<8) | spi_in();
 	s = (s<<8) | spi_in();
@@ -784,7 +790,9 @@ char user_io_cue_mount(const unsigned char *name, unsigned char index) {
 	if (name) {
 		res = cue_parse(name, &sd_image[index]);
 	}
-
+#ifdef HAVE_PSX
+	if (core_features & FEAT_PSX) psx_mount_cd(name);
+#endif
 	// send mounted image size first then notify about mounting
 	EnableIO();
 	SPI(UIO_SET_SDINFO);
@@ -1450,7 +1458,8 @@ void user_io_poll() {
 	{
 		uint32_t lba;
 		uint8_t drive_index;
-		uint8_t c = user_io_sd_get_status(&lba, &drive_index);
+		uint8_t blksz;
+		uint8_t c = user_io_sd_get_status(&lba, &drive_index, &blksz);
 
 		// valid sd commands start with "5x" (old API), or "6x" (new API)
 		// to avoid problems with cores that don't implement this command
@@ -1499,10 +1508,8 @@ void user_io_poll() {
 				// only write if the inserted card is not sdhc or
 				// if the core uses sdhc
 				if((!MMC_IsSDHC()) || (c & 0x04)) {
-					uint8_t wr_buf[512];
-
 					if(user_io_dip_switch1())
-						iprintf("SD WR (%d) %d\n", drive_index, lba);
+						iprintf("SD WR (%d) %d/%d\n", drive_index, lba, 512<<blksz);
 
 					// if we write the sector stored in the read buffer, then
 					// invalidate the cache
@@ -1512,7 +1519,7 @@ void user_io_poll() {
 					user_io_sd_ack(drive_index);
 					// Fetch sector data from FPGA ...
 					spi_uio_cmd_cont(UIO_SECTOR_WR);
-					spi_block_read(wr_buf);
+					spi_read(sector_buffer, 512<<blksz);
 					DisableIO();
 
 					// ... and write it to disk
@@ -1520,14 +1527,14 @@ void user_io_poll() {
 
 #if 1
 					if(sd_image[sd_index(drive_index)].valid) {
-						if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> 9) >= lba) {
-							IDXSeek(&sd_image[sd_index(drive_index)], lba);
-							IDXWrite(&sd_image[sd_index(drive_index)], wr_buf);
+						if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> (9+blksz)) >= lba) {
+							IDXSeek(&sd_image[sd_index(drive_index)], (lba<<blksz));
+							IDXWrite(&sd_image[sd_index(drive_index)], sector_buffer, blksz);
 						}
 					} else if (!drive_index && !umounted)
-						disk_write(fs.pdrv, wr_buf, lba, 1);
+						disk_write(fs.pdrv, sector_buffer, lba, 1<<blksz);
 #else
-					hexdump(wr_buf, 512, 0);
+					hexdump(sector_buffer, 32, 0);
 #endif
 
 					DISKLED_OFF;
@@ -1538,37 +1545,41 @@ void user_io_poll() {
 			if((c & 0x03) == 0x01) {
 
 				if(user_io_dip_switch1())
-					iprintf("SD RD (%d) %d\n", drive_index, lba);
+					iprintf("SD RD (%d) %d/%d\n", drive_index, lba, 512<<blksz);
 
 				// invalidate cache if it stores data from another drive
 				if (drive_index != buffer_drive_index)
 					buffer_lba = 0xffffffff;
 
+#ifdef HAVE_PSX
+				if ((core_features & FEAT_PSX) && drive_index == 1) {
+					psx_read_cd(drive_index, lba);
+				} else {
+#endif
 				// are we using a file as the sd card image?
 				// (C64 floppy does that ...)
 				if(buffer_lba != lba) {
 					DISKLED_ON;
 					if(sd_image[sd_index(drive_index)].valid) {
-						if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> 9) >= lba) {
-							IDXSeek(&sd_image[sd_index(drive_index)], lba);
-							IDXRead(&sd_image[sd_index(drive_index)], buffer);
+						if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> (9+blksz)) >= lba) {
+							IDXSeek(&sd_image[sd_index(drive_index)], lba<<blksz);
+							IDXRead(&sd_image[sd_index(drive_index)], cache_buffer, blksz);
 						}
 					} else if (!drive_index && !umounted) {
 						// sector read
 						// read sector from sd card if it is not already present in
 						// the buffer
-						disk_read(fs.pdrv, buffer, lba, 1);
+						disk_read(fs.pdrv, cache_buffer, lba, 1<<blksz);
 					}
 					buffer_lba = lba;
 					DISKLED_OFF;
 				}
-
 				if(buffer_lba == lba) {
-					// hexdump(buffer, 32, 0);
+					// hexdump(cache_buffer, 512<<blksz, 0);
 					user_io_sd_ack(drive_index);
 					// data is now stored in buffer. send it to fpga
 					spi_uio_cmd_cont(UIO_SECTOR_RD);
-					spi_block_write(buffer);
+					spi_write(cache_buffer, 512<<blksz);
 					DisableIO();
 
 					// the end of this transfer acknowledges the FPGA internal
@@ -1580,20 +1591,23 @@ void user_io_poll() {
 				DISKLED_ON;
 				if(sd_image[sd_index(drive_index)].valid) {
 					// but check if it would overrun on the file
-					if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> 9) > lba) {
-						IDXSeek(&sd_image[sd_index(drive_index)], lba+1);
-						IDXRead(&sd_image[sd_index(drive_index)], buffer);
+					if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> (9+blksz)) > lba) {
+						IDXSeek(&sd_image[sd_index(drive_index)], (lba+1)<<blksz);
+						IDXRead(&sd_image[sd_index(drive_index)], cache_buffer, blksz);
 						buffer_lba = lba + 1;
 					}
 				} else {
 					// sector read
 					// read sector from sd card if it is not already present in
 					// the buffer
-					disk_read(fs.pdrv, buffer, lba+1, 1);
+					disk_read(fs.pdrv, cache_buffer, lba+1, 1<<blksz);
 					buffer_lba = lba+1;
 				}
 				buffer_drive_index = drive_index;
 				DISKLED_OFF;
+#ifdef HAVE_PSX
+				}
+#endif
 			}
 		}
 	}

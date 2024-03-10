@@ -103,6 +103,7 @@
 #define FEAT_PS2REP     0x1000 // typematic repeat by default
 #define FEAT_BIGOSD     0x2000 // 16 line tall OSD
 #define FEAT_HDMI       0x4000 // HDMI output
+#define FEAT_PSX        0x8000 // PSX-specific CD image handling
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
@@ -218,6 +219,7 @@ char user_io_is_cue_mounted();
 char user_io_cue_mount(const unsigned char*, unsigned char);
 char *user_io_get_core_name();
 void user_io_set_core_mod(char);
+void user_io_sd_ack(char drive_index);
 
 // io controllers interface for FPGA ethernet emulation using usb ethernet
 // devices attached to the io controller (ethernec emulation)

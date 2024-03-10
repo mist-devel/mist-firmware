@@ -154,6 +154,13 @@
 #define neocd_debugf(...)
 #endif
 
+#if 0
+// PSX debug output
+#define psx_debugf(a, ...) iprintf("\033[1;34mPSX : " a "\033[0m\n",## __VA_ARGS__)
+#else
+#define psx_debugf(...)
+#endif
+
 #if 1
 // HDMI debug output
 #define hdmi_debugf(a, ...) iprintf("\033[1;34mHDMI : " a "\033[0m",## __VA_ARGS__)
