@@ -14,7 +14,7 @@ SRC = hw/ATSAMV71/cstartup.c hw/ATSAMV71/hardware.c hw/ATSAMV71/spi.c hw/ATSAMV7
 SRC += hw/ATSAMV71/network/intmath.c hw/ATSAMV71/network/gmac.c hw/ATSAMV71/network/gmacd.c hw/ATSAMV71/network/phy.c hw/ATSAMV71/network/ethd.c
 SRC += fdd.c firmware.c fpga.c hdd.c  main.c  menu.c menu-minimig.c menu-8bit.c osd.c state.c syscalls.c user_io.c settings.c data_io.c boot.c idxfile.c config.c tos.c ikbd.c xmodem.c ini_parser.c cue_parser.c mist_cfg.c archie.c pcecd.c neocd.c psx.c arc_file.c font.c utils.c
 SRC += it6613/HDMI_TX.c it6613/it6613_drv.c it6613/it6613_sys.c it6613/EDID.c it6613/hdmitx_mist.c
-SRC += usb/usbdebug.c usb/hub.c usb/xboxusb.c usb/hid.c usb/hidparser.c usb/timer.c usb/asix.c usb/pl2303.c usb/usbrtc.c usb/joymapping.c usb/joystick.c
+SRC += usb/usbdebug.c usb/hub.c usb/xboxusb.c usb/hid.c usb/hidparser.c usb/timer.c usb/asix.c usb/pl2303.c usb/usbrtc.c usb/joymapping.c usb/joystick.c usb/storage.c
 SRC += usb/usb.c usb/max3421e.c usb/usb-max3421e.c
 #SRC += usb/usb-samv71.c
 SRC += fat_compat.c
@@ -29,8 +29,8 @@ LIBDIR   =
 
 # Commandline options for each tool.
 # for ESA11 add -DEMIST
-DFLAGS  = -I. -Iarch -Icmsis -Iusb -Ihw/ATSAMV71 -DMIST -DCONFIG_HAVE_NVIC -DCONFIG_HAVE_ETH -DCONFIG_HAVE_GMAC -DCONFIG_HAVE_GMAC_QUEUES -DGMAC_QUEUE_COUNT=6 -DCONFIG_ARCH_ARM -DCONFIG_ARCH_ARMV7M -DCONFIG_CHIP_SAMV71 -DCONFIG_PACKAGE_100PIN
-DFLAGS += -DFW_ID=\"SIDIUPG\" -DDEFAULT_CORE_NAME=\"SIDI128.RBF\" -DFATFS_NO_TINY -DSD_NO_DIRECT_MODE -DJOY_DB9_MD -DHAVE_QSPI -DHAVE_HDMI -DHAVE_PSX
+DFLAGS  = -I. -Iarch -Icmsis -Iusb -Ihw/ATSAMV71 -D_GNU_SOURCE -DMIST -DCONFIG_HAVE_NVIC -DCONFIG_HAVE_ETH -DCONFIG_HAVE_GMAC -DCONFIG_HAVE_GMAC_QUEUES -DGMAC_QUEUE_COUNT=6 -DCONFIG_ARCH_ARM -DCONFIG_ARCH_ARMV7M -DCONFIG_CHIP_SAMV71 -DCONFIG_PACKAGE_100PIN
+DFLAGS += -DFW_ID=\"SIDIUPG\" -DDEFAULT_CORE_NAME=\"SIDI128.RBF\" -DFATFS_NO_TINY -DSD_NO_DIRECT_MODE -DJOY_DB9_MD -DHAVE_QSPI -DHAVE_HDMI -DHAVE_PSX -DUSB_STORAGE
 #DFLAGS += -DPROTOTYPE
 CFLAGS  = $(DFLAGS) -march=armv7-m -mtune=cortex-m7 -mthumb -ffunction-sections -fsigned-char -c -g -O2 --std=gnu99 -DVDATE=\"`date +"%y%m%d"`\"
 CFLAGS += $(CFLAGS-$@)

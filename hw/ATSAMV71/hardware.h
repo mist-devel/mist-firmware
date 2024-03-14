@@ -127,6 +127,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define USB_LOAD_VAR         *(int*)(0x2045F000)
 #define USB_LOAD_VALUE       12345678
 
+#define USB_BOOT_VALUE       0x8007F007
+#define USB_BOOT_VAR         (*(int*)0x002045F013)
+
 #define DEBUG_MODE_VAR       *(int*)(0x2045F008)
 #define DEBUG_MODE_VALUE     87654321
 #define DEBUG_MODE           (DEBUG_MODE_VAR == DEBUG_MODE_VALUE)

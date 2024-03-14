@@ -262,8 +262,6 @@ unsigned char MMC_Init(void)
 
 RAMFUNC static unsigned char MMC_ReadBlocks(unsigned char *buffer, unsigned long lba, unsigned long blocks)
 {
-    // check of card has been removed and try to re-initialize it
-    if(!check_card()) return 0;
     if(!buffer) return 0; // direct transfer is not supported
 
     if (CardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
@@ -326,9 +324,6 @@ RAMFUNC unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBu
 
 static unsigned char MMC_WriteBlocks(unsigned long lba, const unsigned char *pWriteBuffer, unsigned long blocks)
 {
-    // check of card has been removed and try to re-initialize it
-    if(!check_card()) return 0;
-
     XDMAC0->XDMAC_GD = XDMAC_GD_DI0;
     XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CC = XDMAC_CC_TYPE_PER_TRAN
                                           | XDMAC_CC_MBSIZE_SINGLE
@@ -451,8 +446,12 @@ RAMFUNC static unsigned char MMC_WaitTransferEnd()
 
 RAMFUNC static unsigned char MMC_WaitReady()
 {
-    unsigned long to = GetTimer(500);
+    unsigned long to;
 
+    // check of card has been removed and try to re-initialize it
+    if(!check_card()) return 0;
+
+    to = GetTimer(500);
     //wait for data ready status
     do {
         MMC_Command(CMD13, RCA << 16, HSMCI_CMDR_RSPTYP_48_BIT | HSMCI_CMDR_MAXLAT);
