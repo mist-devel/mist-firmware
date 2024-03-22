@@ -131,7 +131,7 @@ static uint8_t hdmi_hiclk = 0;
 #define HDMI_FREQ 1000
 #endif
 
-#define CONF_TBL_MAX 50
+#define CONF_TBL_MAX 64
 static uint16_t conf_idx[CONF_TBL_MAX];
 static int conf_items = 0;
 
