@@ -131,6 +131,9 @@ static uint8_t hdmi_hiclk = 0;
 #define HDMI_FREQ 1000
 #endif
 
+#define CONF_TBL_MAX 50
+static uint16_t conf_idx[CONF_TBL_MAX];
+static int conf_items = 0;
 
 char user_io_osd_is_visible() {
 	return osd_is_visible;
@@ -160,6 +163,8 @@ void user_io_reset() {
 	ps2_typematic_rate = 0x80;
 	autofire = 0;
 	autofire_joy = -1;
+	conf_items = 0;
+	conf_idx[0] = 0;
 }
 
 void user_io_init() {
@@ -863,28 +868,60 @@ void user_io_file_mount(const unsigned char *name, unsigned char index) {
 
 // 8 bit cores have a config string telling the firmware how
 // to treat it
-char *user_io_8bit_get_string(char index) {
+
+char *user_io_8bit_get_string(unsigned char index) {
 	unsigned char i, lidx = 0, j = 0, d = 0, arc = 0;
 	int arc_ptr = 0;
 	char dip[3];
 	static char buffer[128+1];  // max 128 bytes per config item
+	uint16_t start_chr;
 
 	// clear buffer
 	buffer[0] = 0;
 
-	spi_uio_cmd_cont(UIO_GET_STRING);
-	i = spi_in();
-	// the first char returned will be 0xff if the core doesn't support
-	// config strings. atari 800 returns 0xa4 which is the status byte
-	if((i == 0xff) || (i == 0xa4)) {
+	// use the config index table to get where to start
+	// conf_idx stores the starting position of every 4th item
+	// if the index is in a DIP setting, it has 0
+	uint16_t pos = 0, lastpos = 0;
+
+	i = index>>2;
+	while (i > 0 && (i > conf_items || conf_idx[i] == 0)) i--;
+	pos = lastpos = conf_idx[i];
+	lidx = i<<2;
+
+	//iprintf("index=%d cached pos=%d lidx=%d\n", index, pos, lidx);
+
+	spi_uio_cmd_cont(UIO_GET_STR_EXT);
+	i = SPI(pos & 0xff);
+	if (i == 0xaa) {
+		SPI(pos >> 8);
+		i = spi_in(); // dummy byte to prepare to apply the offset in the core
+		i = spi_in();
+	} else {
 		DisableIO();
-		return NULL;
+		lidx = 0;
+		pos = lastpos = 0;
+		//iprintf("UIO_GET_STRING_EXT not supported\n");
+
+		spi_uio_cmd_cont(UIO_GET_STRING);
+		i = spi_in();
+		// the first char returned will be 0xff if the core doesn't support
+		// config strings. atari 800 returns 0xa4 which is the status byte
+		if((i == 0xff) || (i == 0xa4)) {
+			DisableIO();
+			return NULL;
+		}
 	}
 
 	//  iprintf("String: ");
 
 	while ((i != 0) && (i!=0xff) && (j<sizeof(buffer))) {
 		if(i == ';') {
+			if((lidx & 0x03) == 0 && (lidx >> 2) < CONF_TBL_MAX) {
+				conf_idx[lidx >> 2] = arc ? 0 : lastpos;
+				if (conf_items < (lidx >> 2)) conf_items = (lidx >> 2);
+			}
+			lastpos = pos+1;
 			if(!arc && d==3 && !strncmp(dip, "DIP", 3)) {
 				// found "DIP", continue with config snippet from ARC
 				if(lidx == index) {
@@ -894,7 +931,10 @@ char *user_io_8bit_get_string(char index) {
 				}
 				arc = 1;
 			} else {
-				if(lidx == index) buffer[j++] = 0;
+				if(lidx == index) {
+					buffer[j++] = 0;
+					break;
+				}
 				lidx++;
 			}
 			d = 0;
@@ -910,8 +950,10 @@ char *user_io_8bit_get_string(char index) {
 			i = arc_get_conf()[arc_ptr++];
 			if (!i) arc = 0;
 		}
-		if (!arc)
+		if (!arc) {
 			i = spi_in();
+			pos++;
+		}
 	}
 
 	DisableIO();

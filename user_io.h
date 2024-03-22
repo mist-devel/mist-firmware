@@ -59,6 +59,7 @@
 #define UIO_SET_MOD     0x21  // send core variant from metadata (ARC) file
 #define UIO_SET_RTC     0x22  // send real-time-clock data
 #define UIO_SD_ACK      0x23  // send ack for sector read/write
+#define UIO_GET_STR_EXT 0x24  // get config string from dedicated position
 
 // I2c bridge
 #define UIO_I2C_SEND    0x30  // start i2c transaction on the FPGA side
@@ -208,7 +209,7 @@ char user_io_is_8bit_with_config_string();
 void user_io_poll();
 void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
-char *user_io_8bit_get_string(char);
+char *user_io_8bit_get_string(unsigned char);
 unsigned long long user_io_8bit_set_status(unsigned long long, unsigned long long);
 void user_io_sd_set_config(void);
 char user_io_dip_switch1(void);
