@@ -152,23 +152,34 @@ static void usb_xbox_read_report(usb_device_t *dev, uint16_t len, uint8_t *buf) 
 		return;
 	}
 
-	uint16_t buttons = (swp2(buf[2], 0xc) >> 2) | (swp2(buf[2], 0x3) << 2) | swp2(buf[3], 0x30) | (swp2(buf[2], 0x30) << 2) | ((buf[3] & 0x03) << 10) | (swp2(buf[3], 0xc0) << 2);
+	uint32_t buttons = (swp2(buf[2], 0xc) >> 2) | (swp2(buf[2], 0x3) << 2) | swp2(buf[3], 0x30) | (swp2(buf[2], 0x30) << 2) | ((buf[3] & 0x03) << 10) | (swp2(buf[3], 0xc0) << 2);
 	uint8_t idx = dev->xbox_info.jindex;
 	StateUsbIdSet(dev->vid, dev->pid, 8, idx);
+	StateJoySetAnalogue( buf[7], buf[9], buf[11], buf[13], idx );
+	user_io_analog_joystick(idx, buf[7], buf[9], buf[11], buf[13]);
 
-/*
-	TODO: handle analogue parts
-        hatValue[LeftHatX] = (int16_t)(((uint16_t)readBuf[7] << 8) | readBuf[6]);
-        hatValue[LeftHatY] = (int16_t)(((uint16_t)readBuf[9] << 8) | readBuf[8]);
-        hatValue[RightHatX] = (int16_t)(((uint16_t)readBuf[11] << 8) | readBuf[10]);
-        hatValue[RightHatY] = (int16_t)(((uint16_t)readBuf[13] << 8) | readBuf[12]);
-*/
+	// Handle analogue parts (discard low order byte)
+	uint8_t jmap = 0;
+	if(((buf[7]+128) & 0xFF) < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
+	if(((buf[7]+128) & 0xFF) > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
+	if(((buf[9]+128) & 0xFF) < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_DOWN;
+	if(((buf[9]+128) & 0xFF) > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_UP;
+	buttons |= jmap;
+
+	jmap = 0;
+	if((buf[11]+128) < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
+	if((buf[11]+128) > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
+	if((buf[13]+128) < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_DOWN;
+	if((buf[13]+128) > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_UP;
+	buttons |= (jmap << 16);
 
 	// map virtual joypad
 
 	if(buttons != dev->xbox_info.oldButtons) {
 		StateUsbJoySet(buttons, buttons>>8, idx);
-		uint16_t vjoy = virtual_joystick_mapping(dev->vid, dev->pid, buttons);
+		uint32_t vjoy = virtual_joystick_mapping(dev->vid, dev->pid, buttons);
+		// add right stick (no remap)
+		vjoy |= (jmap << 16);
 
 		StateJoySet(vjoy, idx);
 		StateJoySetExtra( vjoy>>8, idx);
