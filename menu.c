@@ -495,10 +495,10 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 	else if (idx<=13) item->page = 1;
 	else if (idx<=20) item->page = 2;
 	else if (idx<=26) item->page = 3;
-	else if (idx<=33) {item->page = (page_idx>=4 && page_idx<=7) ? page_idx : 4; item->active = 0;}
-	else if (idx<=37) {item->page = 8; item->active = 0;}
-	else if (idx<=43) {item->page = 9; item->active = 0;}
-	else if (idx<=52) {item->page = 10; item->active = 0;}
+	else if (idx<=36) {item->page = (page_idx>=4 && page_idx<=7) ? page_idx : 4; item->active = 0;}
+	else if (idx<=40) {item->page = 8; item->active = 0;}
+	else if (idx<=46) {item->page = 9; item->active = 0;}
+	else if (idx<=55) {item->page = 10; item->active = 0;}
 	else return 0;
 	if (item->page != page_idx) return 1; // shortcut
 
@@ -707,19 +707,28 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					get_joystick_state_usb(s, page_idx-4);
 					item->item = s;
 					break;
+				case 35:
+					siprintf(s, "   %03d-%03d           %03d-%03d",
+						StateJoyGetAnalogue(0, page_idx-4),
+						StateJoyGetAnalogue(1, page_idx-4),
+						StateJoyGetAnalogue(2, page_idx-4),
+						StateJoyGetAnalogue(3, page_idx-4)
+						);
+					item->item = s;
+					break;
 
 				// page 8 - keyboard test
-				case 34:
+				case 37:
 					item->item = "       USB scancodes";
 					break;
-				case 35: {
+				case 38: {
 					uint8_t keys[6]={0,0,0,0,0,0};
 					StateKeyboardPressed(keys);
 					siprintf(s, "     %2x   %2x   %2x   %2x", keys[0], keys[1], keys[2], keys[3]); // keys[4], keys[5]);
 					item->item = s;
 					};
 					break;
-				case 36: {
+				case 39: {
 					uint8_t mod = StateKeyboardModifiers();
 					char usb_id[32];
 					strcpy(usb_id, "                      ");
@@ -728,7 +737,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					};
 					break;
-				case 37: {
+				case 40: {
 					uint8_t mod = StateKeyboardModifiers();
 					uint16_t keys_ps2[6]={0,0,0,0,0,0};
 					StateKeyboardPressedPS2(keys_ps2);
@@ -739,29 +748,29 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					break;
 
 				// page 9 - USB status
-				case 38:
-				case 39:
-				case 40:
 				case 41:
 				case 42:
-				case 43: {
+				case 43:
+				case 44:
+				case 45:
+				case 46: {
 					char usb_id[32];
-					get_joystick_id( usb_id, idx-38, 1);
-					siprintf(s, " Joy%d - %s", idx-37, usb_id);
+					get_joystick_id( usb_id, idx-41, 1);
+					siprintf(s, " Joy%d - %s", idx-40, usb_id);
 					item->item = s;
 					break;
 					}
 
 				// page 10 - System status
-				case 44:
+				case 47:
 					siprintf(s, " Boot device:    %11s", fat_uses_mmc() ? "    SD card" : "USB storage");
 					item->item = s;
 					break;
-				case 45:
+				case 48:
 					siprintf(s, " Medium: %7s / %7luMB", fs_type_to_string(), storage_size);
 					item->item = s;
 					break;
-				case 46: {
+				case 49: {
 					unsigned char keyboard_count = get_keyboards();
 					siprintf(s, " Keyboard:");
 					keyboard_count ? siprintf(s + 10, " %8u", keyboard_count) : siprintf(s + 10, "     none");
@@ -769,7 +778,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					}
 					break;
-				case 47: {
+				case 50: {
 					unsigned char mouse_count = get_mice();
 					siprintf(s, " Mouse:");
 					mouse_count ? siprintf(s + 7, " %11u", mouse_count) : siprintf(s + 7, "        none");
@@ -777,7 +786,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					}
 					break;
-				case 48: {
+				case 51: {
 					uint8_t *mac = asix_get_mac();
 					siprintf(s, " Net(USB):");
 					if (mac) {
@@ -790,7 +799,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					}
 					break;
-				case 49: {
+				case 52: {
 					uint8_t pl2303_count = get_pl2303s();
 					siprintf(s, " Serial:");
 					pl2303_count ? siprintf(s + 8, " %10u", pl2303_count) : siprintf(s + 8, "       none");
@@ -799,7 +808,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					}
 					break;
 #ifdef CONFIG_HAVE_ETH
-				case 50: {
+				case 53: {
 					uint8_t mac[6];
 					eth_get_mac(mac);
 					siprintf(s, " Network:");
@@ -809,7 +818,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					break;
 				}
-				case 51: {
+				case 54: {
 					uint8_t link = eth_get_link_status();
 					siprintf(s, " Network link:");
 					if (!link) {
@@ -823,7 +832,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 				}
 #endif
 #ifdef HAVE_HDMI
-				case 52: {
+				case 55: {
 					siprintf(s, " Digital video:");
 					if (!user_io_hdmi_detected()) {
 						siprintf(s + 15, "  not detected");
