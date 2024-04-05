@@ -154,9 +154,16 @@ static void usb_xbox_read_report(usb_device_t *dev, uint16_t len, uint8_t *buf) 
 
 	uint32_t buttons = (swp2(buf[2], 0xc) >> 2) | (swp2(buf[2], 0x3) << 2) | swp2(buf[3], 0x30) | (swp2(buf[2], 0x30) << 2) | ((buf[3] & 0x03) << 10) | (swp2(buf[3], 0xc0) << 2);
 	uint8_t idx = dev->xbox_info.jindex;
+	// swap joystick 0 and 1 since 1 is the one.
+	// used primarily on most systems (most = Amiga and ST...need to get rid of this)
+	if(idx == 0)      idx = 1;
+	else if(idx == 1) idx = 0;
+	// if real DB9 mouse is preffered, switch the id back to 1
+	idx = (idx == 0) && mist_cfg.joystick0_prefer_db9 ? 1 : idx;
+
 	StateUsbIdSet(dev->vid, dev->pid, 8, idx);
 	StateJoySetAnalogue( buf[7], buf[9], buf[11], buf[13], idx );
-	user_io_analog_joystick(idx, buf[7], buf[9], buf[11], buf[13]);
+	user_io_analog_joystick(idx, buf[7], ~buf[9], buf[11], ~buf[13]);
 
 	// Handle analogue parts (discard low order byte)
 	uint8_t jmap = 0;
@@ -183,13 +190,6 @@ static void usb_xbox_read_report(usb_device_t *dev, uint16_t len, uint8_t *buf) 
 
 		StateJoySet(vjoy, idx);
 		StateJoySetExtra( vjoy>>8, idx);
-
-		// swap joystick 0 and 1 since 1 is the one.
-		// used primarily on most systems (most = Amiga and ST...need to get rid of this)
-		if(idx == 0)      idx = 1;
-		else if(idx == 1) idx = 0;
-		// if real DB9 mouse is preffered, switch the id back to 1
-		idx = (idx == 0) && mist_cfg.joystick0_prefer_db9 ? 1 : idx;
 
 		user_io_digital_joystick(idx, vjoy & 0xFF);
 		// new API with all extra buttons
