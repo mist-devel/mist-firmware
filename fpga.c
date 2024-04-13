@@ -271,7 +271,7 @@ unsigned char ConfigureFpga(const char *name)
     if (f_open(&file, name, FA_READ) != FR_OK)
     {
         iprintf("No FPGA configuration file found!\r");
-        FatalError(ERROR_BITSTREAM_OPEN);
+        return ERROR_BITSTREAM_OPEN;
     }
 
     iprintf("FPGA bitstream file %s opened, file size = %llu\r", name, f_size(&file));
@@ -297,7 +297,7 @@ unsigned char ConfigureFpga(const char *name)
             ALTERA_STOP_CONFIG
             iprintf("FPGA NSTATUS is NOT high!\r");
             f_close(&file);
-            FatalError(ERROR_UPDATE_INIT_FAILED);
+            return ERROR_UPDATE_INIT_FAILED;
         }
     }
 
@@ -322,7 +322,7 @@ unsigned char ConfigureFpga(const char *name)
 
             if (f_read(&file, sector_buffer, SECTOR_BUFFER_SIZE, &br) != FR_OK) {
                 f_close(&file);
-                FatalError(ERROR_READ_BITSTREAM_FAILED);
+                return ERROR_READ_BITSTREAM_FAILED;
             }
 
             ptr = sector_buffer;
@@ -342,7 +342,7 @@ unsigned char ConfigureFpga(const char *name)
 
                 iprintf("FPGA NSTATUS is NOT high!\r");
                 f_close(&file);
-                FatalError(ERROR_UPDATE_PROGRESS_FAILED);
+                return ERROR_UPDATE_PROGRESS_FAILED;
             }
         }
     }
@@ -357,10 +357,10 @@ unsigned char ConfigureFpga(const char *name)
     // check if DONE is high
     if (!ALTERA_DONE_STATE) {
       iprintf("FPGA Configuration done but contains error... CONF_DONE is LOW\r");
-      FatalError(ERROR_UPDATE_FAILED);
+      return ERROR_UPDATE_FAILED;
     }
 
-    
+
     /* Start initialization */
     /* Clock another extra DCLK cycles while initialization is in progress
        through internal oscillator or driving clock cycles into CLKUSR pin */
@@ -383,10 +383,10 @@ unsigned char ConfigureFpga(const char *name)
 
       iprintf("FPGA Initialization finish but contains error: NSTATUS is %s and CONF_DONE is %s.\r", 
              ALTERA_NSTATUS_STATE?"HIGH":"LOW", ALTERA_DONE_STATE?"HIGH":"LOW" );
-      FatalError(ERROR_UPDATE_FAILED);
+      return ERROR_UPDATE_FAILED;
     }
 
-    return 1;
+    return ERROR_NONE;
 }
 #endif
 
@@ -913,7 +913,7 @@ unsigned char GetFPGAStatus(void)
 }
 
 
-void fpga_init(const char *name) {
+unsigned char fpga_init(const char *name) {
   unsigned long time = GetRTTC();
   int loaded_from_usb = USB_LOAD_VAR;
   unsigned char ct;
@@ -927,15 +927,11 @@ void fpga_init(const char *name) {
   USB_LOAD_VAR = 0;
 
   if((loaded_from_usb != USB_LOAD_VALUE) && !user_io_dip_switch1()) {
+    unsigned char err = ConfigureFpga(name);
+    if (err != ERROR_NONE) return err;
 
-    if (ConfigureFpga(name)) {
-      time = GetRTTC() - time;
-      iprintf("FPGA configured in %lu ms\r", time);
-    } else {
-      // should not reach this code
-      iprintf("FPGA configuration failed\r");
-      FatalError(ERROR_UPDATE_FAILED);
-    }
+    time = GetRTTC() - time;
+    iprintf("FPGA configured in %lu ms\r", time);
   }
 
   // wait max 100 msec for a valid core type
@@ -1024,4 +1020,5 @@ void fpga_init(const char *name) {
   if(user_io_core_type() == CORE_TYPE_ARCHIE) {
     puts("Running archimedes setup");
   } // end of archimedes setup
+  return ERROR_NONE;
 }

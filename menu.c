@@ -363,6 +363,8 @@ static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
 	OsdCoreNameSet(SelectedName);
 
 	char mod = 0;
+	char arc = 0;
+	unsigned char err;
 	const char *extension = GetExtension(SelectedName);
 	const char *rbfname = SelectedName;
 	arc_reset();
@@ -376,12 +378,19 @@ static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
 		strcpy(s, arc_get_rbfname());
 		strcat(s, ".RBF");
 		rbfname = (char*) &s;
+		arc = 1;
 	}
 	user_io_reset();
 	user_io_set_core_mod(mod);
 	// reset fpga with core
-	fpga_init(rbfname);
-
+	err = fpga_init(rbfname);
+	if (err == ERROR_BITSTREAM_OPEN && arc) {
+		strcpy(s, "/");
+		strcat(s, arc_get_rbfname());
+		strcat(s, ".RBF");
+		err = fpga_init(s);
+	}
+	if (err != ERROR_NONE) FatalError(err);
 	// De-init joysticks to allow re-ordering for new core
 	StateReset();
 
