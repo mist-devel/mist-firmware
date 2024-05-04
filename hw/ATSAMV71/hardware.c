@@ -341,6 +341,7 @@ unsigned char UserButton() {
 
 static char md_state[2] = {0, 0};
 static char md_detected = 0;
+static unsigned long md_timer[2] = {0, 0};
 
 void InitDB9() {
     md_state[0] = md_state[1] = 0;
@@ -385,10 +386,21 @@ static uint8_t GetJoyState(char index) {
     return joymap;
 }
 
+#define MD_PAD(index) (md_detected & (0x01<<index))
+
+//Cycle TH out TR in TL in D3 in D2 in D1 in D0 in
+//1     HI     C      B    Right Left  Down  Up
+//2     LO     Start  A    0     0     Down  Up
+//3     HI     C      B    Right Left  Down  Up
+//4     LO     Start  A    0     0     Down  Up
+//5     HI     C      B    Right Left  Down  Up
+//6     LO     Start  A    0     0     0     0
+//7     HI     C      B    Mode  X     Y     Z
+//8     LO     Start  A    ---   ---   ---   ---
+
 static char GetDB9State(char index, uint16_t *joy_map) {
 
     static uint8_t joy_state_0[2] = {0, 0}, joy_state_1[2] = {0, 0}, joy_state_2[2] = {0, 0};
-
     uint8_t state = GetJoyState(index);
     if(md_state[index] == 0x03) {
        md_state[index] = 0x01;
@@ -396,17 +408,20 @@ static char GetDB9State(char index, uint16_t *joy_map) {
        return 0;
     }
     //iprintf("index=%d, md_state=%d, state=%02x, state[0]=%02x state[1]=%02x state[2]=%02x\n", index, md_state[index], state, joy_state_0[0], joy_state_1[0], joy_state_2[0]);
-    if((md_state[index] == 0 && state != joy_state_0[index]) || ((md_state[index] & 0x02) && state != joy_state_2[index]) || (md_state[index] == 0x01 && state != joy_state_1[index])) {
+    if((md_state[index] == 0 && state != joy_state_0[index]) || (md_state[index] == 0x02 && state != joy_state_2[index]) || (md_state[index] == 0x01 && state != joy_state_1[index])) {
         if (md_state[index] == 0x01) {
+            // TH lo
             if ((state & (JOY_LEFT | JOY_RIGHT | JOY_UP | JOY_DOWN)) == (JOY_LEFT | JOY_RIGHT | JOY_UP | JOY_DOWN)) {
                 // 6 button controller detected at state 6
                 md_state[index] |= 0x02;
                 return 0;
             }
             joy_state_1[index] = state;
-        } else if (md_state[index] & 0x02) {
+        } else if (md_state[index] == 0x02) {
+            // TH hi at state 7
             joy_state_2[index] = state;
         } else
+            // TH hi
             joy_state_0[index] = state;
 
         *joy_map = 0;
@@ -414,8 +429,8 @@ static char GetDB9State(char index, uint16_t *joy_map) {
         if((joy_state_0[index] & JOY_DOWN))  *joy_map |= JOY_DOWN;
         if((joy_state_0[index] & JOY_LEFT))  *joy_map |= JOY_LEFT;
         if((joy_state_0[index] & JOY_RIGHT)) *joy_map |= JOY_RIGHT;
-        if((joy_state_0[index] & JOY_BTN1))  *joy_map |= (md_detected & (0x01<<index)) ? JOY_BTN2 : JOY_BTN1;
-        if((joy_state_0[index] & JOY_BTN2))  *joy_map |= (md_detected & (0x01<<index)) ? JOY_SELECT : JOY_BTN2;
+        if((joy_state_0[index] & JOY_BTN1))  *joy_map |= MD_PAD(index) ? JOY_BTN2 : JOY_BTN1;
+        if((joy_state_0[index] & JOY_BTN2))  *joy_map |= MD_PAD(index) ? JOY_SELECT : JOY_BTN2;
         if((joy_state_1[index] & JOY_BTN1))  *joy_map |= JOY_BTN1;
         if((joy_state_1[index] & JOY_BTN2))  *joy_map |= JOY_START;
         if((joy_state_2[index] & JOY_UP))    *joy_map |= JOY_L; //Z
@@ -423,7 +438,7 @@ static char GetDB9State(char index, uint16_t *joy_map) {
         if((joy_state_2[index] & JOY_LEFT))  *joy_map |= JOY_X;
         if((joy_state_2[index] & JOY_RIGHT)) *joy_map |= JOY_R; //MODE
 
-        if(mist_cfg.joystick_db9_md == 2 && md_state[index] == 0x01 && (md_detected & (0x01<<index)) && ((joy_state_1[index] & (JOY_LEFT | JOY_RIGHT)) != (JOY_LEFT | JOY_RIGHT))) {
+        if(mist_cfg.joystick_db9_md == 2 && md_state[index] == 0x01 && MD_PAD(index) && ((joy_state_1[index] & (JOY_LEFT | JOY_RIGHT)) != (JOY_LEFT | JOY_RIGHT))) {
             iprintf("Deactivating Mega Drive DB9 select pin for port %d\n", index);
             if (index) {
                 JOY1_SEL_PORT->PIO_ODR = JOY1_SEL_PIN;  // disable output
@@ -442,13 +457,20 @@ static char GetDB9State(char index, uint16_t *joy_map) {
         return 0;
 }
 
+
 char GetDB9(char index, uint16_t *joy_map) {
 
+/*
+    if (MD_PAD(index) && (!(md_state[index] & 0x01))) {
+        if (!CheckTimer(md_timer[index])) return 0;
+        else md_timer[index] == GetTimer(20);
+    }
+*/
     char ret = GetDB9State(index, joy_map);
 
     // switch SEL pin
-    if (md_detected & (0x01<<index)) {
-        md_state[index] = (md_state[index] & 0x01) ? md_state[index] & ~0x01 : md_state[index] | 0x01;
+    if (MD_PAD(index)) {
+        md_state[index] ^= 0x01;
         if (md_state[index] & 0x01) {
             if (index)
                 JOY1_SEL_PORT->PIO_CODR = JOY1_SEL_PIN;
