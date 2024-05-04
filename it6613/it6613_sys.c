@@ -100,10 +100,10 @@ HDMITX_SetOutput()
             bool bSPDIF = FALSE;
             EnableAudioOutput(TMDSClock,AUDFS_48KHz, 2, 16, bSPDIF);  // richard modify
             ConfigAudioInfoFrm() ;
-            DumpCatHDMITXReg();
         }
     }
     SetAVMute(FALSE) ;
+    DumpCatHDMITXReg();
     bChangeMode = FALSE ;
 }
 
@@ -386,7 +386,6 @@ ParseEDID()
     // richard GetEDIDData(0, EDID_Buf);
     if (!GetEDIDData(0, EDID_Buf))
         return FALSE;
-
 
     for( i = 0, CheckSum = 0 ; i < 128 ; i++ )
     {
