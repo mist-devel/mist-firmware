@@ -125,7 +125,7 @@ static void psx_send_cue_and_metadata(uint16_t libcrypt_mask, region_t region, i
 	for (int i = 0; i < toc.last; i++) {
 		track.start_lba = toc.tracks[i].start;
 		track.end_lba = toc.tracks[i].end;
-		LBA2MSF(toc.tracks[i].start, &msf);
+		LBA2MSF(toc.tracks[i].start + 150, &msf);
 		track.bcd = ((bin2bcd(msf.m) << 8) | bin2bcd(msf.s)) | ((toc.tracks[i].type ? 0 : 1) << 16);
 		psx_debugf("%d start_lba=%d end_lba=%d bcd=%04x", i, track.start_lba, track.end_lba, track.bcd);
 		spi_write((const char *)&track, sizeof(track_t));
