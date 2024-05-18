@@ -34,6 +34,7 @@ void spi_set_speed(unsigned char speed);
 
 /* chip select functions */
 void EnableFpga(void);
+void EnableFpgaMinimig(void);
 void DisableFpga(void);
 void EnableOsd(void);
 void DisableOsd(void);

@@ -195,7 +195,7 @@ void ReadTrack(adfTYPE *drive)
     }
     fdd_debugf("sector: %d\r", sector);
 
-    EnableFpga();
+    EnableFpgaMinimig();
     status   = SPI(0); // read request signal
     track    = SPI(0); // track number (cylinder & head)
     dsksync  = (SPI(0)) << 8; // disk sync high byte
@@ -211,7 +211,7 @@ void ReadTrack(adfTYPE *drive)
     {
         FileReadBlock(&drive->file, sector_buffer);
 
-        EnableFpga();
+        EnableFpgaMinimig();
 
         // check if FPGA is still asking for data
         status   = SPI(0); // read request signal
@@ -286,7 +286,7 @@ unsigned char FindSync(adfTYPE *drive)
 
     while (1)
     {
-        EnableFpga();
+        EnableFpgaMinimig();
         c1 = SPI(0); // write request signal
         c2 = SPI(0); // track number (cylinder & head)
         if (!(c1 & CMD_WRTRK)) {
@@ -335,7 +335,7 @@ unsigned char GetHeader(unsigned char *pTrack, unsigned char *pSector)
     Error = 0;
     while (1)
     {
-        EnableFpga();
+        EnableFpgaMinimig();
         c1 = SPI(0); // write request signal
         c2 = SPI(0); // track number (cylinder & head)
         if (!(c1 & CMD_WRTRK)) {
@@ -482,7 +482,7 @@ unsigned char GetData(void)
     Error = 0;
     while (1)
     {
-        EnableFpga();
+        EnableFpgaMinimig();
         c1 = SPI(0); // write request signal
         c2 = SPI(0); // track number (cylinder & head)
         if (!(c1 & CMD_WRTRK)) {
@@ -641,7 +641,7 @@ void WriteTrack(adfTYPE *drive)
 
 void UpdateDriveStatus(void)
 {
-    EnableFpga();
+    EnableFpgaMinimig();
     SPI(0x10);
     SPI(df[0].status | (df[1].status << 1) | (df[2].status << 2) | (df[3].status << 3));
     DisableFpga();
