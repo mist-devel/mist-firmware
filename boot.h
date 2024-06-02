@@ -22,15 +22,15 @@
 #define LOGO_OFFSET     (64*SCREEN_WIDTH/8+24)
 #define LOGO_LSKIP      (SCREEN_WIDTH-LOGO_WIDTH)/8
 #define LOGO_SIZE       0x680
-#define LOGO_FILE       "MINIMIG ART"
+#define LOGO_FILE       "MINIMIG.ART"
 
 #define BALL_SIZE       0x4000
 #define BALL_ADDRESS    0x8a000
-#define BALL_FILE       "MINIMIG BAL"
+#define BALL_FILE       "MINIMIG.BAL"
 
 #define COPPER_SIZE     0x35c
 #define COPPER_ADDRESS  0x8e680
-#define COPPER_FILE     "MINIMIG COP"
+#define COPPER_FILE     "MINIMIG.COP"
 
 #define BLITS           64
 

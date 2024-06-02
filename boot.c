@@ -84,7 +84,7 @@ static void BootUploadLogo()
   int i=0;
   int adr;
 
-  if (FileOpenCompat(&file, LOGO_FILE, FA_READ) == FR_OK) {
+  if (f_open(&file, LOGO_FILE, FA_READ) == FR_OK) {
     FileReadBlock(&file, sector_buffer);
     mem_upload_init(SCREEN_BPL1+LOGO_OFFSET);
     adr = SCREEN_BPL1+LOGO_OFFSET;
@@ -141,7 +141,7 @@ static void BootUploadBall()
   int i=0;
   int adr;
 
-  if (FileOpenCompat(&file, BALL_FILE, FA_READ) == FR_OK) {
+  if (f_open(&file, BALL_FILE, FA_READ) == FR_OK) {
     FileReadBlock(&file, sector_buffer);
     mem_upload_init(BALL_ADDRESS);
     adr = BALL_ADDRESS;
@@ -171,7 +171,7 @@ static void BootUploadCopper()
   int i=0;
   int adr;
 
-  if (FileOpenCompat(&file, COPPER_FILE, FA_READ) == FR_OK) {
+  if (f_open(&file, COPPER_FILE, FA_READ) == FR_OK) {
     FileReadBlock(&file, sector_buffer);
     mem_upload_init(COPPER_ADDRESS);
     adr = COPPER_ADDRESS;
