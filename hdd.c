@@ -347,15 +347,26 @@ static void WritePacket(unsigned char unit, const unsigned char *buf, unsigned s
     while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
     WriteTaskFile(0, 0x02, 0, bytes & 0xff, (bytes>>8) & 0xff, 0xa0 | ((unit & 0x01)<<4));
     if (bytes) {
-      EnableFpga();
-      SPI(CMD_IDE_DATA_WR); // write data command
-      SPI(0x00);
-      SPI(0x00);
-      SPI(0x00);
-      SPI(0x00);
-      SPI(0x00);
-      spi_write(buf, bytes);
-      DisableFpga();
+#ifdef HAVE_QSPI
+      if(minimig_v2()) {
+        qspi_start_write();
+        qspi_write_block(buf, bytes);
+        qspi_end();
+      } else {
+#else
+        EnableFpga();
+        SPI(CMD_IDE_DATA_WR); // write data command
+        SPI(0x00);
+        SPI(0x00);
+        SPI(0x00);
+        SPI(0x00);
+        SPI(0x00);
+        spi_write(buf, bytes);
+        DisableFpga();
+#endif
+#ifdef HAVE_QSPI
+      }
+#endif
     }
     buf += bytes;
     bufsize -= bytes;
