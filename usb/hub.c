@@ -210,6 +210,9 @@ static uint8_t usb_hub_port_status_change(usb_device_t *dev, uint8_t port, hub_e
       return 0;
     }
 
+    // Some peripherals may perform a quick reconnection, which causes the disconnect event to be missed.
+    usb_release_device(dev->bAddress, port);
+
     //    timer_delay_msec(100);
 
     iprintf("resetting port %d\n", port);
