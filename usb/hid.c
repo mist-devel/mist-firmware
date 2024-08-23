@@ -893,7 +893,10 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 			if (timer_check(iface->qLastPollTime, iface->interval)) { // poll at requested rate
 			//      hid_debugf("poll %d...", iface->ep.epAddr);
 				uint16_t read = iface->ep.maxPktSize;
-				uint8_t buf[iface->ep.maxPktSize];
+				// report may not fit into one packet
+				if (iface->conf.report_size > read)
+					read = iface->conf.report_size;
+				uint8_t buf[read];
 				// clear buffer
 				memset(buf, 0, iface->ep.maxPktSize);
 				uint8_t rcode = usb_in_transfer(dev, &(iface->ep), &read, buf);
