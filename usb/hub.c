@@ -248,6 +248,24 @@ static uint8_t usb_hub_port_status_change(usb_device_t *dev, uint8_t port, hub_e
 
     bResetInitiated = false;
     break;
+
+    // Unhandled event, this shouldn't happen under normal conditions
+  default:
+    iprintf("unexpected status on port %d\n", port);
+    if ((evt.bmChange & USB_HUB_PORT_STATUS_PORT_RESET) && (evt.bmChange & USB_HUB_PORT_STATUS_PORT_CONNECTION)) {
+      // Reconnection happens during reset
+      usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_RESET, port, 0);
+      bResetInitiated = false;
+    }
+    if (evt.bmChange & USB_HUB_PORT_STATUS_PORT_SUSPEND)
+      usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_SUSPEND, port, 0);
+    if (evt.bmChange & USB_HUB_PORT_STATUS_PORT_OVER_CURRENT)
+      usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_OVER_CURRENT, port, 0);
+    if (evt.bmStatus & USB_HUB_PORT_STATUS_PORT_SUSPEND)
+      usb_hub_clear_port_feature(dev, HUB_FEATURE_PORT_SUSPEND, port, 0);
+    if (!(evt.bmStatus & USB_HUB_PORT_STATUS_PORT_POWER))
+      usb_hub_set_port_feature(dev, HUB_FEATURE_PORT_POWER, port, 0);
+    break;
   }
 
   return 0;
@@ -328,4 +346,3 @@ static uint8_t usb_hub_poll(usb_device_t *dev) {
 
 const usb_device_class_config_t usb_hub_class = {
   usb_hub_init, usb_hub_release, usb_hub_poll };  
-
