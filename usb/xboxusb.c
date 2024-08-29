@@ -146,7 +146,6 @@ uint8_t usb_xbox_release(usb_device_t *dev) {
 	return 0;
 }
 
-#define swp2(a, msk) (((a & msk)<<1 | (a & msk)>>1) & msk)
 static void usb_xbox_read_report(usb_device_t *dev, uint16_t len, uint8_t *buf) {
 	if(!buf) return;
 //	hexdump(buf, len, 0);
@@ -154,9 +153,28 @@ static void usb_xbox_read_report(usb_device_t *dev, uint16_t len, uint8_t *buf) 
 		return;
 	}
 
-	uint32_t buttons = (swp2(buf[2], 0xc) >> 2) | (swp2(buf[2], 0x3) << 2) | swp2(buf[3], 0x30) | (swp2(buf[2], 0x30) << 2) | ((buf[3] & 0x03) << 10) | (swp2(buf[3], 0xc0) << 2);
+	// https://www.partsnotincluded.com/understanding-the-xbox-360-wired-controllers-usb-data/
+	uint32_t buttons =
+		((buf[2] & (1U<<0))? JOY_UP : 0) |
+		((buf[2] & (1U<<1))? JOY_DOWN : 0) |
+		((buf[2] & (1U<<2))? JOY_LEFT : 0) |
+		((buf[2] & (1U<<3))? JOY_RIGHT : 0) |
+		((buf[2] & (1U<<4))? JOY_START : 0) |
+		((buf[2] & (1U<<5))? JOY_SELECT : 0) |
+		((buf[2] & (1U<<6))? JOY_L3 : 0) |
+		((buf[2] & (1U<<7))? JOY_R3 : 0) |
+		((buf[3] & (1U<<0))? JOY_L : 0) |
+		((buf[3] & (1U<<1))? JOY_R : 0) |
+		((buf[3] & (1U<<4))? JOY_A : 0) |
+		((buf[3] & (1U<<5))? JOY_B : 0) |
+		((buf[3] & (1U<<6))? JOY_X : 0) |
+		((buf[3] & (1U<<7))? JOY_Y : 0) ;
 
-	// Handle analogue parts (discard low order byte)
+	// Handle triggers
+	if(buf[4] > JOYSTICK_AXIS_MID) buttons |= JOY_L2;
+	if(buf[5] > JOYSTICK_AXIS_MID) buttons |= JOY_R2;
+
+	// Handle left and right stick (discard low order byte)
 	uint8_t jmap = 0;
 	if(((buf[7]+128) & 0xFF) < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
 	if(((buf[7]+128) & 0xFF) > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
@@ -165,10 +183,10 @@ static void usb_xbox_read_report(usb_device_t *dev, uint16_t len, uint8_t *buf) 
 	buttons |= jmap;
 
 	jmap = 0;
-	if((buf[11]+128) < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
-	if((buf[11]+128) > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
-	if((buf[13]+128) < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_DOWN;
-	if((buf[13]+128) > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_UP;
+	if(((buf[11]+128) & 0xFF) < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
+	if(((buf[11]+128) & 0xFF) > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
+	if(((buf[13]+128) & 0xFF) < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_DOWN;
+	if(((buf[13]+128) & 0xFF) > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_UP;
 	buttons |= (jmap << 16);
 
 	uint32_t vjoy = virtual_joystick_mapping(dev->vid, dev->pid, buttons);
@@ -176,11 +194,12 @@ static void usb_xbox_read_report(usb_device_t *dev, uint16_t len, uint8_t *buf) 
 	vjoy |= (jmap << 16);
 
 	uint8_t idx = dev->xbox_info.jindex;
-	StateUsbIdSet(dev->vid, dev->pid, 8, idx);
+	StateUsbIdSet(dev->vid, dev->pid, 12, idx);
 	StateUsbJoySet(buttons, buttons>>8, idx);
 	StateJoySet(vjoy, idx);
 	StateJoySetExtra(vjoy>>8, idx);
-	StateJoySetAnalogue( buf[7], buf[9], buf[11], buf[13], idx );
+	StateJoySetAnalogue(buf[7], buf[9], buf[11], buf[13], idx);
+	StateJoySetRight(jmap, idx);
 
 	// swap joystick 0 and 1 since 1 is the one.
 	// used primarily on most systems (most = Amiga and ST...need to get rid of this)
