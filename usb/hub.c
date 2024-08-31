@@ -2,6 +2,7 @@
 
 #include "usb.h"
 #include "timer.h"
+#include "max3421e.h"
 
 static uint8_t usb_hub_clear_hub_feature(usb_device_t *dev, uint8_t fid )  {
   return( usb_ctrl_req( dev, USB_HUB_REQ_CLEAR_HUB_FEATURE, 
@@ -242,9 +243,21 @@ static uint8_t usb_hub_port_status_change(usb_device_t *dev, uint8_t port, hub_e
     usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_RESET, port, 0);
     usb_hub_clear_port_feature(dev, HUB_FEATURE_C_PORT_CONNECTION, port, 0);
 
-    rcode = usb_configure(dev->bAddress, port,
+    for(unsigned retries = 0; retries < 3; retries++) {
+      rcode = usb_configure(dev->bAddress, port,
         (evt.bmStatus & USB_HUB_PORT_STATUS_PORT_LOW_SPEED)!=0 );
-    if (rcode) iprintf("USB configure error: %d\n", rcode);
+      if (!rcode)
+        break;
+      iprintf("USB configure error: %d\n", rcode);
+      if (rcode == hrJERR) {
+        // Some devices returns this when plugged in - trying to initialize the device again usually works
+        timer_delay_msec(100);
+        continue;
+      }
+      else {
+        break;
+      }
+    }
 
     bResetInitiated = false;
     break;
