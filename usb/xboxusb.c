@@ -229,6 +229,7 @@ static void usb_xbox_read_report(usb_device_t *dev, uint16_t len, uint8_t *buf) 
 	StateJoySetExtra(vjoy>>8, idx);
 	StateJoySetAnalogue(buf[7], buf[9], buf[11], buf[13], idx);
 	StateJoySetRight(jmap, idx);
+	StateJoySetMenu((buf[3] & (1U<<2)), idx);
 
 	// swap joystick 0 and 1 since 1 is the one.
 	// used primarily on most systems (most = Amiga and ST...need to get rid of this)

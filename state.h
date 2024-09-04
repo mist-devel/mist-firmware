@@ -17,6 +17,7 @@ typedef struct {
 	uint8_t  usb_state;				// raw USB state of direction and buttons
 	uint8_t  usb_state_extra; // raw USB state of 8 more buttons
 	uint8_t  analogue[4];
+	uint8_t  menu_button;
 	
 } mist_joystick_t;
 
@@ -52,6 +53,11 @@ uint8_t StateJoyGetAnalogue(uint8_t idx, uint8_t joy_num);
 uint8_t StateNumJoysticks();
 void StateNumJoysticksSet(uint8_t num);
 
+void StateJoySetMenu(uint8_t c, uint8_t joy_num);
+uint8_t StateJoyGetMenu(uint8_t joy_num);
+uint8_t StateJoyGetMenuAny();
+
+
 // keyboard status
 void StateKeyboardSet( uint8_t modifier, uint8_t* pressed, uint16_t* pressed_ps2); //get usb and ps2 codes
 uint8_t StateKeyboardModifiers();
@@ -59,4 +65,3 @@ void StateKeyboardPressed(uint8_t *pressed);
 void StateKeyboardPressedPS2(uint16_t *keycodes);
 
 #endif
-
