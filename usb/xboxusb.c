@@ -34,9 +34,12 @@
 #include "user_io.h"
 #include "debug.h"
 
-#if 0
+
 static uint8_t usb_xbox_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len) {
 	uint8_t rcode;
+	bool isGoodInterface = false;
+	int initedEpCount = 0;
+	usb_xbox_info_t *info = &dev->xbox_info;
 
 	union buf_u {
 	    usb_configuration_descriptor_t conf_desc;
@@ -46,8 +49,7 @@ static uint8_t usb_xbox_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len
 	} buf, *p;
 
 	// usb_interface_descriptor
-
-	if(rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc)) 
+	if(rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc))
 		return rcode;
 
 	/* scan through all descriptors */
@@ -60,14 +62,39 @@ static uint8_t usb_xbox_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len
 
 			case USB_DESCRIPTOR_INTERFACE:
 				usb_dump_interface_descriptor(&p->iface_desc);
+				if (p->iface_desc.bInterfaceClass == XBOX_INTERFACE_CLASS &&
+						p->iface_desc.bInterfaceSubClass == XBOX_INTERFACE_SUBCLASS &&
+						p->iface_desc.bInterfaceProtocol == XBOX_INTERFACE_PROTOCOL)
+					isGoodInterface = true;
+				else
+					isGoodInterface = false;
 				break;
 
 			case USB_DESCRIPTOR_ENDPOINT:
 				usb_dump_endpoint_descriptor(&p->ep_desc);
+				if (isGoodInterface) {
+					if ((p->ep_desc.bmAttributes & EP_TYPE_MSK) == EP_TYPE_INTR && (p->ep_desc.bEndpointAddress & 0x80) == 0x80) {
+						usb_debugf("in ep %d, interval = %dms", p->ep_desc.bEndpointAddress & 0x0F, p->ep_desc.bInterval);
+						dev->xbox_info.interval = p->ep_desc.bInterval;
+						dev->xbox_info.inEp.epAddr = p->ep_desc.bEndpointAddress & 0x0F;
+						dev->xbox_info.inEp.epType = p->ep_desc.bmAttributes & EP_TYPE_MSK;
+						dev->xbox_info.inEp.maxPktSize = p->ep_desc.wMaxPacketSize[0];
+						dev->xbox_info.inEp.bmNakPower = USB_NAK_NOWAIT;
+						initedEpCount++;
+					}
+					else if ((p->ep_desc.bmAttributes & EP_TYPE_MSK) == EP_TYPE_INTR && (p->ep_desc.bEndpointAddress & 0x80) == 0x00) {
+						usb_debugf("out ep %d", p->ep_desc.bEndpointAddress & 0x0F);
+						dev->xbox_info.outEp.epAddr = p->ep_desc.bEndpointAddress & 0x0F;
+						dev->xbox_info.outEp.epType = p->ep_desc.bmAttributes & EP_TYPE_MSK;
+						dev->xbox_info.outEp.maxPktSize = p->ep_desc.wMaxPacketSize[0];
+						dev->xbox_info.outEp.bmNakPower = USB_NAK_NOWAIT;
+						initedEpCount++;
+					}
+				}
 				break;
 
 			default:
-				hid_debugf("unsupported descriptor type %d size %d", p->raw[1], p->raw[0]);
+				usb_debugf("unsupported descriptor type %d size %d", p->raw[1], p->raw[0]);
 		}
 
 		// advance to next descriptor
@@ -75,14 +102,15 @@ static uint8_t usb_xbox_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len
 		p = (union buf_u*)(p->raw + p->conf_desc.bLength);
 	}
 
-	if(len != 0) {
-		hid_debugf("Config underrun: %d", len);
-		return USB_ERROR_CONFIGURAION_SIZE_MISMATCH;
+	if (len != 0) {
+		usb_debugf("Config underrun: %d", len);
+		return USB_ERROR_CONFIGURATION_SIZE_MISMATCH;
 	}
-
+	if (initedEpCount != 2) {
+		return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
+	}
 	return 0;
 }
-#endif
 
 uint8_t usb_xbox_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc) {
 	uint8_t rcode;
@@ -113,27 +141,28 @@ uint8_t usb_xbox_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc) {
 		return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
 	}
 
+	memset(&dev->xbox_info, 0, sizeof(dev->xbox_info));
+
 	if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), 0, &conf_desc))
 		return rcode;
-
 	usb_dump_conf_descriptor(&conf_desc);
-
-	// Skip parsing the interface and endpoint descriptors, and use known values */
-	//usb_xbox_parse_conf(dev, 0, buf.conf_desc.wTotalLength);
-	dev->xbox_info.interval = 4;
-	dev->xbox_info.inEp.epAddr = 0x01;
-	dev->xbox_info.inEp.epType = EP_TYPE_INTR;
-	dev->xbox_info.inEp.maxPktSize = XBOX_EP_MAXPKTSIZE;
-	dev->xbox_info.inEp.bmNakPower = USB_NAK_NOWAIT;
-	dev->xbox_info.inEp.bmSndToggle = 0;
-	dev->xbox_info.inEp.bmRcvToggle = 0;
-	dev->xbox_info.qLastPollTime = 0;
+	if(rcode = usb_xbox_parse_conf(dev, 0, conf_desc.wTotalLength)) {
+		iprintf("XBOX: invalid configuration (%d)\n", rcode);
+		return rcode;
+	}
 
 	// Set Configuration Value
 	if(rcode = usb_set_conf(dev, conf_desc.bConfigurationValue)) {
 		iprintf("XBOX: error setting conf value (%d)\n", rcode);
 		return rcode;
 	}
+
+	// Some controllers (like 8bitdo usb wireless adapter 2) require this message to finish initialization
+	uint8_t led_cmd[] = {0x01, 0x03, 0x02}; // led command: 1 flashes, then on
+	if(rcode = usb_out_transfer(dev, &dev->xbox_info.outEp, sizeof(led_cmd), led_cmd)) {
+		iprintf("XBOX: error sending led_cmd message (%d)\n", rcode);
+	}
+
 	usb_debugf("add xbox joystick #%d", joystick_count());
 	dev->xbox_info.jindex = joystick_add();
 	dev->xbox_info.bPollEnable = true;
