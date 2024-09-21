@@ -26,8 +26,6 @@
 #include "utils.h"
 #include "debug.h"
 
-//#define HDMITX_REG_DEBUG
-
 #define OS_PRINTF iprintf
 #define ErrorF hdmi_debugf
 #define printf iprintf

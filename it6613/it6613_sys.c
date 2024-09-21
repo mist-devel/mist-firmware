@@ -103,7 +103,7 @@ HDMITX_SetOutput()
         }
     }
     SetAVMute(FALSE) ;
-    DumpCatHDMITXReg();
+    if (HDMITX_isdebug()) DumpCatHDMITXReg();
     bChangeMode = FALSE ;
 }
 

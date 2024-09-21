@@ -123,12 +123,6 @@ static void DISABLE_SPD_INFOFRM_PKT() ;
 static void DISABLE_MPG_INFOFRM_PKT() ;
 static BYTE countbit(BYTE b) ;
 
-#ifdef HDMITX_REG_DEBUG
-static void DumpCatHDMITXReg() ;
-#endif // DEBUG
-
-
-
 
 
 //////////////////////////////////////////////////////////////////////
@@ -516,9 +510,6 @@ BOOL EnableAudioOutput(ULONG VideoPixelClock,BYTE bAudioSampleFreq,BYTE ChannelN
     //HDMITX_AndREG_Byte(REG_TX_SW_RST,~(B_AUD_RST|B_AREF_RST)) ;
     SetAudioFormat(ChannelNumber,bAudioChannelEnable,bAudioSampleFreq,bAudSWL,bSPDIF) ;
 
-    #ifdef HDMITX_REG_DEBUG
-    DumpCatHDMITXReg() ;
-    #endif // HDMITX_REG_DEBUG
     return TRUE ;
 }
 

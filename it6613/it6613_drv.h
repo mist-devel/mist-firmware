@@ -849,4 +849,6 @@ SYS_STATUS HDMITX_WriteI2C_Byte(BYTE RegAddr,BYTE val);
 SYS_STATUS HDMITX_ReadI2C_ByteN(BYTE RegAddr,BYTE *pData,int N);
 SYS_STATUS HDMITX_WriteI2C_ByteN(BYTE RegAddr,BYTE *pData,int N);
 
+char HDMITX_isdebug();
+
 #endif // _IT6613_H_
