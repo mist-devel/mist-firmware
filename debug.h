@@ -161,6 +161,13 @@
 #define psx_debugf(...)
 #endif
 
+#if 0
+// SNES debug output
+#define snes_debugf(a, ...) iprintf("\033[1;34mSNES : " a "\033[0m\n",## __VA_ARGS__)
+#else
+#define snes_debugf(...)
+#endif
+
 #if 1
 // HDMI debug output
 #define hdmi_debugf(a, ...) iprintf("\033[1;34mHDMI : " a "\033[0m",## __VA_ARGS__)

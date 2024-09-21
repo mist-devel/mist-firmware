@@ -28,6 +28,7 @@
 #include "data_io.h"
 #include "fat_compat.h"
 #include "cue_parser.h"
+#include "snes.h"
 
 extern char s[FF_LFN_BUF + 1];
 
@@ -39,6 +40,7 @@ extern char fs_pFileExt[13];
 /////// 8-bit menu ///////
 //////////////////////////
 static unsigned char selected_drive_slot;
+static unsigned char isSnesROM;
 
 
 static void substrcpy(char *d, char *s, char idx) {
@@ -116,9 +118,11 @@ static unsigned long long getStatusMask(char *opt) {
 
 static char RomFileSelected(uint8_t idx, const char *SelectedName) {
 	FIL file;
+	char snes_romtype;
 	// this assumes that further file entries only exist if the first one also exists
 	if (f_open(&file, SelectedName, FA_READ) == FR_OK) {
-		data_io_file_tx(&file, user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | selected_drive_slot, GetExtension(SelectedName));
+		if (isSnesROM) snes_romtype = snes_getromtype(&file);
+		data_io_file_tx(&file, (isSnesROM ? snes_romtype : user_io_ext_idx(SelectedName, fs_pFileExt))<<6 | selected_drive_slot, GetExtension(SelectedName));
 		f_close(&file);
 	}
 	// close menu afterwards
@@ -192,6 +196,7 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 				strncpy(ext, p, 13);
 				while(strlen(ext) < 3) strcat(ext, " ");
 				selected_drive_slot = 1;
+				isSnesROM = 0;
 				SelectFileNG(ext, SCAN_DIR | SCAN_LFN, RomFileSelected, 1);
 			} else if (action == MENU_ACT_GET) {
 				//menumask = 1;
@@ -244,6 +249,8 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 				iscue = 1;
 			}
 			if (p[1]>='0' && p[1]<='9') selected_drive_slot = p[1]-'0';
+			isSnesROM = 0;
+			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "SNES", 4)) isSnesROM = 1; // F1SNES
 			substrcpy(ext, p, 1);
 			while(strlen(ext) < 3) strcat(ext, " ");
 			SelectFileNG(ext, SCAN_DIR | SCAN_LFN, (p[0] == 'F')?RomFileSelected:iscue?CueFileSelected:ImageFileSelected, 1);
