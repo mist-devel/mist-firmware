@@ -50,6 +50,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "menu-8bit.h"
 #include "settings.h"
 #include "usb.h"
+#include "usbdev.h"
 #ifdef CONFIG_HAVE_ETH
 #include "eth.h"
 #endif
