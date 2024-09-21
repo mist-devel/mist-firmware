@@ -284,6 +284,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 							return true;
 						else {
 							// retry with next report
+							memset(conf, 0, sizeof(*conf));
 							bit_count = 0;
 							report_complete = 0;
 						}
@@ -362,6 +363,19 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 					break;
 
 				case 8:
+					// Next report is beginning from this point
+					// If we're already got report descriptor and it's satisfies us - stop further parsing
+					if (conf->report_id) {
+						if(report_is_usable(bit_count, report_complete, conf)) {
+							return true;
+						}
+						else {
+							// reset report items and try with next report
+							memset(conf, 0, sizeof(*conf));
+							bit_count = 0;
+							report_complete = 0;
+						}
+					}
 					hidp_extreme_debugf("REPORT_ID(%d)", value);
 					conf->report_id = value;
 					break;

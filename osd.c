@@ -40,6 +40,7 @@ This is the Minimig OSD (on-screen-display) handler.
 #include "spi.h"
 
 #include "logo.h"
+#include "state.h"
 #include "user_io.h"
 
 extern unsigned char charfont[128][8];
@@ -590,7 +591,7 @@ unsigned char OsdGetCtrl(void)
     if(!c) {
       static unsigned char last_but = 0;
         if(!disable_menu) {
-          unsigned char but = CheckButton();
+          unsigned char but = CheckButton() || StateJoyGetMenuAny();
           if(!but && last_but) c = KEY_MENU;
           last_but = but;
         } else {

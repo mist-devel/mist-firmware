@@ -24,13 +24,10 @@
 #ifndef _xboxusb_h_
 #define _xboxusb_h_
 
-/* Data Xbox 360 taken from descriptors */
-#define XBOX_EP_MAXPKTSIZE       32 // max size for data via USB
-
-/* Names we give to the 3 Xbox360 pipes */
-#define XBOX_CONTROL_PIPE    0
-#define XBOX_INPUT_PIPE      1
-#define XBOX_OUTPUT_PIPE     2
+// Data Xbox 360 taken from descriptors
+#define XBOX_INTERFACE_CLASS     0xff
+#define XBOX_INTERFACE_SUBCLASS  0x5D
+#define XBOX_INTERFACE_PROTOCOL  0x01
 
 // PID and VID of the different devices
 #define XBOX_VID                                0x045E // Microsoft Corporation
@@ -57,6 +54,7 @@ typedef struct {
 	uint32_t oldButtons;
 	uint32_t qLastPollTime;  // next poll time
 	ep_t     inEp;
+  ep_t     outEp;
 	uint16_t jindex;
 } usb_xbox_info_t;
 

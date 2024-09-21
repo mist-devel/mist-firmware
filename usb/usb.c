@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "timer.h"
 #include "usb.h"
@@ -52,20 +53,16 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 	if(i < USB_NUMDEVICES) {
 		iprintf("using free entry at %d\n", i);
 
-		usb_device_t *d = dev+i;
+		usb_device_t *d = &dev[i];
+		memset(d, 0, sizeof(*d));
 
 		// setup generic info
-		d->bAddress = 0;
 		d->parent = parent;
 		d->lowspeed = lowspeed;
 		d->port = port;
-		d->class = NULL;
-		d->vid = d->pid = 0;
 
 		// setup endpoint 0
-		d->ep0.epAddr     = 0;
 		d->ep0.maxPktSize = 8;
-		d->ep0.epAttribs  = 0;
 		d->ep0.bmNakPower = USB_NAK_MAX_POWER;
 
 		if(rcode = usb_get_dev_descr( d, 8, &dev_desc ))

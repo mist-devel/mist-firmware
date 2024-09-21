@@ -423,8 +423,15 @@ static uint8_t usb_hid_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
 			}
 		}
 		rcode = hid_set_idle(dev, info->iface[i].iface_idx, 0, 0);
-		if (rcode && rcode != hrSTALL)
+		if (rcode && rcode != hrSTALL) {
+			hid_debugf("set idle error %d", rcode);
+			if(info->iface[i].device_type == HID_DEVICE_JOYSTICK) {
+				uint8_t c_jindex = joystick_index(info->iface[i].jindex);
+				hid_debugf("releasing joystick #%d, renumbering", c_jindex);
+				joystick_release(c_jindex);
+			}
 			return rcode;
+		}
 
 		// enable boot mode if its not diabled
 		if(info->iface[i].has_boot_mode && !info->iface[i].ignore_boot_mode) {
@@ -893,7 +900,10 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 			if (timer_check(iface->qLastPollTime, iface->interval)) { // poll at requested rate
 			//      hid_debugf("poll %d...", iface->ep.epAddr);
 				uint16_t read = iface->ep.maxPktSize;
-				uint8_t buf[iface->ep.maxPktSize];
+				// report may not fit into one packet
+				if (iface->conf.report_size > read)
+					read = iface->conf.report_size;
+				uint8_t buf[read];
 				// clear buffer
 				memset(buf, 0, iface->ep.maxPktSize);
 				uint8_t rcode = usb_in_transfer(dev, &(iface->ep), &read, buf);

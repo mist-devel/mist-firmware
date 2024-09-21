@@ -40,7 +40,8 @@ static mist_joystick_t mist_joystick_temp;
 	.right=0, \
 	.usb_state=0, \
 	.usb_state_extra=0, \
-	.analogue={0,0,0,0} \
+	.analogue={0,0,0,0}, \
+	.menu_button=0, \
 	}
 
 /* latest joystick state */
@@ -64,6 +65,7 @@ void StateReset() {
 		StateJoySetExtra(0, idx);
 		StateJoySetRight(0, idx);
 		StateJoySetAnalogue(0, 0, 0, 0, idx);
+		StateJoySetMenu(0, idx);
 		StateUsbIdSet(0, 0, 0, idx);
 		StateUsbJoySet(0, 0, idx);
 	}
@@ -91,6 +93,11 @@ void StateJoySetAnalogue(uint8_t lx, uint8_t ly, uint8_t rx, uint8_t ry, uint8_t
 	mist_joysticks[joy_num].analogue[2] = rx;
 	mist_joysticks[joy_num].analogue[3] = ry;
 }
+static uint8_t mist_joystick_menu;
+void StateJoySetMenu(uint8_t c, uint8_t joy_num) {
+	if (joy_num > 5) return;
+	mist_joysticks[joy_num].menu_button = c;
+}
 
 uint8_t StateJoyGet(uint8_t joy_num) {
   return (joy_num < 6) ? mist_joysticks[joy_num].state : 0;
@@ -104,6 +111,18 @@ uint8_t StateJoyGetRight(uint8_t joy_num) {
 uint8_t StateJoyGetAnalogue(uint8_t idx, uint8_t joy_num) {
 	return (joy_num < 6 && idx < 4) ? mist_joysticks[joy_num].analogue[idx] : 0;
 }
+uint8_t StateJoyGetMenu(uint8_t joy_num) {
+	return (joy_num < 6) ? mist_joysticks[joy_num].menu_button : 0;
+}
+uint8_t StateJoyGetMenuAny() {
+	uint8_t joy_num;
+	for(joy_num=0; joy_num<6; joy_num++) {
+		if (mist_joysticks[joy_num].menu_button)
+			return mist_joysticks[joy_num].menu_button;
+	}
+	return 0;
+}
+
 
 
 void StateUsbJoySet(uint8_t usbjoy, uint8_t usbextra, uint8_t joy_num) {
@@ -191,4 +210,3 @@ void StateKeyboardPressed(uint8_t *keycodes) {
 	for(i=0; i<6; i++) 
 		keycodes[i]=key_pressed[i];
 }
-
