@@ -2220,6 +2220,7 @@ static void keyrah_trans(unsigned char *m, unsigned char *k)
 
 void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned short vid, unsigned short pid)
 {
+	static char caps=0;
 	// ignore lower priority clears if higher priority key was pressed
 	if(m==0 && (k[0] + k[1] + k[2] + k[3] + k[4] + k[5])==0)
 	{
@@ -2237,24 +2238,65 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 		//  key  LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
 		//       1     2      4    8    10    20     40   80
 		unsigned char m_in = m;
-		// swap RALT/RGUI & LALT/LGUI
-		m = ((m & 0x40) << 1) | ((m & 0x80) >> 1) | m & 0x20 | m & 0x10 | ((m & 0x8) >> 1) | ((m & 0x4) << 1) | m & 0x2;
-		// swap CAPSLOCK/LCTRL
+		switch(mist_cfg.amiga_mod_keys) {
+			case 1:
+				// swap RALT/RGUI & LALT/LGUI
+				m = ((m & 0x40) << 1) | ((m & 0x80) >> 1) | m & 0x20 | m & 0x10 | ((m & 0x8) >> 1) | ((m & 0x4) << 1) | m & 0x2;			
+				break;
+			case 2:
+				// swap RGUI/RCTRL & LGUI/CTRL
+				m = ((m & 0x10) << 3) | ((m & 0x80) >> 3) | m & 0x20 | m & 0x40 | ((m & 0x8) >> 3) | ((m & 0x1) << 3) | m & 0x2 | m & 0x4;
+				break;
+			case 3:
+				// Map Alt to GUI, Ctrl to Alt, GUI to Ctrl
+				m = ((m & 0x10) << 2) | ((m & 0x80) >> 3) | (m & 0x20) | ((m & 0x40) << 1) | ((m & 0x8) >> 3) | ((m & 0x1) << 2) | (m & 0x2) | ((m & 0x4) << 1) ;
+				break;
+			default:
+				break;
+		}
+	
+		// CAPSLOCK/LCTRL mapping
+		// First map Caps Lock to L Ctrl
 		for(char i=0;i<6;i++) {
 			if(k[i] == 0x39) {
 				m |= 0x1;
 				k[i] = 0;
-			}
-			if(m_in & 0x1) {
-				if(i<5) {
-					if(k[i] == 0) {
-						k[i] = 0x39;
-						m_in &= ~0x1;
+				caps|=0x07;
+			} else if (k[i]) /* any other (non-qualifier) key pressed? */
+				caps|=0x80;
+		}
+
+		switch(mist_cfg.amiga_mod_keys) {
+			case 1:	// Map L Ctrl to Caps Lock
+				if(m_in & 0x1) {
+					for(char i=0;i<6;i++) {
+						if(k[i] == 0) {
+							k[i] = 0x39;
+							break;
+						}
 					}
-				} else {
-					k[i] = 0x39;
 				}
-			}
+				break;
+			case 2:
+			case 3:
+				// If Caps Lock is pressed and released with no other key events in between, generate a Caps Lock keypress.
+				// (In modern keyboard firmware parlance, the Caps Lock key has "mod-tap")
+				if(!(m & 0x01)) { // is Caps Lock (afer mapping to L Ctrl) no longer pressed?
+					for(char i=0;i<6;++i) {
+						if(k[i] == 0) { // We have an empty slot in the key report
+							if(caps&0x80) // Were other (non-modfier) keys were pressed before capslock was released?
+								caps=0;
+							else if(caps) {
+								k[i]=0x39;
+								--caps;
+							}
+							break;
+						}
+					}
+				}
+				break;
+			default:
+				break;
 		}
 	}
 
