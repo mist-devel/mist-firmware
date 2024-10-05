@@ -1234,7 +1234,7 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
   // Read Sectors (0x20)
   long lba;
   int i;
-  int block_count;
+  int block_count, blocks;
 
   lba=chs2lba(cylinder, head, sector, unit, lbamode);
   hdd_debugf("IDE%d: read %s, %d.%d.%d:%d, %d", unit, (lbamode ? "LBA" : "CHS"), cylinder, head, sector, lba, sector_count);
@@ -1327,7 +1327,7 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
             FileReadBlockEx(&hdf[unit].idxfile->file, 0, blk); // NULL enables direct transfer to the FPGA
           } else {
 #endif
-            int blocks = blk;
+            blocks = blk;
             while (blocks) {
               FileReadBlockEx(&hdf[unit].idxfile->file, sector_buffer, MIN(blocks, SECTOR_BUFFER_SIZE/512));
               if (!verify) {
@@ -1370,7 +1370,7 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
           lba+=block_count;
         } else {
 #endif
-          int blocks = block_count;
+          blocks = block_count;
           while (blocks) {
             disk_read(fs.pdrv, sector_buffer, lba+hdf[unit].offset, MIN(blocks, SECTOR_BUFFER_SIZE/512));
             if (!verify) {
