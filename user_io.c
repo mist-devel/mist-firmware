@@ -734,7 +734,7 @@ static uint8_t joystick_renumber(uint8_t j) {
 		// if one usb joystick is present, then physical joystick 1 (joystick port)
 		// becomes physical joystick 0 (mouse) port. If more than 1 usb joystick
 		// is present it becomes 2,3,...
-		if(usb_sticks == 1) j = 0;
+		if(usb_sticks == 1) j = mist_cfg.joystick_disable_swap? 1 : 0;
 		else                j = usb_sticks;
 	}
 
