@@ -333,22 +333,22 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 
 				case 1:
 					hidp_extreme_debugf("LOGICAL_MINIMUM(%d/%d)", value, (int16_t)value);
-					if (!skip_report) logical_minimum = value;
+					logical_minimum = value;
 					break;
 
 				case 2:
 					hidp_extreme_debugf("LOGICAL_MAXIMUM(%d)", value);
-					if (!skip_report) logical_maximum = value;
+					logical_maximum = value;
 					break;
 
 				case 3:
 					hidp_extreme_debugf("PHYSICAL_MINIMUM(%d/%d)", value, (int16_t)value);
-					if (!skip_report) physical_minimum = value;
+					physical_minimum = value;
 					break;
 
 				case 4:
 					hidp_extreme_debugf("PHYSICAL_MAXIMUM(%d)", value);
-					if (!skip_report) physical_maximum = value;
+					physical_maximum = value;
 					break;
 
 				case 5:
@@ -361,7 +361,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 
 				case 7:
 					hidp_extreme_debugf("REPORT_SIZE(%d)", value);
-					if (!skip_report) report_size = value;
+					report_size = value;
 					break;
 
 				case 8:
@@ -386,7 +386,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 
 				case 9:
 					hidp_extreme_debugf("REPORT_COUNT(%d)", value);
-					if (!skip_report) report_count = value;
+					report_count = value;
 					break;
 
 				default:
