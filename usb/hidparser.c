@@ -371,6 +371,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 					if (conf->report_id) {
 						if(report_is_usable(bit_count, report_complete, conf)) {
 							skip_report = (conf->report_id == value) ? 0 : 1;
+							if (skip_report) hidp_extreme_debugf(" -> skip report %d", value);
 							break;
 						}
 						else if (skip_report) {
@@ -462,17 +463,17 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 						//    return false;
 					}
 
-					usage_count++;
+					if (!skip_report) usage_count++;
 					break;
 
 				case 1:
 					hidp_extreme_debugf("USAGE_MINIMUM(%d)", value);
-					usage_count -= (value-1);
+					if (!skip_report) usage_count -= (value-1);
 					break;
 
 				case 2:
 					hidp_extreme_debugf("USAGE_MAXIMUM(%d)", value);
-					usage_count += value;
+					if (!skip_report) usage_count += value;
 					break;
 
 				default:
