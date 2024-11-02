@@ -52,7 +52,7 @@ void data_io_file_tx_done(void) {
 // TRANSMIT FILE TO FPGA //
 ///////////////////////////
 
-static void data_io_file_tx_prepare(FIL *file, char index, const char *ext) {
+void data_io_file_tx_prepare(FIL *file, char index, const char *ext) {
   char e[3];
   iprintf("Preparing transmission for index %d\n", index);
 

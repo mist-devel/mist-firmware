@@ -29,6 +29,7 @@
 #include "fat_compat.h"
 #include "cue_parser.h"
 #include "snes.h"
+#include "zx_col.h"
 
 extern char s[FF_LFN_BUF + 1];
 
@@ -39,9 +40,10 @@ extern char fs_pFileExt[13];
 //////////////////////////
 /////// 8-bit menu ///////
 //////////////////////////
-static unsigned char selected_drive_slot;
-static unsigned char isSnesROM;
+typedef enum _RomType {ROM_NORMAL, ROM_SNES, ROM_ZXCOL, ROM_ZXCHR} RomType;
 
+static unsigned char selected_drive_slot;
+static RomType romtype;
 
 static void substrcpy(char *d, char *s, char idx) {
 	char p = 0;
@@ -118,11 +120,31 @@ static unsigned long long getStatusMask(char *opt) {
 
 static char RomFileSelected(uint8_t idx, const char *SelectedName) {
 	FIL file;
-	char snes_romtype;
+	char ext_idx = user_io_ext_idx(SelectedName, fs_pFileExt);
+
 	// this assumes that further file entries only exist if the first one also exists
 	if (f_open(&file, SelectedName, FA_READ) == FR_OK) {
-		if (isSnesROM) snes_romtype = snes_getromtype(&file);
-		data_io_file_tx(&file, (isSnesROM ? snes_romtype : user_io_ext_idx(SelectedName, fs_pFileExt))<<6 | selected_drive_slot, GetExtension(SelectedName));
+		if (romtype == ROM_ZXCOL || romtype == ROM_ZXCHR) {
+			if (romtype == ROM_ZXCOL && !zx_col_load(&file, sector_buffer)) {
+				ErrorMessage("\n   Error parsing COL file!\n", 0);
+				f_close(&file);
+				return 0;
+			} else if (romtype == ROM_ZXCHR && !zx_chr_load(&file, sector_buffer)) {
+				ErrorMessage("\n   Error parsing CHR file!\n", 0);
+				f_close(&file);
+				return 0;
+			} else {
+				data_io_file_tx_prepare(&file, ext_idx << 6 | selected_drive_slot, GetExtension(SelectedName));
+				EnableFpga();
+				SPI(DIO_FILE_TX_DAT);
+				spi_write(sector_buffer, 1024+(romtype == ROM_ZXCOL ? 1 : 0));
+				DisableFpga();
+				data_io_file_tx_done();
+			}
+		} else {
+			if (romtype == ROM_SNES) ext_idx = snes_getromtype(&file);
+			data_io_file_tx(&file, ext_idx << 6 | selected_drive_slot, GetExtension(SelectedName));
+		}
 		f_close(&file);
 	}
 	// close menu afterwards
@@ -196,7 +218,7 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 				strncpy(ext, p, 13);
 				while(strlen(ext) < 3) strcat(ext, " ");
 				selected_drive_slot = 1;
-				isSnesROM = 0;
+				romtype = ROM_NORMAL;
 				SelectFileNG(ext, SCAN_DIR | SCAN_LFN, RomFileSelected, 1);
 			} else if (action == MENU_ACT_GET) {
 				//menumask = 1;
@@ -249,8 +271,10 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 				iscue = 1;
 			}
 			if (p[1]>='0' && p[1]<='9') selected_drive_slot = p[1]-'0';
-			isSnesROM = 0;
-			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "SNES", 4)) isSnesROM = 1; // F1SNES
+			romtype = ROM_NORMAL;
+			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "SNES", 4)) romtype = ROM_SNES; // F1SNES
+			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "ZXCOL", 5)) romtype = ROM_ZXCOL; // F2ZXCOL
+			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "ZXCHR", 5)) romtype = ROM_ZXCHR; // F3ZXCHR
 			substrcpy(ext, p, 1);
 			while(strlen(ext) < 3) strcat(ext, " ");
 			SelectFileNG(ext, SCAN_DIR | SCAN_LFN, (p[0] == 'F')?RomFileSelected:iscue?CueFileSelected:ImageFileSelected, 1);

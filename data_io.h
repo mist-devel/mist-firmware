@@ -16,6 +16,7 @@
 #define DIO_FILE_RX     0x57
 #define DIO_FILE_RX_DAT 0x58
 
+void data_io_file_tx_prepare(FIL *file, char index, const char *ext);
 void data_io_set_index(char index);
 void data_io_file_tx_start();
 void data_io_file_tx_done();
