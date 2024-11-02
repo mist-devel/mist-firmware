@@ -1,6 +1,8 @@
 /*---------------------------------------------------------------------------/
 /  FatFs Functional Configurations
 /---------------------------------------------------------------------------*/
+#include <stdio.h>
+#include "errors.h"
 #include "attrs.h"
 
 #define FFCONF_DEF	86631	/* Revision ID */
