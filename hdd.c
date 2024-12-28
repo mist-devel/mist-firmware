@@ -604,11 +604,12 @@ static void PKT_PlayAudioTrackIndex(unsigned char *cmd, unsigned char unit)
     cdrom_send_error(unit);
     return;
   }
-  if (starttrack > endtrack || starttrack >= toc.last || !starttrack || !endtrack || endtrack >= toc.last) {
+  if (starttrack > endtrack || starttrack > toc.last || !starttrack || !endtrack) {
     cdrom_setsense(SENSEKEY_ILLEGAL_REQUEST, 0x21, 0);
     cdrom_send_error(unit);
     return;
   }
+  if (endtrack > toc.last) endtrack = toc.last;
   PKT_PlayAudio(unit, toc.tracks[starttrack-1].start, toc.tracks[endtrack-1].end);
 }
 
