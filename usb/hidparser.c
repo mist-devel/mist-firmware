@@ -170,19 +170,20 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 					if(btns) {
 						if((conf->type == REPORT_TYPE_JOYSTICK) ||
 						   (conf->type == REPORT_TYPE_MOUSE)) {
-						// scan for up to four buttons
+							// scan for up to 12 buttons
 							char b;
-							for(b=0;b<12;b++) {
+							conf->joystick_mouse.button_count = 0;
+							for(b=0;b<MAX_BUTTONS;b++) {
 								if(report_count > b) {
-								uint16_t this_bit = bit_count+b;
+									uint16_t this_bit = bit_count+b*report_size;
 
 									hidp_debugf("BUTTON%d @ %d (byte %d, mask %d)", b, 
 										this_bit, this_bit/8, 1 << (this_bit%8));
 
 									conf->joystick_mouse.button[b].byte_offset = this_bit/8;
 									conf->joystick_mouse.button[b].bitmask = 1 << (this_bit%8);
+									conf->joystick_mouse.button_count++;
 								}
-								conf->joystick_mouse.button_count = report_count * report_size;
 							}
 
 							// we found at least one button which is all we want to accept this as a valid 

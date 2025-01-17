@@ -7,6 +7,7 @@
 #define REPORT_TYPE_JOYSTICK 3
 
 #define MAX_AXES 4
+#define MAX_BUTTONS 12
 
 // currently only joysticks are supported
 typedef struct {
@@ -28,7 +29,7 @@ typedef struct {
       struct {
 				uint8_t byte_offset;
 				uint8_t bitmask;
-      } button[12];             // 12 buttons max
+      } button[MAX_BUTTONS];          // 12 buttons max
 
       struct {
 				uint16_t offset;

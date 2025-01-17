@@ -392,7 +392,7 @@ static uint8_t usb_hid_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
 					  info->iface[i].conf.joystick_mouse.axis[k].logical.min,
 					  info->iface[i].conf.joystick_mouse.axis[k].logical.max);
 
-				for(k=0;k<4;k++)
+				for(k=0;k<info->iface[i].conf.joystick_mouse.button_count;k++)
 				  iprintf("Button%d: @%d/%d\n", k,
 				  info->iface[i].conf.joystick_mouse.button[k].byte_offset,
 				  info->iface[i].conf.joystick_mouse.button[k].bitmask);
