@@ -340,6 +340,27 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 		}
 	}
 
+	// check for Prof'I'le strings
+	if(p && (p[0] == 'I')) {
+		if (action == MENU_ACT_SEL || action == MENU_ACT_PLUS || action == MENU_ACT_MINUS) {
+			unsigned long long mask = 0, preset = 0;
+			substrcpy(s, p, 2);
+			preset = strtoll(s, NULL, 0);
+			substrcpy(s, p, 3);
+			mask = strtoll(s, NULL, 0);
+			menu_debugf("Option %s %llx %llx\n", p, preset, mask);
+			// change bit with reset
+			user_io_8bit_set_status(preset | UIO_STATUS_RESET, mask | UIO_STATUS_RESET);
+			// release reset
+			user_io_8bit_set_status(preset & ~UIO_STATUS_RESET, mask | UIO_STATUS_RESET);
+		} else if (action == MENU_ACT_GET) {
+			s[0] = ' ';
+			substrcpy(s+1, p, 1);
+		} else {
+			return 0;
+		}
+	}
+
 	// check for 'O'ption strings
 	if(p && (p[0] == 'O')) {
 		if(action == MENU_ACT_SEL) {
