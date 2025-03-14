@@ -26,6 +26,7 @@
 #include "menu-8bit.h"
 #include "user_io.h"
 #include "data_io.h"
+#include "hdd.h"
 #include "fat_compat.h"
 #include "cue_parser.h"
 #include "snes.h"
@@ -36,6 +37,8 @@ extern char s[FF_LFN_BUF + 1];
 // TODO: remove these extern hacks to private variables
 extern unsigned char menusub;
 extern char fs_pFileExt[13];
+extern hardfileTYPE  hardfiles[4];
+
 
 //////////////////////////
 /////// 8-bit menu ///////
@@ -155,8 +158,17 @@ static char RomFileSelected(uint8_t idx, const char *SelectedName) {
 static char ImageFileSelected(uint8_t idx, const char *SelectedName) {
 	// select image for SD card
 	iprintf("Image selected: %s\n", SelectedName);
-	data_io_set_index(user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | selected_drive_slot);
-	user_io_file_mount(SelectedName, selected_drive_slot);
+	if ((user_io_get_core_features() & (FEAT_IDE0 << (2*selected_drive_slot))) == (FEAT_IDE0_ATA << (2*selected_drive_slot))) {
+		iprintf("IDE %d: ATA Hard Disk\n", selected_drive_slot);
+		hardfiles[selected_drive_slot].enabled = HDF_FILE;
+		strncpy(hardfiles[selected_drive_slot].name, SelectedName, sizeof(hardfiles[0].name));
+		hardfiles[selected_drive_slot].name[sizeof(hardfiles[0].name)-1] = 0;
+		OpenHardfile(selected_drive_slot, false);
+		SendHDFCfg();
+	} else {
+		data_io_set_index(user_io_ext_idx(SelectedName, fs_pFileExt)<<6 | selected_drive_slot);
+		user_io_file_mount(SelectedName, selected_drive_slot);
+	}
 	CloseMenu();
 	return 0;
 }

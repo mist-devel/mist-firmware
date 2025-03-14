@@ -120,7 +120,7 @@ static uint32_t autofire_mask;
 static char autofire_joy;
 
 // ATA drives
-static hardfileTYPE  hardfiles[4];
+hardfileTYPE  hardfiles[4];
 
 static uint8_t i2c_flags;
 
