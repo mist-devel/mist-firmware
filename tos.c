@@ -1719,7 +1719,7 @@ static char tos_getmenuitem(uint8_t idx, char action, menu_item_t *item) {
 					if(tos_disk_is_inserted(idx-10))
 						tos_insert_disk(idx-10, NULL);
 					else
-						SelectFileNG("HD ", SCAN_LFN, tos_file_selected, 0);
+						SelectFileNG("IMGHD ", SCAN_LFN, tos_file_selected, 0);
 					break;
 
 				case 14: { // RAM
