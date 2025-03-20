@@ -725,7 +725,6 @@ static char GetMenuItem_Minimig(uint8_t idx, char action, menu_item_t *item) {
 				case 32: {
 					int _config_cpu = config.cpu & 0x3;
 					_config_cpu += 1;
-					if (_config_cpu==0x02) _config_cpu += 1;
 					config.cpu = (config.cpu & 0xfc) | (_config_cpu & 0x3);
 					ConfigCPU(config.cpu);
 					}

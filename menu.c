@@ -104,7 +104,7 @@ char DirEntryInfo[MAXDIRENTRIES][5]; // disk number info of dir entries
 char DiskInfo[5]; // disk number info of selected entry
 static char *SelectedName;
 
-const char *config_cpu_msg[] = {"68000 ", "68010", "-----","68020"};
+const char *config_cpu_msg[] = {"68000", "68010", "68EC020","68020"};
 const char *config_autofire_msg[] = {"\n\n        AUTOFIRE OFF", "\n\n        AUTOFIRE FAST", "\n\n       AUTOFIRE MEDIUM", "\n\n        AUTOFIRE SLOW"};
 const char *days[] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
