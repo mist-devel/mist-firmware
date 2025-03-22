@@ -60,7 +60,7 @@ extern unsigned char menusub;
 ////////////////////////////
 const char *config_memory_fast_txt()
 {
-  if (!(((config.cpu & 0x02) == 0x02) && ((config.memory >> 4 & 0x03) == 0x03)))
+  if (!(((config.cpu & 0x03) == 0x03) && ((config.memory >> 4 & 0x03) == 0x03)))
     return config_memory_fast_msg[config.memory >> 4 & 0x03];
   else
     return config_memory_fast_msg[(config.memory >> 4 & 0x03) + 1];
