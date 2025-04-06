@@ -259,9 +259,12 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 	if(p && (p[0] == 'P')) {
 		if (p[2] == ',') {
 		// 'P' is to open a submenu
-			s[0] = ' ';
-			substrcpy(s+1, p, 1);
-			item->newpage = getIdx(p);
+			if(action == MENU_ACT_GET || action == MENU_ACT_SEL) {
+				s[0] = ' ';
+				substrcpy(s+1, p, 1);
+				item->newpage = getIdx(p);
+			} else
+				return 0;
 		} else {
 			// 'P' is a prefix fo F,S,O,T,R
 			page = getIdx(p);
