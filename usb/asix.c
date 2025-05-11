@@ -323,6 +323,7 @@ static uint8_t asix_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len) {
     }
     
     // advance to next descriptor
+    if (!p->conf_desc.bLength || p->conf_desc.bLength > len) break;
     len -= p->conf_desc.bLength;
     p = (union buf_u*)(p->raw + p->conf_desc.bLength);
   }
