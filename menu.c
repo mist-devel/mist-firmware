@@ -409,7 +409,7 @@ static char KeyEvent_System(uint8_t key) {
 		uint16_t pid = StateUsbPidGet(joy_num);
 		if (key == KEY_F1) {
 			if (!setup_phase) {
-				if (vid && pid) setup_phase = 1; // start setup
+				if (vid) setup_phase = 1; // start setup
 				memset(&mapping, 0, sizeof(joymapping_t));
 			} else if (setup_phase >= 1 && setup_phase <= 16)
 				setup_phase++; // skip button

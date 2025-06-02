@@ -1328,26 +1328,32 @@ void user_io_poll() {
 	}
 
 	// poll db9 joysticks
-	uint16_t joy_map = 0;
+	uint16_t joy_state = 0, joy_map = 0;
 
-	if(GetDB9(0, &joy_map)) {
+	if(GetDB9(0, &joy_state)) {
 
-		joy_map = virtual_joystick_mapping(0x00db, 0x0000, joy_map);
+		joy_map = virtual_joystick_mapping(0x00db, 0x0000, joy_state);
 
 		uint8_t idx = joystick_renumber(0);
+		uint8_t id = mist_cfg.joystick_db9_fixed_index ? idx : joystick_count();
 		if (!user_io_osd_is_visible()) user_io_joystick(idx, joy_map);
-		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count()); // send to OSD
-		StateJoySetExtra(joy_map >> 8, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count()); // send to OSD
+		StateUsbIdSet(0x00db, 0x0000, 2, id);
+		StateJoySet(joy_map, id); // send to OSD
+		StateJoySetExtra(joy_map >> 8, id); // send to OSD
+		StateUsbJoySet(joy_state, joy_state >> 8, id);
 		virtual_joystick_keyboard(joy_map);
 	}
-	if(GetDB9(1, &joy_map)) {
+	if(GetDB9(1, &joy_state)) {
 
-		joy_map = virtual_joystick_mapping(0x00db, 0x0001, joy_map);
+		joy_map = virtual_joystick_mapping(0x00db, 0x0001, joy_state);
 
 		uint8_t idx = joystick_renumber(1);
+		uint8_t id = mist_cfg.joystick_db9_fixed_index ? idx : joystick_count() + 1;
 		if (!user_io_osd_is_visible()) user_io_joystick(idx, joy_map);
-		StateJoySet(joy_map, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count() + 1); // send to OSD
-		StateJoySetExtra(joy_map >> 8, mist_cfg.joystick_db9_fixed_index ? idx : joystick_count() + 1); // send to OSD
+		StateUsbIdSet(0x00db, 0x0001, 2, id);
+		StateJoySet(joy_map, id); // send to OSD
+		StateJoySetExtra(joy_map >> 8, id); // send to OSD
+		StateUsbJoySet(joy_state, joy_state >> 8, id);
 		virtual_joystick_keyboard(joy_map);
 	}
 
