@@ -353,7 +353,7 @@ static void WritePacket(unsigned char unit, const unsigned char *buf, unsigned s
         qspi_write_block(buf, bytes);
         qspi_end();
       } else {
-#else
+#endif
         EnableFpga();
         SPI(CMD_IDE_DATA_WR); // write data command
         SPI(0x00);
@@ -363,7 +363,6 @@ static void WritePacket(unsigned char unit, const unsigned char *buf, unsigned s
         SPI(0x00);
         spi_write(buf, bytes);
         DisableFpga();
-#endif
 #ifdef HAVE_QSPI
       }
 #endif
