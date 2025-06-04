@@ -17,5 +17,6 @@ char *arc_get_conf();
 uint64_t arc_get_default();
 const char *arc_get_buttons();
 const char *arc_get_button(int index);
+char arc_get_cfg_file_n();
 
 #endif // ARC_FILE_H
