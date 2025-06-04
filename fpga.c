@@ -34,6 +34,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "osd.h"
 #include "fpga.h"
 #include "tos.h"
+#include "arc_file.h"
 #include "mist_cfg.h"
 #include "settings.h"
 #include "usb/joymapping.h"
@@ -1004,7 +1005,7 @@ unsigned char fpga_init(const char *name) {
     df[3].status = 0;
 
     config.kickstart[0]=0;
-    SetConfigurationFilename(0); // Use default config
+    SetConfigurationFilename(arc_get_cfg_file_n());
     LoadConfiguration(0, 1);  // Use slot-based config filename
 
   } // end of minimig setup

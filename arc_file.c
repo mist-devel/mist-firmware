@@ -18,6 +18,7 @@ typedef struct {
 	char vhdname[17];
 	char conf[MAX_CONF_SIZE];
 	char buttons_str[MAX_BUTTONS_SIZE+1];
+	char cfg_file_n;
 } arc_t;
 
 static arc_t arc;
@@ -39,7 +40,8 @@ const ini_var_t arc_ini_vars[] = {
 	{"DIR", (void*)arc.dirname, STRING, 1, 16, 1},
 	{"VHD", (void*)arc.vhdname, STRING, 1, 16, 1},
 	{"CONF", (void*)arc_set_conf, CUSTOM_HANDLER, 0, 0, 1},
-	{"BUTTONS", (void*)arc.buttons_str, STRING, 1, MAX_BUTTONS_SIZE, 1}
+	{"BUTTONS", (void*)arc.buttons_str, STRING, 1, MAX_BUTTONS_SIZE, 1},
+	{"CFG_FILE_N", (void*)(&arc.cfg_file_n), UINT8, 0, 99, 1},
 };
 
 char arc_set_conf(char *c, char action, int tag)
@@ -131,4 +133,9 @@ const char *arc_get_button(int index)
 		str++;
 	}
 	return 0;
+}
+
+char arc_get_cfg_file_n()
+{
+	return arc.cfg_file_n;
 }
