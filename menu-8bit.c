@@ -43,10 +43,11 @@ extern hardfileTYPE  hardfiles[4];
 //////////////////////////
 /////// 8-bit menu ///////
 //////////////////////////
-typedef enum _RomType {ROM_NORMAL, ROM_SNES, ROM_ZXCOL, ROM_ZXCHR} RomType;
+typedef enum _RomType {ROM_NORMAL, ROM_SNES, ROM_ZXCOL, ROM_ZXCHR, ROM_PROCESSED} RomType;
 
 static unsigned char selected_drive_slot;
 static RomType romtype;
+static char data_processor_id[4]; //Max 3 chars, plus null at end
 
 static void substrcpy(char *d, char *s, char idx) {
 	char p = 0;
@@ -125,6 +126,7 @@ static char RomFileSelected(uint8_t idx, const char *SelectedName) {
 	FIL file;
 	char ext_idx = user_io_ext_idx(SelectedName, fs_pFileExt);
 
+	iprintf("RomFileSelected romType=%d\n", romtype);
 	// this assumes that further file entries only exist if the first one also exists
 	if (f_open(&file, SelectedName, FA_READ) == FR_OK) {
 		if (romtype == ROM_ZXCOL || romtype == ROM_ZXCHR) {
@@ -144,6 +146,8 @@ static char RomFileSelected(uint8_t idx, const char *SelectedName) {
 				DisableFpga();
 				data_io_file_tx_done();
 			}
+		} else if (romtype == ROM_PROCESSED) {
+			data_io_file_tx_processor(&file, ext_idx << 6 | selected_drive_slot, GetExtension(SelectedName), data_processor_id);
 		} else {
 			if (romtype == ROM_SNES) ext_idx = snes_getromtype(&file);
 			data_io_file_tx(&file, ext_idx << 6 | selected_drive_slot, GetExtension(SelectedName));
@@ -287,6 +291,16 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 			}
 			if (p[1]>='0' && p[1]<='9') selected_drive_slot = p[1]-'0';
 			romtype = ROM_NORMAL;
+			pos = p + 1;
+			while (*pos && *pos != ',') {
+				if (*pos == 'p') {
+					substrcpy(data_processor_id, pos + 1, 0);
+					romtype = ROM_PROCESSED;
+					menu_debugf("Found data_io processor %s\n", data_processor_id);
+					break;
+				}
+				pos++;
+			}
 			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "SNES", 4)) romtype = ROM_SNES; // F1SNES
 			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "ZXCOL", 5)) romtype = ROM_ZXCOL; // F2ZXCOL
 			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "ZXCHR", 5)) romtype = ROM_ZXCHR; // F3ZXCHR

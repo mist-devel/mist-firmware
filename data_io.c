@@ -14,6 +14,12 @@
 // core supports direct ROM upload via SS4
 char rom_direct_upload = 0;
 
+static data_io_processor_t* PROCESSORS[MAX_DATA_IO_PROCESSORS];
+
+void data_io_init() {
+  memset(PROCESSORS, 0, sizeof(PROCESSORS));
+}
+
 void data_io_set_index(char index) {
   EnableFpga();
   SPI(DIO_FILE_INDEX);
@@ -153,6 +159,43 @@ static void data_io_file_tx_fill(unsigned char fill, unsigned int len) {
 void data_io_file_tx(FIL *file, char index, const char *ext) {
   data_io_file_tx_prepare(file, index, ext);
   data_io_file_tx_send(file);
+  data_io_file_tx_done();
+}
+
+static data_io_processor_t* data_io_get_processor(const char *processor_id) {
+  for (int i = 0; i < MAX_DATA_IO_PROCESSORS; i++) {
+    if (PROCESSORS[i]) {
+      if (PROCESSORS[i]->id && strncmp(PROCESSORS[i]->id, processor_id, 3) == 0) {
+        return PROCESSORS[i];
+      }
+    } else {
+      break;
+    }
+  }
+  return NULL;
+}
+
+char data_io_add_processor(data_io_processor_t *processor) {
+  if (processor) {
+    for (int i = 0; i < MAX_DATA_IO_PROCESSORS; i++) {
+      if (!PROCESSORS[i]) {
+        PROCESSORS[i] = processor;
+        return 0;
+      }
+    }
+  }
+  return -1;
+}
+
+void data_io_file_tx_processor(FIL *file, char index, const char *ext, const char *processor_id) {
+  data_io_processor_t *processor;
+  data_io_file_tx_prepare(file, index, ext);
+  if (processor_id && (processor = data_io_get_processor(processor_id))) {
+    processor->file_tx_send(file);
+  } else {
+    iprintf("Processor for %s not found. Defaulting to normal upload\n", processor_id);
+    data_io_file_tx_send(file);
+  }
   data_io_file_tx_done();
 }
 
