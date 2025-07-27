@@ -276,19 +276,37 @@ RAMFUNC static unsigned char MMC_ReadBlocks(unsigned char *buffer, unsigned long
     }
 
     XDMAC0->XDMAC_GD = XDMAC_GD_DI0;
-    XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CC = XDMAC_CC_TYPE_PER_TRAN
-                                          | XDMAC_CC_MBSIZE_SINGLE
-                                          | XDMAC_CC_DSYNC_PER2MEM
-                                          | XDMAC_CC_CSIZE_CHK_8
-                                          | XDMAC_CC_DWIDTH_WORD
-                                          | XDMAC_CC_SIF_AHB_IF1
-                                          | XDMAC_CC_DIF_AHB_IF0
-                                          | XDMAC_CC_SAM_FIXED_AM
-                                          | XDMAC_CC_DAM_INCREMENTED_AM
-                                          | XDMAC_CC_PERID(0);
+    if ((uint32_t)buffer & 3) {
+        // byte transfer
+        XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CC = XDMAC_CC_TYPE_PER_TRAN
+                                              | XDMAC_CC_MBSIZE_SINGLE
+                                              | XDMAC_CC_DSYNC_PER2MEM
+                                              | XDMAC_CC_CSIZE_CHK_8
+                                              | XDMAC_CC_DWIDTH_BYTE
+                                              | XDMAC_CC_SIF_AHB_IF1
+                                              | XDMAC_CC_DIF_AHB_IF0
+                                              | XDMAC_CC_SAM_FIXED_AM
+                                              | XDMAC_CC_DAM_INCREMENTED_AM
+                                              | XDMAC_CC_PERID(0);
+        XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CUBC = XDMAC_CUBC_UBLEN(blocks*512);
+        HSMCI0->HSMCI_MR |= HSMCI_MR_FBYTE;
+    } else {
+        // dword transfer
+        XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CC = XDMAC_CC_TYPE_PER_TRAN
+                                              | XDMAC_CC_MBSIZE_SINGLE
+                                              | XDMAC_CC_DSYNC_PER2MEM
+                                              | XDMAC_CC_CSIZE_CHK_8
+                                              | XDMAC_CC_DWIDTH_WORD
+                                              | XDMAC_CC_SIF_AHB_IF1
+                                              | XDMAC_CC_DIF_AHB_IF0
+                                              | XDMAC_CC_SAM_FIXED_AM
+                                              | XDMAC_CC_DAM_INCREMENTED_AM
+                                              | XDMAC_CC_PERID(0);
+        XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CUBC = XDMAC_CUBC_UBLEN(blocks*512/4);
+        HSMCI0->HSMCI_MR &= ~HSMCI_MR_FBYTE;
+    }
     XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CSA = (uint32_t)&(HSMCI0->HSMCI_FIFO[0]);
     XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CDA = (uint32_t)buffer;
-    XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CUBC = XDMAC_CUBC_UBLEN(blocks*512/4);
     XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CIS; // read interrupt reg to clear any flags prior to enabling channel
     XDMAC0->XDMAC_GE = XDMAC_GE_EN0;        // start DMA
     XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CIS; // clear any flags
@@ -325,16 +343,35 @@ RAMFUNC unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBu
 static unsigned char MMC_WriteBlocks(unsigned long lba, const unsigned char *pWriteBuffer, unsigned long blocks)
 {
     XDMAC0->XDMAC_GD = XDMAC_GD_DI0;
-    XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CC = XDMAC_CC_TYPE_PER_TRAN
-                                          | XDMAC_CC_MBSIZE_SINGLE
-                                          | XDMAC_CC_DSYNC_MEM2PER
-                                          | XDMAC_CC_CSIZE_CHK_8
-                                          | XDMAC_CC_DWIDTH_WORD
-                                          | XDMAC_CC_SIF_AHB_IF0
-                                          | XDMAC_CC_DIF_AHB_IF1
-                                          | XDMAC_CC_SAM_INCREMENTED_AM
-                                          | XDMAC_CC_DAM_FIXED_AM
-                                          | XDMAC_CC_PERID(0);
+    if ((uint32_t)pWriteBuffer & 3) {
+        // byte transfer
+        XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CC = XDMAC_CC_TYPE_PER_TRAN
+                                              | XDMAC_CC_MBSIZE_SINGLE
+                                              | XDMAC_CC_DSYNC_MEM2PER
+                                              | XDMAC_CC_CSIZE_CHK_8
+                                              | XDMAC_CC_DWIDTH_BYTE
+                                              | XDMAC_CC_SIF_AHB_IF0
+                                              | XDMAC_CC_DIF_AHB_IF1
+                                              | XDMAC_CC_SAM_INCREMENTED_AM
+                                              | XDMAC_CC_DAM_FIXED_AM
+                                              | XDMAC_CC_PERID(0);
+        XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CUBC = XDMAC_CUBC_UBLEN(blocks*512);
+        HSMCI0->HSMCI_MR |= HSMCI_MR_FBYTE;
+    } else {
+        // dword transfer
+        XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CC = XDMAC_CC_TYPE_PER_TRAN
+                                              | XDMAC_CC_MBSIZE_SINGLE
+                                              | XDMAC_CC_DSYNC_MEM2PER
+                                              | XDMAC_CC_CSIZE_CHK_8
+                                              | XDMAC_CC_DWIDTH_WORD
+                                              | XDMAC_CC_SIF_AHB_IF0
+                                              | XDMAC_CC_DIF_AHB_IF1
+                                              | XDMAC_CC_SAM_INCREMENTED_AM
+                                              | XDMAC_CC_DAM_FIXED_AM
+                                              | XDMAC_CC_PERID(0);
+        XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CUBC = XDMAC_CUBC_UBLEN(blocks*512/4);
+        HSMCI0->HSMCI_MR &= ~HSMCI_MR_FBYTE;
+    }
 
     if (CardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
         lba = lba << 9; // otherwise convert sector adddress to byte address
@@ -348,7 +385,6 @@ static unsigned char MMC_WriteBlocks(unsigned long lba, const unsigned char *pWr
 
     XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CSA = (uint32_t)pWriteBuffer;
     XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CDA = (uint32_t)&(HSMCI0->HSMCI_FIFO[0]);
-    XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CUBC = XDMAC_CUBC_UBLEN(blocks*512/4);
     XDMAC0->XDMAC_CH[DMA_CH_MMC].XDMAC_CIS; //read interrupt reg to clear any flags prior to enabling channel
     XDMAC0->XDMAC_GE = XDMAC_GE_EN0;
 
