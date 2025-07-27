@@ -187,16 +187,17 @@ char data_io_add_processor(data_io_processor_t *processor) {
   return -1;
 }
 
-void data_io_file_tx_processor(FIL *file, char index, const char *ext, const char *processor_id) {
+void data_io_file_tx_processor(FIL *file, char index, const char *ext, const char *name, const char *processor_id) {
+  iprintf("data_io_file_tx_processor idx: %d ext: %s\n", index, ext);
   data_io_processor_t *processor;
-  data_io_file_tx_prepare(file, index, ext);
   if (processor_id && (processor = data_io_get_processor(processor_id))) {
-    processor->file_tx_send(file);
+    processor->file_tx_send(file, index, name, ext);
   } else {
     iprintf("Processor for %s not found. Defaulting to normal upload\n", processor_id);
+    data_io_file_tx_prepare(file, index, ext);
     data_io_file_tx_send(file);
+    data_io_file_tx_done();
   }
-  data_io_file_tx_done();
 }
 
 // send 'fill' byte 'len' times

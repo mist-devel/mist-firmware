@@ -20,7 +20,7 @@
 
 typedef struct {
     char id[4];
-    void (*file_tx_send)(FIL *file);
+    void (*file_tx_send)(FIL *file, int index, const char* name, const char* ext);
 } data_io_processor_t;
 
 void data_io_init();
@@ -30,7 +30,7 @@ void data_io_file_tx_start();
 void data_io_file_tx_done();
 void data_io_fill_tx(unsigned char, unsigned int, char);
 void data_io_file_tx(FIL*, char, const char*);
-void data_io_file_tx_processor(FIL*, char, const char*, const char*);
+void data_io_file_tx_processor(FIL*, char, const char*, const char*, const char*);
 void data_io_file_rx(FIL*, char, unsigned int);
 
 // called when a rom entry is found in the mist.ini

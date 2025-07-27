@@ -147,15 +147,15 @@ static char RomFileSelected(uint8_t idx, const char *SelectedName) {
 				data_io_file_tx_done();
 			}
 		} else if (romtype == ROM_PROCESSED) {
-			data_io_file_tx_processor(&file, ext_idx << 6 | selected_drive_slot, GetExtension(SelectedName), data_processor_id);
+			data_io_file_tx_processor(&file, ext_idx << 6 | selected_drive_slot, GetExtension(SelectedName), SelectedName, data_processor_id);
 		} else {
 			if (romtype == ROM_SNES) ext_idx = snes_getromtype(&file);
 			data_io_file_tx(&file, ext_idx << 6 | selected_drive_slot, GetExtension(SelectedName));
 		}
-		f_close(&file);
+		if (romtype != ROM_PROCESSED) f_close(&file);
 	}
-	// close menu afterwards
-	CloseMenu();
+	// close menu afterwards (but allow custom processor to have its own menu)
+	if (romtype != ROM_PROCESSED) CloseMenu();
 	return 0;
 }
 
