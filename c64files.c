@@ -78,7 +78,6 @@ static int c64_idx_getline(char* line, int *offset)
 		}
 	}
 	line[i] = '\0';
-	iprintf("line: %s, offset: %d\n", line, *offset);
 	return c==0 ? IDX_EOT : literal ? 1 : 0;
 }
 
