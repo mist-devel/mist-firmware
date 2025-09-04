@@ -29,8 +29,6 @@
 #include "hdd.h"
 #include "fat_compat.h"
 #include "cue_parser.h"
-#include "snes.h"
-#include "zx_col.h"
 
 extern char s[FF_LFN_BUF + 1];
 
@@ -43,7 +41,7 @@ extern hardfileTYPE  hardfiles[4];
 //////////////////////////
 /////// 8-bit menu ///////
 //////////////////////////
-typedef enum _RomType {ROM_NORMAL, ROM_SNES, ROM_ZXCOL, ROM_ZXCHR, ROM_PROCESSED} RomType;
+typedef enum _RomType {ROM_NORMAL, ROM_PROCESSED} RomType;
 
 static unsigned char selected_drive_slot;
 static RomType romtype;
@@ -129,30 +127,12 @@ static char RomFileSelected(uint8_t idx, const char *SelectedName) {
 	iprintf("RomFileSelected romType=%d\n", romtype);
 	// this assumes that further file entries only exist if the first one also exists
 	if (f_open(&file, SelectedName, FA_READ) == FR_OK) {
-		if (romtype == ROM_ZXCOL || romtype == ROM_ZXCHR) {
-			if (romtype == ROM_ZXCOL && !zx_col_load(&file, sector_buffer)) {
-				ErrorMessage("\n   Error parsing COL file!\n", 0);
-				f_close(&file);
-				return 0;
-			} else if (romtype == ROM_ZXCHR && !zx_chr_load(&file, sector_buffer)) {
-				ErrorMessage("\n   Error parsing CHR file!\n", 0);
-				f_close(&file);
-				return 0;
-			} else {
-				data_io_file_tx_prepare(&file, ext_idx << 6 | selected_drive_slot, GetExtension(SelectedName));
-				EnableFpga();
-				SPI(DIO_FILE_TX_DAT);
-				spi_write(sector_buffer, 1024+(romtype == ROM_ZXCOL ? 1 : 0));
-				DisableFpga();
-				data_io_file_tx_done();
-			}
-		} else if (romtype == ROM_PROCESSED) {
+		if (romtype == ROM_PROCESSED) {
 			data_io_file_tx_processor(&file, ext_idx << 6 | selected_drive_slot, GetExtension(SelectedName), SelectedName, data_processor_id);
 		} else {
-			if (romtype == ROM_SNES) ext_idx = snes_getromtype(&file);
 			data_io_file_tx(&file, ext_idx << 6 | selected_drive_slot, GetExtension(SelectedName));
+			f_close(&file);
 		}
-		if (romtype != ROM_PROCESSED) f_close(&file);
 	}
 	// close menu afterwards (but allow custom processor to have its own menu)
 	if (romtype != ROM_PROCESSED) CloseMenu();
@@ -301,9 +281,18 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 				}
 				pos++;
 			}
-			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "SNES", 4)) romtype = ROM_SNES; // F1SNES
-			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "ZXCOL", 5)) romtype = ROM_ZXCOL; // F2ZXCOL
-			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "ZXCHR", 5)) romtype = ROM_ZXCHR; // F3ZXCHR
+			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "SNES", 4)) {
+				romtype = ROM_PROCESSED; // handle legacy F1SNES notation as a custom data processor
+				strcpy(data_processor_id, "SFC");
+			}
+			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "ZXCOL", 5)) {
+				romtype = ROM_PROCESSED; // F2ZXCOL
+				strcpy(data_processor_id, "COL");
+			}
+			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "ZXCHR", 5)) {
+				romtype = ROM_PROCESSED; // F3ZXCHR
+				strcpy(data_processor_id, "CHR");
+			}
 			substrcpy(ext, p, 1);
 			while(strlen(ext) < 3) strcat(ext, " ");
 			SelectFileNG(ext, SCAN_DIR | SCAN_LFN, (p[0] == 'F')?RomFileSelected:iscue?CueFileSelected:ImageFileSelected, 1);

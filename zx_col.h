@@ -24,9 +24,6 @@
 #ifndef COL_FILE_H
 #define COL_FILE_H
 
-#include "FatFs/ff.h"
-
-int zx_col_load(FIL *fil, unsigned char *buf);
-int zx_chr_load(FIL *fil, unsigned char *buf);
+void zx_init();
 
 #endif // COL_FILE_H

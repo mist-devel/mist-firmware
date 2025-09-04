@@ -19,6 +19,8 @@
 #include <stdio.h>
 #include "snes.h"
 #include "fat_compat.h"
+#include "data_io.h"
+#include "menu.h"
 #include "debug.h"
 
 enum HeaderField {
@@ -136,7 +138,7 @@ static uint32_t score_header(FIL *file, uint32_t offset, uint32_t addr)
 	return score;
 }
 
-char snes_getromtype(FIL *file)
+static char snes_getromtype(FIL *file)
 {
 	uint32_t score_lo, score_hi, score_ex;
 	UINT br;
@@ -163,4 +165,22 @@ char snes_getromtype(FIL *file)
 	}
 	iprintf("No clue about ROM type\n");
 	return 0; // no idea, fall back to LoROM
+}
+
+static void snes_handlerom(FIL *file, int index, const char *name, const char *ext)
+{
+	iprintf("SNES: open %s\n", name);
+
+	char ext_idx = snes_getromtype(file);
+	data_io_file_tx(file, ext_idx << 6 | (index & 0x3f), ext);
+	f_close(file);
+	CloseMenu();
+}
+
+static data_io_processor_t snes_romfile = {"SFC", &snes_handlerom};
+
+
+void snes_init()
+{
+	data_io_add_processor(&snes_romfile);
 }

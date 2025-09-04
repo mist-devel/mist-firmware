@@ -18,8 +18,6 @@
 #ifndef SNES_H
 #define SNES_H
 
-#include "FatFs/ff.h"
-
-char snes_getromtype(FIL *file);
+void snes_init();
 
 #endif // SNES_H

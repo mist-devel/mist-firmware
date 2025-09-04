@@ -19,6 +19,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sxmlc/sxmlc.h"
+#include "fat_compat.h"
+#include "data_io.h"
+#include "menu.h"
 
 static unsigned char *zx_col_table;
 //static char *col_state_s[] = {"None", "Border", "Entry", "Line", "Paper", "Ink"};
@@ -268,7 +271,7 @@ int main() {
 	fclose(f);
 }
 #else
-int zx_col_load(FIL *fil, unsigned char *buf)
+static int zx_col_load(FIL *fil, unsigned char *buf)
 {
 	zx_col_table = buf;
 	memset(zx_col_table, 0xf0, 128*8+1);
@@ -314,7 +317,7 @@ static const unsigned char zx81_charset[512] = {
 	0x00, 0x82, 0x44, 0x28, 0x10, 0x10, 0x10, 0x00, 0x00, 0x7E, 0x04, 0x08, 0x10, 0x20, 0x7E, 0x00
 };
 
-int zx_chr_load(FIL *fil, unsigned char *buf)
+static int zx_chr_load(FIL *fil, unsigned char *buf)
 {
 #ifdef HAVE_XML
 	zx_col_table = buf;
@@ -328,3 +331,46 @@ int zx_chr_load(FIL *fil, unsigned char *buf)
 }
 
 #endif
+
+static void zx_sendfile(FIL *file, int index, const char *ext, int len)
+{
+	data_io_file_tx_prepare(file, index, ext);
+	EnableFpga();
+	SPI(DIO_FILE_TX_DAT);
+	spi_write(sector_buffer, len);
+	DisableFpga();
+	data_io_file_tx_done();
+}
+
+static void zx_handlecol(FIL *file, int index, const char *name, const char *ext)
+{
+	if (!zx_col_load(file, sector_buffer)) {
+		ErrorMessage("\n   Error parsing CHR file!\n", 0);
+		f_close(file);
+	} else {
+		zx_sendfile(file, index, ext, 1025);
+		f_close(file);
+		CloseMenu();
+	}
+}
+
+static void zx_handlechr(FIL *file, int index, const char *name, const char *ext)
+{
+	if (!zx_chr_load(file, sector_buffer)) {
+		ErrorMessage("\n   Error parsing CHR file!\n", 0);
+		f_close(file);
+	} else {
+		zx_sendfile(file, index, ext, 1024);
+		f_close(file);
+		CloseMenu();
+	}
+}
+
+static data_io_processor_t zx_colfile = {"COL", &zx_handlecol};
+static data_io_processor_t zx_chrfile = {"CHR", &zx_handlechr};
+
+void zx_init()
+{
+	data_io_add_processor(&zx_colfile);
+	data_io_add_processor(&zx_chrfile);
+}
