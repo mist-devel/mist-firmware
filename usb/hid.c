@@ -713,7 +713,7 @@ static void usb_process_iface (usb_device_t *dev,
 
 				for(i=0;i<MAX_AXES;i++) {
 					if (conf->joystick_mouse.axis[i].size == 0) {
-						a[i] = 127;
+						a[i] = 128;
 					} else {
 						uint16_t min = conf->joystick_mouse.axis[i].logical.min;
 						uint16_t max = conf->joystick_mouse.axis[i].logical.max;
@@ -732,18 +732,19 @@ static void usb_process_iface (usb_device_t *dev,
 								a[i] = ((a[i] & 0xff) + 128) & 0xff;
 							}
 						}
-						int hrange = (max - min);
+						int hrange = (max - min) + 1;
 
 						// scale to 0-255
 						if (a[i] <= min) a[i] = min;
 						else if (a[i] >= max) a[i] = max;
 						if (!hrange)
-							a[i] = 127;
+							a[i] = 128;
 						else
-							a[i] = ((a[i]-min) * 255) / hrange;
+							a[i] = ((a[i]-min) * 256) / hrange;
 
 						// apply dead range
-						if (a[i] > (127-mist_cfg.joystick_dead_range) && a[i] < (127+mist_cfg.joystick_dead_range)) a[i] = 127;
+						if (a[i] > (128-mist_cfg.joystick_dead_range) && a[i] < (128+mist_cfg.joystick_dead_range)) a[i] = 128;
+
 					}
 				}
 
