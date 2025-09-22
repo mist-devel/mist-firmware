@@ -214,7 +214,7 @@ int main(void)
     // tos config also contains cdc redirect settings used by minimig
     tos_config_load(-1);
 
-    char mod = -1;
+    int64_t mod = -1;
 
     if((USB_LOAD_VAR != USB_LOAD_VALUE) && !user_io_dip_switch1()) {
         mod = arc_open("/CORE.ARC");

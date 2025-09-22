@@ -363,7 +363,7 @@ static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
 	//remember core name loaded
 	OsdCoreNameSet(SelectedName);
 
-	char mod = 0;
+	int64_t mod = 0;
 	char arc = 0;
 	unsigned char err;
 	const char *extension = GetExtension(SelectedName);

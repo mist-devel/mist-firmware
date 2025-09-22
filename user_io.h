@@ -53,13 +53,14 @@
 #define UIO_SIO_IN      0x1b  // serial in
 #define UIO_SET_SDSTAT  0x1c  // set sd card status 
 #define UIO_SET_SDINFO  0x1d  // send info about mounted image
-#define UIO_SET_STATUS2 0x1e  // 32bit status
+#define UIO_SET_STATUS2 0x1e  // 64bit status
 #define UIO_GET_KBD_LED 0x1f  // keyboard LEDs control
 #define UIO_SIO_OUT     0x20  // serial out
 #define UIO_SET_MOD     0x21  // send core variant from metadata (ARC) file
 #define UIO_SET_RTC     0x22  // send real-time-clock data
 #define UIO_SD_ACK      0x23  // send ack for sector read/write
 #define UIO_GET_STR_EXT 0x24  // get config string from dedicated position
+#define UIO_SET_MOD2    0x25  // send core variant from metadata (ARC) file (64 bit)
 
 // I2c bridge
 #define UIO_I2C_SEND    0x30  // start i2c transaction on the FPGA side
@@ -219,7 +220,7 @@ void user_io_file_mount(const unsigned char*, unsigned char);
 char user_io_is_cue_mounted();
 char user_io_cue_mount(const unsigned char*, unsigned char);
 char *user_io_get_core_name();
-void user_io_set_core_mod(char);
+void user_io_set_core_mod(int64_t);
 void user_io_sd_ack(char drive_index);
 
 // io controllers interface for FPGA ethernet emulation using usb ethernet

@@ -66,7 +66,7 @@ extern char rom_direct_upload;
 static uint32_t core_features = 0;
 
 // core variant (mostly for arcades)
-static char core_mod = 0;
+static int64_t core_mod = 0;
 
 // keep state of caps lock
 static char caps_lock_toggle = 0;
@@ -234,13 +234,14 @@ static void user_io_read_core_name() {
 	iprintf("Core name from FPGA is \"%s\"\n", core_name);
 }
 
-void user_io_set_core_mod(char mod) {
+void user_io_set_core_mod(int64_t mod) {
 	core_mod = mod;
 }
 
 static void user_io_send_core_mod() {
 	iprintf("Sending core mod = %d\n", core_mod);
-	spi_uio_cmd8(UIO_SET_MOD, core_mod);
+	spi_uio_cmd8(UIO_SET_MOD, core_mod & 0x7f);
+	spi_uio_cmd64(UIO_SET_MOD2, core_mod);
 }
 
 void user_io_send_rtc(void) {

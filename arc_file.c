@@ -10,7 +10,7 @@
 #define MAX_BUTTONS_SIZE 128
 
 typedef struct {
-	char mod;
+	int64_t mod;
 	uint64_t conf_default;
 	char rbfname[33];
 	char corename[17];
@@ -33,7 +33,7 @@ const ini_section_t arc_ini_sections[] = {
 
 // arc ini vars
 const ini_var_t arc_ini_vars[] = {
-	{"MOD", (void*)(&arc.mod), UINT8, 0, 127, 1},
+	{"MOD", (void*)(&arc.mod), INT64, 0, 0x7fffffffffffffff, 1},
 	{"DEFAULT", (void*)(&arc.conf_default), UINT64, 0, ~0, 1},
 	{"RBF", (void*)arc.rbfname, STRING, 1, 32, 1},
 	{"NAME", (void*)arc.corename, STRING, 1, 16, 1},
@@ -55,7 +55,7 @@ char arc_set_conf(char *c, char action, int tag)
 	return 0;
 }
 
-char arc_open(const char *fname)
+int64_t arc_open(const char *fname)
 {
 	ini_cfg_t arc_ini_cfg;
 
