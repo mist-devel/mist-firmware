@@ -33,7 +33,7 @@ LIBDIR   =
 DFLAGS  = -I. -Iarch -Icmsis -Iusb -Ihw/ATSAMV71 -D_GNU_SOURCE -DMIST -DCONFIG_HAVE_NVIC -DCONFIG_HAVE_ETH -DCONFIG_HAVE_GMAC -DCONFIG_HAVE_GMAC_QUEUES -DGMAC_QUEUE_COUNT=6 -DCONFIG_ARCH_ARM -DCONFIG_ARCH_ARMV7M -DCONFIG_CHIP_SAMV71 -DCONFIG_PACKAGE_100PIN
 DFLAGS += -DFW_ID=\"SIDIUPG\" -DSZ_TBL=2048 -DDEFAULT_CORE_NAME=\"SIDI128.RBF\" -DFATFS_NO_TINY -DSD_NO_DIRECT_MODE -DJOY_DB9_MD -DHAVE_QSPI -DHAVE_HDMI -DHAVE_PSX -DHAVE_XML -DUSB_STORAGE
 #DFLAGS += -DPROTOTYPE
-CFLAGS  = $(DFLAGS) -march=armv7-m -mtune=cortex-m7 -mthumb -ffunction-sections -fsigned-char -c -O2 --std=gnu99 -DVDATE=\"`date +"%y%m%d"`\"
+CFLAGS  = $(DFLAGS) -march=armv7-m -mtune=cortex-m7 -mthumb -ffunction-sections -fsigned-char -c -Os --std=gnu99 -DVDATE=\"`date +"%y%m%d"`\"
 CFLAGS += $(CFLAGS-$@)
 AFLAGS  = -ahls -mapcs-32
 LFLAGS  = -march=armv7-m -mtune=cortex-m7 -mthumb -Wl,-Map,$(PRJ).map -T$(LINKMAP) $(LIBDIR)

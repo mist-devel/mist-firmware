@@ -11,12 +11,13 @@ TODAY = `date +"%m/%d/%y"`
 
 PRJ = firmware
 SRC = hw/AT91SAM/Cstartup_SAM7.c hw/AT91SAM/hardware.c hw/AT91SAM/spi.c hw/AT91SAM/mmc.c hw/AT91SAM/at91sam_usb.c hw/AT91SAM/usbdev.c
-SRC += fdd.c  firmware.c  fpga.c hdd.c  main.c  menu.c menu-minimig.c menu-8bit.c osd.c state.c syscalls.c user_io.c settings.c data_io.c boot.c idxfile.c config.c tos.c ikbd.c xmodem.c ini_parser.c cue_parser.c mist_cfg.c archie.c pcecd.c neocd.c snes.c zx_col.c arc_file.c c64files.c font.c utils.c serial_sink.c
+SRC += fdd.c firmware.c fpga.c hdd.c main.c menu.c menu-minimig.c menu-8bit.c osd.c state.c syscalls.c user_io.c settings.c data_io.c boot.c idxfile.c config.c tos.c ikbd.c xmodem.c ini_parser.c cue_parser.c mist_cfg.c archie.c pcecd.c neocd.c snes.c zx_col.c arc_file.c c64files.c font.c utils.c serial_sink.c
 SRC += usb/usb.c usb/max3421e.c usb/usb-max3421e.c usb/usbdebug.c usb/hub.c usb/hid.c usb/hidparser.c usb/xboxusb.c usb/timer.c usb/asix.c usb/pl2303.c usb/usbrtc.c usb/storage.c usb/joymapping.c usb/joystick.c
 SRC += fat_compat.c
 SRC += FatFs/diskio.c FatFs/ff.c FatFs/ffunicode.c
 # SRC += usb/storage.c
 SRC += cdc_control.c storage_control.c
+# SRC += sxmlc/sxmlc.c
 
 OBJ = $(SRC:.c=.o)
 DEP = $(SRC:.c=.d)
@@ -27,7 +28,7 @@ LIBDIR   =
 # Commandline options for each tool.
 # for ESA11 add -DEMIST
 DFLAGS  = -I. -Iusb -Iarch/ -Ihw/AT91SAM -DMIST -DCONFIG_ARCH_ARMV4TE -DCONFIG_ARCH_ARM -DUSB_STORAGE
-CFLAGS  = $(DFLAGS) -c -march=armv4t -mtune=arm7tdmi -mthumb -fno-common -O2 --std=gnu99 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
+CFLAGS  = $(DFLAGS) -c -march=armv4t -mtune=arm7tdmi -mthumb -fno-common -Os --std=gnu99 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
 CFLAGS-firmware.o += -marm
 CFLAGS += $(CFLAGS-$@)
 AFLAGS  = -ahls -mapcs-32
