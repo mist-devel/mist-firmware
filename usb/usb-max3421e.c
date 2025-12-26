@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "timer.h"
 #include "max3421e.h"
@@ -291,6 +292,7 @@ uint8_t usb_ctrl_req(usb_device_t *dev, uint8_t bmReqType,
 	direction = (( bmReqType & 0x80 ) > 0);
 
 	/* fill in setup packet */
+	memset(&setup_pkt, 0, sizeof(setup_pkt_t));
 	setup_pkt.ReqType_u.bmRequestType = bmReqType;
 	setup_pkt.bRequest                = bRequest;
 	setup_pkt.wVal_u.wValueLo         = wValLo;
@@ -337,7 +339,7 @@ void usb_poll() {
 	switch( tmpdata )  {
 
 	// illegal state
-	case MAX3421E_STATE_SE1:   
+	case MAX3421E_STATE_SE1:
 		usb_task_state = USB_DETACHED_SUBSTATE_ILLEGAL;
 		lowspeed = false;
 		break;
