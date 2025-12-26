@@ -153,13 +153,18 @@ static uint8_t usb_rtc_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
   if (dev_desc->bDeviceClass != USB_CLASS_VENDOR_SPECIFIC)
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
  
-  usbrtc_debugf("vid/pid = %x/%x", buf.dev_desc.idVendor, buf.dev_desc.idProduct);
+  usbrtc_debugf("vid/pid = %x/%x", dev_desc->idVendor, dev_desc->idProduct);
 
   if((dev_desc->idVendor != 0x0403) || (dev_desc->idProduct != 0xc631)) {
     usbrtc_debugf("Not a i2c-tiny-usb device");
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
   }
-  
+
+  if((rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), 0, &buf.conf_desc))) {
+    usbrtc_debugf("Failed getting conf descriptor #0");
+    return rcode;
+  }
+
   // Set Configuration Value
   rcode = usb_set_conf(dev, buf.conf_desc.bConfigurationValue);
   
@@ -252,4 +257,5 @@ uint8_t usb_rtc_set_time(uint8_t *d) {
 }
 
 const usb_device_class_config_t usb_usbrtc_class = {
-  usb_rtc_init, usb_rtc_release, NULL };  
+  usb_rtc_init, usb_rtc_release, NULL
+};
