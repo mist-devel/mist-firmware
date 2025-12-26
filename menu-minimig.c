@@ -33,21 +33,21 @@ extern char minimig_ver_major;
 extern char minimig_ver_minor;
 extern char minimig_ver_minion;
 
-const char *config_filter_msg[] =  {"none", "HORIZONTAL", "VERTICAL", "H+V"};
+static const char *config_filter_msg[] =  {"none", "HORIZONTAL", "VERTICAL", "H+V"};
 const char *config_memory_chip_msg[] = {"0.5 MB", "1.0 MB", "1.5 MB", "2.0 MB"};
 const char *config_memory_slow_msg[] = {"none  ", "0.5 MB", "1.0 MB", "1.5 MB"};
-const char *config_scanlines_msg[] = {"off", "dim", "black"};
-const char *config_dither_msg[] = {"off", "SPT", "RND", "S+R"};
-const char *config_memory_fast_msg[] = {"none  ", "2.0 MB", "4.0 MB","8.0 MB","Maximum"};
-const char *config_hdf_msg[] = {"Disabled", "Hardfile (disk img)", "MMC/SD card", "MMC/SD partition 1", "MMC/SD partition 2", "MMC/SD partition 3", "MMC/SD partition 4"};
+static const char *config_scanlines_msg[] = {"off", "dim", "black"};
+static const char *config_dither_msg[] = {"off", "SPT", "RND", "S+R"};
+static const char *config_memory_fast_msg[] = {"none  ", "2.0 MB", "4.0 MB","8.0 MB","Maximum"};
+static const char *config_hdf_msg[] = {"Disabled", "Hardfile (disk img)", "MMC/SD card", "MMC/SD partition 1", "MMC/SD partition 2", "MMC/SD partition 3", "MMC/SD partition 4"};
 const char *config_chipset_msg[] = {"OCS-A500", "OCS-A1000", "ECS", "---", "---", "---", "AGA", "---"};
-const char *config_turbo_msg[] = {"none", "CHIPRAM", "KICK", "BOTH"};
-const char *config_cd32pad_msg[] =  {"OFF", "ON"};
-const char *config_joystick_msg[] =  {"Digital", "Analogue"};
+static const char *config_turbo_msg[] = {"none", "CHIPRAM", "KICK", "BOTH"};
+static const char *config_cd32pad_msg[] =  {"OFF", "ON"};
+static const char *config_joystick_msg[] =  {"Digital", "Analogue"};
 char *config_button_turbo_msg[] = {"OFF", "FAST", "MEDIUM", "SLOW"};
 char *config_button_turbo_choice_msg[] = {"A only", "B only", "A & B"};
-const char *config_audio_filter_msg[] = {"switchable", "always off", "always on"};
-const char *config_power_led_off_msg[] = {"dim", "off"};
+static const char *config_audio_filter_msg[] = {"switchable", "always off", "always on"};
+static const char *config_power_led_off_msg[] = {"dim", "off"};
 
 const char *KickstartSelectedName;
 
@@ -106,7 +106,7 @@ static void InsertFloppy(adfTYPE *drive, const unsigned char *name)
 
 	if (DiskInfo[0]) {// if selected file has valid disk number info then copy it to its name in drive struct
 		drive->name[16] = ' '; // precede disk number info with space character
-		strncpy(&drive->name[17], DiskInfo, sizeof(DiskInfo)); // copy disk number info
+		strncpy(&drive->name[17], DiskInfo, sizeof(DiskInfo)-1); // copy disk number info
 	}
 
 	// initialize the rest of drive struct
@@ -554,7 +554,7 @@ static char GetMenuItem_Minimig(uint8_t idx, char action, menu_item_t *item) {
 					break;
 				case 43:
 					strcpy(s, "      ROM   : ");
-					strncat(s, config.kickstart, sizeof(config.kickstart));
+					strncat(s, config.kickstart, sizeof(config.kickstart)-1);
 					item->item = s;
 					break;
 				case 44:
