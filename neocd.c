@@ -189,9 +189,10 @@ static void neocd_run() {
 			neocdd.status = CD_STAT_NO_DISC;
 	}
 	else if (neocdd.status == CD_STAT_NO_DISC) {
-		if (user_io_is_cue_mounted())
+		if (user_io_is_cue_mounted()) {
 			neocd_reset();
 			neocdd.status = CD_STAT_STOP;
+		}
 	}
 	else if (neocdd.status == CD_STAT_STOP || neocdd.status == CD_STAT_TRAY || neocdd.status == CD_STAT_OPEN) {
 	}
