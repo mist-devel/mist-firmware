@@ -1237,11 +1237,12 @@ void tos_insert_disk(char i, const unsigned char *name) {
   // no new disk given?
   if(!name || !name[0]) return;
 
-  if (f_open(&fdd_image[i].file, name, FA_READ | FA_WRITE) != FR_OK)
+  if (f_open(&fdd_image[i].file, name, FA_READ | FA_WRITE) != FR_OK) {
     if (f_open(&fdd_image[i].file, name, FA_READ) == FR_OK)
       mist_set_control(config.system_ctrl | wp_bit);
     else
       return;
+  }
 
   strncpy(fdd_image[i].name, name, sizeof(fdd_image[i].name));
   fdd_image[i].name[sizeof(fdd_image[i].name)-1] = 0;
@@ -1789,8 +1790,7 @@ static char tos_getmenuitem(uint8_t idx, char action, menu_item_t *item) {
 				case 25: {
 					unsigned long chipset = (tos_system_ctrl() >> 23)+1;
 					if(chipset == 4) chipset = 0;
-					tos_update_sysctrl(tos_system_ctrl() & ~(TOS_CONTROL_STE | TOS_CONTROL_MSTE) |
-						 (chipset << 23));
+					tos_update_sysctrl((tos_system_ctrl() & ~(TOS_CONTROL_STE | TOS_CONTROL_MSTE)) | (chipset << 23));
 					}
 					break;
 				case 26:

@@ -199,7 +199,7 @@ void xmodem_rx_byte(unsigned char byte) {
     }
 
     // second byte = inverted block no
-    else if((count == 1) && (block == 0xff^byte)) {
+    else if((count == 1) && (block == (0xff^byte))) {
       timer = GetTimer(1000);   // 1 sec timeout
       count = 0;
       state = DATA;

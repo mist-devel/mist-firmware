@@ -165,7 +165,7 @@ void data_io_file_tx(FIL *file, char index, const char *ext) {
 static data_io_processor_t* data_io_get_processor(const char *processor_id) {
   for (int i = 0; i < MAX_DATA_IO_PROCESSORS; i++) {
     if (PROCESSORS[i]) {
-      if (PROCESSORS[i]->id && strncmp(PROCESSORS[i]->id, processor_id, 3) == 0) {
+      if (strncmp(PROCESSORS[i]->id, processor_id, 3) == 0) {
         return PROCESSORS[i];
       }
     } else {
@@ -229,7 +229,7 @@ static void data_io_file_rx_receive(FIL *file, unsigned int len) {
   char first = 1;
   UINT bw;
   /* receive the entire file using one transfer */
-  iprintf("Selected %lu bytes to receive\n", bytes2receive);
+  iprintf("Selected %u bytes to receive\n", bytes2receive);
 
   while(bytes2receive) {
     iprintf(".");

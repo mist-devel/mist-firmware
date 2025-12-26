@@ -89,7 +89,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 
 	//
 	int8_t skip_report = 0;
-	uint8_t report_size, report_count;
+	uint8_t report_size = 0, report_count = 0;
 	uint16_t bit_count = 0, usage_count = 0;
 	uint16_t logical_minimum=0, logical_maximum=0;
 	uint16_t physical_minimum=0, physical_maximum=0;
@@ -228,7 +228,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 						}
 					}
 
-					hidp_extreme_debugf("INPUT(%d)", value);
+					hidp_extreme_debugf("INPUT(%lu)", value);
 
 					// reset for next inputs
 					if (!skip_report) bit_count += report_count * report_size;
@@ -239,15 +239,15 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 					break;
 
 				case 9:
-					hidp_extreme_debugf("OUTPUT(%d)", value);
+					hidp_extreme_debugf("OUTPUT(%lu)", value);
 					break;
 
 				case 11:
-					hidp_extreme_debugf("FEATURE(%d)", value);
+					hidp_extreme_debugf("FEATURE(%lu)", value);
 					break;
 
 				case 10:
-					hidp_extreme_debugf("COLLECTION(%d)", value);
+					hidp_extreme_debugf("COLLECTION(%lu)", value);
 					collection_depth++;
 					usage_count = 0;
 
@@ -267,7 +267,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 					break;
 
 				case 12:
-					hidp_extreme_debugf("END_COLLECTION(%d)", value);
+					hidp_extreme_debugf("END_COLLECTION(%lu)", value);
 					collection_depth--;
 
 					// leaving the depth the generic desktop was valid for
@@ -309,7 +309,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 				// global item
 				switch(tag) {
 				case 0:
-					hidp_extreme_debugf("USAGE_PAGE(%d/0x%x)", value, value);
+					hidp_extreme_debugf("USAGE_PAGE(%lu/0x%lx)", value, value);
 
 					if(value == USAGE_PAGE_KEYBOARD) {
 						hidp_extreme_debugf(" -> Keyboard");
@@ -333,46 +333,46 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 					break;
 
 				case 1:
-					hidp_extreme_debugf("LOGICAL_MINIMUM(%d/%d)", value, (int16_t)value);
+					hidp_extreme_debugf("LOGICAL_MINIMUM(%lu/%d)", value, (int16_t)value);
 					logical_minimum = value;
 					break;
 
 				case 2:
-					hidp_extreme_debugf("LOGICAL_MAXIMUM(%d)", value);
+					hidp_extreme_debugf("LOGICAL_MAXIMUM(%lu)", value);
 					logical_maximum = value;
 					break;
 
 				case 3:
-					hidp_extreme_debugf("PHYSICAL_MINIMUM(%d/%d)", value, (int16_t)value);
+					hidp_extreme_debugf("PHYSICAL_MINIMUM(%lu/%d)", value, (int16_t)value);
 					physical_minimum = value;
 					break;
 
 				case 4:
-					hidp_extreme_debugf("PHYSICAL_MAXIMUM(%d)", value);
+					hidp_extreme_debugf("PHYSICAL_MAXIMUM(%lu)", value);
 					physical_maximum = value;
 					break;
 
 				case 5:
-					hidp_extreme_debugf("UNIT_EXPONENT(%d)", value);
+					hidp_extreme_debugf("UNIT_EXPONENT(%lu)", value);
 					break;
 
 				case 6:
-					hidp_extreme_debugf("UNIT(%d)", value);
+					hidp_extreme_debugf("UNIT(%lu)", value);
 					break;
 
 				case 7:
-					hidp_extreme_debugf("REPORT_SIZE(%d)", value);
+					hidp_extreme_debugf("REPORT_SIZE(%lu)", value);
 					report_size = value;
 					break;
 
 				case 8:
 					// Next report is beginning from this point
 					// If we're already got report descriptor and it's satisfies us - skip the report if it has a different ID
-					hidp_extreme_debugf("REPORT_ID(%d)", value);
+					hidp_extreme_debugf("REPORT_ID(%lu)", value);
 					if (conf->report_id) {
 						if(report_is_usable(bit_count, report_complete, conf)) {
 							skip_report = (conf->report_id == value) ? 0 : 1;
-							if (skip_report) hidp_extreme_debugf(" -> skip report %d", value);
+							if (skip_report) hidp_extreme_debugf(" -> skip report %lu", value);
 							break;
 						}
 						else if (skip_report) {
@@ -387,7 +387,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 					break;
 
 				case 9:
-					hidp_extreme_debugf("REPORT_COUNT(%d)", value);
+					hidp_extreme_debugf("REPORT_COUNT(%lu)", value);
 					report_count = value;
 					break;
 
@@ -403,7 +403,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 				switch(tag) {
 				case 0:
 					// we only support mice, keyboards and joysticks
-					hidp_extreme_debugf("USAGE(%d/0x%x)", value, value);
+					hidp_extreme_debugf("USAGE(%lu/0x%lx)", value, value);
 
 					if( !collection_depth && (value == USAGE_KEYBOARD)) {
 						// usage(keyboard) is always allowed
@@ -442,7 +442,7 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 								if (!skip_report) if (axis[2] == -1) axis[2] = usage_count; // don't override wheel
 							}
 							if(value == USAGE_RX || value == USAGE_RY || value == USAGE_RZ) {
-								hidp_extreme_debugf("JOYSTICK/MOUSE: found R%c axis @ %d", 'X'+(value-USAGE_RX), usage_count);
+								hidp_extreme_debugf("JOYSTICK/MOUSE: found R%c axis @ %d", (char) ('X'+(value-USAGE_RX)), usage_count);
 								if (!skip_report) if (axis[3] == -1) axis[3] = usage_count;
 							}
 							if(value == USAGE_WHEEL) {
@@ -468,12 +468,12 @@ bool parse_report_descriptor(uint8_t *rep, uint16_t rep_size, hid_report_t *conf
 					break;
 
 				case 1:
-					hidp_extreme_debugf("USAGE_MINIMUM(%d)", value);
+					hidp_extreme_debugf("USAGE_MINIMUM(%lu)", value);
 					if (!skip_report) usage_count -= (value-1);
 					break;
 
 				case 2:
-					hidp_extreme_debugf("USAGE_MAXIMUM(%d)", value);
+					hidp_extreme_debugf("USAGE_MAXIMUM(%lu)", value);
 					if (!skip_report) usage_count += value;
 					break;
 

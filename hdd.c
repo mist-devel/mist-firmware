@@ -1616,7 +1616,7 @@ void HandleHDD(unsigned char c1, unsigned char c2, unsigned char cs1ena)
 static void GetHardfileGeometry(hdfTYPE *pHDF, bool amiga)
 {
   unsigned long total=0;
-  unsigned long i, head, cyl, spt;
+  unsigned long i, head=0, cyl=0, spt=0;
   unsigned long sptt[] = { 63, 127, 255, 0 };
   unsigned long cyllimit=65535;
 

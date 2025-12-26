@@ -1,4 +1,4 @@
- /*
+/*
 Copyright 2008, 2009 Jakub Bednarski
 
 This file is part of Minimig
@@ -328,7 +328,7 @@ static void PollOneADC() {
 
   // fetch result from previous run
   if(adc_cnt != 0xff) {
-    unsigned int result;
+    unsigned int result = 0;
 
     // wait for end of convertion
     while(!(AT91C_BASE_ADC->ADC_SR & (1 << (4+adc_cnt))));

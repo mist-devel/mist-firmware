@@ -134,7 +134,7 @@ static uint8_t scsi_read(uint8_t *cmd) {
 		ret = disk_read(fs.pdrv, sector_buffer, lba, read);
 		DISKLED_OFF
 		if (ret) {
-			iprintf("STORAGE: Error reading from MMC (lba=%d, len=%d)\n", lba, len);
+			iprintf("STORAGE: Error reading from MMC (lba=%lu, len=%d)\n", lba, len);
 			return 0;
 		}
 		lba+=read;
@@ -156,7 +156,7 @@ static uint8_t scsi_write(uint8_t *cmd) {
 		long to = GetTimer(100);  // wait max 100ms for host
 		while (total_read) {
 			if (CheckTimer(to)) {
-				iprintf("STORAGE: Timeout while waiting for USB host during write (lba=%d, len=%d)\n", lba, len);
+				iprintf("STORAGE: Timeout while waiting for USB host during write (lba=%lu, len=%d)\n", lba, len);
 				return 0;
 			}
 			read = usb_storage_read(buf, total_read);

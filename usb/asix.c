@@ -278,7 +278,7 @@ static uint8_t asix_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len) {
     uint8_t raw[len];
   } buf, *p;
 
-  if(rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc)) 
+  if((rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc)))
     return rcode;
 
   /* scan through all descriptors */
@@ -396,7 +396,7 @@ static uint8_t usb_asix_init(usb_device_t *dev, usb_device_descriptor_t *dev_des
   //  iprintf("number of configurations: %d\n", num_of_conf);
 
   for(i=0; i<num_of_conf; i++) {
-    if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &buf.conf_desc)) 
+    if((rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &buf.conf_desc)))
       return rcode;
     
     //    iprintf("conf descriptor %d has total size %d\n", i, buf.conf_desc.wTotalLength);
@@ -469,7 +469,7 @@ static uint8_t usb_asix_init(usb_device_t *dev, usb_device_descriptor_t *dev_des
   info->phy_id = asix_get_phy_addr(dev);
 
   uint32_t phyid = asix_get_phyid(dev);
-  iprintf("ASIX: PHYID=0x%08x\n", phyid);
+  iprintf("ASIX: PHYID=0x%08lx\n", phyid);
 
   if ((rcode = asix_sw_reset(dev, AX_SWRESET_PRL)) != 0) {
     asix_debugf("reset(AX_SWRESET_PRL) failed");

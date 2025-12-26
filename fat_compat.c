@@ -38,12 +38,12 @@ void fat_switch_to_usb() {
 	fat_device = 1;
 }
 
-static char fs_type_none[] = "NONE";
-static char fs_type_fat12[] = "FAT12";
-static char fs_type_fat16[] = "FAT16";
-static char fs_type_fat32[] = "FAT32";
-static char fs_type_exfat[] = "EXFAT";
-static char fs_type_unknown[] = "UNKNOWN";
+static const char fs_type_none[] = "NONE";
+static const char fs_type_fat12[] = "FAT12";
+static const char fs_type_fat16[] = "FAT16";
+static const char fs_type_fat32[] = "FAT32";
+static const char fs_type_exfat[] = "EXFAT";
+static const char fs_type_unknown[] = "UNKNOWN";
 
 char *fs_type_to_string(void) {
 	switch (fs.fs_type) {
@@ -122,7 +122,7 @@ unsigned char FindDrive(void) {
 	iprintf("dir_entries: %u\n", fs.n_rootdir);
 	iprintf("data_start: %lu\n", fs.database);
 	iprintf("cluster_size: %u\n", fs.csize);
-	iprintf("free_clusters: %u\n", fs.free_clst);
+	iprintf("free_clusters: %lu\n", fs.free_clst);
 
 	return(1);
 }
@@ -269,12 +269,12 @@ FAST static int CompareDirEntries(FILINFO *pDirEntry1, FILINFO *pDirEntry2)
 {
 	int rc;
 
-	if ((pDirEntry2->fattrib & AM_DIR)  && !(pDirEntry1->fattrib & AM_DIR) // directories first
-	|| (pDirEntry2->fname[0] == '.' && pDirEntry2->fname[1] == '.')) // parent directory entry at top
+	if (((pDirEntry2->fattrib & AM_DIR) && !(pDirEntry1->fattrib & AM_DIR)) // directories first
+	|| ((pDirEntry2->fname[0] == '.' && pDirEntry2->fname[1] == '.'))) // parent directory entry at top
 		return 1;
 
-	if ((pDirEntry1->fattrib & AM_DIR) && !(pDirEntry2->fattrib & AM_DIR) // directories first
-	|| (pDirEntry1->fname[0] == '.' && pDirEntry1->fname[1] == '.')) // parent directory entry at top
+	if (((pDirEntry1->fattrib & AM_DIR) && !(pDirEntry2->fattrib & AM_DIR)) // directories first
+	|| ((pDirEntry1->fname[0] == '.' && pDirEntry1->fname[1] == '.'))) // parent directory entry at top
 		return -1;
 
 	rc = _strnicmp(pDirEntry1->fname, pDirEntry2->fname, FF_LFN_BUF+1);

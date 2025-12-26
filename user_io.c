@@ -240,7 +240,7 @@ void user_io_set_core_mod(int64_t mod) {
 }
 
 static void user_io_send_core_mod() {
-	iprintf("Sending core mod = %d\n", core_mod);
+	iprintf("Sending core mod = %lld\n", core_mod);
 	spi_uio_cmd8(UIO_SET_MOD, core_mod & 0x7f);
 	spi_uio_cmd64(UIO_SET_MOD2, core_mod);
 }
@@ -614,7 +614,7 @@ void user_io_sd_set_config(void) {
 		// synthetic CSD for non-MMC storage
 		uint32_t capacity;
 		disk_ioctl(fs.pdrv, GET_SECTOR_COUNT, &capacity);
-		memset(data, sizeof(data), 0);
+		memset(data, 0, sizeof(data));
 		data[16+0] = 0x40;
 		data[16+1] = 0x0e;
 		data[16+3] = 0x32;
@@ -1561,7 +1561,7 @@ void user_io_poll() {
 				// if the core uses sdhc
 				if((!MMC_IsSDHC()) || (c & 0x04)) {
 					if(user_io_dip_switch1())
-						iprintf("SD WR (%d) %d/%d\n", drive_index, lba, 512<<blksz);
+						iprintf("SD WR (%d) %lu/%d\n", drive_index, lba, 512<<blksz);
 
 					// if we write the sector stored in the read buffer, then
 					// invalidate the cache
@@ -1597,7 +1597,7 @@ void user_io_poll() {
 			if((c & 0x03) == 0x01) {
 
 				if(user_io_dip_switch1())
-					iprintf("SD RD (%d) %d/%d\n", drive_index, lba, 512<<blksz);
+					iprintf("SD RD (%d) %lu/%d\n", drive_index, lba, 512<<blksz);
 
 				// invalidate cache if it stores data from another drive
 				if (drive_index != buffer_drive_index)
@@ -1925,11 +1925,12 @@ static void send_keycode(unsigned short code) {
 			if(code & EXT)    // prepend extended code flag if required
 				spi8(0xe0);
  
-			if(code & BREAK)  // prepend break code if required
+			if(code & BREAK) {// prepend break code if required
 				if (ps2_kbd_scan_set == 1)
 					code |= 0x80;
 				else
 					spi8(0xf0);
+			}
 
 			spi8(code & 0xff);  // send code itself
 		}
@@ -2251,15 +2252,15 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 		switch(mist_cfg.amiga_mod_keys) {
 			case 1:
 				// swap RALT/RGUI & LALT/LGUI
-				m = ((m & 0x40) << 1) | ((m & 0x80) >> 1) | m & 0x20 | m & 0x10 | ((m & 0x8) >> 1) | ((m & 0x4) << 1) | m & 0x2;			
+				m = ((m & 0x40) << 1) | ((m & 0x80) >> 1) | (m & 0x20) | (m & 0x10) | ((m & 0x8) >> 1) | ((m & 0x4) << 1) | (m & 0x2);
 				break;
 			case 2:
 				// swap RGUI/RCTRL & LGUI/CTRL
-				m = ((m & 0x10) << 3) | ((m & 0x80) >> 3) | m & 0x20 | m & 0x40 | ((m & 0x8) >> 3) | ((m & 0x1) << 3) | m & 0x2 | m & 0x4;
+				m = ((m & 0x10) << 3) | ((m & 0x80) >> 3) | (m & 0x20) | (m & 0x40) | ((m & 0x8) >> 3) | ((m & 0x1) << 3) | (m & 0x2) | (m & 0x4);
 				break;
 			case 3:
 				// Map Alt to GUI, Ctrl to Alt, GUI to Ctrl
-				m = ((m & 0x10) << 2) | ((m & 0x80) >> 3) | (m & 0x20) | ((m & 0x40) << 1) | ((m & 0x8) >> 3) | ((m & 0x1) << 2) | (m & 0x2) | ((m & 0x4) << 1) ;
+				m = ((m & 0x10) << 2) | ((m & 0x80) >> 3) | (m & 0x20) | ((m & 0x40) << 1) | ((m & 0x8) >> 3) | ((m & 0x1) << 2) | (m & 0x2) | ((m & 0x4) << 1);
 				break;
 			default:
 				break;

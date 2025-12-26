@@ -465,7 +465,7 @@ void Setup8bitMenu() {
 
 	i = 2;
 	// search for 'V'ersion string
-	while (p = user_io_8bit_get_string(i++)) {
+	while ((p = user_io_8bit_get_string(i++))) {
 		if(p[0] == 'V') {
 			// p[1] is not used but kept for future use
 			char x = p[1];

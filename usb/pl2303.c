@@ -111,7 +111,6 @@ static uint8_t pl2303_vendor_write(usb_device_t *dev, uint16_t val, uint8_t inde
   return ret;
 }
 
-
 // get access to the first pl2303 device found
 static usb_device_t *pl2303_get_dev(void) {
   uint8_t i;
@@ -194,7 +193,7 @@ static uint8_t pl2303_parse_conf0(usb_device_t *dev, uint16_t len) {
     uint8_t raw[len];
   } buf, *p;
 
-  if(rcode = usb_get_conf_descr(dev, len, 0, &buf.conf_desc)) {
+  if((rcode = usb_get_conf_descr(dev, len, 0, &buf.conf_desc))) {
     pl2303_debugf("getting full conf descriptor #0 failed");
     return rcode;
   }
@@ -317,7 +316,7 @@ static uint8_t pl2303_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc)
   }
 
   // use first config (actually there is only one)
-  if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), 0, &buf.conf_desc)) {
+  if((rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), 0, &buf.conf_desc))) {
     pl2303_debugf("failed getting conf descriptor #0");
     return rcode;
   }
@@ -486,6 +485,7 @@ static uint8_t pl2303_poll(usb_device_t *dev) {
 
     info->qLastBulkPollTime = timer_get_msec();
   }
+  return rcode;
 }
 
 const usb_device_class_config_t usb_pl2303_class = {

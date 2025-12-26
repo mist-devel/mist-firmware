@@ -20,7 +20,7 @@ void IDXIndex(IDXFile *pIDXF) {
       file->cltbl = 0;
     } else {
       time = GetRTTC() - time;
-      iprintf("File indexed in %lu ms, index size = %d\n", time, pIDXF->clmt[0]);
+      iprintf("File indexed in %lu ms, index size = %lu\n", time, pIDXF->clmt[0]);
     }
 }
 

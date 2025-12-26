@@ -44,7 +44,7 @@ static uint8_t usb_hub_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len,
     uint8_t raw[len];
   } buf, *p;
 
-  if(rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc))
+  if((rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc)))
     return rcode;
 
   /* scan through all descriptors */
@@ -195,7 +195,7 @@ static uint8_t usb_hub_port_status_change(usb_device_t *dev, uint8_t port, hub_e
   usb_hub_info_t *info = &(dev->hub_info);
   uint8_t rcode;
 
-  iprintf("status change on port %d, 0x%x\n", port, evt.bmEvent);
+  iprintf("status change on port %d, 0x%lx\n", port, evt.bmEvent);
   usb_hub_show_port_status(port, evt.bmStatus, evt.bmChange);
 
   static bool bResetInitiated = false;

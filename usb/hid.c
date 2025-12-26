@@ -169,7 +169,7 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 
 	// usb_interface_descriptor
 
-	if(rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc)) 
+	if((rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc)))
 		return rcode;
 
 	/* scan through all descriptors */
@@ -324,7 +324,7 @@ static uint8_t usb_hid_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc
 	//  hid_debugf("number of configurations: %d", num_of_conf);
 
 	for(i=0; i<num_of_conf; i++) {
-		if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &conf_desc)) 
+		if((rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &conf_desc)))
 			return rcode;
 
 		usb_dump_conf_descriptor(&conf_desc);
@@ -514,26 +514,26 @@ static void handle_5200daptor(usb_device_t *dev, usb_hid_iface_info_t *iface, ui
 
 	// list of buttons that are reported as keys
 	static const struct {
-	  uint8_t byte_offset;   // offset of the byte within the report which the button bit is in
+	    uint8_t byte_offset;   // offset of the byte within the report which the button bit is in
 	    uint8_t mask;          // bitmask of the button bit
 	    uint8_t key_code[2];   // usb keycodes to be sent for joystick 0 and joystick 1
 	} button_map[] = {
-	    { 4, 0x10, 0x3a, 0x3d }, /* START -> f1/f4 */
-	    { 4, 0x20, 0x3b, 0x3e }, /* PAUSE -> f2/f5 */
-	    { 4, 0x40, 0x3c, 0x3f }, /* RESET -> f3/f6 */
-	    { 5, 0x01, 0x1e, 0x21 }, /*     1 ->  1/4  */
-	    { 5, 0x02, 0x1f, 0x22 }, /*     2 ->  2/5  */
-	    { 5, 0x04, 0x20, 0x23 }, /*     3 ->  3/6  */
-	    { 5, 0x08, 0x14, 0x15 }, /*     4 ->  q/r  */
-	    { 5, 0x10, 0x1a, 0x17 }, /*     5 ->  w/t  */
-	    { 5, 0x20, 0x08, 0x1c }, /*     6 ->  e/y  */
-	    { 5, 0x40, 0x04, 0x09 }, /*     7 ->  a/f  */
-	    { 5, 0x80, 0x16, 0x0a }, /*     8 ->  s/g  */
-	    { 6, 0x01, 0x07, 0x0b }, /*     9 ->  d/h  */
-	    { 6, 0x02, 0x1d, 0x19 }, /*     * ->  z/v  */
-	    { 6, 0x04, 0x1b, 0x05 }, /*     0 ->  x/b  */
-	    { 6, 0x08, 0x06, 0x11 }, /*     # ->  c/n  */
-	    { 0, 0x00, 0x00, 0x00 }  /* ----  end ---- */
+	    { 4, 0x10, { 0x3a, 0x3d }}, /* START -> f1/f4 */
+	    { 4, 0x20, { 0x3b, 0x3e }}, /* PAUSE -> f2/f5 */
+	    { 4, 0x40, { 0x3c, 0x3f }}, /* RESET -> f3/f6 */
+	    { 5, 0x01, { 0x1e, 0x21 }}, /*     1 ->  1/4  */
+	    { 5, 0x02, { 0x1f, 0x22 }}, /*     2 ->  2/5  */
+	    { 5, 0x04, { 0x20, 0x23 }}, /*     3 ->  3/6  */
+	    { 5, 0x08, { 0x14, 0x15 }}, /*     4 ->  q/r  */
+	    { 5, 0x10, { 0x1a, 0x17 }}, /*     5 ->  w/t  */
+	    { 5, 0x20, { 0x08, 0x1c }}, /*     6 ->  e/y  */
+	    { 5, 0x40, { 0x04, 0x09 }}, /*     7 ->  a/f  */
+	    { 5, 0x80, { 0x16, 0x0a }}, /*     8 ->  s/g  */
+	    { 6, 0x01, { 0x07, 0x0b }}, /*     9 ->  d/h  */
+	    { 6, 0x02, { 0x1d, 0x19 }}, /*     * ->  z/v  */
+	    { 6, 0x04, { 0x1b, 0x05 }}, /*     0 ->  x/b  */
+	    { 6, 0x08, { 0x06, 0x11 }}, /*     # ->  c/n  */
+	    { 0, 0x00, { 0x00, 0x00 }}  /* ----  end ---- */
 	};
 
 	// keyboard events are only generated for the first

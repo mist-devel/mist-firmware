@@ -28,7 +28,7 @@ static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
     uint8_t raw[len];
   } buf, *p;
 
-  if(rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc)) 
+  if((rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc)))
     return rcode;
 
   /* scan through all descriptors */
@@ -332,7 +332,7 @@ static uint8_t usb_storage_init(usb_device_t *dev, usb_device_descriptor_t *dev_
   // scan all configurations for a usable one
   int8_t good_conf = -1;
   for(i=0; (i < num_of_conf)&&(good_conf == -1); i++) {
-    if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &buf.conf_desc)) 
+    if((rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &buf.conf_desc)))
       return rcode;
     
     storage_debugf("conf descriptor %d has total size %d", i, buf.conf_desc.wTotalLength);

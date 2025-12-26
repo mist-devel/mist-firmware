@@ -46,7 +46,7 @@ This is the Minimig OSD (on-screen-display) handler.
 extern unsigned char charfont[128][8];
 
 // conversion table of Amiga keyboard scan codes to ASCII codes
-const char keycode_table[128] =
+static const char keycode_table[128] =
 {
       0,'1','2','3','4','5','6','7','8','9','0',  0,  0,  0,  0,  0,
     'Q','W','E','R','T','Y','U','I','O','P',  0,  0,  0,  0,  0,  0,
@@ -532,7 +532,7 @@ unsigned char OsdGetCtrl(void)
     static unsigned long delay;
     static unsigned long repeat;
     static unsigned char repeat2;
-    unsigned char c1,c;
+    unsigned char c1=0,c;
 
     // minimig OSD is controlled by key codes from core 
     if(user_io_core_type() == CORE_TYPE_MINIMIG) {

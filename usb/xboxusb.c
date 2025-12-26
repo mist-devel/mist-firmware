@@ -49,7 +49,7 @@ static uint8_t usb_xbox_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len
 	} buf, *p;
 
 	// usb_interface_descriptor
-	if(rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc))
+	if((rcode = usb_get_conf_descr(dev, len, conf, &buf.conf_desc)))
 		return rcode;
 
 	/* scan through all descriptors */
@@ -144,23 +144,23 @@ uint8_t usb_xbox_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc) {
 
 	memset(&dev->xbox_info, 0, sizeof(dev->xbox_info));
 
-	if(rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), 0, &conf_desc))
+	if((rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), 0, &conf_desc)))
 		return rcode;
 	usb_dump_conf_descriptor(&conf_desc);
-	if(rcode = usb_xbox_parse_conf(dev, 0, conf_desc.wTotalLength)) {
+	if((rcode = usb_xbox_parse_conf(dev, 0, conf_desc.wTotalLength))) {
 		iprintf("XBOX: invalid configuration (%d)\n", rcode);
 		return rcode;
 	}
 
 	// Set Configuration Value
-	if(rcode = usb_set_conf(dev, conf_desc.bConfigurationValue)) {
+	if((rcode = usb_set_conf(dev, conf_desc.bConfigurationValue))) {
 		iprintf("XBOX: error setting conf value (%d)\n", rcode);
 		return rcode;
 	}
 
 	// Some controllers (like 8bitdo usb wireless adapter 2) require this message to finish initialization
 	uint8_t led_cmd[] = {0x01, 0x03, 0x02}; // led command: 1 flashes, then on
-	if(rcode = usb_out_transfer(dev, &dev->xbox_info.outEp, sizeof(led_cmd), led_cmd)) {
+	if((rcode = usb_out_transfer(dev, &dev->xbox_info.outEp, sizeof(led_cmd), led_cmd))) {
 		iprintf("XBOX: error sending led_cmd message (%d)\n", rcode);
 	}
 

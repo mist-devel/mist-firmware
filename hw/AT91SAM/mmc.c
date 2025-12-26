@@ -366,7 +366,7 @@ unsigned char MMC_ReadMultiple(unsigned long lba, unsigned char *pReadBuffer, un
 
     if (MMC_Command(CMD18, lba))
     {
-        iprintf("CMD18 (READ_MULTIPLE_BLOCK): invalid response 0x%02X (lba=%u)\r", response, lba);
+        iprintf("CMD18 (READ_MULTIPLE_BLOCK): invalid response 0x%02X (lba=%lu)\r", response, lba);
         DisableCard();
         return(0);
     }
@@ -461,7 +461,7 @@ unsigned char MMC_WriteMultiple(unsigned long lba, const unsigned char *pWriteBu
 
     do {
         if(!MMC_SendDataBlock(pWriteBuffer, 0xFC)) {
-            iprintf("CMD25 (WRITE_MULTIPLE_BLOCK): error at lba=%d, remaining blocks=%d\n", lba, nBlockCount);
+            iprintf("CMD25 (WRITE_MULTIPLE_BLOCK): error at lba=%lu, remaining blocks=%lu\n", lba, nBlockCount);
             DisableCard();
             return(0);
         }
