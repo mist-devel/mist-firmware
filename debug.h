@@ -42,7 +42,7 @@
 #define ikbd_debugf(...)
 #endif
 
-#if 1
+#if 0
 // 8bit debug output in blue
 #define bit8_debugf(a, ...) iprintf("\033[1;34m8BIT: " a "\033[0m\n", ##__VA_ARGS__)
 #else
@@ -63,13 +63,13 @@
 #define eth_debug(...)
 #endif
 
-#if 1
+#if 0
 #define eth_error(a, ...) iprintf("\033[1;32mETH: " a "\033[0m\n", ##__VA_ARGS__)
 #else
 #define eth_error(...)
 #endif
 
-#if 1
+#if 0
 #define eth_info(a, ...) iprintf("\033[1;32mETH: " a "\033[0m\n", ##__VA_ARGS__)
 #else
 #define eth_info(...)
@@ -126,7 +126,7 @@
 #define pl2303_debugf(...)
 #endif
 
-#if 1
+#if 0
 // ini_parser debug output
 #define ini_parser_debugf(a, ...) iprintf("\033[1;34mINI_PARSER : " a "\033[0m\n",## __VA_ARGS__)
 #else
@@ -168,7 +168,7 @@
 #define snes_debugf(...)
 #endif
 
-#if 1
+#if 0
 // HDMI debug output
 #define hdmi_debugf(a, ...) iprintf("\033[1;34mHDMI : " a "\033[0m",## __VA_ARGS__)
 #else
