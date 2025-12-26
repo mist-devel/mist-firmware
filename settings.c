@@ -26,16 +26,16 @@ extern char s[FF_LFN_BUF + 1];
 static uint64_t status;
 
 // core ini sections
-const ini_section_t core_ini_sections[] = {
+static const ini_section_t core_ini_sections[] = {
 	{1, "CFG"}
 };
 
 // core ini vars
-const ini_var_t core_ini_global_vars[] = {
+static const ini_var_t core_ini_global_vars[] = {
 	{"JOYSTICK_REMAP", (void*)virtual_joystick_remap, CUSTOM_HANDLER, 0, 0, 1}
 };
 
-const ini_var_t core_ini_local_vars[] = {
+static const ini_var_t core_ini_local_vars[] = {
 	{"STATUS", (void*)(&status), UINT64, 0, 0xFFFFFFFFFFFFFFFF, 1},
 	{"JOYSTICK_REMAP", (void*)virtual_joystick_remap, CUSTOM_HANDLER, 0, 0, 1}
 };

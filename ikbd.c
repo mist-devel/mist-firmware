@@ -314,7 +314,7 @@ void ikbd_handler_reset(void) {
 }
 
 // ---- list of supported ikbd commands ----
-struct {
+static const struct {
   unsigned char code;
   unsigned char length;
   void (*handler)(void);

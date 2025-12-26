@@ -44,10 +44,9 @@ void mist_ini_parse()
 #endif
 }
 
-
 //// vars ////
 // config data
-mist_cfg_t mist_cfg = { 
+mist_cfg_t mist_cfg = {
   .scandoubler_disable = 0,
   .csync_disable = 0,
   .mouse_boot_mode = 0,
@@ -83,14 +82,14 @@ atarist_cfg_t atarist_cfg = {
 };
 
 // mist ini sections
-const ini_section_t mist_ini_sections[] = {
+static const ini_section_t mist_ini_sections[] = {
   {1, "MIST"},
   {2, "MINIMIG_CONFIG"},
   {3, "ATARIST_CONFIG"}
 };
 
 // mist ini vars
-const ini_var_t mist_ini_vars[] = {
+static const ini_var_t mist_ini_vars[] = {
   // [MIST] or [<core name>]
   {"LED_ANIMATION", (void*)(&(mist_cfg.led_animation)), UINT8, 0, 1, 1},
   {"YPBPR", (void*)(&(mist_cfg.ypbpr)), UINT8, 0, 1, 1},

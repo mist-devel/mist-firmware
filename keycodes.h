@@ -20,13 +20,13 @@
 #define NUM_LOCK_TOGGLE   0x0800
 #define EXT               0x1000     // extended PS/2 keycode
 
-// amiga unmapped: 
+// amiga unmapped:
 // 0x5a KP-( (mapped on Keyrah)
 // 0x5b KP-) (mapped on Keyrah)
 // codes >= 0x69 are for OSD only and are not sent to the amiga itself
 
 // keycode translation table
-const unsigned short usb2ami[] = {
+static const unsigned short usb2ami[] = {
   MISS,  // 00: NoEvent
   MISS,  // 01: Overrun Error
   MISS,  // 02: POST fail
@@ -78,7 +78,7 @@ const unsigned short usb2ami[] = {
   0x1b,  // 30: ]
   0x0d,  // 31: backslash (only on us keyboards)
   0x2b,  // 32: Europe 1 (only on international keyboards)
-  0x29,  // 33: ; 
+  0x29,  // 33: ;
   0x2a,  // 34: '
   0x00,  // 35: `
   0x38,  // 36: ,
@@ -142,7 +142,7 @@ const unsigned short usb2ami[] = {
 };
 
 // keycode translation table for atari
-const unsigned short usb2atari[] = {
+static const unsigned short usb2atari[] = {
   MISS,  // 00: NoEvent
   MISS,  // 01: Overrun Error
   MISS,  // 02: POST fail
@@ -194,7 +194,7 @@ const unsigned short usb2atari[] = {
   0x1b,  // 30: ]
   0x29,  // 31: backslash, only on us keyboard
   0x29,  // 32: Europe 1, only on int. keyboard
-  0x27,  // 33: ; 
+  0x27,  // 33: ;
   0x28,  // 34: '
   0x2b,  // 35: `
   0x33,  // 36: ,
@@ -258,7 +258,7 @@ const unsigned short usb2atari[] = {
 };
 
 // keycode translation table for ps2 emulation (scan set 2,3)
-const unsigned short usb2ps2[] = {
+static const unsigned short usb2ps2[] = {
   MISS,  // 00: NoEvent
   MISS,  // 01: Overrun Error
   MISS,  // 02: POST fail
@@ -310,7 +310,7 @@ const unsigned short usb2ps2[] = {
   0x5b,  // 30: ]
   0x5d,  // 31: backslash
   0x5d,  // 32: Europe 1
-  0x4c,  // 33: ; 
+  0x4c,  // 33: ;
   0x52,  // 34: '
   0x0e,  // 35: `
   0x41,  // 36: ,
@@ -374,7 +374,7 @@ const unsigned short usb2ps2[] = {
 };
 
 // keycode translation table for ps2 emulation (scan set 1)
-const unsigned short usb2ps2_set1[] = {
+static const unsigned short usb2ps2_set1[] = {
   MISS,  // 00: NoEvent
   MISS,  // 01: Overrun Error
   MISS,  // 02: POST fail
@@ -426,7 +426,7 @@ const unsigned short usb2ps2_set1[] = {
   0x1b,  // 30: ]
   0x2b,  // 31: backslash
   0x2b,  // 32: Europe 1
-  0x27,  // 33: ; 
+  0x27,  // 33: ;
   0x28,  // 34: '
   0x29,  // 35: `
   0x33,  // 36: ,
@@ -499,7 +499,7 @@ const unsigned short usb2ps2_set1[] = {
  // Missing button_5
 
 // keycode translation table
-const unsigned short usb2archie[] = {
+static const unsigned short usb2archie[] = {
   MISS, // 00: NoEvent
   MISS, // 01: Overrun Error
   MISS, // 02: POST fail
@@ -578,7 +578,7 @@ const unsigned short usb2archie[] = {
   0x20, // 4a: Home
   0x21, // 4b: Page Up
   0x34, // 4c: Delete
-  0x35, // 4d: End 
+  0x35, // 4d: End
   0x36, // 4e: Page Down
   0x64, // 4f: Right Arrow
   0x62, // 50: Left Arrow

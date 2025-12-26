@@ -17,7 +17,7 @@ typedef enum
 	EU
 } region_t;
 
-static char *region_str[] = {"Unknown", "JP", "US", "EU"};
+static const char *region_str[] = {"Unknown", "JP", "US", "EU"};
 
 typedef struct
 {
@@ -39,7 +39,7 @@ typedef struct
 #define SBI_HEADER_SIZE 4
 #define SBI_BLOCK_SIZE  14
 
-static uint32_t libCryptSectors[16] =
+static const uint32_t libCryptSectors[16] =
 {
 	14105,
 	14231,

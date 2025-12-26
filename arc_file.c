@@ -27,12 +27,12 @@ static int conf_ptr;
 char arc_set_conf(char *, char, int);
 
 // arc ini sections
-const ini_section_t arc_ini_sections[] = {
+static const ini_section_t arc_ini_sections[] = {
 	{1, "ARC"}
 };
 
 // arc ini vars
-const ini_var_t arc_ini_vars[] = {
+static const ini_var_t arc_ini_vars[] = {
 	{"MOD", (void*)(&arc.mod), INT64, 0, 0x7fffffffffffffff, 1},
 	{"DEFAULT", (void*)(&arc.conf_default), UINT64, 0, ~0, 1},
 	{"RBF", (void*)arc.rbfname, STRING, 1, 32, 1},

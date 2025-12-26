@@ -244,7 +244,7 @@ static int zx_chr_new_text(SXML_CHAR* text, SAX_Data* sd)
 
 ///////////////////////
 
-static SAX_Callbacks zx_col_sax_callbacks = {
+static const SAX_Callbacks zx_col_sax_callbacks = {
 	.start_doc  = zx_col_start_doc,
 	.end_doc    = zx_col_end_doc,
 	.start_node = zx_col_start_node,
@@ -252,7 +252,7 @@ static SAX_Callbacks zx_col_sax_callbacks = {
 	.new_text   = zx_col_new_text
 	};
 
-static SAX_Callbacks zx_chr_sax_callbacks = {
+static const SAX_Callbacks zx_chr_sax_callbacks = {
 	.start_doc  = zx_chr_start_doc,
 	.end_doc    = zx_chr_end_doc,
 	.start_node = zx_chr_start_node,
