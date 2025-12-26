@@ -44,7 +44,7 @@ This file defines how to handle mapping in the MiST controllers in various ways:
 
 static joymapping_t joystick_mappers[MAX_VIRTUAL_JOYSTICK_REMAP];
 
-static uint16_t default_joystick_mapping [16] = {
+static const uint16_t default_joystick_mapping [16] = {
 	JOY_RIGHT,
 	JOY_LEFT,
 	JOY_DOWN,
@@ -63,7 +63,7 @@ static uint16_t default_joystick_mapping [16] = {
 	JOY_R3 
 };
 
-static char dump_mapping() {
+static void dump_mapping() {
 	for(int i=0;i<MAX_VIRTUAL_JOYSTICK_REMAP;i++) {
 		if(joystick_mappers[i].vid && joystick_mappers[i].pid) {
 			iprintf("map[%d]: VID: %04x PID: %04x tag: %d\n", i, joystick_mappers[i].vid, joystick_mappers[i].pid, joystick_mappers[i].tag);
@@ -241,64 +241,42 @@ void virtual_joystick_tag_update(uint16_t vid, uint16_t pid, int newtag)
 
 /*****************************************************************************/
 
-char* get_joystick_alias( uint16_t vid, uint16_t pid ) {
-	
-	if(vid==0x0F30 && pid==0x1012)
-		return JOYSTICK_ALIAS_QANBA_Q4RAF;
-	
-	if(vid==0x081F && pid==0xE401)
-		return JOYSTICK_ALIAS_CHEAP_SNES;
-	
-	if(vid==0x0583 && pid==0x2060)
-		return JOYSTICK_ALIAS_IBUFALLO_SNES;
-	
-	if(vid==0x0411 && pid==0x00C6) 
-		return JOYSTICK_ALIAS_IBUFALLO_SNES;
-	
-	if (vid==VID_RETROLINK && pid==0x0006)
-		return JOYSTICK_ALIAS_RETROLINK_GC;
-	
-	if (vid==VID_RETROLINK && pid==0x0011)
-		return JOYSTICK_ALIAS_RETROLINK_NES;
-	
-	if(vid==0x1F4F && pid==0x0003) 
-		return JOYSTICK_ALIAS_ROYDS_EX;
+static const struct {
+	uint16_t vid;
+	uint16_t pid;
+	char name[20];
+} joy_devs[] = {
+	{ 0x0079, 0x0006, "Retrolink N64/GC" },
+	{ 0x0079, 0x0011, "Retrolink NES" },
+	{ 0x040b, 0x6533, "Speedlink Compet Pro" },
+	{ 0x0411, 0x00C6, "iBuffalo SFC BSGP801" },
+	{ 0x045E, 0x028E, "Xbox360 Controller" },
+	{ 0x04D8, 0xF421, "NEOGEO-daptor" },
+	{ 0x04D8, 0xF672, "Vision-daptor" },
+	{ 0x04D8, 0xF6EC, "NEOGEO-daptor" },
+	{ 0x04D8, 0xF947, "2600-daptor II" },
+	{ 0x0583, 0x2060, "iBuffalo SFC BSGP801" },
+	{ 0x0738, 0x2217, "Speedlink Compet Pro" },
+	{ 0x081F, 0xE401, "SNES Generic Pad" },
+	{ 0x0F30, 0x1012, "Qanba Q4RAF" },
+	{ 0x0CA3, 0x0024, "8BitDo M30 2.4G" },
+	{ 0x1002, 0x9000, "8BitDo FC30" },
+	{ 0x1235, 0xab11, "8BitDo SFC30" },
+	{ 0x1235, 0xab21, "8BitDo SFC30"},
+	{ 0x1F4F, 0x0003, "ROYDS Stick.EX" },
+	{ 0x1345, 0x1030, "Retro Freak gamepad" },
+	{ 0x1C59, 0x0026, "Retro Games GAMEPAD" },
+};
 
-	if(vid==VID_DAPTOR && pid==0xF947)
-		return JOYSTICK_ALIAS_ATARI_DAPTOR2;
-	
-	if(vid==VID_DAPTOR && pid==0xF421)
-		return JOYSTICK_ALIAS_NEOGEO_DAPTOR;
-	
-	if(vid==VID_DAPTOR && pid==0xF6EC)
-		return JOYSTICK_ALIAS_NEOGEO_DAPTOR;
-	
-	if(vid==VID_DAPTOR && pid==0xF672)
-		return JOYSTICK_ALIAS_VISION_DAPTOR;
-		
-	if(vid==0x1345 && pid==0x1030)
-		return JOYSTICK_ALIAS_RETRO_FREAK;
-	
-	if(vid==0x1235 &&  (pid==0xab11 || pid==0xab21))
-		return JOYSTICK_ALIAS_8BITDO_SFC30;
-	
-	if(vid==0x1002 &&  pid==0x9000)
-		return JOYSTICK_ALIAS_8BITDO_FC30;
-	
-	if(vid==0x040b && pid==0x6533)
-		return JOYSTICK_ALIAS_SPEEDLINK_COMP;
-	
-	if(vid==0x0738 && pid==0x2217)
-		return JOYSTICK_ALIAS_SPEEDLINK_COMP;
-
-	if(vid==0x045E && pid==0x028E)
-		return JOYSTICK_ALIAS_XBOX;
-
-	if(vid==0x1C59 && pid==0x0026)
-		return JOYSTICK_ALIAS_RETRO_GAMES_THEGAMEPAD;
-
-	return JOYSTICK_ALIAS_NONE;
-		
+const char* get_joystick_name( uint16_t vid, uint16_t pid ) {
+	for (int n = 0; n < (sizeof(joy_devs) / sizeof(joy_devs[0])); n++)
+	{
+		if (joy_devs[n].vid == vid && joy_devs[n].pid == pid)
+		{
+			return joy_devs[n].name;
+		}
+	}
+	return NULL;
 }
 
 /* Translates USB input into internal virtual joystick,
@@ -309,7 +287,7 @@ uint16_t virtual_joystick_mapping (uint16_t vid, uint16_t pid, uint16_t joy_inpu
 	uint8_t i;
 	
 	// defines translations between physical buttons and virtual joysticks
-    uint16_t mapping[16];
+	uint16_t mapping[16];
 	// keep directions by default
 	for(i=0; i<4; i++) 
 	   mapping[i]=default_joystick_mapping[i]; 
@@ -544,6 +522,7 @@ char joystick_key_map(char *s, char action, int tag) {
       return 0; // finished processing input string so exit
     }
   }
+  return 0;
 }
 
 /*****************************************************************************/

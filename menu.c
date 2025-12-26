@@ -104,9 +104,9 @@ char DirEntryInfo[MAXDIRENTRIES][5]; // disk number info of dir entries
 char DiskInfo[5]; // disk number info of selected entry
 static char *SelectedName;
 
-const char *config_cpu_msg[] = {"68000", "68010", "68EC020","68020"};
+const char *config_cpu_msg[] = { "68000", "68010", "68EC020", "68020" };
 const char *config_autofire_msg[] = {"\n\n        AUTOFIRE OFF", "\n\n        AUTOFIRE FAST", "\n\n       AUTOFIRE MEDIUM", "\n\n        AUTOFIRE SLOW"};
-const char *days[] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+static const char *days[] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
 const char *helptexts[]={
 	0,
@@ -143,7 +143,7 @@ unsigned char fs_MenuSelect;
 
 static uint8_t setup_phase = 0;
 static joymapping_t mapping;
-static char *buttons [16] = {
+static const char *buttons [16] = {
   "RIGHT",
   "LEFT",
   "DOWN",
@@ -172,46 +172,52 @@ static void siprintbinary(char* buffer, uint8_t byte)
 	}
 }
 
-static void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) {
+static void get_joystick_state( char joy_string[32], char joy_string2[32], uint8_t joy_num ) {
 	// helper to get joystick status (both USB or DB9)
 	uint32_t vjoy;
 	vjoy = StateJoyGet(joy_num);
-	vjoy |=  StateJoyGetExtra(joy_num) << 8;
-	vjoy |=  StateJoyGetRight(joy_num) << 16;
+	vjoy |= StateJoyGetExtra(joy_num) << 8;
+	vjoy |= StateJoyGetRight(joy_num) << 16;
 	if (vjoy==0) {
 		joy_string[0] = '\0';
-		strcpy(joy_string2, "  \x14     \x14                 ");
+		joy_string2[0] = '\0';
 		return;
 	}
-	strcpy(joy_string,  "  \x12     \x12   X Y L R L2 R2 L3");
-	strcpy(joy_string2, "< \x13 > < \x13 > A B Sel Sta R3");
-	if(!(vjoy & JOY_UP))    joy_string[2]  = ' ';
-	if(!(vjoy & JOY_X))     joy_string[12] = ' ';
-	if(!(vjoy & JOY_Y))     joy_string[14] = ' ';
-	if(!(vjoy & JOY_L))     joy_string[16] = ' ';
-	if(!(vjoy & JOY_R))     joy_string[18] = ' ';
-	if(!(vjoy & JOY_L2))    memset(joy_string+20, ' ', 2);
-	if(!(vjoy & JOY_R2))    memset(joy_string+23, ' ', 2);
-	if(!(vjoy & JOY_L3))    memset(joy_string+26, ' ', 2);
-	if(!(vjoy & JOY_LEFT))  joy_string2[0] = ' ';
-	if(!(vjoy & JOY_DOWN))  joy_string2[2] = '\x14';
-	if(!(vjoy & JOY_RIGHT)) joy_string2[4] = ' ';
-	if(!(vjoy & JOY_A))     joy_string2[12] = ' ';
-	if(!(vjoy & JOY_B))     joy_string2[14] = ' ';
-	if(!(vjoy & JOY_SELECT))memset(joy_string2+16, ' ', 3);
-	if(!(vjoy & JOY_START)) memset(joy_string2+20, ' ', 3);
-	if(!(vjoy & JOY_R3))    memset(joy_string2+24, ' ', 2);
+	/*
+	 * '  ^   X A Sel L R L2 R2'
+	 * '< _ > Y B Sta     L3 R3'
+	 */
+	memset(joy_string, ' ', 32);
+	memset(joy_string2, ' ', 32);
 
-	if(!(vjoy & JOY_UP2))   joy_string[8] = ' ';
-	if(!(vjoy & JOY_LEFT2)) joy_string2[6] = ' ';
-	if(!(vjoy & JOY_DOWN2)) joy_string2[8] = '\x14';
-	if(!(vjoy & JOY_RIGHT2))joy_string2[10] = ' ';
+	// directions (joy1 & joy2)
+	if (vjoy & (JOY_UP    | JOY_UP2))    joy_string[2]  = '\x12';
+	if (vjoy & (JOY_LEFT  | JOY_LEFT2))  joy_string2[0] = '\x10';
+	if (vjoy & (JOY_DOWN  | JOY_DOWN2))  joy_string2[2] = '\x13';
+	if (vjoy & (JOY_RIGHT | JOY_RIGHT2)) joy_string2[4] = '\x11';
 
-	return;
+	// virtual gamepad buttons
+	if (vjoy & JOY_X) joy_string[6]  = 'X';
+	if (vjoy & JOY_A) joy_string[8]  = 'A';
+	if (vjoy & JOY_L) joy_string[14] = 'L';
+	if (vjoy & JOY_R) joy_string[16] = 'R';
+	if (vjoy & JOY_Y) joy_string2[6] = 'Y';
+	if (vjoy & JOY_B) joy_string2[8] = 'B';
+
+	if (vjoy & JOY_SELECT) memcpy(joy_string+10,  "Sel", 3);
+	if (vjoy & JOY_L2)     memcpy(joy_string+18,  "L2",  2);
+	if (vjoy & JOY_R2)     memcpy(joy_string+21,  "R2",  2);
+	if (vjoy & JOY_START)  memcpy(joy_string2+10, "Sta", 3);
+	if (vjoy & JOY_L3)     memcpy(joy_string2+18, "L3",  2);
+	if (vjoy & JOY_R3)     memcpy(joy_string2+21, "R3",  2);
+
+	// eol
+	joy_string2[31] = 0;
+	joy_string[31] = 0;
 }
 
-static void get_joystick_state_usb( char *s, unsigned char joy_num ) {
-	/* USB specific - current "raw" state 
+static void get_joystick_state_usb( char s[32], unsigned char joy_num ) {
+	/* USB specific - current "raw" state
 	  (in reverse binary format to correspont to MIST.INI mapping entries)
 	*/
 	char buffer[5];
@@ -259,12 +265,15 @@ static void append_joystick_usbid ( char *usb_id, unsigned int usb_vid, unsigned
 	siprintf(usb_id, "VID:%04X PID:%04X", usb_vid, usb_pid);
 }
 
-static void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
+static void get_joystick_id ( char usb_id[32], unsigned char joy_num ) {
 	/*
 	Builds a string containing the USB VID/PID information of a joystick
 	*/
-	char buffer[32]="";
-	usb_id[0] = 0;
+	if (!usb_id) {
+		return;
+	}
+
+	char buffer[20]={0}; // limited by width of OSD
 
 	//hack populate from outside
 	int vid = StateUsbVidGet(joy_num);
@@ -277,18 +286,16 @@ static void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id 
 			strcpy( buffer, "None");
 		}
 	} else if (vid>0) {
-		if (raw_id == 0) {
-			strcpy(buffer, get_joystick_alias( vid, pid ));
-		}
-		if(!buffer[0]) {
+		const char* joy_name = get_joystick_name( vid, pid );
+		if (joy_name) {
+			strncpy( buffer, joy_name, sizeof(buffer) - 1 );
+			buffer[sizeof(buffer) - 1] = '\0';
+		} else {
 			append_joystick_usbid( buffer, vid, pid );
 		}
 	}
 
-	if(raw_id == 0)
-		siprintf(usb_id, "%*s", (28-strlen(buffer))/2, " ");
-
-	strcat(usb_id, buffer);
+	strcpy(usb_id, buffer);
 	return;
 }
 
@@ -658,7 +665,9 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					item->item = s;
 					break;
 				case 28:
-					get_joystick_id(s, page_idx-4, 0);
+					char usb_id[32];
+					get_joystick_id(usb_id, page_idx-4);
+					siprintf(s, "%*s%s", (28-strlen(usb_id))/2, " ", usb_id);
 					item->item = s;
 					break;
 				case 30:
@@ -765,7 +774,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 				case 45:
 				case 46: {
 					char usb_id[32];
-					get_joystick_id( usb_id, idx-41, 1);
+					get_joystick_id(usb_id, idx-41);
 					siprintf(s, " Joy%d - %s", idx-40, usb_id);
 					item->item = s;
 					break;
@@ -1030,7 +1039,7 @@ void SelectFile(char* pFileExt, unsigned char Options, unsigned char MenuSelect,
 	{ // if different from the current one go to the root directory and init entry buffer
 		ChangeDirectoryName("/");
 
-		// for 8 bit cores try to 
+		// for 8 bit cores try to
 		if(((user_io_core_type() == CORE_TYPE_8BIT) || (user_io_core_type() == CORE_TYPE_ARCHIE)) && chdir)
 			user_io_change_into_core_dir();
 		ScanDirectory(SCAN_INIT, pFileExt, Options);
@@ -1122,7 +1131,7 @@ void HandleUI(void)
 
 		// Within the menu the esc key acts as the menu key. problem:
 		// if the menu is left with a press of ESC, then the follwing
-		// break code for the ESC key when the key is released will 
+		// break code for the ESC key when the key is released will
 		// reach the core which never saw the make code. Simple solution:
 		// react on break code instead of make code
 		case KEY_ESC | KEY_UPSTROKE :
@@ -1487,7 +1496,7 @@ void HandleUI(void)
 		case MENU_8BIT_ABOUT1:
 			menumask=0;
 			helptext = helptexts[HELPTEXT_NONE];
-			OsdSetTitle("About", 0); 
+			OsdSetTitle("About", 0);
 			menustate = MENU_8BIT_ABOUT2;
 			parentstate=MENU_8BIT_ABOUT1;
 			for (int i=0; i<osdlines-2; i++) {
@@ -1531,7 +1540,7 @@ void HandleUI(void)
 			for(i=0; i<24; i++) usb_id[i] = i+24;
 			OsdWrite(1, usb_id, 0, 0);
 			for(i=0; i<24; i++) usb_id[i] = i+(24*2);
-			OsdWrite(2, usb_id, 0, 0);	
+			OsdWrite(2, usb_id, 0, 0);
 			for(i=0; i<24; i++) usb_id[i] = i+(24*3);
 			OsdWrite(3, usb_id, 0, 0);
 			for(i=0; i<24; i++) usb_id[i] = i+(24*4);
@@ -1717,7 +1726,7 @@ void HandleUI(void)
 			s[0]=0;
 			while (l<firstline) OsdWrite(l++, s, 0, 0);
 			do {
- 
+
 				// line full or line break
 				if((i == 29) || (*message == '\n') || !*message) {
 					s[i] = 0;
