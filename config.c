@@ -394,7 +394,7 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
     char cfg_str[81];
     siprintf(cfg_str, "CPU:     %s", config_cpu_msg[config.cpu & 0x03]); BootPrintEx(cfg_str);
     siprintf(cfg_str, "Chipset: %s", config_chipset_msg [(config.chipset >> 2) & (minimig_v1()?3:7)]); BootPrintEx(cfg_str);
-    siprintf(cfg_str, "Memory:  CHIP: %s  FAST: %s  SLOW: %s%s", 
+    siprintf(cfg_str, "Memory:  CHIP: %s  FAST: %s  SLOW: %s%s",
         config_memory_chip_msg[(config.memory >> 0) & 0x03],
         config_memory_fast_txt(),
         config_memory_slow_msg[(config.memory >> 2) & 0x03],
@@ -417,7 +417,7 @@ unsigned char LoadConfiguration(char *filename, int printconfig)
       i = 0;
     }
   }
-  
+
   key = OsdGetCtrl();
   if (key == KEY_F1) {
     // BootPrintEx("Forcing NTSC video ...");
@@ -504,7 +504,8 @@ static void ApplyConfiguration(char reloadkickstart)
       BootPrint(s);
       siprintf(s, "Offset: %ld", hdf[i].offset);
       BootPrint(s);
-      if (hdf[i].type & HDF_FILE && !hdf[i].idxfile->file.cltbl) idxfail = 1;
+      if (((hdf[i].type & HDF_TYPEMASK) == HDF_FILE) && !hdf[i].idxfile->file.cltbl)
+        idxfail = 1;
     }
   }
   if (idxfail)
