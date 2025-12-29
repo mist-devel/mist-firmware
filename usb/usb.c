@@ -1,22 +1,32 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "timer.h"
 #include "usb.h"
+#include "timer.h"
 #include "debug.h"
 
-static usb_device_t dev[USB_NUMDEVICES];
+static usb_device_t usb_devices[USB_NUMDEVICES];
 
 usb_device_t *usb_get_devices() {
-	return dev;
+	return usb_devices;
+}
+
+// get (last connected) device by type
+usb_device_t *usb_get_device(usb_dev_type_t type) {
+	usb_device_t *devs = usb_get_devices();
+
+	for(int i=USB_NUMDEVICES-1;i>=0;i--)
+		if(devs[i].bAddress && devs[i].class && devs[i].class->type == type)
+			return &devs[i];
+
+	return NULL;
 }
 
 void usb_init() {
 	puts(__FUNCTION__);
 
-	uint8_t i;
-	for(i=0;i<USB_NUMDEVICES;i++)
-		dev[i].bAddress = 0;
+	for(int i=0;i<USB_NUMDEVICES;i++)
+		usb_devices[i].bAddress = 0;
 
 	usb_hw_init();
 }
@@ -24,14 +34,17 @@ void usb_init() {
 // list of supported device classes
 static const usb_device_class_config_t *class_list[] = {
   &usb_hub_class,
+#ifndef CONFIG_CHIP_SAMV71
+  &usb_rtc_tiny_class.base,
+  &usb_rtc_mcp2221_class.base,
+#endif
   &usb_hid_class,
   &usb_xbox_class,
-  &usb_asix_class,
 #ifdef USB_STORAGE
   &usb_storage_class,
 #endif
-  &usb_usbrtc_class,
   &usb_pl2303_class,
+  &usb_asix_class,
   NULL
 };
 
@@ -48,12 +61,12 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 		uint8_t buf[255];
 	} str;
 
-	for(i=0; i<USB_NUMDEVICES && dev[i].bAddress; i++);
+	for(i=0; i<USB_NUMDEVICES && usb_devices[i].bAddress; i++);
 
 	if(i < USB_NUMDEVICES) {
 		iprintf("using free entry at %d\n", i);
 
-		usb_device_t *d = &dev[i];
+		usb_device_t *d = &usb_devices[i];
 		memset(d, 0, sizeof(*d));
 
 		// setup generic info
@@ -101,7 +114,7 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 
 			// Some gamepads (Retrobit) breaks if its strings are queried like below, so don't do it until it can be done safely.
 #if 0
-			if (dev_desc.iManufacturer && 
+			if (dev_desc.iManufacturer &&
 				!usb_get_string_descr(d, sizeof(str), dev_desc.iManufacturer, wLangId, &str.str_desc)) {
 				for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
 					s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
@@ -109,7 +122,7 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 				s[i] = 0;
 				iprintf("Manufacturer: %s\n", s);
 			}
-			if (dev_desc.iProduct && 
+			if (dev_desc.iProduct &&
 			    !usb_get_string_descr(d, sizeof(str), dev_desc.iProduct, wLangId, &str.str_desc)) {
 				for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
 					s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
@@ -117,7 +130,7 @@ uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed) {
 				s[i] = 0;
 				iprintf("Product: %s\n", s);
 			}
-			if (dev_desc.iSerialNumber && 
+			if (dev_desc.iSerialNumber &&
 			    !usb_get_string_descr(d, sizeof(str), dev_desc.iSerialNumber, wLangId, &str.str_desc)) {
 				for (i=0; i<((str.str_desc.bLength-2)/2); i++) {
 					s[i] = ff_uni2oem(str.str_desc.bString[i], FF_CODE_PAGE);
@@ -157,22 +170,22 @@ uint8_t usb_release_device(uint8_t parent, uint8_t port) {
 
 	uint8_t i;
 	for(i=0; i<USB_NUMDEVICES; i++) {
-		if(dev[i].bAddress && dev[i].parent == parent && dev[i].port == port) {
-			iprintf("  -> device with address %x\n", dev[i].bAddress);
+		if(usb_devices[i].bAddress && usb_devices[i].parent == parent && usb_devices[i].port == port) {
+			iprintf("  -> device with address %x\n", usb_devices[i].bAddress);
 
 			// check if this is a hub (parent of some other device)
 			// and release its kids first
 			uint8_t j;
 			for(j=0; j<USB_NUMDEVICES; j++) {
-				if(dev[j].parent == dev[i].bAddress)
-					usb_release_device(dev[i].bAddress, dev[j].port);
+				if(usb_devices[j].parent == usb_devices[i].bAddress)
+					usb_release_device(usb_devices[i].bAddress, usb_devices[j].port);
 			}
 
 			uint8_t rcode = 0;
-			if(dev[i].class)
-				rcode = dev[i].class->release(dev+i);
+			if(usb_devices[i].class)
+				rcode = usb_devices[i].class->release(usb_devices+i);
 
-			dev[i].bAddress = 0;
+			usb_devices[i].bAddress = 0;
 			return rcode;
 		}
 	}
@@ -182,7 +195,7 @@ uint8_t usb_release_device(uint8_t parent, uint8_t port) {
 }
 
 uint8_t usb_get_dev_descr( usb_device_t *dev, uint16_t nbytes, usb_device_descriptor_t* p )  {
-  return( usb_ctrl_req( dev, USB_REQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 
+  return( usb_ctrl_req( dev, USB_REQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR,
 	       0x00, USB_DESCRIPTOR_DEVICE, 0x0000, nbytes, (uint8_t*)p));
 }
 
@@ -192,10 +205,10 @@ uint8_t usb_get_dev_qualifier_descr( usb_device_t *dev, uint16_t nbytes, usb_dev
 }
 
 
-//get configuration descriptor  
-uint8_t usb_get_conf_descr( usb_device_t *dev, uint16_t nbytes, 
+//get configuration descriptor
+uint8_t usb_get_conf_descr( usb_device_t *dev, uint16_t nbytes,
 			    uint8_t conf, usb_configuration_descriptor_t* p )  {
-	return( usb_ctrl_req( dev, USB_REQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 
+	return( usb_ctrl_req( dev, USB_REQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR,
 	        conf, USB_DESCRIPTOR_CONFIGURATION, 0x0000, nbytes, (uint8_t*)p));
 }
 
@@ -208,7 +221,7 @@ uint8_t usb_get_other_speed_descr( usb_device_t *dev, uint16_t nbytes,
 uint8_t usb_set_addr( usb_device_t *dev, uint8_t newaddr )  {
 	iprintf("%s(new=%x)\n", __FUNCTION__, newaddr);
 
-	uint8_t rcode = usb_ctrl_req( dev, USB_REQ_SET, USB_REQUEST_SET_ADDRESS, newaddr, 
+	uint8_t rcode = usb_ctrl_req( dev, USB_REQ_SET, USB_REQUEST_SET_ADDRESS, newaddr,
 	                              0x00, 0x0000, 0x0000, NULL);
 	if(!rcode) dev->bAddress = newaddr;
 	return rcode;
@@ -227,6 +240,6 @@ uint8_t usb_set_conf( usb_device_t *dev, uint8_t conf_value )  {
 }
 
 uint8_t usb_get_string_descr( usb_device_t *dev, uint16_t nbytes, uint8_t index, uint16_t lang_id, usb_string_descriptor_t* dataptr ) {
-  return( usb_ctrl_req( dev, USB_REQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 
+  return( usb_ctrl_req( dev, USB_REQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR,
 	       index, USB_DESCRIPTOR_STRING, lang_id, nbytes, (uint8_t*)dataptr));
 }

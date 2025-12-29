@@ -3,6 +3,7 @@
 //
 
 #ifdef USB_STORAGE
+
 #include <stdio.h>
 #include <string.h>
 
@@ -47,7 +48,7 @@ static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	storage_debugf("iface is MASS_STORAGE/SCSI/BULK_ONLY");
 	is_good_interface = true;
       } else {
-	storage_debugf("Unsupported class/subclass/proto = %x/%x/%x", 
+	storage_debugf("Unsupported class/subclass/proto = %x/%x/%x",
 		       p->iface_desc.bInterfaceClass, p->iface_desc.bInterfaceSubClass,
 		       p->iface_desc.bInterfaceProtocol);
 	is_good_interface = false;
@@ -55,9 +56,9 @@ static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
       break;
 
     case USB_DESCRIPTOR_ENDPOINT:
-      if(is_good_interface) { 
+      if(is_good_interface) {
 	int8_t epidx = -1;
-	
+
 	if((p->ep_desc.bmAttributes & 0x03) == 2) {
 	  if((p->ep_desc.bEndpointAddress & 0x80) == 0x80) {
 	    storage_debugf("bulk in ep %d, size = %d", p->ep_desc.bEndpointAddress & 0x0F, p->ep_desc.wMaxPacketSize[0]);
@@ -67,7 +68,7 @@ static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	    epidx = STORAGE_EP_OUT;
 	  }
 	}
-	
+
 	if(epidx != -1) {
 	  // Fill in the endpoint info structure
 	  info->ep[epidx].epAddr     = (p->ep_desc.bEndpointAddress & 0x0F);
@@ -78,7 +79,7 @@ static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
 	}
       }
       break;
-      
+
     default:
       storage_debugf("unsupported descriptor type %d size %d", p->raw[1], p->raw[0]);
     }
@@ -88,7 +89,7 @@ static uint8_t storage_parse_conf(usb_device_t *dev, uint8_t conf, uint16_t len)
     len -= p->conf_desc.bLength;
     p = (union buf_u*)(p->raw + p->conf_desc.bLength);
   }
-  
+
   if(len != 0) {
     storage_debugf("Config underrun: %d", len);
     return USB_ERROR_CONFIGURATION_SIZE_MISMATCH;
@@ -102,7 +103,7 @@ static uint8_t clear_ep_halt(usb_device_t *dev, uint8_t index) {
 
   iprintf("clear ep halt for %x\n", info->ep[index].epAddr);
 
-  return usb_ctrl_req(dev, USB_SETUP_HOST_TO_DEVICE | USB_SETUP_TYPE_STANDARD | USB_SETUP_RECIPIENT_ENDPOINT, 
+  return usb_ctrl_req(dev, USB_SETUP_HOST_TO_DEVICE | USB_SETUP_TYPE_STANDARD | USB_SETUP_RECIPIENT_ENDPOINT,
 		      USB_REQUEST_CLEAR_FEATURE, USB_FEATURE_ENDPOINT_HALT, 0, info->ep[index].epAddr, 0, NULL);
 }
 
@@ -121,7 +122,7 @@ static uint8_t get_max_lun(usb_device_t *dev, uint8_t *plun) {
   info->last_error = usb_ctrl_req(dev, STORAGE_REQ_MASSIN, STORAGE_REQ_GET_MAX_LUN, 0, 0, 0, 1, plun);
 
   timer_delay_msec(10);
-  
+
   if (info->last_error == hrSTALL) {
     storage_debugf("%s() stall", __FUNCTION__);
     *plun = 0;
@@ -144,7 +145,7 @@ static uint8_t handle_usb_error(usb_device_t *dev, uint8_t index) {
     case hrSUCCESS:
       return 0;
 
-    case hrJERR: 
+    case hrJERR:
       info->last_error = 0;
       return STORAGE_ERR_DEVICE_DISCONNECTED;
 
@@ -217,7 +218,6 @@ static uint8_t transaction(usb_device_t *dev, command_block_wrapper_t *cbw, uint
 
 static uint8_t scsi_command_in(usb_device_t *dev, uint8_t lun, uint16_t bsize, uint8_t *buf,
 			       uint8_t cmd, uint8_t cblen) {
-  uint8_t i;
   command_block_wrapper_t cbw;
 
   memset(&cbw, 0, sizeof(cbw));
@@ -252,10 +252,9 @@ static uint8_t test_unit_ready(usb_device_t *dev, uint8_t lun) {
   return scsi_command_in(dev, lun, 0, NULL, SCSI_CMD_TEST_UNIT_READY, 6);
 }
 
-static uint8_t read(usb_device_t *dev, uint8_t lun, 
+static uint8_t read(usb_device_t *dev, uint8_t lun,
 		    uint32_t addr, uint16_t len, char *buf) {
-  command_block_wrapper_t cbw; 
-  uint8_t i;
+  command_block_wrapper_t cbw;
 
   bzero(&cbw, sizeof(cbw));
 
@@ -277,10 +276,9 @@ static uint8_t read(usb_device_t *dev, uint8_t lun,
   return transaction(dev, &cbw, len*512, buf, 0);
 }
 
-static uint8_t write(usb_device_t *dev, uint8_t lun, 
+static uint8_t write(usb_device_t *dev, uint8_t lun,
 		    uint32_t addr, uint16_t len, const char *buf) {
-  command_block_wrapper_t cbw; 
-  uint8_t i;
+  command_block_wrapper_t cbw;
 
   bzero(&cbw, sizeof(cbw));
 
@@ -320,7 +318,7 @@ static uint8_t usb_storage_init(usb_device_t *dev, usb_device_descriptor_t *dev_
     uint8_t data[12];
   } buf;
 
-  if((dev_desc->bDeviceClass != USB_CLASS_USE_CLASS_INFO) && 
+  if((dev_desc->bDeviceClass != USB_CLASS_USE_CLASS_INFO) &&
      (dev_desc->bDeviceClass != USB_CLASS_MASS_STORAGE)) {
     storage_debugf("Unsupported device class %x", dev_desc->bDeviceClass);
     return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
@@ -334,7 +332,7 @@ static uint8_t usb_storage_init(usb_device_t *dev, usb_device_descriptor_t *dev_
   for(i=0; (i < num_of_conf)&&(good_conf == -1); i++) {
     if((rcode = usb_get_conf_descr(dev, sizeof(usb_configuration_descriptor_t), i, &buf.conf_desc)))
       return rcode;
-    
+
     storage_debugf("conf descriptor %d has total size %d", i, buf.conf_desc.wTotalLength);
 
     // parse directly if it already fitted completely into the buffer
@@ -417,10 +415,11 @@ static uint8_t usb_storage_release(usb_device_t *dev) {
 }
 
 static uint8_t usb_storage_poll(usb_device_t *dev) {
-  usb_storage_info_t *info = &(dev->storage_info);
   uint8_t rcode = 0;
 
 #if 0
+  usb_storage_info_t *info = &(dev->storage_info);
+
   if (info->qNextPollTime <= timer_get_msec()) {
     if(info->state == 1) {
       char b[512];
@@ -447,8 +446,8 @@ unsigned char usb_host_storage_read(unsigned long lba, unsigned char *pReadBuffe
   usb_device_t *devs = usb_get_devices(), *dev = NULL;
 
   // find first storage device
-  for (i=0; i<USB_NUMDEVICES; i++) 
-    if(devs[i].bAddress && (devs[i].class == &usb_storage_class)) 
+  for (i=0; i<USB_NUMDEVICES; i++)
+    if(devs[i].bAddress && (devs[i].class == &usb_storage_class))
       dev = devs+i;
 
   if(!dev) return 0;
@@ -473,8 +472,8 @@ unsigned char usb_host_storage_write(unsigned long lba, const unsigned char *pWr
   usb_device_t *devs = usb_get_devices(), *dev = NULL;
 
   // find first storage device
-  for (i=0; i<USB_NUMDEVICES; i++) 
-    if(devs[i].bAddress && (devs[i].class == &usb_storage_class)) 
+  for (i=0; i<USB_NUMDEVICES; i++)
+    if(devs[i].bAddress && (devs[i].class == &usb_storage_class))
       dev = devs+i;
 
   if(!dev) return 0;
@@ -490,7 +489,7 @@ unsigned char usb_host_storage_write(unsigned long lba, const unsigned char *pWr
     storage_debugf("Write sector %d failed", lba);
     return 0;
   }
-  
+
   return 1;
 }
 
@@ -499,7 +498,7 @@ unsigned int usb_host_storage_capacity() {
   usb_device_t *devs = usb_get_devices(), *dev = NULL;
 
   // find first storage device
-  for (i=0; i<USB_NUMDEVICES; i++) 
+  for (i=0; i<USB_NUMDEVICES; i++)
     if(devs[i].bAddress && (devs[i].class == &usb_storage_class))
       dev = devs+i;
 
@@ -509,5 +508,9 @@ unsigned int usb_host_storage_capacity() {
 }
 
 const usb_device_class_config_t usb_storage_class = {
-  usb_storage_init, usb_storage_release, usb_storage_poll };  
+  USB_STOR,
+  usb_storage_init,
+  usb_storage_release,
+  usb_storage_poll
+};
 #endif

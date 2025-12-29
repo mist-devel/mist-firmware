@@ -608,31 +608,31 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 				// page 2 - RTC
 				case 14:
 					GetRTC((uint8_t*)&date);
-					siprintf(s, "       Year      %4d", 1900+date[0]);
+					siprintf(s, "       Year      %4d", 1900+date[T_YEAR]);
 					item->item = s;
 					break;
 				case 15:
-					siprintf(s, "       Month       %2d", date[1]);
+					siprintf(s, "       Month       %2d", date[T_MONTH]);
 					item->item = s;
 					break;
 				case 16:
-					siprintf(s, "       Date        %2d", date[2]);
+					siprintf(s, "       Date        %2d", date[T_DAY]);
 					item->item = s;
 					break;
 				case 17:
-					siprintf(s, "       Hour        %2d", date[3]);
+					siprintf(s, "       Hour        %2d", date[T_HOUR]);
 					item->item = s;
 					break;
 				case 18:
-					siprintf(s, "       Minute      %2d", date[4]);
+					siprintf(s, "       Minute      %2d", date[T_MIN]);
 					item->item = s;
 					break;
 				case 19:
-					siprintf(s, "       Second      %2d", date[5]);
+					siprintf(s, "       Second      %2d", date[T_SEC]);
 					item->item = s;
 					break;
 				case 20:
-					siprintf(s, "       Day  %9s", (date[6] && date[6] <= 7) ? days[date[6]-1] : "--------");
+					siprintf(s, "       Day  %9s", (date[T_WDAY] && date[T_WDAY] <= 7) ? days[date[T_WDAY]-1] : "--------");
 					item->item = s;
 					break;
 
@@ -963,20 +963,20 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					uint8_t is_leap, month, maxday;
 					char left = action == MENU_ACT_LEFT || action == MENU_ACT_MINUS;
 
-					year = 1900+date[0];
-					month = date[1];
+					year = 1900+date[T_YEAR];
+					month = date[T_MONTH];
 					if (month > 12) month = 12;
 					is_leap = (!(year % 4) && (year % 100)) || !(year % 400);
 					maxday = mdays[month-1] + (month == 2 && is_leap);
 
 					switch(idx) {
-						case 14: if (left) date[0]--; else date[0]++; break;
-						case 15: if (left) date[1] = decval(date[1], 1, 12); else date[1] = incval(date[1], 1, 12); break;
-						case 16: if (left) date[2] = decval(date[2], 1, maxday); else date[2] = incval(date[2], 1, maxday); break;
-						case 17: if (left) date[3] = decval(date[3], 0, 23); else date[3] = incval(date[3], 0, 23); break;
-						case 18: if (left) date[4] = decval(date[4], 0, 59); else date[4] = incval(date[4], 0, 59); break;
-						case 19: if (left) date[5] = decval(date[5], 0, 59); else date[5] = incval(date[5], 0, 59); break;
-						case 20: if (left) date[6] = decval(date[6], 1, 7); else date[6] = incval(date[6], 1, 7); break;
+						case 14: if (left) date[T_YEAR]--; else date[T_YEAR]++; break;
+						case 15: if (left) date[T_MONTH] = decval(date[T_MONTH], 1, 12); else date[T_MONTH] = incval(date[T_MONTH], 1, 12); break;
+						case 16: if (left) date[T_DAY] = decval(date[T_DAY], 1, maxday); else date[T_DAY] = incval(date[T_DAY], 1, maxday); break;
+						case 17: if (left) date[T_HOUR] = decval(date[T_HOUR], 0, 23); else date[T_HOUR] = incval(date[T_HOUR], 0, 23); break;
+						case 18: if (left) date[T_MIN] = decval(date[T_MIN], 0, 59); else date[T_MIN] = incval(date[T_MIN], 0, 59); break;
+						case 19: if (left) date[T_SEC] = decval(date[T_SEC], 0, 59); else date[T_SEC] = incval(date[T_SEC], 0, 59); break;
+						case 20: if (left) date[T_WDAY] = decval(date[T_WDAY], 1, 7); else date[T_WDAY] = incval(date[T_WDAY], 1, 7); break;
 					}
 					if (idx>=14 && idx<=20) SetRTC((uint8_t*)&date);
 				}
@@ -1320,7 +1320,10 @@ void HandleUI(void)
 						uint8_t date[7];
 						char rtc = GetRTC((uint8_t*)&date);
 						if (rtc) {
-							siprintf(s, "%s%04d/%02d/%02d %02d:%02d:%02d %s", date[6]==4 ? "" : " ",1900+date[0], date[1], date[2], date[3], date[4], date[5], (date[6] && date[6] <= 7) ? days[date[6]-1] : "--------");
+							siprintf(s, "%s%04d/%02d/%02d %02d:%02d:%02d %s",
+								date[T_WDAY]==4 ? "" : " ",1900+date[T_YEAR], date[T_MONTH], date[T_DAY],
+								date[T_HOUR], date[T_MIN], date[T_SEC],
+								(date[T_WDAY] && date[T_WDAY] <= 7) ? days[date[T_WDAY]-1] : "--------");
 							if (!menu_page.timer) menu_page.timer = 1000;
 						} else {
 							int len = strlen(OsdCoreName());

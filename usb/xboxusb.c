@@ -273,4 +273,8 @@ uint8_t usb_xbox_poll(usb_device_t *dev) {
 }
 
 const usb_device_class_config_t usb_xbox_class = {
-  usb_xbox_init, usb_xbox_release, usb_xbox_poll };
+	USB_HID,
+	usb_xbox_init,
+	usb_xbox_release,
+	usb_xbox_poll
+};

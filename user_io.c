@@ -251,15 +251,15 @@ void user_io_send_rtc(void) {
 
 	if (GetRTC((uint8_t*)&date)) {
 		//iprintf("Sending time of day %u:%02u:%02u %u.%u.%u\n",
-		//  date[3], date[4], date[5], date[2], date[1], 1900 + date[0]);
+		//  date[T_HOUR], date[T_MIN], date[T_SEC], date[T_DAY], date[T_MONTH], 1900 + date[T_YEAR]);
 		spi_uio_cmd_cont(UIO_SET_RTC);
-		spi8(bin2bcd(date[5])); // sec
-		spi8(bin2bcd(date[4])); // min
-		spi8(bin2bcd(date[3])); // hour
-		spi8(bin2bcd(date[2])); // date
-		spi8(bin2bcd(date[1])); // month
-		spi8(bin2bcd(date[0]-100)); // year
-		spi8(bin2bcd(date[6])-1); //day 1-7 -> 0-6
+		spi8(bin2bcd(date[T_SEC])); // sec
+		spi8(bin2bcd(date[T_MIN])); // min
+		spi8(bin2bcd(date[T_HOUR])); // hour
+		spi8(bin2bcd(date[T_DAY])); // date
+		spi8(bin2bcd(date[T_MONTH])); // month
+		spi8(bin2bcd(date[T_YEAR]-100)); // year
+		spi8(bin2bcd(date[T_WDAY])-1); //day 1-7 -> 0-6
 		spi8(0x40); // flag
 		DisableIO();
 	}
@@ -550,7 +550,7 @@ void user_io_joystick(unsigned char joystick, uint16_t map) {
   // digital joysticks also send analog signals
 	user_io_digital_joystick(joystick, map);
 	user_io_digital_joystick_ext(joystick, map);
-	user_io_analog_joystick(joystick, 
+	user_io_analog_joystick(joystick,
 		       dig2ana(map&JOY_LEFT, map&JOY_RIGHT),
 		       dig2ana(map&JOY_UP, map&JOY_DOWN),
 		       0 ,0);
@@ -646,7 +646,7 @@ void user_io_sd_ack(char drive_index) {
 // read 8+32 bit sd card status word from FPGA
 uint8_t user_io_sd_get_status(uint32_t *lba, uint8_t *drive_index, uint8_t *blksz) {
 	uint32_t s;
-	uint8_t c; 
+	uint8_t c;
 
 	*drive_index = 0;
 	*blksz = 0;
@@ -712,9 +712,9 @@ void user_io_eth_send_rx_frame(uint8_t *s, uint16_t len) {
 // the physical joysticks (db9 ports at the right device side)
 // as well as the joystick emulation are renumbered if usb joysticks
 // are present in the system. The USB joystick(s) replace joystick 1
-// and 0 and the physical joysticks are "shifted up". 
+// and 0 and the physical joysticks are "shifted up".
 //
-// Since the primary joystick is in port 1 the first usb joystick 
+// Since the primary joystick is in port 1 the first usb joystick
 // becomes joystick 1 and only the second one becomes joystick 0
 // (mouse port)
 
@@ -976,7 +976,7 @@ char *user_io_8bit_get_string(unsigned char index) {
 unsigned long long user_io_8bit_set_status(unsigned long long new_status, unsigned long long mask) {
 	static unsigned long long status = 0;
 
-	// if mask is 0 just return the current status 
+	// if mask is 0 just return the current status
 	if(mask) {
 		// keep everything not masked
 		status &= ~mask;
@@ -995,7 +995,7 @@ char kbd_reset = 0;
 void user_io_send_buttons(char force) {
 	static unsigned char key_map = 0;
 
-	// frequently poll the adc the switches 
+	// frequently poll the adc the switches
 	// and buttons are connected to
 	PollADC();
 
@@ -1287,7 +1287,7 @@ void user_io_poll() {
 
 		// check for incoming serial data. this is directly forwarded to the
 		// arm rs232 and mixes with debug output. Useful for debugging only of
-		// e.g. the diagnostic cartridge    
+		// e.g. the diagnostic cartridge
 		if(!pl2303_is_blocked()) {
 			if (core_type == CORE_TYPE_MIST)
 				spi_uio_cmd_cont(UIO_SERIAL_IN);
@@ -1299,7 +1299,7 @@ void user_io_poll() {
 
 				// if a serial/usb adapter is connected it has precesence over
 				// any other sink
-				if(pl2303_present()) 
+				if(pl2303_present())
 					pl2303_tx_byte(c);
 				else {
 					if(c != 0xff)
@@ -1368,7 +1368,7 @@ void user_io_poll() {
 
 	user_io_send_buttons(0);
 
-	// mouse movement emulation is continous 
+	// mouse movement emulation is continous
 	if(emu_mode == EMU_MOUSE) {
 		if(CheckTimer(emu_timer)) {
 			emu_timer = GetTimer(EMU_MOUSE_FREQ);
@@ -1376,10 +1376,10 @@ void user_io_poll() {
 			if(emu_state & JOY_MOVE) {
 				unsigned char b = 0;
 				char x = 0, y = 0;
-				if((emu_state & (JOY_LEFT | JOY_RIGHT)) == JOY_LEFT)  x = -1; 
-				if((emu_state & (JOY_LEFT | JOY_RIGHT)) == JOY_RIGHT) x = +1; 
-				if((emu_state & (JOY_UP   | JOY_DOWN))  == JOY_UP)    y = -1; 
-				if((emu_state & (JOY_UP   | JOY_DOWN))  == JOY_DOWN)  y = +1; 
+				if((emu_state & (JOY_LEFT | JOY_RIGHT)) == JOY_LEFT)  x = -1;
+				if((emu_state & (JOY_LEFT | JOY_RIGHT)) == JOY_RIGHT) x = +1;
+				if((emu_state & (JOY_UP   | JOY_DOWN))  == JOY_UP)    y = -1;
+				if((emu_state & (JOY_UP   | JOY_DOWN))  == JOY_DOWN)  y = +1;
 
 				if(emu_state & JOY_BTN1) b |= 1;
 				if(emu_state & JOY_BTN2) b |= 2;
@@ -1530,18 +1530,18 @@ void user_io_poll() {
 				user_io_sd_set_config();
 			}
 
-			// check if system is trying to access a sdhc card from 
+			// check if system is trying to access a sdhc card from
 			// a sd/mmc setup
 
 			// check if an SDHC card is inserted
 			if(MMC_IsSDHC()) {
 				static char using_sdhc = 1;
 
-				// SD request and 
+				// SD request and
 				if(c & 0x03){
 					if (!(c & 0x04)) {
 						if(using_sdhc) {
-							// we have not been using sdhc so far? 
+							// we have not been using sdhc so far?
 							// -> complain!
 							ErrorMessage(" This core does not support\n"
 								" SDHC cards. Using them may\n"
@@ -1756,7 +1756,7 @@ void user_io_poll() {
 		handle_ps2_mouse_commands();
 	}
 
-	if(core_type == CORE_TYPE_ARCHIE) 
+	if(core_type == CORE_TYPE_ARCHIE)
 		archie_poll();
 
 	if(core_features & FEAT_IDE_MASK)
@@ -1810,7 +1810,7 @@ void user_io_poll() {
 	static unsigned char ypbpr_toggle = 0;
 	if(MenuButton())
 	{
-		if(timer == 1) 
+		if(timer == 1)
 			timer = GetTimer(1000);
 		else if(timer != 2)
 		{
@@ -1819,7 +1819,7 @@ void user_io_poll() {
 				// toggle video mode bit
 				mist_cfg.scandoubler_disable = !mist_cfg.scandoubler_disable;
 				timer = 2;
-	
+
 				user_io_send_buttons(1);
 				OsdDisableMenuButton(1);
 				VIDEO_ALTERED_VAR |= 1;
@@ -1897,16 +1897,16 @@ static void send_keycode(unsigned short code) {
 		// send ps2 keycodes for those cores that prefer ps2
 		spi_uio_cmd_cont(UIO_KEYBOARD);
 
-		// "pause" has a complex code 
+		// "pause" has a complex code
 		if((code&0xff) == 0x77) {
 
 			// pause does not have a break code
 			if(!(code & BREAK)) {
 				// Pause key sends E11477E1F014E077
-				static const unsigned char c[] = { 
+				static const unsigned char c[] = {
 					0xe1, 0x14, 0x77, 0xe1, 0xf0, 0x14, 0xf0, 0x77, 0x00 };
 				const unsigned char *p = c;
-				
+
 				iprintf("PS2 KBD ");
 				while(*p) {
 					iprintf("%x ", *p);
@@ -1924,7 +1924,7 @@ static void send_keycode(unsigned short code) {
 
 			if(code & EXT)    // prepend extended code flag if required
 				spi8(0xe0);
- 
+
 			if(code & BREAK) {// prepend break code if required
 				if (ps2_kbd_scan_set == 1)
 					code |= 0x80;
@@ -1938,14 +1938,14 @@ static void send_keycode(unsigned short code) {
 		DisableIO();
 	}
 
-	if(core_type == CORE_TYPE_ARCHIE) 
+	if(core_type == CORE_TYPE_ARCHIE)
 		archie_kbd(code);
 }
 
 void user_io_mouse(unsigned char idx, unsigned char b, char x, char y, char z) {
 
 	// send mouse data as minimig expects it
-	if((core_type == CORE_TYPE_MINIMIG) || 
+	if((core_type == CORE_TYPE_MINIMIG) ||
 	   (core_type == CORE_TYPE_MINIMIG2)) {
 		mouse_pos[idx][X] += x;
 		mouse_pos[idx][Y] += y;
@@ -1966,7 +1966,7 @@ void user_io_mouse(unsigned char idx, unsigned char b, char x, char y, char z) {
 	if(core_type == CORE_TYPE_MIST)
 		ikbd_mouse(b, x, y);
 
-	if(core_type == CORE_TYPE_ARCHIE) 
+	if(core_type == CORE_TYPE_ARCHIE)
 		archie_mouse(b, x, y);
 }
 
@@ -1974,7 +1974,7 @@ void user_io_mouse(unsigned char idx, unsigned char b, char x, char y, char z) {
 // when emulation is active
 static unsigned char is_emu_key(unsigned char c, unsigned alt) {
 	static const unsigned char m[] = { JOY_RIGHT, JOY_LEFT, JOY_DOWN, JOY_UP };
-	static const unsigned char m2[] = 
+	static const unsigned char m2[] =
 	{
 		0x5A, JOY_DOWN,
 		0x5C, JOY_LEFT,
@@ -1998,9 +1998,9 @@ static unsigned char is_emu_key(unsigned char c, unsigned alt) {
 	}
 
 	return 0;
-}  
+}
 
-/* usb modifer bits: 
+/* usb modifer bits:
       0     1     2    3    4     5     6    7
    LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI
 */
@@ -2011,7 +2011,7 @@ static unsigned char is_emu_key(unsigned char c, unsigned alt) {
 
 static unsigned short keycode(unsigned char in) {
 	if((core_type == CORE_TYPE_MINIMIG) ||
-	   (core_type == CORE_TYPE_MINIMIG2)) 
+	   (core_type == CORE_TYPE_MINIMIG2))
 	return usb2amiga(in);
 
 	if(core_type == CORE_TYPE_MIST)
@@ -2071,28 +2071,28 @@ unsigned short modifier_keycode(unsigned char index) {
 
 	if((core_type == CORE_TYPE_MINIMIG) ||
 	   (core_type == CORE_TYPE_MINIMIG2)) {
-		static const unsigned short amiga_modifier[] = 
+		static const unsigned short amiga_modifier[] =
 			{ 0x63, 0x60, 0x64, 0x66, 0x63, 0x61, 0x65, 0x67 };
 		return amiga_modifier[index];
 	}
 
 	if(core_type == CORE_TYPE_MIST) {
-		static const unsigned short atari_modifier[] = 
+		static const unsigned short atari_modifier[] =
 			{ 0x1d, 0x2a, 0x38, MISS, 0x1d, 0x36, 0x38, MISS };
 		return atari_modifier[index];
 	}
 
 	if((core_type == CORE_TYPE_8BIT) ||
 	   (core_type == CORE_TYPE_MIST2)) {
-		static const unsigned short ps2_modifier[] = 
+		static const unsigned short ps2_modifier[] =
 			{ 0x14, 0x12, 0x11, EXT|0x1f, EXT|0x14, 0x59, EXT|0x11, EXT|0x27 };
-		static const unsigned short ps2_modifier_set1[] = 
+		static const unsigned short ps2_modifier_set1[] =
 			{ 0x1d, 0x2a, 0x38, MISS, EXT|0x1d, 0x36, EXT|0x38, MISS };
 		return (ps2_kbd_scan_set == 1) ? ps2_modifier_set1[index] : ps2_modifier[index];
 	}
 
 	if(core_type == CORE_TYPE_ARCHIE) {
-		static const unsigned short archie_modifier[] = 
+		static const unsigned short archie_modifier[] =
 			{ 0x36, 0x4c, 0x5e, MISS, 0x61, 0x58, 0x60, MISS };
 		return archie_modifier[index];
 	}
@@ -2107,7 +2107,7 @@ void user_io_osd_key_enable(char on) {
 
 static char key_used_by_osd(unsigned short s) {
 	// this key is only used to open the OSD and has no keycode
-	if((s & OSD_OPEN) && !(s & 0xff))  return true; 
+	if((s & OSD_OPEN) && !(s & 0xff))  return true;
 
 	// no keys are suppressed if the OSD is inactive
 	if(!osd_is_visible) return false;
@@ -2137,7 +2137,7 @@ static char kr_fn_table[] =
 	0x3e, 0x6e, // EMU_JOY1
 	0x3f, 0x6f, // EMU_NONE
 
-	//Emulate keypad for A600 
+	//Emulate keypad for A600
 	0x1E, 0x59, //KP1
 	0x1F, 0x5A, //KP2
 	0x20, 0x5B, //KP3
@@ -2179,7 +2179,7 @@ static void keyrah_trans(unsigned char *m, unsigned char *k)
 			i++;
 		}
 	}
-	
+
 	if(fn)
 	{
 		for(i=0; i<6; i++)
@@ -2265,7 +2265,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 			default:
 				break;
 		}
-	
+
 		// CAPSLOCK/LCTRL mapping
 		// First map Caps Lock to L Ctrl
 		for(char i=0;i<6;i++) {
@@ -2425,7 +2425,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 			modifier = m;
 		}
 
-		// check if there are keys in the pressed list which aren't 
+		// check if there are keys in the pressed list which aren't
 		// reported anymore
 		for(i=0;i<6;i++)
 		{
@@ -2452,7 +2452,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 					}
 					else
 					{
-						// special OSD key handled internally 
+						// special OSD key handled internally
 						if(osd_is_visible) OsdKeySet(0x80 | usb2amiga(pressed[i]));
 					}
 
@@ -2463,7 +2463,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 						{
 							emu_state &= ~is_emu_key(pressed[i], keyrah);
 							user_io_joystick_emu();
-							if(keyrah == 2) 
+							if(keyrah == 2)
 							{
 								unsigned char b = 0;
 								if(emu_state & JOY_BTN1) b |= 1;
@@ -2473,11 +2473,11 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 						}
 						else if(!(code & CAPS_LOCK_TOGGLE) && !(code & NUM_LOCK_TOGGLE))
 						{
-							send_keycode(BREAK | code);	
+							send_keycode(BREAK | code);
 						}
 					}
 				}
-			}  
+			}
 		}
 
 		for(i=0;i<6;i++)
@@ -2499,13 +2499,13 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 					// for historical reasons. If the OSD is invisble then only
 					// those keys marked for OSD in the core specific table are
 					// sent for OSD handling.
-					if(code & OSD_OPEN) 
+					if(code & OSD_OPEN)
 					{
 						OsdKeySet(KEY_MENU);
 					}
 					else
 					{
-						// special OSD key handled internally 
+						// special OSD key handled internally
 						if(osd_is_visible)
 							OsdKeySet(usb2amiga(k[i]));
 						else if (((mist_cfg.joystick_autofire_combo == 0 && k[i] == 0x62) ||  // KP0
@@ -2521,7 +2521,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 
 					}
 
-					// no further processing of any key that is currently 
+					// no further processing of any key that is currently
 					// redirected to the OSD
 					if(!key_used_by_osd(code))
 					{
@@ -2530,7 +2530,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 						{
 							emu_state |= is_emu_key(k[i], keyrah);
 							user_io_joystick_emu();
-							if(keyrah == 2) 
+							if(keyrah == 2)
 							{
 								unsigned char b = 0;
 								if(emu_state & JOY_BTN1) b |= 1;
@@ -2597,7 +2597,7 @@ void user_io_kbd(unsigned char m, unsigned char *k, uint8_t priority, unsigned s
 				}
 			}
 		}
-		
+
 		for(i=0;i<6;i++)
 		{
 			pressed[i] = k[i];
@@ -2656,7 +2656,7 @@ char user_io_key_remap(char *s, char action, int tag) {
 			key_remap_table[i][0] = strtol(s, NULL, 16);
 			key_remap_table[i][1] = strtol(s+3, NULL, 16);
 
-			ini_parser_debugf("key remap entry %d = %02x,%02x", 
+			ini_parser_debugf("key remap entry %d = %02x,%02x",
 			  i, key_remap_table[i][0], key_remap_table[i][1]);
 			return 0;
 		}

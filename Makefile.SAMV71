@@ -15,9 +15,10 @@ SRC += hw/ATSAMV71/network/intmath.c hw/ATSAMV71/network/gmac.c hw/ATSAMV71/netw
 SRC += fdd.c firmware.c fpga.c hdd.c  main.c  menu.c menu-minimig.c menu-8bit.c osd.c state.c syscalls.c user_io.c settings.c data_io.c boot.c idxfile.c config.c tos.c ikbd.c xmodem.c ini_parser.c cue_parser.c mist_cfg.c archie.c pcecd.c neocd.c psx.c snes.c zx_col.c arc_file.c c64files.c font.c utils.c
 SRC += sxmlc/sxmlc.c
 SRC += it6613/HDMI_TX.c it6613/it6613_drv.c it6613/it6613_sys.c it6613/EDID.c it6613/hdmitx_mist.c
-SRC += usb/usbdebug.c usb/hub.c usb/xboxusb.c usb/hid.c usb/hidparser.c usb/timer.c usb/asix.c usb/pl2303.c usb/usbrtc.c usb/joymapping.c usb/joystick.c usb/storage.c
+SRC += usb/usbdebug.c usb/hub.c usb/xboxusb.c usb/hid.c usb/hidparser.c usb/timer.c usb/asix.c usb/pl2303.c usb/joymapping.c usb/joystick.c usb/storage.c
 SRC += usb/usb.c usb/max3421e.c usb/usb-max3421e.c
-#SRC += usb/usb-samv71.c
+# SRC += usb/rtc.c usb/rtc/i2c-tiny.c usb/rtc/i2c-mcp2221.c usb/rtc/pcf85263.c usb/rtc/ds3231.c
+# SRC += usb/usb-samv71.c
 SRC += fat_compat.c
 SRC += FatFs/diskio.c FatFs/ff.c FatFs/ffunicode.c
 SRC += cdc_control.c storage_control.c
@@ -26,7 +27,7 @@ OBJ = $(SRC:.c=.o)
 DEP = $(SRC:.c=.d)
 
 LINKMAP  = hw/ATSAMV71/flash.ld
-LIBDIR   = 
+LIBDIR   =
 
 # Commandline options for each tool.
 # for ESA11 add -DEMIST

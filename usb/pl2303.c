@@ -23,7 +23,7 @@
 static const unsigned short supported_devices[][2] = {
   { 0x067b, 0x2303 }, // Prolific
   { 0x0557, 0x2008 }, // ATEN International Co., Ltd UC-232A Serial
-  { 0x0547, 0x2008 }, // ATEN 
+  { 0x0547, 0x2008 }, // ATEN
   { 0x056e, 0x5003 }, // ELCOM
   { 0x056e, 0x5004 }, // ELCOM
   { 0x04bb, 0x0a03 }, // IODATA
@@ -52,8 +52,8 @@ uint8_t get_pl2303s(void) {
 }
 
 // return true if there's a pl2303 present and if that has
-// its tx buffer full. This will then stop reading data from the 
-// core so it can throttle 
+// its tx buffer full. This will then stop reading data from the
+// core so it can throttle
 int8_t pl2303_is_blocked(void) {
   // if no adapter is installed then there's no need to throttle
   if(!adapter_count) return 0;
@@ -63,7 +63,7 @@ int8_t pl2303_is_blocked(void) {
 void pl2303_tx_byte(uint8_t byte) {
   if(tx_buf_fill < TX_BUF_SIZE)
     tx_buf[tx_buf_fill++] = byte;
-  else 
+  else
     iprintf("Drop %d\n", byte);
 }
 
@@ -117,10 +117,10 @@ static usb_device_t *pl2303_get_dev(void) {
   usb_device_t *devs = usb_get_devices(), *dev = NULL;
 
   // find first device
-  for (i=0; i<USB_NUMDEVICES; i++) 
-    if(devs[i].bAddress && (devs[i].class == &usb_pl2303_class)) 
+  for (i=0; i<USB_NUMDEVICES; i++)
+    if(devs[i].bAddress && (devs[i].class == &usb_pl2303_class))
       dev = devs+i;
-  
+
   return dev;
 }
 
@@ -138,7 +138,7 @@ static void pl2303_settings_dev(usb_device_t *dev, uint32_t rate, uint8_t bits, 
   if(memcmp(&lc, &dev->pl2303_info.line_coding, sizeof(line_coding_t)) != 0) {
     memcpy(&dev->pl2303_info.line_coding, &lc, sizeof(line_coding_t));
 
-    if(rate & 0x80000000) 
+    if(rate & 0x80000000)
       pl2303_debugf("Unsupported line coding");
     else {
       pl2303_debugf("New line coding %ld %d/%d/%d", rate, bits, parity, stop);
@@ -203,7 +203,7 @@ static uint8_t pl2303_parse_conf0(usb_device_t *dev, uint16_t len) {
   while(len > 0) {
     if(p->conf_desc.bDescriptorType == USB_DESCRIPTOR_ENDPOINT) {
       if(epidx < 3) {
-	
+
 	// Fill in the endpoint info structure
 	info->ep[epidx].epAddr	   = (p->ep_desc.bEndpointAddress & 0x0F);
 	info->ep[epidx].epType     = (p->ep_desc.bmAttributes & EP_TYPE_MSK);
@@ -212,43 +212,43 @@ static uint8_t pl2303_parse_conf0(usb_device_t *dev, uint16_t len) {
 	info->ep[epidx].bmNakPower = USB_NAK_NOWAIT;
 
 	// Handle interrupt endpoints
-	if ((p->ep_desc.bmAttributes & 0x03) == 3 && 
+	if ((p->ep_desc.bmAttributes & 0x03) == 3 &&
 	    (p->ep_desc.bEndpointAddress & 0x80) == 0x80) {
-	  pl2303_debugf("irq endpoint %d, interval = %dms", 
+	  pl2303_debugf("irq endpoint %d, interval = %dms",
 		  p->ep_desc.bEndpointAddress & 0x0F, p->ep_desc.bInterval);
 
-	  // Handling bInterval correctly is rather tricky. The meaning of 
+	  // Handling bInterval correctly is rather tricky. The meaning of
 	  // this field differs between low speed/full speed vs. high speed.
-	  // We are using a high speed device on a full speed link. Which 
+	  // We are using a high speed device on a full speed link. Which
 	  // rate is correct then? Furthermore this seems
 	  // to be a common problem: http://www.lvr.com/usbfaq.htm
 	  info->ep_int_idx = epidx;
 	  info->int_poll_ms = p->ep_desc.bInterval;
 	}
 
-	if ((p->ep_desc.bmAttributes & 0x03) == 2 && 
+	if ((p->ep_desc.bmAttributes & 0x03) == 2 &&
 	    (p->ep_desc.bEndpointAddress & 0x80) == 0x80) {
 	  info->ep_bulk_in_idx = epidx;
 	  pl2303_debugf("bulk in endpoint %d", p->ep_desc.bEndpointAddress & 0x0F);
 	}
 
-	if ((p->ep_desc.bmAttributes & 0x03) == 2 && 
+	if ((p->ep_desc.bmAttributes & 0x03) == 2 &&
 	    (p->ep_desc.bEndpointAddress & 0x80) == 0x00) {
 	  info->ep_bulk_out_idx = epidx;
 	  pl2303_debugf("bulk out endpoint %d", p->ep_desc.bEndpointAddress & 0x0F);
 	  info->ep[epidx].bmNakPower = USB_NAK_DEFAULT;   // allow retries to avoid data loss
 	}
-	
+
 	epidx++;
       }
     }
-    
+
     // advance to next descriptor
     if (!p->conf_desc.bLength || p->conf_desc.bLength > len) break;
     len -= p->conf_desc.bLength;
     p = (union buf_u*)(p->raw + p->conf_desc.bLength);
   }
-  
+
   if(len != 0) {
     pl2303_debugf("Config underrun: %d", len);
     return USB_ERROR_CONFIGURATION_SIZE_MISMATCH;
@@ -284,7 +284,7 @@ static uint8_t pl2303_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc)
     uint8_t raw[0];
   } buf;
 
-  pl2303_debugf("vid/pid = %x/%x", 
+  pl2303_debugf("vid/pid = %x/%x",
     dev_desc->idVendor, dev_desc->idProduct);
 
   // scan through list of supported devices
@@ -320,13 +320,13 @@ static uint8_t pl2303_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc)
     pl2303_debugf("failed getting conf descriptor #0");
     return rcode;
   }
-    
+
   // parse directly if it already fitted completely into the buffer
   if((rcode = pl2303_parse_conf0(dev, buf.conf_desc.wTotalLength)) != 0) {
     pl2303_debugf("parse conf failed");
     return rcode;
   }
-  
+
   // Set Configuration Value
   pl2303_debugf("setting configuration: %d", buf.conf_desc.bConfigurationValue);
   rcode = usb_set_conf(dev, buf.conf_desc.bConfigurationValue);
@@ -357,13 +357,13 @@ static uint8_t pl2303_init(usb_device_t *dev, usb_device_descriptor_t *dev_desc)
 
   // default: 9600 8N1
   pl2303_settings_dev(dev, 9600, 8, PL2303_PARITY_NONE, PL2303_STOP_BIT_1);
-  
+
   info->bPollEnable = true;
-  
+
 #ifdef TX_TEST
   tx_test = 0;
 #endif
-  
+
   adapter_count++;
   return 0;
 }
@@ -377,17 +377,17 @@ static uint8_t pl2303_release(usb_device_t *dev) {
 static uint8_t pl2303_poll(usb_device_t *dev) {
   usb_pl2303_info_t *info = &(dev->pl2303_info);
   uint8_t rcode = 0;
-  
+
   if (!info->bPollEnable)
     return 0;
-  
+
 #if 1 // no need to use the irq channel ...
   // poll interrupt endpoint
   if (timer_check(info->qLastIrqPollTime, info->int_poll_ms)) {
     uint16_t read = info->ep[info->ep_int_idx].maxPktSize;
     uint8_t buf[info->ep[info->ep_int_idx].maxPktSize];
     uint8_t rcode = usb_in_transfer(dev, &(info->ep[info->ep_int_idx]), &read, buf);
-    
+
     if (rcode) {
       if (rcode != hrNAK)
 	pl2303_debugf("%s() int error: %x", __FUNCTION__, rcode);
@@ -405,9 +405,9 @@ static uint8_t pl2303_poll(usb_device_t *dev) {
 #ifdef TX_TEST
     if(tx_test < 26) {
       // do some tests (needs a loopback connector)
-      uint8_t buffer[30]; 
+      uint8_t buffer[30];
       memset(buffer, 'A'+tx_test, sizeof(buffer));
-      
+
       // send and retry on failure
       pl2303_tx_dev(dev, buffer, sizeof(buffer));
       tx_test++;
@@ -444,7 +444,7 @@ static uint8_t pl2303_poll(usb_device_t *dev) {
     serial_status_t stat;
     if(user_io_serial_status(&stat, 0x90)) {
       { static serial_status_t old_stat;
-	if(memcmp(&stat, &old_stat, sizeof(stat)) != 0) { 
+	if(memcmp(&stat, &old_stat, sizeof(stat)) != 0) {
 	  pl2303_debugf("stat changed:");
 	  hexdump(&stat, sizeof(stat), 0);
 	  memcpy(&old_stat, &stat, sizeof(stat));
@@ -489,4 +489,8 @@ static uint8_t pl2303_poll(usb_device_t *dev) {
 }
 
 const usb_device_class_config_t usb_pl2303_class = {
-  pl2303_init, pl2303_release, pl2303_poll };  
+  USB_UART,
+  pl2303_init,
+  pl2303_release,
+  pl2303_poll
+};

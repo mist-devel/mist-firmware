@@ -304,7 +304,6 @@ unsigned char ConfigureFpga(const char *name)
 
     DISKLED_ON;
 
-    int t = 0;
     int n = f_size(&file) >> 3;
 
     /* Loop through every single byte */
@@ -369,9 +368,9 @@ unsigned char ConfigureFpga(const char *name)
     /* It is not required to drive extra DCLK cycles at the end of configuration */
     /* The purpose of driving extra DCLK cycles here is to insert some delay
        while waiting for the initialization of the device to complete before
-       checking the CONFDONE and NSTATUS signals at the end of whole 
+       checking the CONFDONE and NSTATUS signals at the end of whole
        configuration cycle */
-    
+
     for ( i = 0; i < 50; i++ )
     {
         ALTERA_DCLK_RESET;
@@ -382,7 +381,7 @@ unsigned char ConfigureFpga(const char *name)
 
     if ( !ALTERA_NSTATUS_STATE || !ALTERA_DONE_STATE ) {
 
-      iprintf("FPGA Initialization finish but contains error: NSTATUS is %s and CONF_DONE is %s.\r", 
+      iprintf("FPGA Initialization finish but contains error: NSTATUS is %s and CONF_DONE is %s.\r",
              ALTERA_NSTATUS_STATE?"HIGH":"LOW", ALTERA_DONE_STATE?"HIGH":"LOW" );
       return ERROR_UPDATE_FAILED;
     }
@@ -451,7 +450,6 @@ void SendFileEncrypted(FIL *file,unsigned char *key,int keysize)
     unsigned long  j;
     unsigned long  n;
     unsigned char *p;
-    int badbyte=0;
 
     iprintf("[");
     headersize=f_size(file)&255;	// ROM should be a round number of kilobytes; overspill will likely be the Amiga Forever header.
@@ -509,7 +507,6 @@ const char applymemdetectionpatchstr[] = "Applying Kickstart 1.x memory detectio
 const char *kickfoundstr = NULL, *applypatchstr = NULL;
 
 void PatchKick1xMemoryDetection() {
-  int applypatch = 0;
 
   if (!strncmp(sector_buffer + 0x18, "exec 33.192 (8 Oct 1986)", 24)) {
     kick1xfoundstr[13] = '2';
@@ -956,7 +953,7 @@ unsigned char fpga_init(const char *name) {
      (user_io_core_type() == CORE_TYPE_MINIMIG2)) {
 
     puts("Running minimig setup");
-    
+
     if(minimig_v2()) {
       user_io_8bit_set_status(minimig_cfg.clock_freq << 1, 0xffffffff);
       WaitTimer(100);

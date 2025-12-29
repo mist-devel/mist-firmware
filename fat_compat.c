@@ -128,7 +128,7 @@ unsigned char FindDrive(void) {
 }
 
 // ExFat doesn't have directory backlink (..), thus need book-keeping the current directory
-void ChangeDirectoryName(unsigned char *name) {
+void ChangeDirectoryName(const char *name) {
 	uint32_t      iPreviousDirectoryTmp = fs.cdir;
 
 	iprintf("ChangeDirectoryName: %s -> %s = ", cwd, name);

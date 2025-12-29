@@ -106,7 +106,7 @@ static void InsertFloppy(adfTYPE *drive, const unsigned char *name)
 
 	if (DiskInfo[0]) {// if selected file has valid disk number info then copy it to its name in drive struct
 		drive->name[16] = ' '; // precede disk number info with space character
-		strncpy(&drive->name[17], DiskInfo, sizeof(DiskInfo)-1); // copy disk number info
+		strncpy(&drive->name[17], DiskInfo, sizeof(DiskInfo)); // copy disk number info
 	}
 
 	// initialize the rest of drive struct
@@ -554,7 +554,7 @@ static char GetMenuItem_Minimig(uint8_t idx, char action, menu_item_t *item) {
 					break;
 				case 43:
 					strcpy(s, "      ROM   : ");
-					strncat(s, config.kickstart, sizeof(config.kickstart)-1);
+					strncat(s, config.kickstart, sizeof(config.kickstart));
 					item->item = s;
 					break;
 				case 44:

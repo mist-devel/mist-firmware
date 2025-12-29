@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "xmodem.h"
 #include "ikbd.h"
 #include "usb.h"
-#include "usbrtc.h"
+#include "usb/rtc.h"
 
 void __init_hardware(void)
 {
@@ -35,7 +35,7 @@ void __init_hardware(void)
     *AT91C_MC_FMR = FWS << 8; // Flash wait states
 
     // configure clock generator
-    *AT91C_CKGR_MOR = AT91C_CKGR_MOSCEN | (40 << 8);  
+    *AT91C_CKGR_MOR = AT91C_CKGR_MOSCEN | (40 << 8);
     while (!(*AT91C_PMC_SR & AT91C_PMC_MOSCS));
 
     *AT91C_CKGR_PLLR = AT91C_CKGR_OUT_0 | AT91C_CKGR_USBDIV_1 | (25 << 16) | (40 << 8) | 5; // DIV=5 MUL=26 USBDIV=1 (2) PLLCOUNT=40
@@ -82,7 +82,7 @@ void __init_hardware(void)
     // xilinx interface
     *AT91C_PIOA_SODR  = XILINX_CCLK | XILINX_DIN | XILINX_PROG_B;
     *AT91C_PIOA_OER   = XILINX_CCLK | XILINX_DIN | XILINX_PROG_B;
-    *AT91C_PIOA_PPUDR = XILINX_CCLK | XILINX_DIN | XILINX_PROG_B | 
+    *AT91C_PIOA_PPUDR = XILINX_CCLK | XILINX_DIN | XILINX_PROG_B |
       XILINX_INIT_B | XILINX_DONE;
 #endif
 
@@ -95,7 +95,7 @@ void __init_hardware(void)
 #endif
 
 #ifdef MMC_CLKEN
-    // MMC_CLKEN may be present 
+    // MMC_CLKEN may be present
     // (but is not used anymore, so it's only setup passive)
     *AT91C_PIOA_SODR = MMC_CLKEN;
     *AT91C_PIOA_PPUDR = MMC_CLKEN;
@@ -133,11 +133,11 @@ void Usart0IrqHandler(void) {
       rx_buf[rx_wptr++] = c;
     }
   }
-    
+
   // ready to transmit further bytes?
   if(status & AT91C_US_TXRDY) {
 
-    // further bytes to send in buffer? 
+    // further bytes to send in buffer?
     if(tx_wptr != tx_rptr)
       // yes, simply send it and leave irq enabled
       AT91C_BASE_US0->US_THR = tx_buf[tx_rptr++];
@@ -153,7 +153,7 @@ void USART_Poll(void) {
     xmodem_poll();
 
   while(rx_wptr != rx_rptr) {
-    // this can a little be optimized by sending whole buffer parts 
+    // this can a little be optimized by sending whole buffer parts
     // at once and not just single bytes. But that's probably not
     // worth the effort.
     char chr = rx_buf[rx_rptr++];
@@ -201,7 +201,7 @@ void USART_Init(unsigned long baudrate) {
     AT91C_BASE_US0->US_CR = AT91C_US_RSTRX | AT91C_US_RSTTX | AT91C_US_RXDIS | AT91C_US_TXDIS;
 
     // Configure USART0 mode
-    AT91C_BASE_US0->US_MR = AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK | AT91C_US_CHRL_8_BITS | 
+    AT91C_BASE_US0->US_MR = AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK | AT91C_US_CHRL_8_BITS |
       AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT | AT91C_US_CHMODE_NORMAL;
 
     // Configure USART0 rate
@@ -217,7 +217,7 @@ void USART_Init(unsigned long baudrate) {
     rx_rptr = rx_wptr = 0;
 
     // Set the USART0 IRQ handler address in AIC Source
-    AT91C_BASE_AIC->AIC_SVR[AT91C_ID_US0] = (unsigned int)Usart0IrqHandler; 
+    AT91C_BASE_AIC->AIC_SVR[AT91C_ID_US0] = (unsigned int)Usart0IrqHandler;
     AT91C_BASE_AIC->AIC_IECR = (1<<AT91C_ID_US0);
 
     AT91C_BASE_US0->US_IER = AT91C_US_RXRDY;  // enable rx interrupt
@@ -239,29 +239,29 @@ void timer0_c_irq_handler(void) {
   ikbd_update_time();
 }
 
-void Timer_Init(void) {  
+void Timer_Init(void) {
   unsigned int dummy;
 
   //* Open timer0
   AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_TC0;
-  
+
   //* Disable the clock and the interrupts
   AT91C_BASE_TC0->TC_CCR = AT91C_TC_CLKDIS ;
   AT91C_BASE_TC0->TC_IDR = 0xFFFFFFFF ;
-  
+
   //* Clear status bit
   dummy = AT91C_BASE_TC0->TC_SR;
 
   //* Set the Mode of the Timer Counter
   AT91C_BASE_TC0->TC_CMR = 0x04;  // :1024
-  
+
   //* Enable the clock
   AT91C_BASE_TC0->TC_CCR = AT91C_TC_CLKEN ;
-  
-  
-  
+
+
+
   //* Open Timer 0 interrupt
-  
+
   //* Disable the interrupt on the interrupt controller
   AT91C_BASE_AIC->AIC_IDCR = 1 << AT91C_ID_TC0;
   //* Save the interrupt handler routine pointer and the interrupt priority
@@ -270,17 +270,17 @@ void Timer_Init(void) {
   AT91C_BASE_AIC->AIC_SMR[AT91C_ID_TC0] = 1 | AT91C_AIC_SRCTYPE_INT_HIGH_LEVEL;
   //* Clear the interrupt on the interrupt controller
   AT91C_BASE_AIC->AIC_ICCR = 1 << AT91C_ID_TC0;
-  
+
   AT91C_BASE_TC0->TC_IER = AT91C_TC_CPCS;  //  IRQ enable CPC
   AT91C_BASE_AIC->AIC_IECR = 1 << AT91C_ID_TC0;
-  
+
   //* Start timer0
   AT91C_BASE_TC0->TC_CCR = AT91C_TC_SWTRG ;
-  
+
   *AT91C_PITC_PIMR = AT91C_PITC_PITEN | ((MCLK / 16 / 1000 - 1) & AT91C_PITC_PIV); // counting period 1ms
 }
 
-// 12 bits accuracy at 1ms = 4096 ms 
+// 12 bits accuracy at 1ms = 4096 ms
 RAMFUNC unsigned long GetTimer(unsigned long offset)
 {
     unsigned long systimer = (*AT91C_PITC_PIIR & AT91C_PITC_PICNT);
