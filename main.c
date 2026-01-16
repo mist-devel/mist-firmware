@@ -55,6 +55,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "snes.h"
 #include "zx_col.h"
 #include "arc_file.h"
+#include "serial_sink.h"
 #include "font.h"
 #include "tos.h"
 #include "usb.h"
@@ -148,6 +149,7 @@ int main(void)
     c64files_init();
     snes_init();
     zx_init();
+    serial_sink_init();
     Timer_Init();
 
     USART_Init(115200);
