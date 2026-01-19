@@ -664,12 +664,13 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					}
 					item->item = s;
 					break;
-				case 28:
+				case 28: {
 					char usb_id[32];
 					get_joystick_id(usb_id, page_idx-4);
 					siprintf(s, "%*s%s", (28-strlen(usb_id))/2, " ", usb_id);
 					item->item = s;
 					break;
+				}
 				case 30:
 					if (!setup_phase) {
 						item->item = joy_string;

@@ -26,20 +26,12 @@
 #define REG_SR          0x0F
 
 static bool ds3231_probe(
-    usb_device_t *dev, const i2c_bus_t *i2c, int *code)
+    usb_device_t *dev, const i2c_bus_t *i2c)
 {
-    uint8_t cr = 0, zero = 0;
+    uint8_t zero = 0;
 
     // disable CLK output pin for battery saving
-    if (!i2c->bulk_write(dev, DS3231_ADDR, REG_SR, &zero, 1))
-        return false;
-
-    // checking of Control Register for specific bits values
-    if (i2c->bulk_read(dev, DS3231_ADDR, REG_CR, &cr, 1) && (cr & 0x1c) == 0x1c)
-        return true;
-
-    *code = cr;
-    return false;
+    return i2c->bulk_write(dev, DS3231_ADDR, REG_SR, &zero, 1);
 }
 
 static bool ds3231_get_time(
@@ -50,11 +42,7 @@ static bool ds3231_get_time(
     if (!i2c->bulk_read(dev, DS3231_ADDR, REG_SECS, regs, 7))
         return false;
 
-    date[T_YEAR] = bcd2bin(regs[REG_YEARS]);
-
-    if (regs[REG_MONTHS] & MONTHS_BIT_CENTURY)
-        date[T_YEAR] += 100;
-
+    date[T_YEAR] = bcd2bin(regs[REG_YEARS]) + 100;
     date[T_MONTH] = bcd2bin(regs[REG_MONTHS] & 0x1f);
     date[T_DAY] = bcd2bin(regs[REG_DAYS]);
 
@@ -71,7 +59,7 @@ static bool ds3231_get_time(
     }
 
     date[T_MIN]  = bcd2bin(regs[REG_MINUTES]);
-    date[T_SEC]  = bcd2bin(regs[REG_SECS]);
+    date[T_SEC]  = bcd2bin(regs[REG_SECS] & 0x7f);
     date[T_WDAY] = regs[REG_WEEKDAY];
 
     return true;

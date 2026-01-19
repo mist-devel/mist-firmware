@@ -147,7 +147,7 @@ typedef struct usb_device_entry {
 #endif
     usb_pl2303_info_t pl2303_info;
     usb_asix_info_t asix_info;
-    rtc_info_t rtc_info;
+    usb_mcp_info_t mcp_info;
   };
 } usb_device_t;
 

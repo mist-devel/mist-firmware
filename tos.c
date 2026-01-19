@@ -61,17 +61,17 @@ unsigned char spi_newspeed;
 static const char *acsi_cmd_name(int cmd) {
   static const char *cmdname[] = {
     "Test Drive Ready", "Restore to Zero", "Cmd $2", "Request Sense",
-    "Format Drive", "Read Block limits", "Reassign Blocks", "Cmd $7", 
-    "Read Sector", "Cmd $9", "Write Sector", "Seek Block", 
-    "Cmd $C", "Cmd $D", "Cmd $E", "Cmd $F", 
-    "Cmd $10", "Cmd $11", "Inquiry", "Verify", 
-    "Cmd $14", "Mode Select", "Cmd $16", "Cmd $17", 
-    "Cmd $18", "Cmd $19", "Mode Sense", "Start/Stop Unit", 
+    "Format Drive", "Read Block limits", "Reassign Blocks", "Cmd $7",
+    "Read Sector", "Cmd $9", "Write Sector", "Seek Block",
+    "Cmd $C", "Cmd $D", "Cmd $E", "Cmd $F",
+    "Cmd $10", "Cmd $11", "Inquiry", "Verify",
+    "Cmd $14", "Mode Select", "Cmd $16", "Cmd $17",
+    "Cmd $18", "Cmd $19", "Mode Sense", "Start/Stop Unit",
     "Cmd $1C", "Cmd $1D", "Cmd $1E", "Cmd $1F",
     // extended commands supported by ICD feature:
-    "Cmd $20", "Cmd $21", "Cmd $22", 
+    "Cmd $20", "Cmd $21", "Cmd $22",
     "Read Format Capacities", "Cmd $24", "Read Capacity (10)",
-    "Cmd $26", "Cmd $27", "Read (10)", "Read Generation", 
+    "Cmd $26", "Cmd $27", "Read (10)", "Read Generation",
     "Write (10)", "Seek (10)"
   };
 
@@ -94,7 +94,7 @@ void tos_set_cdc_control_redirect(char mode) {
     else
       mode -= CDC_REDIRECT_RS232 - 1;
 
-    tos_update_sysctrl((tos_system_ctrl() & ~0x0c000000) | 
+    tos_update_sysctrl((tos_system_ctrl() & ~0x0c000000) |
        (((unsigned long)mode) << 26) );
   }
 }
@@ -337,10 +337,10 @@ static void handle_acsi(unsigned char *buffer) {
     case 0x28: // read (10)
       if(device == 0) {
         if(cmd == 0x28) {
-          lba = 
+          lba =
             256 * 256 * 256 * buffer[2] +
             256 * 256 * buffer[3] +
-            256 * buffer[4] + 
+            256 * buffer[4] +
             buffer[5];
 
           length = 256 * buffer[7] + buffer[8];
@@ -355,7 +355,7 @@ static void handle_acsi(unsigned char *buffer) {
             spi_speed = spi_get_speed();
             mist2_spi_set_speed(spi_newspeed);
             if(hdd_direct && target == 0) {
-              if(user_io_dip_switch1()) 
+              if(user_io_dip_switch1())
                 tos_debugf("ACSI: direct read %ld", lba);
               disk_read(fs.pdrv, 0, lba, length);
             } else {
@@ -387,7 +387,7 @@ static void handle_acsi(unsigned char *buffer) {
           dma_ack(0x00);
           asc[target] = 0x00;
         } else {
-          tos_debugf("ACSI: read (%d+%d) exceeds device limits (%d)", 
+          tos_debugf("ACSI: read (%d+%d) exceeds device limits (%d)",
             lba, length, blocks);
           dma_ack(0x02);
           asc[target] = 0x21;
@@ -402,10 +402,10 @@ static void handle_acsi(unsigned char *buffer) {
     case 0x2a: // write (10)
       if(device == 0) {
         if(cmd == 0x2a) {
-          lba = 
+          lba =
             256 * 256 * 256 * buffer[2] +
             256 * 256 * buffer[3] +
-            256 * buffer[4] + 
+            256 * buffer[4] +
             buffer[5];
 
           length = 256 * buffer[7] + buffer[8];
@@ -426,7 +426,7 @@ static void handle_acsi(unsigned char *buffer) {
               buf+=512;
             }
             if(hdd_direct && target == 0) {
-              if(user_io_dip_switch1()) 
+              if(user_io_dip_switch1())
                 tos_debugf("ACSI: direct write %ld", lba);
               disk_write(fs.pdrv, sector_buffer, lba, blocklen);
             } else {
@@ -440,7 +440,7 @@ static void handle_acsi(unsigned char *buffer) {
           dma_ack(0x00);
           asc[target] = 0x00;
         } else {
-          tos_debugf("ACSI: write (%d+%d) exceeds device limits (%d)", 
+          tos_debugf("ACSI: write (%d+%d) exceeds device limits (%d)",
             lba, length, blocks);
           dma_ack(0x02);
           asc[target] = 0x21;
@@ -459,7 +459,7 @@ static void handle_acsi(unsigned char *buffer) {
       sector_buffer[4] = length-5;                            // len
       memcpy(sector_buffer+8,  "MIST    ", 8);                // Vendor
       memcpy(sector_buffer+16, "                ", 16);       // Clear device entry
-      if(hdd_direct && target == 0) memcpy(sector_buffer+16, "SD DIRECT", 9);// Device 
+      if(hdd_direct && target == 0) memcpy(sector_buffer+16, "SD DIRECT", 9);// Device
       else                        { memcpy(sector_buffer+16, config.acsi_img[target], strlen(config.acsi_img[target]) > 16 ? 16 : strlen(config.acsi_img[target])); }
       memcpy(sector_buffer+32, "ATH ", 4);                    // Product revision
       memcpy(sector_buffer+36, VDATE "  ", 8);                // Serial number
@@ -505,7 +505,7 @@ static void handle_acsi(unsigned char *buffer) {
   } else {
     tos_debugf("ACSI: Request for unsupported target");
 
-    // tell acsi state machine that io controller is done 
+    // tell acsi state machine that io controller is done
     // but don't generate a acsi irq
     dma_nak();
   }
@@ -513,15 +513,15 @@ static void handle_acsi(unsigned char *buffer) {
 
 static void handle_fdc(unsigned char *buffer) {
   // extract contents
-  unsigned int dma_address = 256 * 256 * buffer[0] + 
+  unsigned int dma_address = 256 * 256 * buffer[0] +
     256 * buffer[1] + (buffer[2]&0xfe);
   unsigned char scnt = buffer[3];
   unsigned char fdc_cmd = buffer[4];
   unsigned char fdc_track = buffer[5];
   unsigned char fdc_sector = buffer[6];
   unsigned char fdc_data = buffer[7];
-  unsigned char drv_sel = 3-((buffer[8]>>2)&3); 
-  unsigned char drv_side = 1-((buffer[8]>>1)&1); 
+  unsigned char drv_sel = 3-((buffer[8]>>2)&3);
+  unsigned char drv_side = 1-((buffer[8]>>1)&1);
 
   //  tos_debugf("FDC: sel %d, cmd %x", drv_sel, fdc_cmd);
 
@@ -533,14 +533,14 @@ static void handle_fdc(unsigned char *buffer) {
     // read/write sector command
     if((fdc_cmd & 0xc0) == 0x80) {
       // convert track/sector/side into disk offset
-      unsigned int offset = drv_side; 
+      unsigned int offset = drv_side;
       offset += fdc_track * fdd_image[drv_sel-1].sides;
       offset *= fdd_image[drv_sel-1].spt;
       offset += fdc_sector-1;
 
       if(user_io_dip_switch1()) {
-        tos_debugf("FDC %s req %d sec (%c, SD:%d, T:%d, S:%d = %d) -> %p", 
-          (fdc_cmd & 0x10)?"multi":"single", scnt, 
+        tos_debugf("FDC %s req %d sec (%c, SD:%d, T:%d, S:%d = %d) -> %p",
+          (fdc_cmd & 0x10)?"multi":"single", scnt,
           'A'+drv_sel-1, drv_side, fdc_track, fdc_sector, offset,
                    dma_address);
       }
@@ -553,7 +553,7 @@ static void handle_fdc(unsigned char *buffer) {
 
           f_lseek(&fdd_image[drv_sel-1].file, offset * 512);
 
-          if((fdc_cmd & 0xe0) == 0x80) { 
+          if((fdc_cmd & 0xe0) == 0x80) {
             // read from disk ...
             FileReadBlock(&fdd_image[drv_sel-1].file, sector_buffer);
             // ... and copy to ram
@@ -695,7 +695,7 @@ static void tos_write(char *str) {
     return;
   }
 
-  // get next higher multiple of 16 for string length 
+  // get next higher multiple of 16 for string length
   // as dma works in 16 bytes chunks only
   int c = (strlen(str)+15) & ~15;
   {
@@ -911,8 +911,8 @@ static void tos_upload_mist1(const char *name) {
       mist_memory_read(b2, 256);
 
       char ok = 1;
-      for(j=0;j<512;j++) 
-       if(buffer[j] != b2[j]) 
+      for(j=0;j<512;j++)
+       if(buffer[j] != b2[j])
          ok = 0;
 
       if(ok) run_ok++;
@@ -1013,7 +1013,7 @@ static void tos_upload_mist1(const char *name) {
 #endif
 
     time = GetRTTC() - time;
-    tos_debugf("TOS.IMG uploaded in %lu ms (%d kB/s / %d kBit/s)", 
+    tos_debugf("TOS.IMG uploaded in %lu ms (%d kB/s / %d kBit/s)",
       time, f_size(&file)/(time >> 20), 8*f_size(&file)/time);
     f_close(&file);
   } else {
@@ -1110,7 +1110,7 @@ void tos_poll() {
 
   // check the user button
   if(!MenuButton() && UserButton()) {
-    if(timer == 1) 
+    if(timer == 1)
       timer = GetTimer(1000);
     else if(timer != 2)
       if(CheckTimer(timer)) {
@@ -1277,7 +1277,7 @@ void tos_insert_disk(char i, const unsigned char *name) {
     disk_inserted[i] = 1;
     // restore state of write protect bit
     tos_update_sysctrl(config.system_ctrl);
-    tos_debugf("%c: detected %d sides with %d sectors per track", 
+    tos_debugf("%c: detected %d sides with %d sectors per track",
       i+'A', fdd_image[i].sides, fdd_image[i].spt);
   }
 }
@@ -1351,7 +1351,7 @@ void tos_config_load(char slot) {
   strncpy(filename, CONFIG_FILENAME, 11);
   if (new_slot) filename[4] = '0'+new_slot;
   if (FileOpenCompat(&file, filename, FA_READ) == FR_OK)  {
-    tos_debugf("Configuration file size: %llu (should be %lu)", 
+    tos_debugf("Configuration file size: %llu (should be %lu)",
        f_size(&file), sizeof(tos_config_t));
     if(f_size(&file) == sizeof(tos_config_t)) {
       f_read(&file, (unsigned char*) &config, sizeof(tos_config_t), &br);
@@ -1480,7 +1480,7 @@ static char tos_getmenuitem(uint8_t idx, char action, menu_item_t *item) {
 					if(tos_system_ctrl() & TOS_CONTROL_FDC_WR_PROT_A) strcat(s, " \x17");
 					item->item = s;
 					break;
-				//case 1 same as page 3/screen 
+				//case 1 same as page 3/screen
 				case 2:
 					item->item = " Storage";
 					item->newpage = 1;
@@ -1760,9 +1760,9 @@ static char tos_getmenuitem(uint8_t idx, char action, menu_item_t *item) {
 						SelectFileNG("IMG", SCAN_LFN, tos_file_selected, 0);
 					break;
 				case 19:
-					if(tos_get_cdc_control_redirect() == CDC_REDIRECT_MIDI) 
+					if(tos_get_cdc_control_redirect() == CDC_REDIRECT_MIDI)
 						tos_set_cdc_control_redirect(CDC_REDIRECT_NONE);
-					else 
+					else
 						tos_set_cdc_control_redirect(tos_get_cdc_control_redirect()+1);
 					break;
 				case 20:  // Reset
@@ -1790,7 +1790,8 @@ static char tos_getmenuitem(uint8_t idx, char action, menu_item_t *item) {
 				case 25: {
 					unsigned long chipset = (tos_system_ctrl() >> 23)+1;
 					if(chipset == 4) chipset = 0;
-					tos_update_sysctrl((tos_system_ctrl() & ~(TOS_CONTROL_STE | TOS_CONTROL_MSTE)) | (chipset << 23));
+					tos_update_sysctrl((tos_system_ctrl() & ~(TOS_CONTROL_STE | TOS_CONTROL_MSTE)) |
+						(chipset << 23));
 					}
 					break;
 				case 26:

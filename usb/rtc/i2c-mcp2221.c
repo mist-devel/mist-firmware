@@ -177,7 +177,7 @@ static bool mcp_exec(usb_device_t *dev, uint8_t *rpt, uint16_t *size)
 {
     // send command and get responce
     uint8_t rcode, cmd = rpt[0];
-    rtc_info_t *info = &(dev->rtc_info);
+    usb_mcp_info_t *info = &(dev->mcp_info);
 
     rcode = usb_out_transfer(dev, &info->ep_out, REPORT_SIZE, rpt);
 
@@ -211,7 +211,7 @@ static bool mcp_set_i2c_clock(usb_device_t *dev, uint8_t *rpt, uint16_t clock)
     // set new bus clock rate
     mcp_set_cmd_t *cmd = (mcp_set_cmd_t *) rpt;
     mcp_set_resp_t *resp = (mcp_set_resp_t *) rpt;
-    rtc_info_t *info = &(dev->rtc_info);
+    usb_mcp_info_t *info = &(dev->mcp_info);
 
     if (info->i2c_clock == clock)
         return true;
@@ -257,7 +257,7 @@ static bool mcp_get_status(
 static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint16_t len)
 {
     uint8_t rcode;
-    rtc_info_t *info = &(dev->rtc_info);
+    usb_mcp_info_t *info = &(dev->mcp_info);
     bool isHID = false;
 
     union buf_u {
@@ -340,7 +340,7 @@ static uint8_t mcp_init(
         return rcode;
     }
 
-    rtc_info_t *info = &(dev->rtc_info);
+    usb_mcp_info_t *info = &(dev->mcp_info);
     ep_t *ep[] = { &info->ep_in, &info->ep_out, NULL };
 
     // Reset runtime info
@@ -382,7 +382,6 @@ static uint8_t mcp_init(
     // Probe for clock chips
     for (int i = 0; rtc_chips[i]; i++)
     {
-        int code = 0;
         const rtc_chip_t *chip = rtc_chips[i];
 
         if (!mcp_set_i2c_clock(dev, buf.raw, chip->clock_rate))
@@ -391,7 +390,7 @@ static uint8_t mcp_init(
                 chip->clock_rate);
         }
 
-        if (chip->probe(dev, &mcp_i2c_bus, &code))
+        if (chip->probe(dev, &mcp_i2c_bus))
         {
             iprintf("mcp2221: rtc %s found\n", chip->name);
             info->chip_type = i;
@@ -399,8 +398,7 @@ static uint8_t mcp_init(
         }
         else
         {
-            iprintf("mcp2221: rtc %s is not detected, code #%X\n",
-                chip->name, code);
+            iprintf("mcp2221: rtc %s is not detected\n", chip->name);
         }
     }
 
@@ -426,7 +424,7 @@ static bool mcp_i2c_bulk_read(
         uint8_t raw[REPORT_SIZE];
     } rpt;
 
-    rtc_info_t *info = &(dev->rtc_info);
+    usb_mcp_info_t *info = &(dev->mcp_info);
     uint16_t size, i;
 
     if (!buf || !length || length > sizeof(rpt.resp.data)-1)
@@ -503,7 +501,7 @@ static bool mcp_i2c_bulk_write(
 
 static bool mcp_get_time(struct usb_device_entry *dev, ctime_t date)
 {
-    rtc_info_t *info = &(dev->rtc_info);
+    usb_mcp_info_t *info = &(dev->mcp_info);
     const rtc_chip_t *rtc = rtc_chips[info->chip_type];
 
     return rtc->get_time(dev, &mcp_i2c_bus, date);
@@ -511,7 +509,7 @@ static bool mcp_get_time(struct usb_device_entry *dev, ctime_t date)
 
 static bool mcp_set_time(struct usb_device_entry *dev, const ctime_t date)
 {
-    const rtc_info_t *info = &(dev->rtc_info);
+    const usb_mcp_info_t *info = &(dev->mcp_info);
     const rtc_chip_t *rtc = rtc_chips[info->chip_type];
 
     return rtc->set_time(dev, &mcp_i2c_bus, date);

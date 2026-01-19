@@ -1,7 +1,9 @@
 /*
  * serial_sink.c
- *
  */
+
+#include <stdio.h>
+#include <string.h>
 
 #include "serial_sink.h"
 
@@ -17,11 +19,11 @@ void console_end() {
 
 void console_echo(uint8_t value) {
   if (value != 0xff && value != 0x00) {
-    iprintf("%c", value); 
+    iprintf("%c", value);
   }
 }
 
-static serial_sink_t console_sink = {0, 8, 
+static serial_sink_t console_sink = {0, 8,
      &console_start,
      &console_echo,
      &console_end

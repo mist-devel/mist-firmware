@@ -40,7 +40,7 @@
     #define RESET_CPR           0xa4
 
 static bool pcf85263_probe(
-    usb_device_t *dev, const i2c_bus_t *i2c, int *)
+    usb_device_t *dev, const i2c_bus_t *i2c)
 {
     uint8_t setup[] = {
         BATT_BIT_BSM_VBAT,
