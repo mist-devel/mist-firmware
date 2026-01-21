@@ -614,7 +614,7 @@ void user_io_sd_set_config(void) {
 		// synthetic CSD for non-MMC storage
 		uint32_t capacity;
 		disk_ioctl(fs.pdrv, GET_SECTOR_COUNT, &capacity);
-		memset(data, sizeof(data), 0);
+		memset(data, 0, sizeof(data));
 		data[16+0] = 0x40;
 		data[16+1] = 0x0e;
 		data[16+3] = 0x32;
