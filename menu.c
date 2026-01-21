@@ -172,46 +172,52 @@ static void siprintbinary(char* buffer, uint8_t byte)
 	}
 }
 
-static void get_joystick_state( char *joy_string, char *joy_string2, uint8_t joy_num ) {
+static void get_joystick_state( char joy_string[32], char joy_string2[32], uint8_t joy_num ) {
 	// helper to get joystick status (both USB or DB9)
 	uint32_t vjoy;
 	vjoy = StateJoyGet(joy_num);
-	vjoy |=  StateJoyGetExtra(joy_num) << 8;
-	vjoy |=  StateJoyGetRight(joy_num) << 16;
+	vjoy |= StateJoyGetExtra(joy_num) << 8;
+	vjoy |= StateJoyGetRight(joy_num) << 16;
 	if (vjoy==0) {
 		joy_string[0] = '\0';
-		strcpy(joy_string2, "  \x14     \x14                 ");
+		joy_string2[0] = '\0';
 		return;
 	}
-	strcpy(joy_string,  "  \x12     \x12   X Y L R L2 R2 L3");
-	strcpy(joy_string2, "< \x13 > < \x13 > A B Sel Sta R3");
-	if(!(vjoy & JOY_UP))    joy_string[2]  = ' ';
-	if(!(vjoy & JOY_X))     joy_string[12] = ' ';
-	if(!(vjoy & JOY_Y))     joy_string[14] = ' ';
-	if(!(vjoy & JOY_L))     joy_string[16] = ' ';
-	if(!(vjoy & JOY_R))     joy_string[18] = ' ';
-	if(!(vjoy & JOY_L2))    memset(joy_string+20, ' ', 2);
-	if(!(vjoy & JOY_R2))    memset(joy_string+23, ' ', 2);
-	if(!(vjoy & JOY_L3))    memset(joy_string+26, ' ', 2);
-	if(!(vjoy & JOY_LEFT))  joy_string2[0] = ' ';
-	if(!(vjoy & JOY_DOWN))  joy_string2[2] = '\x14';
-	if(!(vjoy & JOY_RIGHT)) joy_string2[4] = ' ';
-	if(!(vjoy & JOY_A))     joy_string2[12] = ' ';
-	if(!(vjoy & JOY_B))     joy_string2[14] = ' ';
-	if(!(vjoy & JOY_SELECT))memset(joy_string2+16, ' ', 3);
-	if(!(vjoy & JOY_START)) memset(joy_string2+20, ' ', 3);
-	if(!(vjoy & JOY_R3))    memset(joy_string2+24, ' ', 2);
+	/*
+	 * '  ^   X A Sel L R L2 R2'
+	 * '< _ > Y B Sta     L3 R3'
+	 */
+	memset(joy_string, ' ', 32);
+	memset(joy_string2, ' ', 32);
 
-	if(!(vjoy & JOY_UP2))   joy_string[8] = ' ';
-	if(!(vjoy & JOY_LEFT2)) joy_string2[6] = ' ';
-	if(!(vjoy & JOY_DOWN2)) joy_string2[8] = '\x14';
-	if(!(vjoy & JOY_RIGHT2))joy_string2[10] = ' ';
+	// directions (joy1 & joy2)
+	if (vjoy & (JOY_UP    | JOY_UP2))    joy_string[2]  = '\x12';
+	if (vjoy & (JOY_LEFT  | JOY_LEFT2))  joy_string2[0] = '\x10';
+	if (vjoy & (JOY_DOWN  | JOY_DOWN2))  joy_string2[2] = '\x13';
+	if (vjoy & (JOY_RIGHT | JOY_RIGHT2)) joy_string2[4] = '\x11';
 
-	return;
+	// virtual gamepad buttons
+	if (vjoy & JOY_X) joy_string[6]  = 'X';
+	if (vjoy & JOY_A) joy_string[8]  = 'A';
+	if (vjoy & JOY_L) joy_string[14] = 'L';
+	if (vjoy & JOY_R) joy_string[16] = 'R';
+	if (vjoy & JOY_Y) joy_string2[6] = 'Y';
+	if (vjoy & JOY_B) joy_string2[8] = 'B';
+
+	if (vjoy & JOY_SELECT) memcpy(joy_string+10,  "Sel", 3);
+	if (vjoy & JOY_L2)     memcpy(joy_string+18,  "L2",  2);
+	if (vjoy & JOY_R2)     memcpy(joy_string+21,  "R2",  2);
+	if (vjoy & JOY_START)  memcpy(joy_string2+10, "Sta", 3);
+	if (vjoy & JOY_L3)     memcpy(joy_string2+18, "L3",  2);
+	if (vjoy & JOY_R3)     memcpy(joy_string2+21, "R3",  2);
+
+	// eol
+	joy_string2[31] = 0;
+	joy_string[31] = 0;
 }
 
-static void get_joystick_state_usb( char *s, unsigned char joy_num ) {
-	/* USB specific - current "raw" state 
+static void get_joystick_state_usb( char s[32], unsigned char joy_num ) {
+	/* USB specific - current "raw" state
 	  (in reverse binary format to correspont to MIST.INI mapping entries)
 	*/
 	char buffer[5];
@@ -259,12 +265,15 @@ static void append_joystick_usbid ( char *usb_id, unsigned int usb_vid, unsigned
 	siprintf(usb_id, "VID:%04X PID:%04X", usb_vid, usb_pid);
 }
 
-static void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id ) {
+static void get_joystick_id ( char usb_id[32], unsigned char joy_num ) {
 	/*
 	Builds a string containing the USB VID/PID information of a joystick
 	*/
-	char buffer[32]="";
-	usb_id[0] = 0;
+	if (!usb_id) {
+		return;
+	}
+
+	char buffer[20]={0}; // limited by width of OSD
 
 	//hack populate from outside
 	int vid = StateUsbVidGet(joy_num);
@@ -277,18 +286,16 @@ static void get_joystick_id ( char *usb_id, unsigned char joy_num, short raw_id 
 			strcpy( buffer, "None");
 		}
 	} else if (vid>0) {
-		if (raw_id == 0) {
-			strcpy(buffer, get_joystick_alias( vid, pid ));
-		}
-		if(!buffer[0]) {
+		const char* joy_name = get_joystick_name( vid, pid );
+		if (joy_name) {
+			strncpy( buffer, joy_name, sizeof(buffer) - 1 );
+			buffer[sizeof(buffer) - 1] = '\0';
+		} else {
 			append_joystick_usbid( buffer, vid, pid );
 		}
 	}
 
-	if(raw_id == 0)
-		siprintf(usb_id, "%*s", (28-strlen(buffer))/2, " ");
-
-	strcat(usb_id, buffer);
+	strcpy(usb_id, buffer);
 	return;
 }
 
@@ -657,10 +664,13 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					}
 					item->item = s;
 					break;
-				case 28:
-					get_joystick_id(s, page_idx-4, 0);
+				case 28: {
+					char usb_id[32];
+					get_joystick_id(usb_id, page_idx-4);
+					siprintf(s, "%*s%s", (28-strlen(usb_id))/2, " ", usb_id);
 					item->item = s;
 					break;
+				}
 				case 30:
 					if (!setup_phase) {
 						item->item = joy_string;
@@ -765,7 +775,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 				case 45:
 				case 46: {
 					char usb_id[32];
-					get_joystick_id( usb_id, idx-41, 1);
+					get_joystick_id(usb_id, idx-41);
 					siprintf(s, " Joy%d - %s", idx-40, usb_id);
 					item->item = s;
 					break;
