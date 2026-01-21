@@ -504,7 +504,8 @@ static void ApplyConfiguration(char reloadkickstart)
       BootPrint(s);
       siprintf(s, "Offset: %ld", hdf[i].offset);
       BootPrint(s);
-      if (hdf[i].type & HDF_FILE && !hdf[i].idxfile->file.cltbl) idxfail = 1;
+      if (((hdf[i].type & HDF_TYPEMASK) == HDF_FILE) && !hdf[i].idxfile->file.cltbl)
+        idxfail = 1;
     }
   }
   if (idxfail)
