@@ -729,4 +729,8 @@ static uint8_t usb_asix_poll(usb_device_t *dev) {
 }
 
 const usb_device_class_config_t usb_asix_class = {
-  usb_asix_init, usb_asix_release, usb_asix_poll };  
+  USB_NET,
+  usb_asix_init,
+  usb_asix_release,
+  usb_asix_poll
+};

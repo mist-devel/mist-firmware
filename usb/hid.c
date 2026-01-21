@@ -960,5 +960,8 @@ int8_t hid_keyboard_present(void) {
 }
 
 const usb_device_class_config_t usb_hid_class = {
-  usb_hid_init, usb_hid_release, usb_hid_poll };
-
+	USB_HID,
+	usb_hid_init,
+	usb_hid_release,
+	usb_hid_poll
+};

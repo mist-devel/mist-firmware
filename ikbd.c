@@ -30,6 +30,8 @@
 #include "user_io.h"
 #include "spi.h"
 #include "ikbd.h"
+#include "usb.h"
+#include "usb/rtc.h"
 #include "debug.h"
 #include "hardware.h"
 #include "utils.h"
@@ -276,9 +278,9 @@ void ikbd_handler_time_set(void) {
 
   spi_uio_cmd_cont(UIO_IKBD_IN);
 
-  ikbd_debugf("Time of day clock set: %u:%02u:%02u %u.%u.%u", 
-	      ikbd.date[3], ikbd.date[4], ikbd.date[5],
-	      ikbd.date[2], ikbd.date[1], 1900 + ikbd.date[0]);
+  ikbd_debugf("Time of day clock set: %u:%02u:%02u %u.%u.%u",
+	      ikbd.date[T_HOUR], ikbd.date[T_MIN], ikbd.date[T_SEC],
+	      ikbd.date[T_DAY], ikbd.date[T_MONTH], 1900 + ikbd.date[T_YEAR]);
 }
 
 void ikbd_handler_interrogate_time(void) {
@@ -293,10 +295,10 @@ void ikbd_handler_interrogate_time(void) {
 
   spi_uio_cmd_cont(UIO_IKBD_IN);
 
-  ikbd_debugf("Interrogate time of day %u:%02u:%02u %u.%u.%u", 
-	      ikbd.date[3], ikbd.date[4], ikbd.date[5],
-	      ikbd.date[2], ikbd.date[1], 1900 + ikbd.date[0]);
-  
+  ikbd_debugf("Interrogate time of day %u:%02u:%02u %u.%u.%u",
+	      ikbd.date[T_HOUR], ikbd.date[T_MIN], ikbd.date[T_SEC],
+	      ikbd.date[T_DAY], ikbd.date[T_MONTH], 1900 + ikbd.date[T_YEAR]);
+
   enqueue(0x8000 + 64);   // wait 64ms
   enqueue(0xfc);
   for(i=0;i<6;i++)  enqueue(bin2bcd(ikbd.date[i]));
@@ -353,11 +355,11 @@ void ikbd_init() {
   ikbd_debugf("Init");
 
   // init ikbd date to some default
-  ikbd.date[0] = 113;
-  ikbd.date[1] = 7;
-  ikbd.date[2] = 20;
-  ikbd.date[3] = 20;
-  ikbd.date[4] = 58;
+  ikbd.date[T_YEAR] = 113;
+  ikbd.date[T_MONTH] = 7;
+  ikbd.date[T_DAY] = 20;
+  ikbd.date[T_HOUR] = 20;
+  ikbd.date[T_MIN] = 58;
 
   // handle auto events
   ikbd.auto_timer = GetTimer(0);
@@ -645,37 +647,37 @@ void ikbd_mouse(unsigned char b, char x, char y) {
 void ikbd_update_time(void) {
   static const char mdays[] = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-  short year = 1900 + ikbd.date[0];
+  short year = 1900 + ikbd.date[T_YEAR];
   char is_leap = (!(year % 4) && (year % 100)) || !(year % 400);
 
   // advance seconds
-  ikbd.date[5]++;
-  if(ikbd.date[5] == 60) {
-    ikbd.date[5] = 0;
+  ikbd.date[T_SEC]++;
+  if(ikbd.date[T_SEC] == 60) {
+    ikbd.date[T_SEC] = 0;
 
     // advance minutes
-    ikbd.date[4]++;
-    if(ikbd.date[4] == 60) {
-      ikbd.date[4] = 0;
+    ikbd.date[T_MIN]++;
+    if(ikbd.date[T_MIN] == 60) {
+      ikbd.date[T_MIN] = 0;
 
       // advance hours
-      ikbd.date[3]++;
-      if(ikbd.date[3] == 24) {
-	ikbd.date[3] = 0;
+      ikbd.date[T_HOUR]++;
+      if(ikbd.date[T_HOUR] == 24) {
+	ikbd.date[T_HOUR] = 0;
 
 	// advance days
-	ikbd.date[2]++;
-	if((ikbd.date[2] == mdays[ikbd.date[1]-1]+1) ||
-	   (is_leap && (ikbd.date[1] == 2) && (ikbd.date[2] == 29))) {
-	  ikbd.date[2] = 1;
+	ikbd.date[T_DAY]++;
+	if((ikbd.date[T_DAY] == mdays[ikbd.date[T_MONTH]-1]+1) ||
+	   (is_leap && (ikbd.date[T_MONTH] == 2) && (ikbd.date[T_DAY] == 29))) {
+	  ikbd.date[T_DAY] = 1;
 
 	  // advance month
-	  ikbd.date[1]++;
-	  if(ikbd.date[1] == 13) {
-	    ikbd.date[1] = 0;
-	    
+	  ikbd.date[T_MONTH]++;
+	  if(ikbd.date[T_MONTH] == 13) {
+	    ikbd.date[T_MONTH] = 0;
+
 	    // advance year
-	    ikbd.date[0]++;
+	    ikbd.date[T_YEAR]++;
 	  }
 	}
       }

@@ -251,15 +251,15 @@ void user_io_send_rtc(void) {
 
 	if (GetRTC((uint8_t*)&date)) {
 		//iprintf("Sending time of day %u:%02u:%02u %u.%u.%u\n",
-		//  date[3], date[4], date[5], date[2], date[1], 1900 + date[0]);
+		//  date[T_HOUR], date[T_MIN], date[T_SEC], date[T_DAY], date[T_MONTH], 1900 + date[T_YEAR]);
 		spi_uio_cmd_cont(UIO_SET_RTC);
-		spi8(bin2bcd(date[5])); // sec
-		spi8(bin2bcd(date[4])); // min
-		spi8(bin2bcd(date[3])); // hour
-		spi8(bin2bcd(date[2])); // date
-		spi8(bin2bcd(date[1])); // month
-		spi8(bin2bcd(date[0]-100)); // year
-		spi8(bin2bcd(date[6])-1); //day 1-7 -> 0-6
+		spi8(bin2bcd(date[T_SEC])); // sec
+		spi8(bin2bcd(date[T_MIN])); // min
+		spi8(bin2bcd(date[T_HOUR])); // hour
+		spi8(bin2bcd(date[T_DAY])); // date
+		spi8(bin2bcd(date[T_MONTH])); // month
+		spi8(bin2bcd(date[T_YEAR]-100)); // year
+		spi8(bin2bcd(date[T_WDAY])-1); //day 1-7 -> 0-6
 		spi8(0x40); // flag
 		DisableIO();
 	}
