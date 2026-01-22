@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "xmodem.h"
 #include "ikbd.h"
 #include "usb.h"
-#include "usbrtc.h"
+#include "usb/rtc.h"
 
 void __init_hardware(void)
 {
@@ -328,7 +328,7 @@ static void PollOneADC() {
 
   // fetch result from previous run
   if(adc_cnt != 0xff) {
-    unsigned int result;
+    unsigned int result = 0;
 
     // wait for end of convertion
     while(!(AT91C_BASE_ADC->ADC_SR & (1 << (4+adc_cnt))));

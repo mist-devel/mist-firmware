@@ -358,4 +358,8 @@ static uint8_t usb_hub_poll(usb_device_t *dev) {
 }
 
 const usb_device_class_config_t usb_hub_class = {
-  usb_hub_init, usb_hub_release, usb_hub_poll };  
+  USB_HUB,
+  usb_hub_init,
+  usb_hub_release,
+  usb_hub_poll
+};

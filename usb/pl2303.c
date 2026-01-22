@@ -486,7 +486,12 @@ static uint8_t pl2303_poll(usb_device_t *dev) {
 
     info->qLastBulkPollTime = timer_get_msec();
   }
+  return rcode;
 }
 
 const usb_device_class_config_t usb_pl2303_class = {
-  pl2303_init, pl2303_release, pl2303_poll };  
+  USB_UART,
+  pl2303_init,
+  pl2303_release,
+  pl2303_poll
+};

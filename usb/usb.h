@@ -97,7 +97,20 @@ typedef struct {
 struct usb_device_entry;
 struct usb_device_descriptor;
 
+// usb device type
+typedef enum
+{
+    USB_HUB = 0,
+    USB_NET,
+    USB_STOR,
+    USB_HID,
+    USB_UART,
+    USB_RTC,
+} usb_dev_type_t;
+
+// generic usb device driver struct
 typedef struct {
+  usb_dev_type_t type;
   uint8_t (*init)(struct usb_device_entry *, struct usb_device_descriptor *);
   uint8_t (*release)(struct usb_device_entry *);
   uint8_t (*poll)(struct usb_device_entry *);
@@ -110,8 +123,8 @@ typedef struct {
 #ifdef USB_STORAGE
 #include "storage.h"
 #endif
-#include "usbrtc.h"
-#include "usbrtc.h"
+#include "rtc/i2c-tiny.h"
+#include "rtc/i2c-mcp2221.h"
 #include "pl2303.h"
 
 // entry used for list of connected devices
@@ -129,12 +142,12 @@ typedef struct usb_device_entry {
     usb_hub_info_t hub_info;
     usb_hid_info_t hid_info;
     usb_xbox_info_t xbox_info;
-    usb_asix_info_t asix_info;
 #ifdef USB_STORAGE
     usb_storage_info_t storage_info;
 #endif
-    usb_usbrtc_info_t usbrtc_info;
     usb_pl2303_info_t pl2303_info;
+    usb_asix_info_t asix_info;
+    usb_mcp_info_t mcp_info;
   };
 } usb_device_t;
 
@@ -293,8 +306,9 @@ uint8_t usb_get_string_descr( usb_device_t *dev, uint16_t nbytes, uint8_t index,
 uint8_t usb_get_conf( usb_device_t *dev, uint8_t *conf_value );
 uint8_t usb_set_conf( usb_device_t *dev, uint8_t conf_value );
 uint8_t usb_release_device(uint8_t parent, uint8_t port);
-usb_device_t *usb_get_devices();
 uint8_t usb_configure(uint8_t parent, uint8_t port, bool lowspeed);
+usb_device_t *usb_get_device(usb_dev_type_t);
+usb_device_t *usb_get_devices();
 
 // device-specific functions
 uint8_t usb_in_transfer( usb_device_t *, ep_t *ep, uint16_t *nbytesptr, uint8_t* data);
