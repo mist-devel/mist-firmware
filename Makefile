@@ -28,7 +28,7 @@ LIBDIR   =
 # Commandline options for each tool.
 # for ESA11 add -DEMIST
 DFLAGS  = -I. -Iusb -Iarch/ -Ihw/AT91SAM -DMIST -DCONFIG_ARCH_ARMV4TE -DCONFIG_ARCH_ARM -DUSB_STORAGE
-CFLAGS  = $(DFLAGS) -c -march=armv4t -mtune=arm7tdmi -mthumb -fno-common -Os --std=gnu99 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
+CFLAGS  = $(DFLAGS) -c -march=armv4t -mtune=arm7tdmi -mthumb -fno-common -O2 --std=gnu99 -fsigned-char -DVDATE=\"`date +"%y%m%d"`\"
 CFLAGS-firmware.o += -marm
 CFLAGS += $(CFLAGS-$@)
 AFLAGS  = -ahls -mapcs-32
