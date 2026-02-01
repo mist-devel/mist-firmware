@@ -46,16 +46,26 @@ static bool ds3231_get_time(
     date[T_MONTH] = bcd2bin(regs[REG_MONTHS] & 0x1f);
     date[T_DAY] = bcd2bin(regs[REG_DAYS]);
 
-    if (regs[REG_HOURS] & HOURS_BIT_12HR)
-    {
-        date[T_HOUR] = bcd2bin(regs[REG_HOURS] & 0x1f);
+    uint8_t hours = regs[REG_HOURS];
 
-        if (regs[REG_HOURS] & HOURS_BIT_AMPM)
-            date[T_HOUR] += 12;
+    if (hours & HOURS_BIT_12HR)
+    {
+        uint8_t hour = bcd2bin(hours & 0x1f), shift = 0;
+
+        if (hours & HOURS_BIT_AMPM)
+        {
+            shift = (hour < 12) ? 12 : 0;
+        }
+        else if (hour == 12)
+        {
+            hour = 0;
+        }
+
+        date[T_HOUR] = hour + shift;
     }
     else
     {
-        date[T_HOUR] = bcd2bin(regs[REG_HOURS]);
+        date[T_HOUR] = bcd2bin(hours & 0x3f);
     }
 
     date[T_MIN]  = bcd2bin(regs[REG_MINUTES]);
@@ -77,7 +87,7 @@ static bool ds3231_set_time(
 
     regs[REG_YEARS]   = bin2bcd(date[T_YEAR] % 100);
     regs[REG_DAYS]    = bin2bcd(date[T_DAY]);
-    regs[REG_HOURS]   = bin2bcd(date[T_HOUR]);
+    regs[REG_HOURS]   = bin2bcd(date[T_HOUR]) & 0x3f;
     regs[REG_MINUTES] = bin2bcd(date[T_MIN]);
     regs[REG_SECS]    = bin2bcd(date[T_SEC]);
     regs[REG_WEEKDAY] = date[T_WDAY];

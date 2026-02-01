@@ -14,6 +14,7 @@
 #include "timer.h"
 #include "debug.h"
 
+#define TIMEOUT_MS      10
 #define REPORT_SIZE     64
 
 #define MCP2221_VID     0x04d8
@@ -31,7 +32,7 @@ enum {
 };
 
 // states list of i2c engine
-typedef enum uint8_t {
+typedef enum {
     I2C_IDLE = 0x00,
     I2C_ENG_BUSY = 0x01,
     I2C_START_TOUT = 0x12,
@@ -59,7 +60,7 @@ typedef struct {
 // status/set parameters response
 typedef struct {
     uint8_t  cmd_echo;              // 0x10 = CMD_I2C_PARAM_OR_STATUS
-    uint8_t  status;                // 0x00 = Command completed successfully
+    uint8_t  cmd_status;            // 0x00 = Command completed successfully
                                     // 0x01 = Command Error or Command unknown
                                     // 0x41 = Command was not executed
     uint8_t  cancel_i2c;            // 0x00 = No special operation
@@ -70,7 +71,7 @@ typedef struct {
                                     // 0x21 = Speed change rejected
     uint8_t  i2c_req_divider;       // Value of the I2C system clock divider
     uint8_t  unused1[3];            // Don’t care
-    uint8_t  i2c_engine_state;      // See in mcp_i2c_state_t
+    uint8_t  i2c_engine_state;      // [8] I2C Engine State, see in mcp_i2c_state_t
     uint16_t i2c_requested_len;     // Requested I2C transfer length
     uint16_t i2c_transfered_len;    // Number of already transferred bytes
     uint8_t  i2c_buf_counter;       // Internal I2C data buffer counter
@@ -78,15 +79,12 @@ typedef struct {
     uint8_t  i2c_timeout;           // Current I2C timeout value
     uint16_t i2c_address;           // I2C address being used
     uint8_t  unused2[2];            // Don’t care
-    uint8_t  last_comm_status;      // 0x00 = Success
-                                    // 0x01 = Addr NACK (slave address doesn't respond)
-                                    // 0x02 = Data NACK (data transfer failed)
-                                    // 0x03 = Timeout
+    uint8_t  i2c_cur_state;         // [20] Internal State Machine
     uint8_t  unknown;               // Don’t care
     uint8_t  scl_line_state;        // SCL line value, as read from the pin
     uint8_t  sda_line_state;        // SDA line value, as read from the pin
     uint8_t  intr_edge;             // Interrupt edge detector state, 0 or 1
-    uint8_t  i2c_read_pending;      // 0, 1 or 2
+    uint8_t  i2c_last_status;       // [25] Last Communication Status
     uint8_t  unused3[20];           // Don’t care
     uint8_t  hw_rev_major;          // ‘A’
     uint8_t  hw_rev_minor;          // ‘6’
@@ -110,7 +108,7 @@ typedef struct {
 // slave i2c response
 typedef struct {
     uint8_t  cmd_echo;              // I2C command code echo
-    uint8_t  status;                // 0x00 = Completed successfully, 0x01 = Not completed
+    uint8_t  cmd_status;            // 0x00 = Completed successfully, 0x01 = Not completed
     uint8_t  internal_state;        // Internal I2C Engine state or Reserved
     uint8_t  data_size;             // Data size or Don’t care
     uint8_t  data[60];              // Data buffer for read or Don’t care
@@ -132,51 +130,44 @@ static const i2c_bus_t mcp_i2c_bus = {
 
 // all of supported RTCs list
 static const rtc_chip_t *rtc_chips[] = {
-    &rtc_ds3231_chip,
     &rtc_pcf85263_chip,
-    NULL
+    &rtc_ds3231_chip,
 };
 
-static void mcp_i2c_cancel(usb_device_t *dev, uint8_t *rpt)
+// cancel current operation on bus
+#define mcp_i2c_cancel(dev, rpt)    \
+    (void) mcp_get_status(dev, rpt, true)
+
+FAST static bool mcp_i2c_wait_for(
+    usb_device_t *dev, uint8_t *rpt, mcp_i2c_state_t state, int timeout_ms)
 {
-    mcp_set_resp_t *resp = (mcp_set_resp_t *) rpt;
+    const unsigned int time_us = 250;
+    int rounds = timeout_ms * 1000 / time_us;
 
-    // cancel current operation on bus
-    if (!mcp_get_status(dev, rpt, true) || resp->i2c_engine_state != I2C_IDLE)
-        return;
-
-    usbrtc_debugf("%s: canceled", __FUNCTION__);
-}
-
-static bool mcp_i2c_wait_for(
-    usb_device_t *dev, uint8_t *rpt, mcp_i2c_state_t state, int8_t time_ms)
-{
     mcp_set_resp_t *resp = (mcp_set_resp_t *) rpt;
 
     // waiting until bus state changed
-    timer_delay_msec(1);
-    time_ms--;
+    do {
 
-    while (mcp_get_status(dev, rpt, false))
-    {
-        if (resp->i2c_engine_state == state)
-            return true;
+        delay_usec(time_us);
 
-        if (resp->last_comm_status == I2C_MASK_ADDR_NACK)
-            mcp_i2c_cancel(dev, rpt);
-
-        if (!time_ms)
-        {
-            usbrtc_debugf("%s: bus timeout, error #%X:#%X:#%X",
-                __FUNCTION__, resp->status, resp->i2c_engine_state,
-                    resp->last_comm_status);
+        if (!mcp_get_status(dev, rpt, false))
             break;
-        }
 
-        usb_poll();
-        timer_delay_msec(1);
-        time_ms--;
-    }
+        if (resp->i2c_engine_state == state)
+            return resp->i2c_last_status == 0;
+
+        if (resp->i2c_cur_state & I2C_MASK_ADDR_NACK)
+            break;
+
+        if ((--rounds % 4) == 0)
+            usb_poll();
+
+    } while (rounds > 0);
+
+    usbrtc_debugf("%s: error #%X:#%X:#%X",
+        __FUNCTION__, resp->cmd_status, resp->i2c_engine_state,
+        resp->i2c_cur_state);
 
     // trying to reset bus
     mcp_i2c_cancel(dev, rpt);
@@ -204,10 +195,10 @@ static bool mcp_exec(usb_device_t *dev, uint8_t *rpt, uint16_t *size)
     rcode = usb_in_transfer(dev, &info->ep_in, size, rpt);
 
     // check for command echo and status code
-    if (rcode || rpt[0] != cmd || rpt[1] != 0)
+    if (rcode || *size != REPORT_SIZE || rpt[0] != cmd || rpt[1] != 0)
     {
-        usbrtc_debugf("%s: IN: ep%d failed for #%X, error #%X:#%X:#%X",
-            __FUNCTION__, info->ep_in.epAddr, cmd, rcode, rpt[1], rpt[8]);
+        usbrtc_debugf("%s: IN: ep%d failed for #%X, error #%X:#%X",
+            __FUNCTION__, info->ep_in.epAddr, cmd, rcode, rpt[1]);
         return false;
     }
 
@@ -230,7 +221,7 @@ static bool mcp_set_i2c_clock(usb_device_t *dev, uint8_t *rpt, uint16_t clock)
     if (clock < 50)  clock = 50;
 
     cmd->cmd_code = CMD_I2C_PARAM_OR_STATUS;
-    cmd->i2c_clock_divider = (12000000 - clock*1000) - 3;
+    cmd->i2c_clock_divider = (12000 / clock) - 3;
     cmd->set_i2c_speed = 0x20;
     cmd->cancel_i2c = 0x0;
 
@@ -242,14 +233,14 @@ static bool mcp_set_i2c_clock(usb_device_t *dev, uint8_t *rpt, uint16_t clock)
             return true;
         } else {
             usbrtc_debugf("%s: mcp2221 error #%X:#%X",
-                __FUNCTION__, resp->status, resp->set_i2c_speed);
+                __FUNCTION__, resp->cmd_status, resp->set_i2c_speed);
         }
     }
 
     return false;
 }
 
-static bool mcp_get_status(
+FAST static bool mcp_get_status(
     usb_device_t *dev, uint8_t *rpt, bool with_cancel)
 {
     uint16_t size;
@@ -269,6 +260,9 @@ static uint8_t usb_hid_parse_conf(usb_device_t *dev, uint16_t len)
     uint8_t rcode;
     usb_mcp_info_t *info = &(dev->mcp_info);
     bool isHID = false;
+
+    if (len > 512)
+        return USB_DEV_CONFIG_ERROR_DEVICE_NOT_SUPPORTED;
 
     union buf_u {
         usb_configuration_descriptor_t conf_desc;
@@ -379,9 +373,10 @@ static uint8_t mcp_init(
     }
 
     // Wait mcp2221 chip i2c bus for idle
-    if (!mcp_i2c_wait_for(dev, buf.raw, I2C_IDLE, 10)) {
-        iprintf("mcp2221: i2c bus error #%X:#%X\n",
-            buf.resp.status, buf.resp.i2c_engine_state);
+    if (!mcp_i2c_wait_for(dev, buf.raw, I2C_IDLE, TIMEOUT_MS)) {
+        iprintf("mcp2221: state error #%X:#%X:#%X\n",
+            buf.resp.cmd_status, buf.resp.i2c_engine_state,
+            buf.resp.i2c_cur_state);
         return USB_ERROR_NO_SUCH_DEVICE;
     }
 
@@ -390,7 +385,7 @@ static uint8_t mcp_init(
         buf.resp.fw_rev_major, buf.resp.fw_rev_minor);
 
     // Probe for clock chips
-    for (int i = 0; rtc_chips[i]; i++)
+    for (int i = 0; i < sizeof(rtc_chips) / sizeof(rtc_chips[0]); i++)
     {
         const rtc_chip_t *chip = rtc_chips[i];
 
@@ -408,7 +403,7 @@ static uint8_t mcp_init(
         }
         else
         {
-            iprintf("mcp2221: rtc %s is not detected\n", chip->name);
+            usbrtc_debugf("mcp2221: rtc %s is not detected", chip->name);
         }
     }
 
@@ -440,7 +435,7 @@ static bool mcp_i2c_bulk_read(
     if (!buf || !length || length > sizeof(rpt.resp.data)-1)
         return false;
 
-    if (!mcp_i2c_wait_for(dev, rpt.raw, I2C_IDLE, 10))
+    if (!mcp_i2c_wait_for(dev, rpt.raw, I2C_IDLE, TIMEOUT_MS))
         return false;
 
     // set register pointer to 'reg'
@@ -462,7 +457,7 @@ static bool mcp_i2c_bulk_read(
     if (!mcp_exec(dev, rpt.raw, &size))
         return false;
 
-    if (!mcp_i2c_wait_for(dev, rpt.raw, I2C_READ_COMPL, 10))
+    if (!mcp_i2c_wait_for(dev, rpt.raw, I2C_READ_COMPL, TIMEOUT_MS))
         return false;
 
     // fetch buffered data
@@ -496,7 +491,7 @@ static bool mcp_i2c_bulk_write(
     if (!buf || !length || length > sizeof(rpt.cmd.data)-1)
         return false;
 
-    if (!mcp_i2c_wait_for(dev, rpt.raw, I2C_IDLE, 10))
+    if (!mcp_i2c_wait_for(dev, rpt.raw, I2C_IDLE, TIMEOUT_MS))
         return false;
 
     rpt.cmd.cmd_code = CMD_I2C_WR_DATA;
@@ -507,14 +502,8 @@ static bool mcp_i2c_bulk_write(
     rpt.cmd.data[0] = reg;
     memcpy(&rpt.cmd.data[1], buf, length);
 
-    if (mcp_exec(dev, rpt.raw, &size)
-        && mcp_get_status(dev, rpt.raw, false))
-    {
-        return (rpt.resp.last_comm_status == 0);
-    }
-
-    mcp_i2c_cancel(dev, rpt.raw);
-    return false;
+    return mcp_exec(dev, rpt.raw, &size)
+        && mcp_i2c_wait_for(dev, rpt.raw, I2C_IDLE, TIMEOUT_MS);
 }
 
 static bool mcp_get_time(struct usb_device_entry *dev, ctime_t date)
