@@ -29,6 +29,7 @@
 #include "hdd.h"
 #include "fat_compat.h"
 #include "cue_parser.h"
+#include "menu_info.h"
 
 extern char s[FF_LFN_BUF + 1];
 
@@ -455,6 +456,13 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 	return 1;
 }
 
+static char KeyEvent_8bit(uint8_t key) {
+	if (key == KEY_F1) {
+		menu_info_open(user_io_get_core_name());
+	}
+	return 0;
+}
+
 void Setup8bitMenu() {
 	char *c, *p;
 	int i;
@@ -483,5 +491,6 @@ void Setup8bitMenu() {
 	strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
 	helptext=helptext_custom;
 
-	SetupMenu(GetMenuPage_8bit, GetMenuItem_8bit, NULL);
+	iprintf("Setting up 8bit menu\n");
+	SetupMenu(GetMenuPage_8bit, GetMenuItem_8bit, KeyEvent_8bit);
 }
