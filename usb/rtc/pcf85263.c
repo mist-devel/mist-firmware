@@ -43,12 +43,11 @@ static bool pcf85263_probe(
     usb_device_t *dev, const i2c_bus_t *i2c)
 {
     uint8_t setup[] = {
-        BATT_BIT_BSM_VBAT,
         (IO_BIT_CLKPM_OFF | IO_BIT_INTAPM_HIZ)
     };
 
     // disable CLK output pin for battery saving
-    return i2c->bulk_write(dev, PCF85263_ADDR, CTRL_BATTERY, setup, sizeof(setup));
+    return i2c->bulk_write(dev, PCF85263_ADDR, CTRL_PIN_IO, setup, sizeof(setup));
 }
 
 static bool pcf85263_get_time(
@@ -63,9 +62,9 @@ static bool pcf85263_get_time(
     date[T_MONTH] = bcd2bin(regs[REG_MONTHS]);
     date[T_DAY]   = bcd2bin(regs[REG_DAYS]);
     date[T_HOUR]  = bcd2bin(regs[REG_HOURS] & 0x3f);
-    date[T_MIN]   = bcd2bin(regs[REG_MINUTES] & 0x7F);
-    date[T_SEC]   = bcd2bin(regs[REG_SECS] & 0x7F);
-    date[T_WDAY]  = regs[REG_WEEKDAY] + 1;
+    date[T_MIN]   = bcd2bin(regs[REG_MINUTES] & 0x7f);
+    date[T_SEC]   = bcd2bin(regs[REG_SECS] & 0x7f);
+    date[T_WDAY]  = (regs[REG_WEEKDAY] + 1) & 0x7;
 
     return true;
 }
@@ -80,10 +79,10 @@ static bool pcf85263_set_time(
     regs[REG_YEARS]   = bin2bcd(date[T_YEAR] % 100);
     regs[REG_MONTHS]  = bin2bcd(date[T_MONTH]);
     regs[REG_DAYS]    = bin2bcd(date[T_DAY]);
-    regs[REG_HOURS]   = bin2bcd(date[T_HOUR]);
+    regs[REG_HOURS]   = bin2bcd(date[T_HOUR]) & 0x3f;
     regs[REG_MINUTES] = bin2bcd(date[T_MIN]);
     regs[REG_SECS]    = bin2bcd(date[T_SEC]);
-    regs[REG_WEEKDAY] = date[T_WDAY] - 1;
+    regs[REG_WEEKDAY] = (date[T_WDAY] - 1) & 0x7;
 
     // stop and clear prescaler
     // set new time
