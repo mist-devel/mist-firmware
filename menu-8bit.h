@@ -18,6 +18,18 @@
 #ifndef MENU_8BIT_H
 #define MENU_8BIT_H
 
+#include "menu.h"
+
+typedef struct {
+  menu_get_page_t page_handler;
+  menu_get_items_t items_handler;
+  menu_key_event_t key_handler;
+} menu_handler_t;
+
+void set_sticky_menu_handler(menu_handler_t handler);
+
+void clear_sticky_menu_handler();
+
 void Setup8bitMenu();
 
 #endif

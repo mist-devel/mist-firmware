@@ -463,6 +463,18 @@ static char KeyEvent_8bit(uint8_t key) {
 	return 0;
 }
 
+static const menu_handler_t NO_MENU_HANDLER = {NULL, NULL, NULL};
+
+static menu_handler_t sticky_menu_handler = NO_MENU_HANDLER;
+
+void set_sticky_menu_handler(menu_handler_t handler) {
+  sticky_menu_handler = handler;
+}
+
+void clear_sticky_menu_handler() {
+  sticky_menu_handler = NO_MENU_HANDLER;
+}
+
 void Setup8bitMenu() {
 	char *c, *p;
 	int i;
@@ -491,6 +503,11 @@ void Setup8bitMenu() {
 	strcat(helptext_custom, helptexts[HELPTEXT_MAIN]);
 	helptext=helptext_custom;
 
-	iprintf("Setting up 8bit menu\n");
-	SetupMenu(GetMenuPage_8bit, GetMenuItem_8bit, KeyEvent_8bit);
+	if (sticky_menu_handler.page_handler != NULL && sticky_menu_handler.items_handler != NULL) {
+		iprintf("Setting up sticky menu\n");
+		SetupMenu(sticky_menu_handler.page_handler, sticky_menu_handler.items_handler, sticky_menu_handler.key_handler);
+	} else {
+		iprintf("Setting up 8bit menu\n");
+		SetupMenu(GetMenuPage_8bit, GetMenuItem_8bit, KeyEvent_8bit);
+	}
 }
