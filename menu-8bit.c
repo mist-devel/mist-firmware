@@ -48,6 +48,38 @@ static unsigned char selected_drive_slot;
 static RomType romtype;
 static char data_processor_id[4]; //Max 3 chars, plus null at end
 
+static menu_page_plugin_t* PAGE_PLUGINS[MAX_PAGE_PLUGINS];
+static char non_supported_plugin[] = "Menu plugin XXX not found";
+
+void page_plugin_init() {
+	memset(PAGE_PLUGINS, 0, sizeof(PAGE_PLUGINS));
+}
+
+char page_plugin_add(menu_page_plugin_t *plugin) {
+	if (plugin)	{
+		for (int i = 0; i < MAX_PAGE_PLUGINS; i++) {
+			if (!PAGE_PLUGINS[i]) {
+				PAGE_PLUGINS[i] = plugin;
+				return 0;
+			}
+		}
+	}
+	return -1;
+}
+
+static menu_page_plugin_t *get_page_plugin(const char *plugin_id) {
+	for (int i = 0; i < MAX_PAGE_PLUGINS; i++) {
+		if (PAGE_PLUGINS[i]) {
+			if (PAGE_PLUGINS[i]->id && strncmp(PAGE_PLUGINS[i]->id, plugin_id, 3) == 0) {
+				return PAGE_PLUGINS[i];
+			}
+		} else {
+			break;
+		}
+	}
+	return NULL;
+}
+
 static void substrcpy(char *d, char *s, char idx) {
 	char p = 0;
 
@@ -250,6 +282,26 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 				item->newpage = getIdx(p);
 			} else
 				return 0;
+		} else if (p[2] == 'p') {
+			if (action == MENU_ACT_GET) {
+				s[0] = '\x19';
+				substrcpy(s + 1, p, 3);
+			} else if (action == MENU_ACT_SEL) {
+				char page_plugin_id[4];
+				char page_plugin_arg1[8];
+				char page_plugin_arg2[8];
+				substrcpy(page_plugin_id, p + 3, 0);
+				substrcpy(page_plugin_arg1, p, 1);
+				substrcpy(page_plugin_arg2, p, 2);
+				menu_debugf("Executing Page plugin: %s with args %s, %s\n", page_plugin_id, page_plugin_arg1, page_plugin_arg2);
+				menu_page_plugin_t *plugin = get_page_plugin(page_plugin_id);
+				if (plugin) {
+					plugin->init_menu(page_plugin_arg1, page_plugin_arg2);
+				} else {
+					strncpy(non_supported_plugin + 12, page_plugin_id, 3);
+					ErrorMessage(non_supported_plugin, 3);
+				}
+			}
 		} else {
 			// 'P' is a prefix fo F,S,O,T,R
 			page = getIdx(p);

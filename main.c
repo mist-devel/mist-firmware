@@ -146,6 +146,7 @@ int main(void)
     DISKLED_ON;
 
     data_io_init();
+    page_plugin_init();
     c64files_init();
     snes_init();
     zx_init();

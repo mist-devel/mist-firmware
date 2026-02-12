@@ -18,6 +18,17 @@
 #ifndef MENU_8BIT_H
 #define MENU_8BIT_H
 
+#define MAX_PAGE_PLUGINS 10
+
+typedef struct {
+    char id[4];
+    void (*init_menu)(const char *arg1, const char *arg2);
+} menu_page_plugin_t;
+
+void page_plugin_init();
+char page_plugin_add(menu_page_plugin_t *plugin);
+
+
 void Setup8bitMenu();
 
 #endif
