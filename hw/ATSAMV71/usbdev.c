@@ -47,7 +47,7 @@ static const char devDescriptor[] = {
   0x01,   // bDeviceProtocol: Interface Association Descriptor
   EP0_SIZE,   // bMaxPacketSize0
   WORD(0x1c40), // idVendorL
-  WORD(0x0537), // idProductL
+  WORD(0x0538), // idProductL
   WORD(0x0001), // bcdDeviceL
   0x01,   // iManufacturer
   0x02,   // iProduct
@@ -73,7 +73,7 @@ static const char cfgDescriptor[] = {
 	0x00,   // bFirstInterface
 	0x02,   // bInterfaceCount
 	0x02,   // bDeviceClass:    CDC class code
-	0x00,   // bDeviceSubclass: CDC class sub code
+	0x02,   // bDeviceSubclass: CDC class sub code
 	0x00,   // bDeviceProtocol: CDC Device protocol
 	0x00,   // iFunction
 
@@ -133,7 +133,7 @@ static const char cfgDescriptor[] = {
 	0x0A, // bInterfaceClass
 	0x00, // bInterfaceSubclass
 	0x00, // bInterfaceProtocol
-	0x00, // iInterface
+	0x06, // iInterface
 
 	/* First alternate setting */
 	/* Endpoint 1 descriptor */
@@ -158,7 +158,7 @@ static const char cfgDescriptor[] = {
 	0x02,   // bFirstInterface
 	0x01,   // bInterfaceCount
 	0x08,   // bDeviceClass:    Mass storage class
-	0x00,   // bDeviceSubclass:
+	0x06,   // bDeviceSubclass:
 	0x50,   // bDeviceProtocol: Bulk-only transport
 	0x00,   // iFunction
 
@@ -192,7 +192,7 @@ static const char cfgDescriptor[] = {
 	0x00 // bInterval
 };
 
-static const char idProduct[] = {0x0e, 0x03, 'S',0,'i',0,'D',0,'i',0,'6',0,'4',0};
+static const char idProduct[] = {0x10, 0x03, 'S',0,'i',0,'D',0,'i',0,'1',0,'2',0,'8',0};
 static const char idManufacturer[] = {0x28, 0x03, 'M',0,'a',0,'n',0,'u',0,'F',0,'e',0,'r',0,'H',0,'i',0,'/',0,'S',0,'l',0,'i',0,'n',0,'g',0,'s',0,'h',0,'o',0,'t',0};
 
 /* CDC Class Specific Request Code */
