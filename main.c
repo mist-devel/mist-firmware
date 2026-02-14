@@ -56,6 +56,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "zx_col.h"
 #include "arc_file.h"
 #include "serial_sink.h"
+#include "menu-8bit.h"
 #include "font.h"
 #include "tos.h"
 #include "usb.h"
