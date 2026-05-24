@@ -515,8 +515,10 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 static char KeyEvent_8bit(uint8_t key) {
 	if (key == KEY_F1) {
 		menu_info_open(user_io_get_core_name());
+		return 0;
 	}
-	return 0;
+
+	return KeyEvent_VideoModes(key);
 }
 
 void Setup8bitMenu() {

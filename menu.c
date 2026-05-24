@@ -410,7 +410,29 @@ static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
 	return 0;
 }
 
+char KeyEvent_VideoModes(uint8_t key) {
+	if (key == KEY_F5) {
+		// toggle video mode bit
+		mist_cfg.scandoubler_disable = !mist_cfg.scandoubler_disable;
+		user_io_send_buttons(1);
+		VIDEO_ALTERED_VAR |= 1;
+		VIDEO_SD_DISABLE_VAR = mist_cfg.scandoubler_disable;
+		return 0;
+	}
+	if (key == KEY_F6) {
+		// toggle video mode bit
+		mist_cfg.ypbpr = !mist_cfg.ypbpr;
+		user_io_send_buttons(1);
+		VIDEO_ALTERED_VAR |= 2;
+		VIDEO_YPBPR_VAR = mist_cfg.ypbpr;
+		return 0;
+	}
+	return 0;
+}
+
 static char KeyEvent_System(uint8_t key) {
+	if (page_idx == 0) KeyEvent_VideoModes(key);
+
 	if (page_idx >= 4 && page_idx <= 7) {
 		uint8_t joy_num = page_idx-4;
 		uint16_t vid = StateUsbVidGet(joy_num);

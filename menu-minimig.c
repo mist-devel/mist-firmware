@@ -916,5 +916,5 @@ static char GetMenuItem_Minimig(uint8_t idx, char action, menu_item_t *item) {
 }
 
 void SetupMinimigMenu() {
-	SetupMenu(GetMenuPage_Minimig, GetMenuItem_Minimig, NULL);
+	SetupMenu(GetMenuPage_Minimig, GetMenuItem_Minimig, KeyEvent_VideoModes);
 }
