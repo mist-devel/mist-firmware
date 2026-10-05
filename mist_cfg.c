@@ -11,6 +11,10 @@
 #include "usb/usb.h"
 #include "usb/hid.h"
 #include "usb/joymapping.h"
+#ifndef INI_PARSER_TEST
+#include "tos.h"
+#include "cdc_control.h"
+#endif
 
 extern FIL ini_file;
 
@@ -41,6 +45,14 @@ void mist_ini_parse()
   minimig_cfg.kick1x_memory_detection_patch = 1;
   ini_parse(&mist_ini_cfg, user_io_get_core_name(), 0);
   data_io_rom_upload(NULL, 2);   // upload done
+
+  // USB_SERIAL selects what the USB CDC port carries for any core, not just
+  // the Atari ST one (whose OSD used to be the only way to set this):
+  // 0 = leave as is, 1 = debug output, 2 = rs232 forwarding into the core
+  // (UIO_SIO_OUT). Ignored when USB_STORAGE claims the port.
+  if(mist_cfg.usb_serial && !mist_cfg.usb_storage) {
+    tos_set_cdc_control_redirect((mist_cfg.usb_serial == 1)?CDC_REDIRECT_DEBUG:CDC_REDIRECT_RS232);
+  }
 #endif
 }
 
@@ -126,6 +138,7 @@ const ini_var_t mist_ini_vars[] = {
   {"ROM", (void*)ini_rom_upload, CUSTOM_HANDLER, 0, 0, 1},
   {"AMIGA_MOD_KEYS", (void*)(&(mist_cfg.amiga_mod_keys)), UINT8, 0, 3, 1},
   {"USB_STORAGE", (void*)(&(mist_cfg.usb_storage)), UINT8, 0, 1, 1},
+  {"USB_SERIAL", (void*)(&(mist_cfg.usb_serial)), UINT8, 0, 2, 1},
   // [MINIMIG_CONFIG]
   {"KICK1X_MEMORY_DETECTION_PATCH", (void*)(&(minimig_cfg.kick1x_memory_detection_patch)), UINT8, 0, 1, 2},
   {"CLOCK_FREQ", (void*)(&(minimig_cfg.clock_freq)), UINT8, 0, 2, 2},
