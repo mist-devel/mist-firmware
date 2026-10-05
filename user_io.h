@@ -85,27 +85,28 @@
 
 #define UIO_GET_FEATS   0x80 // get core features (only once after fpga init)
 
-#define FEAT_MENU       0x0001 // menu core
-#define FEAT_PCECD      0x0002 // call pcecd_poll()
-#define FEAT_QSPI       0x0004 // QSPI connection to FPGA@24MHz
-#define FEAT_NEOCD      0x0008 // call neocd_poll()
-#define FEAT_IDE0       0x0030 // enable primary master IDE (0 - off, 1 - ATA - 2 ATAPI CDROM)
-#define FEAT_IDE0_ATA   0x0010
-#define FEAT_IDE0_CDROM 0x0020
-#define FEAT_IDE1       0x00c0 // enable primary slave IDE
-#define FEAT_IDE1_ATA   0x0040
-#define FEAT_IDE1_CDROM 0x0080
-#define FEAT_IDE2       0x0300 // enable secondary master IDE
-#define FEAT_IDE2_ATA   0x0100
-#define FEAT_IDE2_CDROM 0x0200
-#define FEAT_IDE3       0x0c00 // enable secondary slave IDE
-#define FEAT_IDE3_ATA   0x0400
-#define FEAT_IDE3_CDROM 0x0800
-#define FEAT_IDE_MASK   0x0FF0
-#define FEAT_PS2REP     0x1000 // typematic repeat by default
-#define FEAT_BIGOSD     0x2000 // 16 line tall OSD
-#define FEAT_HDMI       0x4000 // HDMI output
-#define FEAT_PSX        0x8000 // PSX-specific CD image handling
+#define FEAT_MENU       0x00001 // menu core
+#define FEAT_PCECD      0x00002 // call pcecd_poll()
+#define FEAT_QSPI       0x00004 // QSPI connection to FPGA@24MHz
+#define FEAT_NEOCD      0x00008 // call neocd_poll()
+#define FEAT_IDE0       0x00030 // enable primary master IDE (0 - off, 1 - ATA - 2 ATAPI CDROM)
+#define FEAT_IDE0_ATA   0x00010
+#define FEAT_IDE0_CDROM 0x00020
+#define FEAT_IDE1       0x000c0 // enable primary slave IDE
+#define FEAT_IDE1_ATA   0x00040
+#define FEAT_IDE1_CDROM 0x00080
+#define FEAT_IDE2       0x00300 // enable secondary master IDE
+#define FEAT_IDE2_ATA   0x00100
+#define FEAT_IDE2_CDROM 0x00200
+#define FEAT_IDE3       0x00c00 // enable secondary slave IDE
+#define FEAT_IDE3_ATA   0x00400
+#define FEAT_IDE3_CDROM 0x00800
+#define FEAT_IDE_MASK   0x00FF0
+#define FEAT_PS2REP     0x01000 // typematic repeat by default
+#define FEAT_BIGOSD     0x02000 // 16 line tall OSD
+#define FEAT_HDMI       0x04000 // HDMI output
+#define FEAT_PSX        0x08000 // PSX-specific CD image handling
+#define FEAT_MEGACD     0x10000 // MegaCD specific CD image handling
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02

@@ -11,6 +11,7 @@
 #include "archie.h"
 #include "pcecd.h"
 #include "neocd.h"
+#include "megacd.h"
 #include "psx.h"
 #include "hdd.h"
 #include "cdc_control.h"
@@ -818,6 +819,12 @@ char user_io_cue_mount(const unsigned char *name, unsigned char index) {
 
 	// notify core of possible sd image change
 	spi_uio_cmd8(UIO_SET_SDSTAT, 1);
+
+#ifdef HAVE_MEGACD
+	// Mega CD: mount <image>.sav in slot 0 for the backup RAM
+	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_MEGACD))
+		megacd_image_selected((name && toc.valid) ? (const char*)name : NULL);
+#endif
 	return res;
 }
 
@@ -1539,6 +1546,10 @@ void user_io_poll() {
 		pcecd_poll();
 	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_NEOCD))
 		neocd_poll();
+#ifdef HAVE_MEGACD
+	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_MEGACD))
+		megacd_poll();
+#endif
 
 	// sd card emulation
 	if((core_type == CORE_TYPE_8BIT) ||
