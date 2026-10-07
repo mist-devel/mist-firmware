@@ -397,8 +397,8 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 		}
 	}
 
-	// check for 'T'oggle strings
-	if(p && (p[0] == 'T')) {
+	// check for 'T'oggle or Toggle and e'X'it strings
+	if(p && (p[0] == 'T' || p[0] == 'X')) {
 		if (action == MENU_ACT_SEL || action == MENU_ACT_PLUS || action == MENU_ACT_MINUS) {
 			unsigned long long mask = (unsigned long long)1<<getIdx(p);
 			menu_debugf("Option %s %llx\n", p, status ^ mask);
@@ -406,6 +406,7 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 			user_io_8bit_set_status(status ^ mask, mask);
 			// ... and change it again in case of a toggle bit
 			user_io_8bit_set_status(status, mask);
+			if (p[0] == 'X') CloseMenu();
 		} else if (action == MENU_ACT_GET) {
 			s[0] = ' ';
 			substrcpy(s+1, p, 1);
