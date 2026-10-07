@@ -1247,7 +1247,7 @@ static bool user_io_read_sd(uint8_t drive_index, uint8_t *buffer, uint8_t buffer
 		uint8_t blockstoread = MIN(blocks, buffer_size>>blksz);
 		if(sd_image[sd_index(drive_index)].valid) {
 			UINT br;
-			if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> (9+blksz)) >= (lba+blockstoread-1)) {
+			if( (f_size(&sd_image[sd_index(drive_index)].file) >> (9+blksz)) >= (lba+blockstoread) ) {
 				IDXSeek(&sd_image[sd_index(drive_index)], lba<<blksz);
 				f_read(&sd_image[sd_index(drive_index)].file, buffer, blockstoread << (9+blksz), &br);
 				retval = true;
@@ -1619,7 +1619,7 @@ void user_io_poll() {
 #if 1
 						if(sd_image[sd_index(drive_index)].valid) {
 							UINT bw;
-							if(((f_size(&sd_image[sd_index(drive_index)].file)-1) >> (9+blksz)) > (lba+blockstowrite)) {
+							if( (f_size(&sd_image[sd_index(drive_index)].file) >> (9+blksz)) >= (lba+blockstowrite) ) {
 								IDXSeek(&sd_image[sd_index(drive_index)], lba<<blksz);
 								f_write(&sd_image[sd_index(drive_index)].file, sector_buffer, blockstowrite << (9+blksz), &bw);
 							}
