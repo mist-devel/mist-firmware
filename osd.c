@@ -568,7 +568,7 @@ unsigned char OsdGetCtrl(void)
 
     // inject a fake "MENU_KEY" if no menu is visible and the menu key is loaded
     if(!user_io_osd_is_visible() &&
-       !strcmp(user_io_get_core_name(), "MENU"))
+       (!strcmp(user_io_get_core_name(), "MENU") || (user_io_get_core_features() & FEAT_MENU)))
        c = KEY_MENU;
 
     // generate repeat "key-pressed" events

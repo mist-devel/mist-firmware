@@ -380,7 +380,7 @@ static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
 	if (extension && !strncasecmp(extension,"ARC",3)) {
 		mod = arc_open(SelectedName);
 		if(mod < 0 || !strlen(arc_get_rbfname())) { // error
-			CloseMenu();
+			ErrorMessage("\n     Error in ARC file!\n", 0);
 			return 0;
 		}
 		strcpy(s, arc_get_rbfname());
