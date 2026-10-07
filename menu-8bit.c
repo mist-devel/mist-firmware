@@ -335,17 +335,19 @@ static char GetMenuItem_8bit(uint8_t idx, char action, menu_item_t *item) {
 				}
 				pos++;
 			}
-			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "SNES", 4)) {
-				romtype = ROM_PROCESSED; // handle legacy F1SNES notation as a custom data processor
-				strcpy(data_processor_id, "SFC");
-			}
-			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "ZXCOL", 5)) {
-				romtype = ROM_PROCESSED; // F2ZXCOL
-				strcpy(data_processor_id, "COL");
-			}
-			if (p[1] && p[1] != ',' && p[2] && p[2] != ',' && !strncmp(&p[2], "ZXCHR", 5)) {
-				romtype = ROM_PROCESSED; // F3ZXCHR
-				strcpy(data_processor_id, "CHR");
+			if (p[0] == 'F' && p[1] && p[1] != ',' && p[2] && p[2] != ',') {
+				if (!strncmp(&p[2], "SNES", 4)) {
+					romtype = ROM_PROCESSED; // handle legacy F1SNES notation as a custom data processor
+					strcpy(data_processor_id, "SFC");
+				}
+				if (!strncmp(&p[2], "ZXCOL", 5)) {
+					romtype = ROM_PROCESSED; // F2ZXCOL
+					strcpy(data_processor_id, "COL");
+				}
+				if (!strncmp(&p[2], "ZXCHR", 5)) {
+					romtype = ROM_PROCESSED; // F3ZXCHR
+					strcpy(data_processor_id, "CHR");
+				}
 			}
 			substrcpy(ext, p, 1);
 			while(strlen(ext) < 3) strcat(ext, " ");
