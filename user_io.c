@@ -1248,6 +1248,7 @@ static void handle_ps2_mouse_commands()
 static bool user_io_read_sd(uint8_t drive_index, uint8_t *buffer, uint8_t buffer_size, uint32_t lba, uint8_t blocks, uint8_t blksz, bool sendtofpga)
 {
 	// block size in bytes == 512<<blksize
+	//iprintf("%s drive_index: %d buffer_size: %d lba: %d blocks: %d blksz: %d send: %d\n", __FUNCTION__, drive_index, buffer_size, lba, blocks, blksz, sendtofpga);
 	bool retval = false;
 	DISKLED_ON
 	while (blocks) {
@@ -1664,8 +1665,8 @@ void user_io_poll() {
 #endif
 					if (blocks == 1) {
 						if(buffer_lba != lba) {
-							if (user_io_read_sd(drive_index, cache_buffer, sizeof(cache_buffer)/512, lba, 1, blksz, true))
-								buffer_lba = lba;
+							user_io_read_sd(drive_index, cache_buffer, sizeof(cache_buffer)/512, lba, 1, blksz, false);
+							buffer_lba = lba;
 						}
 						if(buffer_lba == lba) {
 							// hexdump(cache_buffer, 512<<blksz, 0);
