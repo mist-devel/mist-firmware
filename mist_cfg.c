@@ -42,6 +42,9 @@ void mist_ini_parse()
   mist_cfg.mouse_speed = 100;
   mist_cfg.joystick_analog_mult = 128;
   mist_cfg.joystick_dead_range = 4;
+#ifdef CONFIG_HAVE_ETH
+  strcpy(mist_cfg.ftp_user, "mist");
+#endif
   minimig_cfg.kick1x_memory_detection_patch = 1;
   ini_parse(&mist_ini_cfg, user_io_get_core_name(), 0);
   data_io_rom_upload(NULL, 2);   // upload done
@@ -126,6 +129,15 @@ const ini_var_t mist_ini_vars[] = {
   {"JOYSTICK_DEAD_RANGE", (void*)(&(mist_cfg.joystick_dead_range)), UINT8, 0, 255, 1},
   {"KEY_MENU_AS_RGUI", (void*)(&(mist_cfg.key_menu_as_rgui)), UINT8, 0, 1, 1},
   {"SDRAM64", (void*)(&(mist_cfg.sdram64)), UINT8, 0, 1, 1},
+#ifdef CONFIG_HAVE_ETH
+  {"FTP_ENABLE", (void*)(&(mist_cfg.ftp_enable)), UINT8, 0, 1, 1},
+  {"FTP_READONLY", (void*)(&(mist_cfg.ftp_readonly)), UINT8, 0, 1, 1},
+  {"FTP_USER", (void*)(mist_cfg.ftp_user), STRING, 0, sizeof(mist_cfg.ftp_user) - 1, 1},
+  {"FTP_PASS", (void*)(mist_cfg.ftp_pass), STRING, 0, sizeof(mist_cfg.ftp_pass) - 1, 1},
+  {"NET_IP", (void*)(mist_cfg.net_ip), STRING, 0, sizeof(mist_cfg.net_ip) - 1, 1},
+  {"NET_NETMASK", (void*)(mist_cfg.net_netmask), STRING, 0, sizeof(mist_cfg.net_netmask) - 1, 1},
+  {"NET_GATEWAY", (void*)(mist_cfg.net_gateway), STRING, 0, sizeof(mist_cfg.net_gateway) - 1, 1},
+#endif
 #ifdef JOY_DB9_MD
   {"JOYSTICK_DB9_MD", (void*)(&(mist_cfg.joystick_db9_md)), UINT8, 0, 2, 1},
 #endif

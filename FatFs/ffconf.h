@@ -18,7 +18,11 @@
 /  and optional writing functions as well. */
 
 
+#ifdef CONFIG_HAVE_ETH
+#define FF_FS_MINIMIZE	0   /* the FTP server needs f_stat/f_unlink/f_mkdir/f_rename/f_truncate */
+#else
 #define FF_FS_MINIMIZE	1
+#endif
 /* This option defines minimization level to remove some basic API functions.
 /
 /   0: Basic functions are fully enabled.
