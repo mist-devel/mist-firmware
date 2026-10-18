@@ -78,6 +78,7 @@ void CloseMenu();
 void ResetMenu();
 void ClosePage();
 void ChangePage(char);
+char KeyEvent_VideoModes(uint8_t key);
 
 void HandleUI(void);
 void ErrorMessage(const char *message, unsigned char code);
