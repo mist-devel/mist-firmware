@@ -53,6 +53,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "usbdev.h"
 #ifdef CONFIG_HAVE_ETH
 #include "eth.h"
+#include "net.h"
 #endif
 
 #ifdef HAVE_HDMI
@@ -515,7 +516,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 	else if (idx<=36) {item->page = (page_idx>=4 && page_idx<=7) ? page_idx : 4; item->active = 0;}
 	else if (idx<=40) {item->page = 8; item->active = 0;}
 	else if (idx<=46) {item->page = 9; item->active = 0;}
-	else if (idx<=55) {item->page = 10; item->active = 0;}
+	else if (idx<=57) {item->page = 10; item->active = 0;}
 	else return 0;
 	if (item->page != page_idx) return 1; // shortcut
 
@@ -847,6 +848,27 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 						siprintf(s+14, "    %sMBps", link & 0x02 ? "100" : " 10");
 						siprintf(s+25, "/%s", link & 0x04 ? "FD" : "HD");
 					}
+					item->item = s;
+					break;
+				}
+#endif
+#ifdef CONFIG_HAVE_ETH
+				case 56: {
+					uint32_t ip = net_get_ip();
+					siprintf(s, " IP address:");
+					if (!ip) {
+						siprintf(s + 12, "  not assigned");
+					} else {
+						char ipb[16];
+						siprintf(ipb, "%u.%u.%u.%u", (unsigned)(ip & 255), (unsigned)((ip >> 8) & 255), (unsigned)((ip >> 16) & 255), (unsigned)(ip >> 24));
+						siprintf(s + 12, " %15s", ipb);
+					}
+					item->item = s;
+					break;
+				}
+				case 57: {
+					siprintf(s, " FTP server:");
+					siprintf(s + 12, " %14s", net_ftp_state());
 					item->item = s;
 					break;
 				}

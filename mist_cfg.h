@@ -42,6 +42,15 @@ typedef struct {
   uint8_t amiga_mod_keys;
   uint8_t usb_storage;
   uint8_t usb_serial;
+#ifdef CONFIG_HAVE_ETH
+  uint8_t ftp_enable;
+  uint8_t ftp_readonly;
+  char ftp_user[32];
+  char ftp_pass[32];
+  char net_ip[16];       // empty = DHCP
+  char net_netmask[16];
+  char net_gateway[16];
+#endif
 } mist_cfg_t;
 
 

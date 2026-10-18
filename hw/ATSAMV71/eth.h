@@ -7,5 +7,6 @@ int eth_init();
 int eth_poll();
 void eth_get_mac(uint8_t* mac);
 uint8_t eth_get_link_status();
+int eth_tx_raw(void *buf, uint16_t len);
 
 #endif

@@ -218,6 +218,8 @@ char user_io_dip_switch1(void);
 char user_io_serial_status(serial_status_t *, uint8_t);
 char user_io_is_mounted(unsigned char index);
 void user_io_file_mount(const unsigned char*, unsigned char);
+int user_io_file_is_mounted(const FIL *f);   // 1 if f is the same file as a currently mounted disk image
+int user_io_raw_sd_in_use(void);             // 1 if the core has accessed the raw SD card since it was loaded
 char user_io_is_cue_mounted();
 char user_io_cue_mount(const unsigned char*, unsigned char);
 char *user_io_get_core_name();

@@ -9,6 +9,9 @@
 #include "network/gmii.h"
 
 #include "user_io.h"
+#include "fat_compat.h"
+#include "mmc.h"
+#include "net.h"
 
 extern unsigned char sector_buffer[SECTOR_BUFFER_SIZE];
 
@@ -17,12 +20,16 @@ static struct _phy_desc phy_desc;
 static struct _ethd ethd;
 static uint8_t mac[] = {0x02, 0x00, 0x01, 0x02, 0x03, 0x04};
 
-#define RX_BUFFERS 20
-#define TX_BUFFERS 5
+#define RX_BUFFERS 224
+#define TX_BUFFERS 8
 static uint8_t rx_buffer[ETH_RX_UNITSIZE*RX_BUFFERS] __attribute__ ((aligned));
 static uint8_t tx_buffer[ETH_TX_UNITSIZE*TX_BUFFERS] __attribute__ ((aligned));
 static struct _eth_desc rx_desc[RX_BUFFERS] __attribute__ ((aligned));
 static struct _eth_desc tx_desc[TX_BUFFERS] __attribute__ ((aligned));
+
+// MAC of the firmware's own IP stack (FTP). Derived from the SD card CID so that
+// several units on one LAN do not clash; falls back to a fixed address.
+static uint8_t fw_mac[] = {0x02, 0x00, 0x01, 0x02, 0x03, 0x05};
 
 static char link = 0;
 static char link_changed = 0;
@@ -48,6 +55,16 @@ int eth_init()
 	//PIOA->PIO_SODR = PHY_RESET;
 	ethd_configure(&ethd, ETH_TYPE_GMAC, GMAC0, 0, 0);
 	ethd_set_mac_addr(&ethd, 0, mac);
+	if (fat_uses_mmc()) {
+		uint8_t cid[16];
+		uint8_t h[4] = {0, 0, 0, 0};
+		MMC_GetCID(cid);
+		for (int i = 0; i < 16; i++) h[i & 3] ^= cid[i];
+		fw_mac[2] = h[0]; fw_mac[3] = h[1]; fw_mac[4] = h[2]; fw_mac[5] = h[3];
+		fw_mac[1] = 0x53;
+	}
+	ethd_set_mac_addr(&ethd, 1, fw_mac);  // 2nd specific address filter: frames for the firmware stack
+	net_init(fw_mac);
 	ethd_setup_queue(&ethd, 0, RX_BUFFERS, rx_buffer, rx_desc, TX_BUFFERS, tx_buffer, tx_desc, 0);
 
 	phy_desc.phy_if = PHY_IF_GMAC;
@@ -89,6 +106,7 @@ int eth_poll()
 			link = status;
 			eth_info("Link %s", link ? "detected" : "broken");
 			if (link) phy_auto_negotiate(&phy, 1);
+			net_link(link);
 			//phy_dump_registers(&phy);
 			link_changed = 0;
 		}
@@ -102,6 +120,8 @@ int eth_poll()
 	}
 
 	if (!link) return 0;
+
+	net_poll();
 
 	uint32_t status = user_io_eth_get_status();
 
@@ -123,18 +143,31 @@ int eth_poll()
 		}
 	}
 
-	if(!(status & 0x20000)) {
+	uint8_t core_ready = !(status & 0x20000);
+	uint8_t budget = net_active() ? 16 : 1;
 
+	while (budget-- && (core_ready || net_active())) {
 		uint32_t recv_size = 0;
-		if (ethd_poll(&ethd, 0, sector_buffer, SECTOR_BUFFER_SIZE, &recv_size) == ETH_OK) {
-			if (recv_size) {
-				user_io_eth_send_rx_frame(sector_buffer, recv_size);
-				//iprintf("received packet: %d bytes\n", recv_size);
-				//hexdump(sector_buffer, recv_size, 0);
-			}
+		if (ethd_poll(&ethd, 0, sector_buffer, SECTOR_BUFFER_SIZE, &recv_size) != ETH_OK || !recv_size) break;
+
+		uint8_t to_core = net_active() ? !net_rx(sector_buffer, recv_size) : 1;
+		if (to_core && core_ready) {
+			user_io_eth_send_rx_frame(sector_buffer, recv_size);
+			core_ready = 0;  // the FPGA holds one frame at a time
+			//iprintf("received packet: %d bytes\n", recv_size);
+			//hexdump(sector_buffer, recv_size, 0);
 		}
 	}
 	return 0;
+}
+
+int eth_tx_raw(void *buf, uint16_t len)
+{
+	unsigned long t = GetTimer(20);
+	while (ethd_get_tx_load(&ethd, 0) > TX_BUFFERS - 2) {
+		if (CheckTimer(t)) return 0;
+	}
+	return ethd_send(&ethd, 0, buf, len, 0) == ETH_OK;
 }
 
 void eth_get_mac(uint8_t* mac)

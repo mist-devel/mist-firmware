@@ -45,6 +45,7 @@ unsigned char key_remap_table[MAX_REMAP][2];
 #define BREAK  0x8000
 
 static char umounted; // 1st image is file or direct SD?
+static char raw_sd_used; // the core has accessed the raw SD card (no image in slot 0) since it was loaded
 static char cache_buffer[1024];
 static uint8_t buffer_drive_index = 0;
 static uint32_t buffer_lba = 0xffffffff;
@@ -286,6 +287,7 @@ static void user_io_read_core_features() {
 
 void user_io_detect_core_type() {
 	core_name[0] = 0;
+	raw_sd_used = 0;
 
 	EnableIO();
 	core_type = SPI(0xff);
@@ -840,6 +842,28 @@ char user_io_is_mounted(unsigned char index) {
 	return sd_image[sd_index(index)].valid;
 }
 
+// true if 'f' (opened by someone else, e.g. the FTP server) is one of the files currently
+// mounted as a disk image for the core; compared by first cluster on the same volume
+int user_io_file_is_mounted(const FIL *f) {
+	if (!f->obj.sclust) return 0;
+	for (int i = 0; i < 4; i++) {
+		if (sd_image[i].valid &&
+		    sd_image[i].file.obj.fs == f->obj.fs &&
+		    sd_image[i].file.obj.sclust == f->obj.sclust) return 1;
+	}
+	// CD images (S..C entries) are opened by cue_parse() into an sd_image slot without setting .valid
+	if (toc.valid && toc.file &&
+	    toc.file->file.obj.fs == f->obj.fs &&
+	    toc.file->file.obj.sclust == f->obj.sclust) return 1;
+	return 0;
+}
+
+// true if the core uses the SD card directly (its own filesystem code and caches): the firmware
+// must not change the card's filesystem behind its back
+int user_io_raw_sd_in_use(void) {
+	return raw_sd_used;
+}
+
 void user_io_file_mount(const unsigned char *name, unsigned char index) {
 	FRESULT res;
 
@@ -1264,6 +1288,7 @@ static bool user_io_read_sd(uint8_t drive_index, uint8_t *buffer, uint8_t buffer
 				retval = true;
 			}
 		} else if (!drive_index && !umounted) {
+			raw_sd_used = 1;
 			disk_read(fs.pdrv, buffer, lba, blockstoread << blksz);
 			retval = true;
 		}
@@ -1639,6 +1664,7 @@ void user_io_poll() {
 								f_write(&sd_image[sd_index(drive_index)].file, sector_buffer, blockstowrite << (9+blksz), &bw);
 							}
 						} else if (!drive_index && !umounted) {
+							raw_sd_used = 1;
 							disk_write(fs.pdrv, sector_buffer, lba, blockstowrite << blksz);
 						}
 #else
