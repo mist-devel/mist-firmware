@@ -857,7 +857,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					uint32_t ip = net_get_ip();
 					siprintf(s, " IP address:");
 					if (!ip) {
-						siprintf(s + 12, "  not assigned");
+						siprintf(s + 12, "    not assigned");
 					} else {
 						char ipb[16];
 						siprintf(ipb, "%u.%u.%u.%u", (unsigned)(ip & 255), (unsigned)((ip >> 8) & 255), (unsigned)((ip >> 16) & 255), (unsigned)(ip >> 24));
@@ -868,7 +868,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 				}
 				case 57: {
 					siprintf(s, " FTP server:");
-					siprintf(s + 12, " %14s", net_ftp_state());
+					siprintf(s + 12, " %15s", net_ftp_state());
 					item->item = s;
 					break;
 				}
