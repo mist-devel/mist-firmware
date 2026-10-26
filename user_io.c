@@ -12,6 +12,9 @@
 #include "pcecd.h"
 #include "neocd.h"
 #include "megacd.h"
+#ifdef HAVE_SATURN
+#include "saturn.h"
+#endif
 #include "psx.h"
 #include "hdd.h"
 #include "cdc_control.h"
@@ -384,6 +387,9 @@ void user_io_init_core() {
 			}
 		}
 
+#ifdef HAVE_SATURN
+		if (core_features & FEAT_SATURN) saturn_init();
+#endif
 		// check if there's a <core>.rom or <core>.r0[1-6] present, send it via index 0-6
 		for (int i = 0; i < 7; i++) {
 			char ext[4];
@@ -797,11 +803,20 @@ static void kbd_fifo_poll() {
 
 
 char user_io_is_cue_mounted() {
+#ifdef HAVE_SATURN
+	if ((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_SATURN))
+		return saturn_cue_mounted();
+#endif
 	return toc.valid;
 }
 
 char user_io_cue_mount(const unsigned char *name, unsigned char index) {
 	char res = CUE_RES_OK;
+#ifdef HAVE_SATURN
+	// Saturn: own CUE handling (multi-BIN images, MiSTer track semantics), see saturn.c
+	if ((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_SATURN))
+		return saturn_cue_mount((const char*)name);
+#endif
 	toc.valid = 0;
 	if (name) {
 		res = cue_parse(name, &sd_image[index]);
@@ -1576,6 +1591,10 @@ void user_io_poll() {
 		pcecd_poll();
 	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_NEOCD))
 		neocd_poll();
+#ifdef HAVE_SATURN
+	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_SATURN))
+		saturn_poll();
+#endif
 #ifdef HAVE_MEGACD
 	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_MEGACD))
 		megacd_poll();

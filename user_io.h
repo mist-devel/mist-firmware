@@ -107,6 +107,7 @@
 #define FEAT_HDMI       0x04000 // HDMI output
 #define FEAT_PSX        0x08000 // PSX-specific CD image handling
 #define FEAT_MEGACD     0x10000 // MegaCD specific CD image handling
+#define FEAT_SATURN     0x20000 // Saturn virtual CD drive (saturn.c)
 
 #define JOY_RIGHT       0x01
 #define JOY_LEFT        0x02
