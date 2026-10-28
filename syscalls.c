@@ -497,11 +497,22 @@ _sbrk (int incr)
   char *        prev_heap_end;
 
   if (heap_end == NULL)
+#ifdef CONFIG_CHIP_SAMV71
+    { extern char __heap_start__; heap_end = &__heap_start__; }
+#else
     heap_end = & end;
+#endif
   
   prev_heap_end = heap_end;
   
+#ifdef CONFIG_CHIP_SAMV71
+  extern char __heap_start__, __heap_end__;
+  /* Bound libc to its linker reservation, including negative sbrk requests. */
+  if ((incr > 0 && (unsigned)incr > (unsigned)(&__heap_end__ - heap_end)) ||
+      (incr < 0 && (unsigned)(-(incr + 1)) + 1 > (unsigned)(heap_end - &__heap_start__)))
+#else
   if (heap_end + incr > stack_ptr)
+#endif
     {
       /* Some of the libstdc++-v3 tests rely upon detecting
 	 out of memory errors, so do not abort here.  */

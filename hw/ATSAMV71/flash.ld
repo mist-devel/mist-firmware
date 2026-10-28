@@ -45,8 +45,8 @@ MEMORY
 }
 
 /* Sizes of the stacks used by the application. NOTE: you need to adjust */
-C_STACK_SIZE   = 0x10000;
-HEAP_SIZE      = 0x10000;
+C_STACK_SIZE   = 0x10000; /* 64 KiB stack reservation. */
+HEAP_SIZE      = 0xE000; /* 56 KiB heap reservation. */
 
 /* Section Definitions */
 SECTIONS
@@ -179,6 +179,7 @@ SECTIONS
 
 	.stack (NOLOAD) :
 	{
+		__stack_start__ = .;
 		. += C_STACK_SIZE;
 		. = ALIGN(8);
 		_cstack = .;

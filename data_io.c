@@ -7,6 +7,7 @@
 #include "data_io.h"
 #include "debug.h"
 #include "spi.h"
+#include "firmware.h"
 #ifdef HAVE_QSPI
 #include "qspi.h"
 #endif
@@ -224,35 +225,32 @@ static void data_io_file_rx_prepare(char index) {
   DisableFpga();
 }
 
-static void data_io_file_rx_receive(FIL *file, unsigned int len) {
-  unsigned int bytes2receive = len;
-  char first = 1;
+FRESULT data_io_rx_step(data_io_rx_t *rx, FIL *file) {
   UINT bw;
-  /* receive the entire file using one transfer */
-  iprintf("Selected %lu bytes to receive\n", bytes2receive);
-
-  while(bytes2receive) {
-    iprintf(".");
-
-    unsigned short c, chunk = (bytes2receive>2048)?2048:bytes2receive;
+  if(rx->remaining) {
+    unsigned short c, chunk = (rx->remaining>2048)?2048:rx->remaining;
     char *p;
 
     EnableFpga();
     SPI(DIO_FILE_RX_DAT);
-    if (first) {
+    if (rx->first) {
       SPI(0);
-      first=0;
+      rx->first=0;
     }
 
     for(p = sector_buffer, c=0;c < chunk;c++)
       *p++ = SPI(0xFF);
 
     DisableFpga();
-    bytes2receive -= chunk;
+    rx->crc=CalculateCRC32(rx->crc,(unsigned char*)sector_buffer,chunk);
     DISKLED_ON
-    f_write(file, sector_buffer, chunk, &bw);
+    FRESULT result=f_write(file, sector_buffer, chunk, &bw);
     DISKLED_OFF
+    if(result!=FR_OK) return result;
+    if(bw!=chunk) return FR_DISK_ERR;
+    rx->remaining -= chunk;
   }
+  return FR_OK;
 }
 
 static void data_io_file_rx_done(void) {
@@ -266,9 +264,21 @@ static void data_io_file_rx_done(void) {
 }
 
 void data_io_file_rx(FIL *file, char index, unsigned int len) {
+  data_io_rx_t rx;
+  data_io_rx_begin(&rx,index,len);
+  while(rx.remaining) if(data_io_rx_step(&rx,file)!=FR_OK) {
+    iprintf("Error writing received RAM file\n"); break;
+  }
+  data_io_rx_end(&rx);
+}
+
+void data_io_rx_begin(data_io_rx_t *rx, char index, unsigned int len) {
+  rx->remaining=len; rx->first=1; rx->crc=0xffffffffUL;
   data_io_file_rx_prepare(index);
-  data_io_file_rx_receive(file, len);
-  data_io_file_rx_done();
+}
+
+void data_io_rx_end(data_io_rx_t *rx) {
+  data_io_file_rx_done(); rx->remaining=0;
 }
 
 ////////////////
