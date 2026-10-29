@@ -813,12 +813,17 @@ char user_io_is_cue_mounted() {
 char user_io_cue_mount(const unsigned char *name, unsigned char index) {
 	char res = CUE_RES_OK;
 #ifdef HAVE_SATURN
-	// Saturn: own CUE handling (multi-BIN images, MiSTer track semantics), see saturn.c
+	// Saturn: own virtual CD drive and .sav handling, see saturn.c (CUE parsed by cue_parser.c)
 	if ((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_SATURN))
 		return saturn_cue_mount((const char*)name);
 #endif
 	toc.valid = 0;
 	if (name) {
+#ifdef CUE_MULTI_FILE
+		// multi-.bin CUEs for the readers that use cue_track_file()
+		cue_set_aux_image(NULL);
+		cue_set_multi_file((core_type == CORE_TYPE_8BIT) && (core_features & (FEAT_PSX | FEAT_MEGACD)));
+#endif
 		res = cue_parse(name, &sd_image[index]);
 	}
 #ifdef HAVE_PSX
@@ -867,9 +872,13 @@ int user_io_file_is_mounted(const FIL *f) {
 		    sd_image[i].file.obj.sclust == f->obj.sclust) return 1;
 	}
 	// CD images (S..C entries) are opened by cue_parse() into an sd_image slot without setting .valid
+#ifdef CUE_MULTI_FILE
+	if (toc.valid && cue_file_is_open(f)) return 1;
+#else
 	if (toc.valid && toc.file &&
 	    toc.file->file.obj.fs == f->obj.fs &&
 	    toc.file->file.obj.sclust == f->obj.sclust) return 1;
+#endif
 	return 0;
 }
 

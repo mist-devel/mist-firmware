@@ -96,7 +96,8 @@ static void SeekFile(void)
 	cd_track_t *t = &toc.tracks[cdd.index];
 	int offset = (cdd.lba - t->start) * t->sector_size + t->offset;
 	if (offset < 0) offset = 0;
-	f_lseek(&toc.file->file, offset);
+	FIL *f = cue_track_file(cdd.index);
+	if (f) f_lseek(f, offset);
 }
 
 static void SendBuffer(unsigned char opcode, int len)
@@ -112,10 +113,11 @@ static void SectorSend(void)
 	cd_track_t *t = &toc.tracks[cdd.index];
 	UINT br = 0;
 	int offset = (cdd.lba - t->start) * t->sector_size + t->offset;
-	int in_image = (offset >= 0);
+	FIL *f = cue_track_file(cdd.index);
+	int in_image = (offset >= 0) && f;
 
 	DISKLED_ON
-	if (in_image) f_lseek(&toc.file->file, offset);
+	if (in_image) f_lseek(f, offset);
 
 	if (t->type) {
 		msf_t msf;
@@ -128,15 +130,15 @@ static void SectorSend(void)
 			sector_buffer[14] = bin2bcd(msf.f);
 			sector_buffer[15] = 0x01;
 			memset(sector_buffer + 16, 0, 2352 - 16);
-			if (in_image) f_read(&toc.file->file, sector_buffer + 16, 2048, &br);
+			if (in_image) f_read(f, sector_buffer + 16, 2048, &br);
 		} else {
-			f_read(&toc.file->file, sector_buffer, 2352, &br);
+			f_read(f, sector_buffer, 2352, &br);
 		}
 		DISKLED_OFF
 		SendBuffer(CD_DATA_SEND, 2352);
 	} else {
 		if (cdd.lba >= t->start) cdd.isData = 0;
-		if (in_image) f_read(&toc.file->file, sector_buffer, 2352, &br);
+		if (in_image) f_read(f, sector_buffer, 2352, &br);
 		else memset(sector_buffer, 0, 2352);
 		DISKLED_OFF
 		SendBuffer(CD_AUDIO_SEND, 2352);
