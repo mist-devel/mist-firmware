@@ -60,257 +60,27 @@
 #define BCD(v) ((uint8_t)((((v)/10) << 4) | ((v)%10)))
 
 // ------------------------------------------------------------------------------------------------
-// TOC (MiSTer cd.h semantics)
+// TOC: the common CUE parser (cue_parser.c, built with CUE_MULTI_FILE on SiDi128) - one or several .bin files,
+// INDEX positions kept per track. The data track and the CD-DA track being played stay open in the sd_image
+// slots 2 and 3, which the Saturn core does not use otherwise.
 // ------------------------------------------------------------------------------------------------
-#define SAT_MAX_TRACKS 100
-#define SAT_MAX_IDX    4
-#define SAT_MAX_FILES  100
-#define SAT_NAME_LEN   256
-#define SAT_NAME_POOL  4096
-
-enum { TT_CDDA = 0, TT_MODE1, TT_MODE2 };
-
-typedef struct {
-	int file;
-	int offset;
-	int pregap;
-	int start;
-	int end;
-	int type;
-	int sector_size;
-	int indexes[SAT_MAX_IDX];
-	int index_num;
-} sat_track_t;
-
-typedef struct {
-	int end;
-	int last;
-	sat_track_t tracks[SAT_MAX_TRACKS + 1];
-} sat_toc_t;
+#ifndef CUE_MULTI_FILE
+#error "saturn.c needs the multi-file CUE parser (CUE_MULTI_FILE)"
+#endif
 
 typedef enum { Idle, Open, ReadTOC, Read, Pause, Stop, Seek, SeekRead, SeekRing } satstate_t;
 
 typedef struct { uint8_t m, s, f; } sat_msf_t;   // uint8_t as in MiSTer
 
-static sat_toc_t stoc;
-static char sat_pool[SAT_NAME_POOL];
-static const char *sat_name[SAT_MAX_FILES];
-static int sat_nfiles, sat_pool_used;
-
-// directory of the CUE file (FatFs current-directory state when it was mounted): the BIN files are opened
-// relative to it even if the OSD file browser has moved elsewhere since
-static DWORD dir_cdir;
-#if FF_FS_EXFAT
-static DWORD dir_scl, dir_size, dir_ofs;
-#endif
-
-static FRESULT open_in_cue_dir(FIL *f, const char *name)
-{
-	DWORD c = fs.cdir;
-#if FF_FS_EXFAT
-	DWORD s1 = fs.cdc_scl, s2 = fs.cdc_size, s3 = fs.cdc_ofs;
-	fs.cdc_scl = dir_scl; fs.cdc_size = dir_size; fs.cdc_ofs = dir_ofs;
-#endif
-	fs.cdir = dir_cdir;
-	FRESULT res = f_open(f, name, FA_READ);
-	fs.cdir = c;
-#if FF_FS_EXFAT
-	fs.cdc_scl = s1; fs.cdc_size = s2; fs.cdc_ofs = s3;
-#endif
-	return res;
-}
-
-static int sat_open_file[2] = { -1, -1 };
-static int sat_open_lru = 0;
-
-static FIL *track_file(int t)
-{
-	int fi = stoc.tracks[t].file;
-	if (fi < 0 || fi >= sat_nfiles) return NULL;
-	for (int i = 0; i < 2; i++) if (sat_open_file[i] == fi) { sat_open_lru = i ^ 1; return &sd_image[2 + i].file; }
-
-	int i = sat_open_lru;
-	IDXFile *x = &sd_image[2 + i];
-	if (sat_open_file[i] >= 0) { f_close(&x->file); sat_open_file[i] = -1; }
-	if (open_in_cue_dir(&x->file, sat_name[fi]) != FR_OK) {
-		iprintf("Saturn: can't open %s\n", sat_name[fi]);
-		return NULL;
-	}
-	IDXIndex(x);
-	sat_open_file[i] = fi;
-	sat_open_lru = i ^ 1;
-	return &x->file;
-}
-
-static void close_files(void)
-{
-	for (int i = 0; i < 2; i++) if (sat_open_file[i] >= 0) { f_close(&sd_image[2 + i].file); sat_open_file[i] = -1; }
-}
-
-static int toc_track_by_lba(int lba)
-{
-	int i = 0;
-	while ((stoc.tracks[i].end <= lba) && (i < stoc.last)) i++;
-	return i;
-}
-
 static int toc_index_by_lba(int track, int lba)
 {
-	if (lba - stoc.tracks[track].start < 0) return 0;
-	int n = stoc.tracks[track].index_num;
-	if (n > SAT_MAX_IDX) n = SAT_MAX_IDX;
+	if (lba - toc.tracks[track].start < 0) return 0;
+	int n = toc.tracks[track].index_num;
+	if (n > CUE_MAX_IDX) n = CUE_MAX_IDX;
 	int i = 2;
-	while ((i < n) && (lba - stoc.tracks[track].start >= stoc.tracks[track].indexes[i])) i++;
+	while ((i < n) && (lba - toc.tracks[track].start >= toc.tracks[track].indexes[i])) i++;
 	i--;
 	return i;
-}
-
-// ------------------------------------------------------------------------------------------------
-// CUE parsing (satcdd_t::LoadCUE)
-// ------------------------------------------------------------------------------------------------
-#define cue_buf ((char*)sector_buffer)
-
-static const char *skip_sp(const char *p) { while (*p == ' ' || *p == '\t') p++; return p; }
-
-static int parse_num(const char **pp, int *v)
-{
-	const char *p = *pp; int n = 0, d = 0;
-	while (*p >= '0' && *p <= '9') { n = n * 10 + (*p - '0'); p++; d++; }
-	*pp = p; *v = n;
-	return d;
-}
-
-static int parse_msf(const char *p, int *mm, int *ss, int *ff)
-{
-	if (!parse_num(&p, mm) || *p++ != ':') return 0;
-	if (!parse_num(&p, ss) || *p++ != ':') return 0;
-	if (!parse_num(&p, ff)) return 0;
-	return 1;
-}
-
-static int sat_load_cue(const char *filename)
-{
-	FIL f;
-	UINT br;
-	if (f_open(&f, filename, FA_READ) != FR_OK) return CUE_RES_NOTFOUND;
-	memset(cue_buf, 0, SECTOR_BUFFER_SIZE);
-	f_read(&f, cue_buf, SECTOR_BUFFER_SIZE - 1, &br);
-	f_close(&f);
-
-	// remember the CUE's directory for the BIN files
-	dir_cdir = fs.cdir;
-#if FF_FS_EXFAT
-	dir_scl = fs.cdc_scl; dir_size = fs.cdc_size; dir_ofs = fs.cdc_ofs;
-#endif
-
-	memset(&stoc, 0, sizeof(stoc));
-	sat_nfiles = 0;
-	sat_pool_used = 0;
-	stoc.last = -1;
-
-	int pregap = 0, new_file = 0, file_size = 0, sector_size = 2352;
-	int cur_file = -1;
-	int pend_file = -1;
-
-	char *p = cue_buf;
-	while (*p) {
-		char *eol = p;
-		while (*eol && *eol != '\n' && *eol != '\r') eol++;
-		char c = *eol; *eol = 0;
-		const char *l = skip_sp(p);
-
-		if (!strncmp(l, "FILE", 4)) {
-			if (stoc.last == 99 || sat_nfiles >= SAT_MAX_FILES) break;
-			l = skip_sp(l + 4);
-			char name[SAT_NAME_LEN]; int n = 0;
-			if (*l == '"') { l++; while (*l && *l != '"' && n < SAT_NAME_LEN - 1) name[n++] = *l++; if (*l == '"') l++; }
-			else { while (*l && *l != ' ' && n < SAT_NAME_LEN - 1) name[n++] = *l++; }
-			name[n] = 0;
-			if (!strstr(l, "BINARY") && !strstr(l, "MOTOROLA") && !strstr(l, "WAVE")) return CUE_RES_UNS;
-			FILINFO fno;
-			// the CUE directory is still the current one here
-			if (f_stat(name, &fno) != FR_OK) { iprintf("Saturn: %s not found\n", name); return CUE_RES_BINERR; }
-			if (sat_pool_used + n + 1 > SAT_NAME_POOL) return CUE_RES_UNS;
-			strcpy(sat_pool + sat_pool_used, name);
-			sat_name[sat_nfiles] = sat_pool + sat_pool_used;
-			sat_pool_used += n + 1;
-			file_size = (int)fno.fsize;
-			pend_file = sat_nfiles++;
-			pregap = 0;
-			stoc.tracks[stoc.last + 1].offset = 0;
-		}
-		else if (!strncmp(l, "TRACK", 5)) {
-			if (stoc.last == 99) break;
-			const char *q = skip_sp(l + 5); int bb;
-			if (!parse_num(&q, &bb)) { *eol = c; return CUE_RES_INVALID; }
-			stoc.last++;
-			if (bb != stoc.last + 1) break;
-			sat_track_t *t = &stoc.tracks[stoc.last];
-			if (strstr(q, "MODE1/2048"))      { sector_size = 2048; t->type = TT_MODE1; }
-			else if (strstr(q, "MODE1/2352")) { sector_size = 2352; t->type = TT_MODE1; }
-			else if (strstr(q, "MODE2/2352")) { sector_size = 2352; t->type = TT_MODE2; }
-			else                              { sector_size = 2352; t->type = TT_CDDA; }
-			t->sector_size = sector_size;
-
-			if (stoc.last && pend_file < 0) stoc.tracks[stoc.last - 1].end = 0;
-			new_file = 1;
-			if (pend_file < 0) { t->file = cur_file; new_file = 0; }
-			else               { t->file = cur_file = pend_file; pend_file = -1; }
-		}
-		else if (!strncmp(l, "PREGAP", 6)) {
-			int mm, ss, ff;
-			if (stoc.last >= 0 && parse_msf(skip_sp(l + 6), &mm, &ss, &ff)) {
-				stoc.tracks[stoc.last].pregap = ff + ss * 75 + mm * 60 * 75;
-				pregap += stoc.tracks[stoc.last].pregap;
-			}
-		}
-		else if (!strncmp(l, "INDEX", 5) && stoc.last >= 0) {
-			const char *q = skip_sp(l + 5); int idx, mm, ss, ff;
-			if (parse_num(&q, &idx) && parse_msf(skip_sp(q), &mm, &ss, &ff)) {
-				sat_track_t *t = &stoc.tracks[stoc.last];
-				int idx_pos = ff + ss * 75 + mm * 60 * 75;
-				if (idx == 0) {
-					if (stoc.last && !stoc.tracks[stoc.last - 1].end) stoc.tracks[stoc.last - 1].end = pregap;
-				}
-				else if (idx == 1) {
-					t->offset += pregap * sector_size;
-					if (!new_file) {
-						t->start = idx_pos + pregap;
-						if (stoc.last && !stoc.tracks[stoc.last - 1].end)
-							stoc.tracks[stoc.last - 1].end = t->start - t->pregap;
-					} else {
-						t->start = stoc.end + pregap;
-						t->offset += stoc.end * sector_size;
-						t->end = t->start + ((file_size + sector_size - 1) / sector_size);
-						stoc.end = t->end;
-					}
-				}
-				if (idx < SAT_MAX_IDX) {
-					if (idx == 0) t->indexes[0] = 0;
-					else t->indexes[idx] = new_file ? idx_pos : idx_pos - t->start;
-				}
-				t->index_num = idx + 1;
-			}
-		}
-
-		*eol = c;
-		p = eol;
-		while (*p == '\n' || *p == '\r') p++;
-	}
-	stoc.last++;
-
-	if (stoc.last && !stoc.tracks[stoc.last - 1].end) {
-		stoc.end += pregap;
-		stoc.tracks[stoc.last - 1].end = stoc.end;
-	}
-	if (stoc.last <= 0) return CUE_RES_INVALID;
-	stoc.tracks[stoc.last].start = stoc.end;
-
-	for (int i = 0; i < stoc.last; i++)
-		iprintf("Saturn: track %d %s start %d end %d offset %d file %s\n", i + 1,
-			stoc.tracks[i].type ? "data" : "audio", stoc.tracks[i].start, stoc.tracks[i].end, stoc.tracks[i].offset,
-			sat_name[stoc.tracks[i].file]);
-	return CUE_RES_OK;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -370,16 +140,15 @@ static void sat_reset(void)
 
 static void sat_unload(void)
 {
-	close_files();
+	cue_close();
 	cdd.loaded = 0;
-	memset(&stoc, 0, sizeof(stoc));
-	sat_nfiles = 0;
+	memset(&toc, 0, sizeof(toc));
 }
 
 static int CalcSeekDelay(int lba_old, int lba_new)
 {
-	const int track_old = toc_track_by_lba(lba_old);
-	const int track_new = toc_track_by_lba(lba_new);
+	const int track_old = cue_gettrackbylba(lba_old);
+	const int track_new = cue_gettrackbylba(lba_new);
 	const int min = 4, max = 13;
 	int diff = lba_new - lba_old;
 	int n = diff / 2000;
@@ -396,11 +165,11 @@ static int GetSectorOffsetByIndex(int tno, int idx)
 {
 	int track = tno - 1;
 	if (track < 0) track = 0;
-	else if (track > stoc.last) track = stoc.last;
+	else if (track > toc.last) track = toc.last;
 	if (idx > 99) idx = 99;
 	if (idx <= 0) return 0;
-	if (idx >= SAT_MAX_IDX) return 0;
-	return stoc.tracks[track].indexes[idx];
+	if (idx >= CUE_MAX_IDX) return 0;
+	return toc.tracks[track].indexes[idx];
 }
 
 static int GetFAD(const uint8_t *cmd) { return cmd[3] | (cmd[2] << 8) | (cmd[1] << 16); }
@@ -411,10 +180,10 @@ static void CommandExec(void)
 	int cmd_idx = cdd.comm[4];
 	int cmd_tno = cdd.comm[8];
 
-	if (cmd_tno >= 1 && cmd_tno - 1 < stoc.last && cmd_idx > stoc.tracks[cmd_tno - 1].index_num) {
-		cmd_idx -= stoc.tracks[cmd_tno - 1].index_num;
+	if (cmd_tno >= 1 && cmd_tno - 1 < toc.last && cmd_idx > toc.tracks[cmd_tno - 1].index_num) {
+		cmd_idx -= toc.tracks[cmd_tno - 1].index_num;
 		cmd_tno += 1;
-		cmd_fad = stoc.tracks[cmd_tno - 1].start + 150;
+		cmd_fad = toc.tracks[cmd_tno - 1].start + 150;
 	}
 	int fad = cmd_fad + GetSectorOffsetByIndex(cmd_tno, cmd_idx);
 
@@ -424,7 +193,7 @@ static void CommandExec(void)
 
 	case SATURN_COMM_SEEK_RING:
 		cdd.seek_lba = fad - 150;
-		cdd.track = toc_track_by_lba(cdd.seek_lba);
+		cdd.track = cue_gettrackbylba(cdd.seek_lba);
 		cdd.index = toc_index_by_lba(cdd.track, cdd.seek_lba);
 		cdd.seek_ring = 1;
 		cdd.read_pend = 0;
@@ -447,7 +216,7 @@ static void CommandExec(void)
 		int lba_old = cdd.lba;
 		cdd.seek_lba = fad - 150 - 4;
 		cdd.lba = fad - 150 - 4;
-		cdd.track = toc_track_by_lba(cdd.seek_lba);
+		cdd.track = cue_gettrackbylba(cdd.seek_lba);
 		cdd.index = toc_index_by_lba(cdd.track, cdd.seek_lba);
 		cdd.read_pend = 1;
 		cdd.seek_pend = 1;
@@ -469,7 +238,7 @@ static void CommandExec(void)
 		int lba_old = cdd.lba;
 		cdd.seek_lba = fad - 150;
 		cdd.lba = fad - 150;
-		cdd.track = toc_track_by_lba(cdd.seek_lba);
+		cdd.track = cue_gettrackbylba(cdd.seek_lba);
 		cdd.index = toc_index_by_lba(cdd.track, cdd.seek_lba);
 		cdd.seek_pend = 1;
 		cdd.seek_delay = CalcSeekDelay(lba_old - 4, fad - 150);
@@ -493,7 +262,7 @@ static void Process(uint8_t *time_mode)
 	static int seek_ring_time = 1;
 	sat_msf_t amsf = { 0, 2, 0 }, msf = { 0, 2, 0 };
 	uint8_t idx = 0;
-	uint8_t q = (cdd.lba < stoc.end && stoc.tracks[cdd.track].type) ? 0x40 : 0x00;
+	uint8_t q = (cdd.lba < toc.end && toc.tracks[cdd.track].type) ? 0x40 : 0x00;
 
 	if (cdd.lid_open) {
 		cdd.state = Open;
@@ -503,22 +272,22 @@ static void Process(uint8_t *time_mode)
 	else if (cdd.read_toc) {
 		cdd.state = ReadTOC;
 		if (cdd.toc_pos < 0x100) {
-			LBAToMSF(stoc.tracks[cdd.toc_pos].start + 150, &msf);
+			LBAToMSF(toc.tracks[cdd.toc_pos].start + 150, &msf);
 			idx = BCD(cdd.toc_pos + 1);
-			q = stoc.tracks[cdd.toc_pos & 0xFF].type ? 0x40 : 0x00;
+			q = toc.tracks[cdd.toc_pos & 0xFF].type ? 0x40 : 0x00;
 			cdd.toc_pos++;
-			if (cdd.toc_pos >= stoc.last) cdd.toc_pos = 0x100;
+			if (cdd.toc_pos >= toc.last) cdd.toc_pos = 0x100;
 		} else {
 			if (cdd.toc_pos == 0x100) {          // A0
 				msf.m = 1; msf.s = 0; msf.f = 0;
 				idx = 0xA0;
-				q = stoc.tracks[0].type ? 0x40 : 0x00;
+				q = toc.tracks[0].type ? 0x40 : 0x00;
 			} else if (cdd.toc_pos == 0x101) {   // A1
-				msf.m = stoc.last; msf.s = 0; msf.f = 0;
+				msf.m = toc.last; msf.s = 0; msf.f = 0;
 				idx = 0xA1;
-				q = stoc.tracks[stoc.last - 1].type ? 0x40 : 0x00;
+				q = toc.tracks[toc.last - 1].type ? 0x40 : 0x00;
 			} else if (cdd.toc_pos == 0x102) {   // A2
-				LBAToMSF(stoc.end + 150, &msf);
+				LBAToMSF(toc.end + 150, &msf);
 				idx = 0xA2;
 				q = 0x00;
 				cdd.read_toc = 0;
@@ -532,8 +301,8 @@ static void Process(uint8_t *time_mode)
 		cdd.state = cdd.final_read ? Read : Seek;
 		LBAToMSF(cdd.lba + 150, &amsf);
 		if (cdd.lba < 0) LBAToMSF(-cdd.lba, &msf);
-		else LBAToMSF(cdd.lba - stoc.tracks[cdd.track].start, &msf);
-		set_stat(SATURN_STAT_SEEK, q | 0x01, cdd.lba < stoc.end + 150 ? BCD(cdd.track + 1) : 0xAA,
+		else LBAToMSF(abs(cdd.lba - toc.tracks[cdd.track].start), &msf);
+		set_stat(SATURN_STAT_SEEK, q | 0x01, cdd.lba < toc.end + 150 ? BCD(cdd.track + 1) : 0xAA,
 			cdd.lba < 0 ? 0x00 : BCD(cdd.index), BCD(msf.m), BCD(msf.s), BCD(msf.f), 0x00,
 			BCD(amsf.m), BCD(amsf.s), BCD(amsf.f));
 		cdd.seek_delay--;
@@ -561,8 +330,8 @@ static void Process(uint8_t *time_mode)
 		cdd.state = Read;
 		LBAToMSF(cdd.lba + 150, &amsf);
 		if (cdd.lba < 0) LBAToMSF(-cdd.lba, &msf);
-		else LBAToMSF(cdd.lba - stoc.tracks[cdd.track].start, &msf);
-		set_stat(SATURN_STAT_DATA, q | 0x01, cdd.lba < stoc.end + 150 ? BCD(cdd.track + 1) : 0xAA,
+		else LBAToMSF(abs(cdd.lba - toc.tracks[cdd.track].start), &msf);
+		set_stat(SATURN_STAT_DATA, q | 0x01, cdd.lba < toc.end + 150 ? BCD(cdd.track + 1) : 0xAA,
 			cdd.lba < 0 ? 0x00 : BCD(cdd.index), BCD(msf.m), BCD(msf.s), BCD(msf.f), 0x00,
 			BCD(amsf.m), BCD(amsf.s), BCD(amsf.f));
 		*time_mode = cdd.speed;
@@ -570,8 +339,8 @@ static void Process(uint8_t *time_mode)
 	else if (cdd.pause_pend) {
 		cdd.state = Idle;
 		LBAToMSF(cdd.lba + 150, &amsf);
-		LBAToMSF(abs(cdd.lba - stoc.tracks[cdd.track].start) + 150, &msf);
-		set_stat(SATURN_STAT_IDLE, q | 0x01, cdd.lba < stoc.end + 150 ? BCD(cdd.track + 1) : 0xAA,
+		LBAToMSF(abs(cdd.lba - toc.tracks[cdd.track].start) + 150, &msf);
+		set_stat(SATURN_STAT_IDLE, q | 0x01, cdd.lba < toc.end + 150 ? BCD(cdd.track + 1) : 0xAA,
 			cdd.lba < 0 ? 0x00 : BCD(cdd.index), BCD(msf.m), BCD(msf.s), BCD(msf.f), 0x00,
 			BCD(amsf.m), BCD(amsf.s), BCD(amsf.f));
 		cdd.pause_pend = 0;
@@ -586,8 +355,8 @@ static void Process(uint8_t *time_mode)
 	else {
 		cdd.state = Idle;
 		LBAToMSF(cdd.lba + 150, &amsf);
-		LBAToMSF(abs(cdd.lba - stoc.tracks[cdd.track].start) + 150, &msf);
-		set_stat(SATURN_STAT_IDLE, q | 0x01, cdd.lba < stoc.end + 150 ? BCD(cdd.track + 1) : 0xAA,
+		LBAToMSF(abs(cdd.lba - toc.tracks[cdd.track].start) + 150, &msf);
+		set_stat(SATURN_STAT_IDLE, q | 0x01, cdd.lba < toc.end + 150 ? BCD(cdd.track + 1) : 0xAA,
 			cdd.lba < 0 ? 0x00 : BCD(cdd.index), BCD(msf.m), BCD(msf.s), BCD(msf.f), 0x00,
 			BCD(amsf.m), BCD(amsf.s), BCD(amsf.f));
 		*time_mode = 1;
@@ -617,7 +386,7 @@ static void send_mode(uint16_t mode)
 static int read_file(int t, int offs, uint8_t *buf, int len)
 {
 	UINT br = 0;
-	FIL *f = track_file(t);
+	FIL *f = cue_track_file(t);
 	if (!f || offs < 0) { memset(buf, 0, len); return 0; }
 	DISKLED_ON
 	f_lseek(f, offs);
@@ -629,11 +398,12 @@ static int read_file(int t, int offs, uint8_t *buf, int len)
 
 static void ReadData(uint8_t *buf)
 {
-	sat_track_t *t = &stoc.tracks[cdd.track];
+	cd_track_t *t = &toc.tracks[cdd.track];
 	if (t->type) {
 		int lba_ = cdd.lba >= 0 ? cdd.lba : 0;
-		if (t->sector_size == 2048) read_file(cdd.track, lba_ * 2048 - t->offset, buf + 16, 2048);
-		else                        read_file(cdd.track, lba_ * 2352 - t->offset, buf, 2352);
+		int offs = (lba_ - t->start) * t->sector_size + t->offset;
+		if (t->sector_size == 2048) read_file(cdd.track, offs, buf + 16, 2048);
+		else                        read_file(cdd.track, offs, buf, 2352);
 	}
 }
 
@@ -712,8 +482,8 @@ static void AudioSectorSend(int first)
 	static int buf_num_read = 0, buf_num_write = 0;
 	if (first) buf_num_read = buf_num_write = 0;
 
-	sat_track_t *t = &stoc.tracks[cdd.track];
-	int offs = cdd.lba * 2352 - t->offset;
+	cd_track_t *t = &toc.tracks[cdd.track];
+	int offs = (cdd.lba - t->start) * 2352 + t->offset;
 	if (first) {
 		read_file(cdd.track, offs, secbuf0, 2352);
 		read_file(cdd.track, offs + 2352, secbuf1, 2352);
@@ -739,7 +509,7 @@ static void Update(void)
 	case Idle:
 		cdd.lba++;
 		if (cdd.lba > cdd.seek_lba + 4) cdd.lba -= 4;
-		cdd.track = toc_track_by_lba(cdd.lba);
+		cdd.track = cue_gettrackbylba(cdd.lba);
 		cdd.index = toc_index_by_lba(cdd.track, cdd.lba);
 		break;
 
@@ -749,12 +519,12 @@ static void Update(void)
 
 	case Read:
 		LBAToMSF(cdd.lba + 150, &msf);
-		if (cdd.lba >= stoc.end) {
+		if (cdd.lba >= toc.end) {
 			uint8_t header[12] = { BCD(msf.m), BCD(msf.s), BCD(msf.f), 0x02, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x28, 0x00 };
 			RingDataSend(header, cdd.speed);
 		}
-		else if (stoc.tracks[cdd.track].type) {
-			if (stoc.tracks[cdd.track].sector_size == 2048 || (cdd.lba - stoc.tracks[cdd.track].start) < 0) {
+		else if (toc.tracks[cdd.track].type) {
+			if (toc.tracks[cdd.track].sector_size == 2048 || (cdd.lba - toc.tracks[cdd.track].start) < 0) {
 				uint8_t header[16] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
 					BCD(msf.m), BCD(msf.s), BCD(msf.f), 0x01 };
 				DataSectorSend(header, cdd.speed);
@@ -767,27 +537,27 @@ static void Update(void)
 			cdd.audioFirst = 0;
 		}
 		cdd.lba++;
-		cdd.track = toc_track_by_lba(cdd.lba);
+		cdd.track = cue_gettrackbylba(cdd.lba);
 		cdd.index = toc_index_by_lba(cdd.track, cdd.lba);
 		cdd.seek_lba = cdd.lba;
 		break;
 
 	case Pause:
 	case Stop:
-		cdd.track = toc_track_by_lba(cdd.lba);
+		cdd.track = cue_gettrackbylba(cdd.lba);
 		cdd.index = toc_index_by_lba(cdd.track, cdd.lba);
 		break;
 
 	case Seek:
 	case SeekRead:
 		if (!cdd.seek_pend) cdd.lba = cdd.seek_lba;
-		cdd.track = toc_track_by_lba(cdd.lba);
+		cdd.track = cue_gettrackbylba(cdd.lba);
 		cdd.index = toc_index_by_lba(cdd.track, cdd.lba);
 		break;
 
 	case SeekRing:
 		cdd.lba = cdd.seek_lba;
-		cdd.track = toc_track_by_lba(cdd.lba);
+		cdd.track = cue_gettrackbylba(cdd.lba);
 		cdd.index = toc_index_by_lba(cdd.track, cdd.lba);
 		break;
 	}
@@ -915,10 +685,10 @@ static void send_boot_header(void)
 	uint8_t *h = (uint8_t*)sector_buffer;
 	memset(h, 0, 256);
 	if (cdd.loaded) {
-		FIL *f = track_file(0);
+		FIL *f = cue_track_file(0);
 		UINT br;
 		if (f) {
-			f_lseek(f, stoc.tracks[0].sector_size == 2048 ? 0 : 16);
+			f_lseek(f, toc.tracks[0].offset + (toc.tracks[0].sector_size == 2048 ? 0 : 16));
 			f_read(f, h, 256, &br);
 		}
 	}
@@ -980,8 +750,11 @@ char saturn_cue_mount(const char *name)
 	sat_unload();
 	sat_reset();
 	if (name && *name) {
-		res = sat_load_cue(name);
+		cue_set_aux_image(&sd_image[2]);
+		cue_set_multi_file(1);
+		res = cue_parse(name, &sd_image[3]);
 		if (res == CUE_RES_OK) {
+			if (toc.last < 100) toc.tracks[toc.last].start = toc.end;   // CommandExec may look one track past the last
 			cdd.loaded = 1;
 			cdd.lid_open = 0;
 			cdd.stop_pend = 1;
@@ -998,6 +771,6 @@ char saturn_cue_mount(const char *name)
 		sat_mount_sav(NULL);
 	}
 	send_boot_header();
-	iprintf("Saturn: %s (%d tracks)\n", cdd.loaded ? "disc inserted" : "no disc", cdd.loaded ? stoc.last : 0);
+	iprintf("Saturn: %s (%d tracks)\n", cdd.loaded ? "disc inserted" : "no disc", cdd.loaded ? toc.last : 0);
 	return res;
 }

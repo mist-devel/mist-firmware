@@ -89,13 +89,14 @@ static void psx_read_sector(char* buffer, unsigned int lba)
 	int index = cue_gettrackbylba(lba);
 	int offset = (lba - toc.tracks[index].start) * toc.tracks[index].sector_size + toc.tracks[index].offset;
 	//psx_debugf("read CD lba=%d, track=%d offset=%d (trackstart=%d tracoffset=%d tracksectorsize=%d)", lba, index, offset, toc.tracks[index].start, toc.tracks[index].offset, toc.tracks[index].sector_size);
-	if (toc.tracks[index].sector_size != 2352) {
+	FIL *f = cue_track_file(index);
+	if (toc.tracks[index].sector_size != 2352 || !f) {
 		// unsupported sector size by the core
 		memset(buffer, 0, 2352);
 	} else {
 		DISKLED_ON
-		f_lseek(&toc.file->file, offset);
-		f_read(&toc.file->file, buffer, 2352, &br);
+		f_lseek(f, offset);
+		f_read(f, buffer, 2352, &br);
 		DISKLED_OFF
 	}
 	return;

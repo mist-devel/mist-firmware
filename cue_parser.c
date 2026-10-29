@@ -12,6 +12,9 @@
 #include "debug.h"
 #include "idxfile.h"
 #endif
+#if defined(CUE_MULTI_FILE) && defined(CUE_PARSER_TEST)
+#include <sys/stat.h>
+#endif
 
 //// defines ////
 #define TOKEN_FILE              "FILE"
@@ -31,7 +34,11 @@
 #define MODE_PREGAP             3
 #define MODE_INDEX              4
 
+#ifdef CUE_MULTI_FILE
+#define CUE_WORD_SIZE           256
+#else
 #define CUE_WORD_SIZE           128
+#endif
 
 #define CUE_EOT                 4
 #define CUE_NOWORD              3
@@ -62,6 +69,76 @@ static FIL cue_file;
 static int cue_pt = 0;
 
 toc_t toc;
+
+#if defined(CUE_MULTI_FILE) && !defined(CUE_PARSER_TEST)
+static DWORD cue_cdir;
+#if FF_FS_EXFAT
+static DWORD cue_scl, cue_dsize, cue_ofs;
+#endif
+static IDXFile *cue_aux;
+static char cue_multi;
+static int slot_file[2] = { -1, -1 };
+static int slot_lru;
+
+static FRESULT open_in_cue_dir(IDXFile *f, const char *name)
+{
+  DWORD c = fs.cdir;
+#if FF_FS_EXFAT
+  DWORD s1 = fs.cdc_scl, s2 = fs.cdc_size, s3 = fs.cdc_ofs;
+  fs.cdc_scl = cue_scl; fs.cdc_size = cue_dsize; fs.cdc_ofs = cue_ofs;
+#endif
+  fs.cdir = cue_cdir;
+  FRESULT res = IDXOpen(f, name, FA_READ);
+  fs.cdir = c;
+#if FF_FS_EXFAT
+  fs.cdc_scl = s1; fs.cdc_size = s2; fs.cdc_ofs = s3;
+#endif
+  return res;
+}
+
+void cue_set_aux_image(IDXFile *aux) {
+  slot_file[1] = -1;
+  cue_aux = aux;
+}
+
+void cue_set_multi_file(char on) {
+  cue_multi = on;
+}
+
+FIL *cue_track_file(int track) {
+  if (track < 0 || track >= toc.last) return NULL;
+  int fi = toc.tracks[track].file;
+  if (fi < 0 || fi >= toc.files || !toc.file) return NULL;
+  IDXFile *slot[2] = { toc.file, cue_aux };
+  for (int i = 0; i < 2; i++)
+    if (slot[i] && slot_file[i] == fi) { slot_lru = i ^ 1; return &slot[i]->file; }
+
+  int i = cue_aux ? slot_lru : 0;
+  if (slot_file[i] >= 0) { f_close(&slot[i]->file); slot_file[i] = -1; }
+  if (open_in_cue_dir(slot[i], toc.file_name[fi]) != FR_OK) {
+    iprintf("Cannot open %s\n", toc.file_name[fi]);
+    return NULL;
+  }
+  IDXIndex(slot[i]);
+  slot_file[i] = fi;
+  slot_lru = i ^ 1;
+  return &slot[i]->file;
+}
+
+int cue_file_is_open(const FIL *f) {
+  IDXFile *slot[2] = { toc.file, cue_aux };
+  for (int i = 0; i < 2; i++)
+    if (slot[i] && slot_file[i] >= 0 && slot[i]->file.obj.fs == f->obj.fs && slot[i]->file.obj.sclust == f->obj.sclust)
+      return 1;
+  return 0;
+}
+
+void cue_close(void) {
+  if (toc.file && slot_file[0] >= 0) f_close(&toc.file->file);
+  if (cue_aux && slot_file[1] >= 0) f_close(&cue_aux->file);
+  slot_file[0] = slot_file[1] = -1;
+}
+#endif
 
 const char *cue_error_msg[] = {
   "\n   Cannot open CUE file.\n",
@@ -147,7 +224,17 @@ char cue_parse(const char *filename, IDXFile *image)
   msf_t msf;
   int lba, lastindex1 = 0;
   char e[3];
+  int file_base = 0;
+  char first_in_file = 0;
+#ifdef CUE_MULTI_FILE
+  int cur_file = -1, pool_used = 0;
+#endif
 
+#if defined(CUE_MULTI_FILE) && !defined(CUE_PARSER_TEST)
+  char multi = cue_multi;
+  cue_multi = 0;
+  slot_file[0] = slot_file[1] = -1;
+#endif
   memset(&toc, 0, sizeof(toc));
 
   const char *ext = GetExtension(filename);
@@ -170,6 +257,17 @@ char cue_parse(const char *filename, IDXFile *image)
       toc.tracks[0].type = SECTOR_DATA_MODE1;
       toc.tracks[0].offset = 0;
       toc.tracks[0].start = 0;
+#ifdef CUE_MULTI_FILE
+      strncpy(toc.name_pool, filename, CUE_NAME_POOL - 1);
+      toc.file_name[0] = toc.name_pool;
+      toc.file_size[0] = f_size(&toc.file->file);
+      toc.files = 1;
+      slot_file[0] = 0;
+      cue_cdir = fs.cdir;
+#if FF_FS_EXFAT
+      cue_scl = fs.cdc_scl; cue_dsize = fs.cdc_size; cue_ofs = fs.cdc_ofs;
+#endif
+#endif
     } else {
       error = CUE_RES_BINERR;
     }
@@ -193,6 +291,12 @@ char cue_parse(const char *filename, IDXFile *image)
     cue_parser_debugf("Opened file %s with size %llu bytes.", filename, f_size(&cue_file));
     #endif
     cue_pt = 0;
+#if defined(CUE_MULTI_FILE) && !defined(CUE_PARSER_TEST)
+    cue_cdir = fs.cdir;
+#if FF_FS_EXFAT
+    cue_scl = fs.cdc_scl; cue_dsize = fs.cdc_size; cue_ofs = fs.cdc_ofs;
+#endif
+#endif
 
     // parse cue
     while (1) {
@@ -212,6 +316,51 @@ char cue_parse(const char *filename, IDXFile *image)
             if (submode == 0) {
               pregap = 0;
               cue_parser_debugf("Filename: %s", word);
+#ifdef CUE_MULTI_FILE
+              {
+                int n = strlen(word);
+                unsigned int size = 0;
+                char found = 0;
+                if (toc.files >= CUE_MAX_FILES || pool_used + n + 1 > CUE_NAME_POOL
+              #ifndef CUE_PARSER_TEST
+                    || (toc.files && !multi)    // readers that keep one file position (PCE CD, Neo Geo CD, CD32)
+              #endif
+                   ) {
+                  error = CUE_RES_UNS;
+                  break;
+                }
+                if (track > 0) {
+                  cd_track_t *p = &toc.tracks[track - 1];
+                  if (!p->end) p->end = p->start + ((int)toc.file_size[cur_file] - p->offset) / p->sector_size;
+                  file_base = p->end;
+                }
+              #ifdef CUE_PARSER_TEST
+                struct stat st;
+                if (!stat(word, &st)) { found = 1; size = st.st_size; }
+              #else
+                if (!toc.files) {
+                  toc.file = image;
+                  if (IDXOpen(toc.file, word, FA_READ) == FR_OK) {
+                    found = 1; size = f_size(&toc.file->file); slot_file[0] = 0;
+                  }
+                } else {
+                  FILINFO fno;
+                  if (f_stat(word, &fno) == FR_OK) { found = 1; size = fno.fsize; }
+                }
+              #endif
+                if (!found) {
+                  error = CUE_RES_BINERR;
+                } else {
+                  strcpy(toc.name_pool + pool_used, word);
+                  toc.file_name[toc.files] = toc.name_pool + pool_used;
+                  toc.file_size[toc.files] = size;
+                  pool_used += n + 1;
+                  cur_file = toc.files++;
+                  first_in_file = 1;
+                  bin_valid = 1;
+                }
+              }
+#else
               if (bin_valid) {
                 // only one .bin supported
                 error = CUE_RES_UNS;
@@ -227,6 +376,7 @@ char cue_parse(const char *filename, IDXFile *image)
                   error = CUE_RES_BINERR;
               }
               #endif
+#endif
               } else if (submode == 1) {
               cue_parser_debugf("Filemode: %s", word);
               mode = 0;
@@ -238,6 +388,11 @@ char cue_parse(const char *filename, IDXFile *image)
               x = strtol(word, 0, 10);
               cue_parser_debugf("Trackno: %d -> %d (%s)", track, x, word);
               if (!x || x > 99 || x != (track + 1)) error = CUE_RES_INVALID; else track = x;
+#ifdef CUE_MULTI_FILE
+              if (!error) toc.tracks[track - 1].file = cur_file;
+#else
+              first_in_file = (track == 1);
+#endif
             } else if (submode == 1) {
               cue_parser_debugf("Trackmode: %s", word);
               if (!strcmp(word, TOKEN_AUDIO)) {
@@ -280,21 +435,31 @@ char cue_parse(const char *filename, IDXFile *image)
                 error = CUE_RES_INVALID;
               } else {
                 lba = MSF2LBA(msf.m, msf.s, msf.f);
-                if (index == 0) {
+                if (!track) {
+                  error = CUE_RES_INVALID;
+                } else if (index == 0) {
                   if (track > 1 && !toc.tracks[track - 2].end) {
-                    toc.tracks[track - 2].end =  lba + 150 + pregap;
+                    toc.tracks[track - 2].end = file_base + lba + 150 + pregap;
                   }
                 } else if (index == 1) {
-                  toc.tracks[track - 1].start = lba + 150 + pregap;
-                  if (track > 1) {
+                  toc.tracks[track - 1].start = file_base + lba + 150 + pregap;
+                  if (!first_in_file) {
                     tracklen = lba - lastindex1;
                     toc.tracks[track - 1].offset = toc.tracks[track - 2].offset + (tracklen * toc.tracks[track - 2].sector_size);
                     if (!toc.tracks[track-2].end) toc.tracks[track - 2].end = toc.tracks[track - 1].start - 1;
                   } else {
-                    toc.tracks[0].offset = (lba + 150) * toc.tracks[0].sector_size;
+                    toc.tracks[track - 1].offset = (lba + 150) * toc.tracks[track - 1].sector_size;
+                    first_in_file = 0;
                   }
                   lastindex1 = lba;
                 }
+#ifdef CUE_MULTI_FILE
+                if (!error) {
+                  cd_track_t *t = &toc.tracks[track - 1];
+                  if (index >= 2 && index < CUE_MAX_IDX) t->indexes[index] = file_base + lba + 150 + pregap - t->start;
+                  t->index_num = index + 1;
+                }
+#endif
               }
               cue_parser_debugf("Pos: (%s) = %d:%d:%d (%d)", word, msf.m, msf.s, msf.f, error);
               mode = 0;
@@ -315,19 +480,34 @@ char cue_parse(const char *filename, IDXFile *image)
     #endif
   }
 
-  #ifndef CUE_PARSET_TEST
   if (!bin_valid)
     error = CUE_RES_BINERR;
-  else if (error) 
+  #ifndef CUE_PARSER_TEST
+  else if (error) {
+  #ifdef CUE_MULTI_FILE
+    cue_close();
+  #else
     f_close(&toc.file->file);
-  else {
+  #endif
+  } else {
     IDXIndex(toc.file);
+  #ifdef CUE_MULTI_FILE
+    unsigned int last_size = track > 0 ? toc.file_size[toc.tracks[track - 1].file] : 0;
+  #else
+    unsigned int last_size = f_size(&toc.file->file);
+  #endif
     if (track > 0) {
-      tracklen = (f_size(&toc.file->file) - toc.tracks[track - 1].offset) / toc.tracks[track - 1].sector_size;
+      tracklen = (last_size - toc.tracks[track - 1].offset) / toc.tracks[track - 1].sector_size;
       toc.tracks[track - 1].end = toc.tracks[track - 1].start + tracklen;
     }
   }
+  #elif defined(CUE_MULTI_FILE)
+  else if (!error && track > 0) {
+    tracklen = ((int)toc.file_size[toc.tracks[track - 1].file] - toc.tracks[track - 1].offset) / toc.tracks[track - 1].sector_size;
+    toc.tracks[track - 1].end = toc.tracks[track - 1].start + tracklen;
+  }
   #endif
+  if (!error && track == 0) error = CUE_RES_INVALID;
   if (error) {
     toc.last = 0;
   } else {
