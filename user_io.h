@@ -210,6 +210,9 @@ char minimig_v1();
 char minimig_v2();
 char user_io_is_8bit_with_config_string();
 void user_io_poll();
+#ifdef CONFIG_HAVE_ETH
+void user_io_remote_poll(void);
+#endif
 void user_io_osd_key_enable(char);
 void user_io_serial_tx(char *, uint16_t);
 char *user_io_8bit_get_string(unsigned char);

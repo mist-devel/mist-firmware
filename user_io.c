@@ -1,3 +1,4 @@
+#include "video_recorder.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,6 +41,9 @@
 #include "it6613/HDMI_TX.h"
 #endif
 #include "serial_sink.h"
+#ifdef CONFIG_HAVE_ETH
+#include "remote_input.h"
+#endif
 
 // up to 16 key can be remapped
 #define MAX_REMAP  16
@@ -146,6 +150,10 @@ char user_io_osd_is_visible() {
 }
 
 void user_io_reset() {
+    video_rom_clear();
+#ifdef CONFIG_HAVE_ETH
+	remote_input_reset();
+#endif
 	// no sd card image selected, SD card accesses will go directly
 	// to the card (first slot, and only until the first unmount)
 	umounted = 0;
@@ -403,6 +411,7 @@ void user_io_init_core() {
 				if (!user_io_create_config_name(s, ext, root)) {
 					iprintf("Looking for %s\n", s);
 					if (f_open(&file, s, FA_READ) == FR_OK) {
+						if(!i) video_rom_loaded(&file,s);
 						data_io_file_tx(&file, i, ext);
 						f_close(&file);
 						break;
@@ -490,7 +499,7 @@ static unsigned short usb2ps2code( unsigned char k) {
 	return (ps2_kbd_scan_set == 1) ? usb2ps2_set1[k] : usb2ps2[k];
 }
 
-void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY, char valueX2, char valueY2) {
+static void user_io_analog_send(unsigned char joystick, char valueX, char valueY, char valueX2, char valueY2) {
 	if(osd_is_visible) return;
 
 	if(core_type == CORE_TYPE_8BIT || core_type == CORE_TYPE_MINIMIG2) {
@@ -508,8 +517,21 @@ void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY, c
 	}
 }
 
+void user_io_analog_joystick(unsigned char joystick, char valueX, char valueY, char valueX2, char valueY2) {
+#ifdef CONFIG_HAVE_ETH
+	const int8_t physical[4] = {valueX, valueY, valueX2, valueY2};
+	remote_input_record_analog(joystick, physical);
+	const int8_t *axes = remote_input_analog(joystick);
+	user_io_analog_send(joystick, axes[0], axes[1], axes[2], axes[3]);
+#else
+	user_io_analog_send(joystick, valueX, valueY, valueX2, valueY2);
+#endif
+}
+
 void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
-	uint8_t state = map;
+#ifdef CONFIG_HAVE_ETH
+	map = remote_input_physical(joystick, map, 0xff);
+#endif
 	// "only" 6 joysticks are supported
 	if(joystick > 5)
 		return;
@@ -534,9 +556,13 @@ void user_io_digital_joystick(unsigned char joystick, unsigned char map) {
 void user_io_digital_joystick_ext(unsigned char joystick, uint32_t map) {
 	// "only" 6 joysticks are supported
 	if(joystick > 5) return;
-	if(osd_is_visible && map) return;
+	uint32_t output = map;
+#ifdef CONFIG_HAVE_ETH
+	output = remote_input_physical(joystick, map, REMOTE_INPUT_MASK);
+#endif
+	if(osd_is_visible && output) return;
 	//iprintf("ext j%d: %x\n", joystick, map);
-	spi_uio_cmd32(UIO_JOYSTICK0_EXT + joystick, 0x000fffff & map);
+	spi_uio_cmd32(UIO_JOYSTICK0_EXT + joystick, 0x000fffff & output);
 	if (autofire && (map & 0x30)) {
 		autofire_mask = map & 0x30;
 		autofire_map = (autofire_map & autofire_mask) | (map & ~autofire_mask);
@@ -548,6 +574,23 @@ void user_io_digital_joystick_ext(unsigned char joystick, uint32_t map) {
 		autofire_joy = -1;
 	}
 }
+
+#ifdef CONFIG_HAVE_ETH
+// Called from the main loop only: callbacks may change input state, never SPI.
+void user_io_remote_poll(void) {
+	remote_input_poll((uint32_t)GetRTTC());
+	unsigned dirty = remote_input_take_dirty();
+	if (core_type != CORE_TYPE_8BIT) return;
+	for (unsigned port = 0; port < REMOTE_INPUT_PORTS; port++) {
+		if (!(dirty & (1U << port))) continue;
+		uint32_t map = osd_is_visible ? 0 : remote_input_value(port);
+		spi_uio_cmd8(port < 2 ? UIO_JOYSTICK0 + port : UIO_JOYSTICK2 + port - 2, map);
+		spi_uio_cmd32(UIO_JOYSTICK0_EXT + port, map);
+		const int8_t *axes = remote_input_analog(port);
+		user_io_analog_send(port, axes[0], axes[1], axes[2], axes[3]);
+	}
+}
+#endif
 
 static char dig2ana(char min, char max) {
 	if(min && !max) return -128;
@@ -1457,7 +1500,11 @@ void user_io_poll() {
 		virtual_joystick_keyboard(joy_map);
 	}
 
-	if (autofire && autofire_joy >= 0 && autofire_joy <= 5 && CheckTimer(autofire_timer)) {
+	if (autofire && autofire_joy >= 0 && autofire_joy <= 5 && CheckTimer(autofire_timer)
+#ifdef CONFIG_HAVE_ETH
+	    && !remote_input_owner()
+#endif
+	) {
 		autofire_map ^= autofire_mask;
 		//iprintf("06x\n", autofire_map);
 		spi_uio_cmd32(UIO_JOYSTICK0_EXT + autofire_joy, 0x000fffff & autofire_map);
@@ -2191,6 +2238,10 @@ unsigned short modifier_keycode(unsigned char index) {
 void user_io_osd_key_enable(char on) {
 	iprintf("OSD is now %s\n", on?"visible":"invisible");
 	osd_is_visible = on;
+#ifdef CONFIG_HAVE_ETH
+	if (on) remote_input_release(remote_input_owner());
+	remote_input_refresh();
+#endif
 }
 
 static char key_used_by_osd(unsigned short s) {

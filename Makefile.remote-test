@@ -1,0 +1,41 @@
+CC = cc
+BUILD_DIR ?= /tmp/mist-firmware-remote-test
+CFLAGS = -std=c99 -Wall -Wextra -Werror -I.
+
+.PHONY: test
+test: $(BUILD_DIR)/remote_input_test $(BUILD_DIR)/cab_format_test $(BUILD_DIR)/video_format_test $(BUILD_DIR)/video_recorder_test $(BUILD_DIR)/video_schedule_test $(BUILD_DIR)/ftpd_pump_test $(BUILD_DIR)/cab_watchdog_test
+	$(BUILD_DIR)/remote_input_test
+	$(BUILD_DIR)/cab_format_test
+	$(BUILD_DIR)/video_format_test
+	$(BUILD_DIR)/video_recorder_test
+	$(BUILD_DIR)/video_schedule_test
+	$(BUILD_DIR)/ftpd_pump_test
+	$(BUILD_DIR)/cab_watchdog_test
+
+$(BUILD_DIR)/remote_input_test: remote_input.c remote_input.h tests/remote_input_test.c
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) remote_input.c tests/remote_input_test.c -o $@
+
+$(BUILD_DIR)/cab_format_test: cab_format.c cab_format.h tests/cab_format_test.c
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) cab_format.c tests/cab_format_test.c -o $@
+
+$(BUILD_DIR)/video_format_test: video_format.c video_format.h cab_format.c cab_format.h tests/video_format_test.c
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) video_format.c cab_format.c tests/video_format_test.c -o $@
+
+$(BUILD_DIR)/video_recorder_test: video_recorder.c video_recorder.h video_format.c video_format.h video_schedule.h tests/video_recorder_test.c tests/video_recorder_test_support.h
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -DVIDEO_RECORDER_TEST -DCONFIG_CHIP_SAMV71 tests/video_recorder_test.c video_format.c -o $@
+
+$(BUILD_DIR)/video_schedule_test: video_schedule.h tests/video_schedule_test.c
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) tests/video_schedule_test.c -o $@
+
+$(BUILD_DIR)/ftpd_pump_test: ftpd.c tests/ftpd_pump_test.c tests/ftpd_pump_test_support.h
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) tests/ftpd_pump_test.c -o $@
+
+$(BUILD_DIR)/cab_watchdog_test: cab_watchdog.h tests/cab_watchdog_test.c
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) tests/cab_watchdog_test.c -o $@
