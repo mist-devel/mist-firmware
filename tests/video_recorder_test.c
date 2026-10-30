@@ -571,6 +571,18 @@ static void run_snapshot_faults(void)
     check(video_snapshot_take_result(&path,&error) && !path && error,"middle-row failure is reported");
 }
 
+static void run_capture_stall_timeout(void)
+{
+    setup(224,16,-1);
+    check(video_recorder_begin(1,1,100,16)==NULL,"recorder starts before capture-stall check");
+    uint32_t timeout=recorder.stall_timeout;
+    check(timeout==25000,"100-frame cadence keeps a bounded 25-second capture watchdog");
+    test_clock+=timeout+1;
+    video_recorder_poll();
+    check(!video_recorder_active() && input_owner==0,"stalled video capture aborts and releases owner");
+    check(!strcmp(video_recorder_error(),"Video capture stalled"),"stalled capture reports its timeout");
+}
+
 int main(void)
 {
     test_width=7;test_format=VIDEO_FORMAT_RGB555;
@@ -591,6 +603,7 @@ int main(void)
     run_snapshot_storage_interruption();
     run_snapshot_rejections();
     run_snapshot_faults();
-    puts("video recorder: FTP dedup/faults plus local BMP RGB444/RGB555, padding, width512, queued OSD-hidden start, collision, lease, rejection, cancel and I/O cleanup PASS");
+    run_capture_stall_timeout();
+    puts("video recorder: FTP dedup/faults plus local BMP RGB444/RGB555, padding, width512, queued OSD-hidden start, collision, lease, rejection, cancel, I/O cleanup, and bounded capture-stall abort PASS");
     return 0;
 }

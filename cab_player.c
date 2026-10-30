@@ -1,4 +1,5 @@
 #include "video_recorder.h"
+#include "cab_watchdog.h"
 #include "cab_player.h"
 #include "cab_format.h"
 #include "remote_input.h"
@@ -229,8 +230,15 @@ void cab_player_poll(void)
 		return;
 	}
 	if (player.status.state!=2 && player.status.state!=6) { failed("CAB stopped unexpectedly"); return; }
-	if (player.status.frames!=player.last_frame) { player.last_frame=player.status.frames; player.last_progress=now; }
-	else if ((uint32_t)(now-player.last_progress)>2000) { failed("CAB native raster stopped advancing"); return; }
+	int frame_advanced=player.status.frames!=player.last_frame;
+	int video_active=video_recorder_active() && video_recorder_owner()==player.owner;
+	if (frame_advanced) player.last_frame=player.status.frames;
+	// A same-owner recorder pauses CAB while it drains rows; its own stall timer is bounded.
+	player.last_progress=cab_progress_watchdog_refresh(now,player.last_progress,
+	                                                   frame_advanced,video_active);
+	if (cab_progress_watchdog_expired(now,player.last_progress)) {
+		failed("CAB native raster stopped advancing"); return;
+	}
 	if (!fill_queue()) failed("CAB refill rejected or file read failed");
 }
 

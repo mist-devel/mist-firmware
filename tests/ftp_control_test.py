@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import struct
 import subprocess
+import sys
 import tempfile
 import zlib
 import unittest
@@ -125,6 +126,20 @@ class Controls(unittest.TestCase):
         self.assertEqual(control.button_mask(['start', 'coin']), 0xc00)
         self.assertEqual(control.button_mask(['b6']), 0x200)
 
+    def test_capture_watchdog_tracks_rows_and_post_capture_resume(self):
+        watchdog = module.CABProgressWatchdog(0)
+        active = {'ACTIVE': '1', 'DONE': '4', 'ROWS': '1', 'REQUESTED': '500', 'ACTUAL': '500'}
+        self.assertFalse(watchdog.stalled(1, False, active))
+        self.assertFalse(watchdog.stalled(20, False, dict(active)))
+        progressed = dict(active, ROWS='2')
+        self.assertFalse(watchdog.stalled(21, False, progressed))
+        self.assertFalse(watchdog.stalled(50, True, progressed))
+        self.assertTrue(watchdog.stalled(81, False, progressed))
+        complete = dict(progressed, ACTIVE='0', DONE='40')
+        self.assertFalse(watchdog.stalled(82, False, complete))
+        self.assertFalse(watchdog.stalled(84, False, complete))
+        self.assertTrue(watchdog.stalled(85.1, False, complete))
+
 
 class CABFTP(FTP):
     def __init__(self):
@@ -137,6 +152,7 @@ class CABFTP(FTP):
         self.dump_data = b'RAM!'
         self.bad_dump = False
         self.stored = None
+        self.made_dirs = []
         self.corrupt = False
         self.states = [(2, 0, 7), (3, 2, 7)]
 
@@ -160,6 +176,11 @@ class CABFTP(FTP):
     def storbinary(self, command, data, blocksize):
         self.calls.append(command)
         self.stored = data.read()
+
+    def mkd(self, path):
+        self.made_dirs.append(path)
+        self.calls.append('MKD ' + path)
+        return path
 
     def retrbinary(self, command, callback):
         self.calls.append(command)
@@ -210,9 +231,63 @@ class CabinetControls(unittest.TestCase):
         self.assertEqual(result['status']['FRAME'], '2')
         self.assertEqual(result['timebase'], 'native-raster')
         self.assertGreaterEqual(result['wall_seconds'], 0)
+        self.assertEqual(len(self.ftp.made_dirs), 1)
+        remote_cab = next(c.removeprefix('SITE CAB ') for c in self.ftp.calls if c.startswith('SITE CAB '))
+        self.assertTrue(remote_cab.startswith(self.ftp.made_dirs[0] + '/CAB'))
+        self.assertEqual(result['remote_cab_dir'], self.ftp.made_dirs[0])
+        self.assertEqual(result['remote_cab_path'], remote_cab)
         commands = self.ftp.calls
         self.assertLess(next(i for i,c in enumerate(commands) if c.startswith('RETR ')),
                         next(i for i,c in enumerate(commands) if c.startswith('SITE CAB ')))
+
+    def test_cli_prefix_budget_and_original_cab_roundtrip(self):
+        original = Path(self.work.name) / 'original.cab'
+        original.write_text('original profile input\n')
+        effective = Path(self.work.name) / 'effective.cab'
+        effective.write_text('derived effective input\n')
+        netrc_path = Path(self.work.name) / 'test.netrc'
+        netrc_path.write_text('machine 192.0.2.1 login test password test\n')
+        report = Path(self.work.name) / 'cli-report.json'
+
+        class CLIFTP(CABFTP):
+            def connect(self, *args, **kwargs):
+                return 'connected'
+
+            def login(self, *args, **kwargs):
+                return 'logged in'
+
+            def quit(self):
+                return 'closed'
+
+            def close(self):
+                return None
+
+        cli_ftp = CLIFTP()
+        def pack(command, **kwargs):
+            self.assertEqual(command[3:], ['--frame-budget', '2'])
+            self.assertEqual(Path(command[1]).read_bytes(), effective.read_bytes())
+            Path(command[2]).write_bytes(b'JTCAB01\0' + struct.pack('<6I', 1, 2, 2, 0, 0, 32)
+                                        + struct.pack('<4I', 1, 1, 1, 0))
+            return subprocess.CompletedProcess(command, 0, 'packed prefix', '')
+
+        arguments = [
+            'ftp-control.py', '192.0.2.1', '--netrc', str(netrc_path),
+            '--frames', '2', '--cab-frame-budget', '2', '--source-cab', str(original),
+            '--report', str(report), 'cab', str(effective),
+        ]
+        with patch.object(sys, 'argv', arguments), \
+                patch.object(module.ftplib, 'FTP', return_value=cli_ftp), \
+                patch.object(module, 'find_cab_packer', return_value=('fake-exporter', {})), \
+                patch.object(module.subprocess, 'run', side_effect=pack), \
+                patch.object(module.time, 'sleep'):
+            self.assertEqual(module.main(), 0)
+
+        data = json.loads(report.read_text())
+        self.assertEqual(data['cab_sha256'], hashlib.sha256(effective.read_bytes()).hexdigest())
+        self.assertEqual(data['cab_source_sha256'], hashlib.sha256(original.read_bytes()).hexdigest())
+        self.assertEqual(data['cab_clip_mode'], 'prefix')
+        self.assertEqual(data['cab_frame_budget'], 2)
+        self.assertEqual(data['frames'], 2)
         self.assertFalse(self.control.leased)
 
     def test_capture_cadence_preflight_does_not_start_cab(self):
@@ -222,6 +297,76 @@ class CabinetControls(unittest.TestCase):
                 self.control.play_cab(self.source)
         self.assertIsNone(self.ftp.stored)
         self.assertFalse(any(c.startswith('SITE CAB ') for c in self.ftp.calls))
+
+    def test_first_capture_preflight_does_not_start_cab(self):
+        for period, first in ((None, 1), (0, 1), (1, 0), (1, -1), (1, 3), (2, 1)):
+            self.control.capture_every, self.control.first_frame = period, first
+            with self.subTest(period=period, first=first), self.assertRaisesRegex(ValueError, 'First frame'):
+                self.control.play_cab(self.source)
+        self.assertIsNone(self.ftp.stored)
+        self.assertFalse(any(c.startswith('SITE CAB ') for c in self.ftp.calls))
+
+    def setup_capture(self, frames, period, first, states):
+        self.control.cab_frames = frames
+        self.control.capture_every = period
+        self.control.first_frame = first
+        original_send = self.ftp.sendcmd
+        self.ftp.sendcmd = lambda command: original_send(command) + ('\n VIDEO_CAPTURE=1' if command == 'SITE STATUS' else '')
+        def pack(command, **kwargs):
+            Path(command[2]).write_bytes(b'JTCAB01\0' + struct.pack('<6I', 1, frames, 2, 0, 0, 32))
+            return subprocess.CompletedProcess(command, 0, 'packed', '')
+        self.run.side_effect = pack
+        history = []
+        def status():
+            state, frame = states.pop(0)
+            history.append(('frame', frame))
+            return dict(STATE=str(state), FRAME=str(frame), FPGA_EPOCH='7', ACCEPTED='2', APPLIED='2')
+        self.control.cab_status = Mock(side_effect=status)
+        def start(count, cadence, step):
+            history.append(('video', count, cadence, step))
+        self.control.start_video = Mock(side_effect=start)
+        self.control.video_status = Mock(return_value={})
+        self.control.wait_video = Mock(return_value=Path(self.work.name) / 'video')
+        return history
+
+    def test_delayed_first_capture_arms_before_exact_boundary(self):
+        history = self.setup_capture(450, 100, 300,
+                                    [(2, 0), (2, 100), (2, 199), (2, 201), (2, 300), (2, 400), (3, 450)])
+        self.control.play_cab(self.source)
+        self.control.start_video.assert_called_once_with(2, 100, 16)
+        self.assertLess(history.index(('frame', 201)), history.index(('video', 2, 100, 16)))
+        self.assertLess(history.index(('video', 2, 100, 16)), history.index(('frame', 300)))
+        self.assertEqual(json.loads(self.report.read_text())['first_frame'], 300)
+        self.assertEqual(self.control.cab_status.call_count, 7)
+
+    def test_default_first_capture_starts_immediately_and_omits_report_override(self):
+        history = self.setup_capture(2, 1, None, [(2, 0), (3, 2)])
+        self.control.play_cab(self.source)
+        self.assertEqual(history[0], ('video', 2, 1, 16))
+        self.assertNotIn('first_frame', json.loads(self.report.read_text()))
+
+    def test_count_limit_applies_to_delayed_schedule(self):
+        self.setup_capture(12000, 1, 11999, [(2, 11998), (3, 12000)])
+        self.control.play_cab(self.source)
+        self.control.start_video.assert_called_once_with(2, 1, 16)
+        self.control.first_frame = 1
+        with self.assertRaisesRegex(ValueError, 'count exceeds'):
+            self.control.play_cab(self.source)
+
+    def test_missed_first_capture_window_fails_and_releases_inputs(self):
+        self.setup_capture(400, 100, 300, [(2, 0), (2, 300)])
+        with self.assertRaisesRegex(ValueError, 'Missed first capture'):
+            self.control.play_cab(self.source)
+        self.control.start_video.assert_not_called()
+        self.assertIn('SITE RELEASE', self.ftp.calls)
+
+    def test_watchdog_remains_active_before_first_capture(self):
+        self.setup_capture(400, 100, 300, [(2, 0)])
+        with patch.object(module.CABProgressWatchdog, 'stalled', return_value=True), \
+                self.assertRaisesRegex(ValueError, 'stopped advancing'):
+            self.control.play_cab(self.source)
+        self.control.start_video.assert_not_called()
+        self.assertIn('SITE RELEASE', self.ftp.calls)
 
     def test_missing_video_capability_preflight_does_not_start_cab(self):
         self.control.capture_every = 1

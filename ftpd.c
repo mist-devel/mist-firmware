@@ -1,5 +1,9 @@
 // ftpd.c - minimal single-session FTP server for the SD card (lwIP raw API + FatFs)
 
+#ifdef FTPD_PUMP_TEST
+#include "tests/ftpd_pump_test_support.h"
+#else
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -299,6 +303,8 @@ static void list_next(struct sess *s)
 	}
 }
 
+#endif /* FTPD_PUMP_TEST */
+
 static void pump(struct sess *s)
 {
 	struct tcp_pcb *pcb = s->dat;
@@ -309,7 +315,7 @@ static void pump(struct sess *s)
 		u16_t room = tcp_sndbuf(pcb);
 		if (s->xpos >= s->xlen) {
 			if (s->eof) break;
-			if (room < 1024) return;     // wait for ACKs before reading more from the SD card
+			if (room < 1024) { tcp_output(pcb); return; } // flush before waiting for ACKs
 			if (s->op == OP_RETR) {
 				UINT br = 0;
 				if (f_read(&s->fil, s->buf, s->bufsz, &br) != FR_OK) { op_finish(s, 0, "451 Read error"); return; }
@@ -324,7 +330,7 @@ static void pump(struct sess *s)
 			const uint8_t *src = (s->op == OP_RETR) ? s->buf : s->xbuf;
 			u16_t n = s->xlen - s->xpos;
 			if (n > room) n = room;
-			if (n == 0) return;
+			if (n == 0) { tcp_output(pcb); return; }
 			if (tcp_write(pcb, src + s->xpos, n, TCP_WRITE_FLAG_COPY) != ERR_OK) { tcp_output(pcb); return; }
 			s->xpos += n;
 			s->dat_idle = 0;
@@ -334,6 +340,8 @@ static void pump(struct sess *s)
 	tcp_output(pcb);
 	op_finish(s, 1, NULL);
 }
+
+#ifndef FTPD_PUMP_TEST
 
 static void start_transfer(struct sess *s)
 {
@@ -1249,3 +1257,5 @@ const char *ftpd_state(void)
 	if (online) return "client online";
 	return "listening";
 }
+
+#endif /* FTPD_PUMP_TEST */

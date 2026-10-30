@@ -12,6 +12,7 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import secrets
 import struct
 import subprocess
 import tempfile
@@ -19,13 +20,48 @@ import re
 import zlib
 
 
+class CABProgressWatchdog:
+    """Track CAB frames and native video rows with bounded no-progress windows."""
+    FRAME_TIMEOUT = 3
+    CAPTURE_TIMEOUT = 30
+
+    def __init__(self, now):
+        self.last_progress = now
+        self.video_marker = None
+
+    def stalled(self, now, frame_advanced, video_status=None):
+        if frame_advanced:
+            self.last_progress = now
+        if video_status is not None and video_status.get('ACTIVE') == '1':
+            marker = tuple(video_status.get(key) for key in
+                           ('DONE', 'ROWS', 'REQUESTED', 'ACTUAL'))
+            if marker != self.video_marker:
+                self.video_marker = marker
+                self.last_progress = now
+            timeout = self.CAPTURE_TIMEOUT
+        else:
+            if self.video_marker is not None:
+                self.video_marker = None
+                self.last_progress = now
+            timeout = self.FRAME_TIMEOUT
+        return now - self.last_progress > timeout
+
+
 class Control:
-    def __init__(self, ftp, port=0, layout='auto', cab_packer=None, frames=None, report=None, dump_dir=None, capture_every=None, video_dir=None, video_step=16):
+    def __init__(self, ftp, port=0, layout='auto', cab_packer=None, frames=None, report=None, dump_dir=None, capture_every=None, video_dir=None, video_step=16, cab_frame_budget=None, source_cab=None, first_frame=None):
         self.ftp, self.port = ftp, port
         self.requested_layout = layout
         self.cab_packer, self.cab_frames, self.report = cab_packer, frames, report
+        self.cab_frame_budget = cab_frame_budget
+        self.source_cab = source_cab
+        self.first_frame = first_frame
         self.dump_dir = dump_dir
         self.capture_every, self.video_dir, self.video_step = capture_every, video_dir, video_step
+        self.remote_cab_dir = None
+        self.remote_cab_path = None
+        self.video_remote_dir = None
+        self.video_local_dir = None
+        self.video_retrieved = False
         self.masks = [0] * 6
         self.epoch = None
         self.leased = False
@@ -34,7 +70,10 @@ class Control:
 
     def video_status(self):
         response = self.ftp.sendcmd('SITE VIDSTATUS')
-        return dict(line.strip().split('=', 1) for line in response.splitlines() if '=' in line)
+        status = dict(line.strip().split('=', 1) for line in response.splitlines() if '=' in line)
+        if status.get('DIR'):
+            self.video_remote_dir = status['DIR']
+        return status
 
     def start_video(self, count, period, step=None):
         self.refresh()
@@ -56,7 +95,10 @@ class Control:
                 if status.get('ACTIVE') == '0':
                     if status.get('ERROR') or status.get('DONE') != status.get('TOTAL'):
                         raise ValueError(f"Video capture failed: {status.get('ERROR') or status}")
+                    self.video_remote_dir = status['DIR']
                     result = self.fetch_video(status['DIR'])
+                    self.video_local_dir = str(result)
+                    self.video_retrieved = True
                     print(f"Video complete: {status['DONE']} captures in {time.monotonic()-started:.3f}s; {result}")
                     self.refresh()
                     return result
@@ -249,13 +291,23 @@ class Control:
             raise ValueError('Inputs are owned by another session')
         packer, env = find_cab_packer(self.cab_packer)
         source = Path(filename).resolve()
+        source_cab = Path(self.source_cab).resolve() if self.source_cab else source
+        if not source_cab.is_file():
+            raise ValueError('Original source CAB is unavailable')
+        source_cab_digest = file_sha256(source_cab)
         with tempfile.TemporaryDirectory(prefix='mist-cab-') as work:
             packed = Path(work) / 'script.jtcab'
             source_snapshot = Path(work) / 'input.cab'
             shutil.copyfile(source, source_snapshot)
             source_digest = file_sha256(source_snapshot)
             command = [packer, str(source_snapshot), str(packed)]
-            if self.cab_frames is not None:
+            if self.cab_frame_budget is not None:
+                if self.cab_frames is None or self.cab_frame_budget != self.cab_frames:
+                    raise ValueError('Prefix CAB budget must equal the requested playback frame count')
+                if not 1 <= self.cab_frame_budget <= 0x7fffffff:
+                    raise ValueError('Prefix CAB budget must be between 1 and 2147483647')
+                command.extend(['--frame-budget', str(self.cab_frame_budget)])
+            elif self.cab_frames is not None:
                 command.append(str(self.cab_frames))
             result = subprocess.run(command, env=env, text=True, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, timeout=120)
@@ -276,15 +328,35 @@ class Control:
             dumps_total = flags if version == 3 else 0
             if dumps_total and (self.status.get('CAB_DUMP') != '1' or int(self.status.get('DUMP_BYTES', '0')) <= 0):
                 raise ValueError('Selected core/firmware lacks scheduled Save NVRAM support')
+            if self.first_frame is not None:
+                if self.capture_every is None or self.capture_every <= 0:
+                    raise ValueError('First frame requires a positive capture cadence')
+                if (self.first_frame <= 0 or self.first_frame % self.capture_every
+                        or self.first_frame > frames - frames % self.capture_every):
+                    raise ValueError('First frame must be a positive cadence multiple within the CAB horizon')
             if self.capture_every is not None:
-                if not 1 <= self.capture_every <= frames or frames // self.capture_every > 10000:
+                if not 1 <= self.capture_every <= frames:
                     raise ValueError('Capture cadence must fit the CAB frame budget')
+                first = self.first_frame if self.first_frame is not None else self.capture_every
+                capture_count = (frames - first) // self.capture_every + 1
+                if capture_count > 10000:
+                    raise ValueError('Capture count exceeds the 10000-image limit')
                 if dumps_total:
                     raise ValueError('Video cannot overlap legacy unverified dump barriers')
                 if self.status.get('VIDEO_CAPTURE') != '1':
                     raise ValueError('Selected core/firmware lacks native video capture')
             digest = file_sha256(packed)
-            remote = '/CAB' + digest[:16] + '.JTC'
+            remote_dir = '/REG169_' + secrets.token_hex(8)
+            self.ftp.mkd(remote_dir)
+            remote = remote_dir + '/CAB' + digest[:16] + '.JTC'
+            self.remote_cab_dir = remote_dir
+            self.remote_cab_path = remote
+            if self.report:
+                state_path = Path(str(self.report) + '.upload.json')
+                state_path.parent.mkdir(parents=True, exist_ok=True)
+                state_path.write_text(json.dumps(dict(status='uploading', remote_cab_dir=remote_dir,
+                                                      remote_cab_path=remote, packed_sha256=digest),
+                                                  indent=2) + '\n')
             with packed.open('rb') as data:
                 self.ftp.storbinary('STOR ' + remote, data, blocksize=32768)
             readback = hashlib.sha256()
@@ -295,12 +367,16 @@ class Control:
             print(self.ftp.sendcmd('SITE CAB ' + remote))
             self.leased = True
             self.masks = [0] * 6
-            epoch, last_progress, progress = None, None, time.monotonic()
+            epoch, last_progress = None, None
+            watchdog = CABProgressWatchdog(time.monotonic())
             status, dumps = {}, []
             video_result = None
             try:
+                video_started = False
                 if self.capture_every:
-                    self.start_video(frames // self.capture_every, self.capture_every, self.video_step)
+                    if first == self.capture_every:
+                        self.start_video(capture_count, self.capture_every, self.video_step)
+                        video_started = True
                 while True:
                     # Owner CABSTATUS polls renew the lease; observers cannot renew it.
                     status = self.cab_status()
@@ -317,6 +393,8 @@ class Control:
                                 raise ValueError('CAB completed with missing dumps')
                             dumps = self.fetch_dumps(status, epoch, dumps_total, source, frames)
                         if self.capture_every:
+                            if not video_started:
+                                raise ValueError('CAB completed before the first capture could be armed')
                             video_result = self.wait_video()
                         print(f'CAB complete: {frame} raster frames, {events} input runs, epoch {epoch}')
                         self.refresh()
@@ -324,12 +402,21 @@ class Control:
                     if state not in (2, 5, 6):
                         raise ValueError(f"CAB failed at frame {frame}: {status.get('ERROR')} "
                                          f"(FPGA error {status.get('FPGA_ERROR')})")
+                    if self.capture_every and not video_started and frame >= first - self.capture_every:
+                        # The MCU schedules the next absolute cadence boundary.
+                        # Arm during the preceding interval, never at first itself.
+                        if frame >= first:
+                            raise ValueError('Missed first capture arming window')
+                        self.start_video(capture_count, self.capture_every, self.video_step)
+                        video_started = True
                     current_progress = (frame, state, status.get('DUMP_SEQ'), status.get('DUMPS_DONE'), status.get('DUMP_WRITTEN'))
-                    if current_progress != last_progress:
-                        last_progress, progress = current_progress, time.monotonic()
-                    elif time.monotonic() - progress > 3:
+                    frame_advanced = current_progress != last_progress
+                    if frame_advanced:
+                        last_progress = current_progress
+                    video_progress = self.video_status() if video_started else None
+                    if watchdog.stalled(time.monotonic(), frame_advanced, video_progress):
                         raise ValueError('CAB frame counter stopped advancing')
-                    time.sleep(0.1)
+                    time.sleep(0.01 if self.capture_every and not video_started else 0.1)
             except BaseException:
                 # Interactive mode may continue after an error. Do not keep an
                 # uncertain script alive through the shell's normal heartbeat.
@@ -341,12 +428,22 @@ class Control:
             finally:
                 if self.report:
                     report = dict(cab=str(source), cab_sha256=source_digest,
+                                  cab_source=str(source_cab), cab_source_sha256=source_cab_digest,
+                                  cab_clip_mode='prefix' if self.cab_frame_budget is not None else 'strict',
+                                  cab_frame_budget=self.cab_frame_budget if self.cab_frame_budget is not None else frames,
                                   packed_sha256=digest, packed_version=version, frames=frames, events=events,
                                   core=self.status.get('CORE'), firmware=self.status.get('FW'),
                                   selected_file=self.status.get('FILE'),
                                   timebase='native-game-with-validated-video-pauses' if self.capture_every else 'native-raster-with-dump-barriers' if dumps_total else 'native-raster',
                                   capture_every=self.capture_every, video_dir=str(video_result) if video_result else None,
+                                  video_local_dir=self.video_local_dir,
+                                  video_remote_dir=self.video_remote_dir,
+                                  video_retrieved=self.video_retrieved,
+                                  remote_cab_dir=self.remote_cab_dir,
+                                  remote_cab_path=self.remote_cab_path,
                                   dumps_total=dumps_total, dumps=dumps, wall_seconds=time.monotonic()-started, status=status)
+                    if self.first_frame is not None:
+                        report['first_frame'] = self.first_frame
                     path = Path(self.report)
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text(json.dumps(report, indent=2) + '\n')
@@ -538,9 +635,14 @@ def main():
     parser.add_argument('--netrc', default=os.environ.get('FTP_NETRC'),
                         help='Credentials file (default: ~/.netrc)')
     parser.add_argument('--cab-packer', help='Path to jtframe-cab-pack (auto-detected from checkout)')
-    parser.add_argument('--frames', type=int, help='CAB frame budget, padding with idle; never truncate script')
+    parser.add_argument('--frames', type=int, help='CAB playback frame budget; strict unless --cab-frame-budget is set')
+    parser.add_argument('--cab-frame-budget', type=int,
+                        help='Opt in to canonical prefix clipping of the source CAB to this frame budget')
+    parser.add_argument('--source-cab', help='Original configured CAB when packing a derived effective script')
     parser.add_argument('--report', help='Write CAB result metadata as JSON')
     parser.add_argument('--capture-every', type=int, help='Capture native video every N CAB frames (e.g. 100)')
+    parser.add_argument('--first-frame', type=int,
+                        help='First absolute CAB capture checkpoint (positive multiple of --capture-every)')
     parser.add_argument('--video-step', type=int, default=16, help='Deterministic native row stride (1..512)')
     parser.add_argument('--video-dir', help='Local base directory for verified raw/PNG recordings')
     parser.add_argument('--dump-dir', help='Local base directory for verified CAB dumps (default: REPORT.dumps or CAB.dumps)')
@@ -555,7 +657,7 @@ def main():
         ftp = ftplib.FTP(timeout=10)
         ftp.connect(args.host, args.ftp_port)
         ftp.login(credentials[0], credentials[2])
-        control = Control(ftp, args.port, args.layout, args.cab_packer, args.frames, args.report, args.dump_dir, args.capture_every, args.video_dir, args.video_step)
+        control = Control(ftp, args.port, args.layout, args.cab_packer, args.frames, args.report, args.dump_dir, args.capture_every, args.video_dir, args.video_step, args.cab_frame_budget, args.source_cab, args.first_frame)
         if args.command:
             if args.command[0] not in ('status', 'reset', 'pulse', 'cab', 'cabstatus', 'cabstop', 'video', 'vidstatus', 'vidstop'):
                 raise ValueError('Use an interactive session for held inputs; '
