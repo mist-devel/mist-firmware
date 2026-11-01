@@ -1306,9 +1306,17 @@ static bool user_io_read_sd(uint8_t drive_index, uint8_t *buffer, uint8_t buffer
 		uint8_t blockstoread = MIN(blocks, buffer_size>>blksz);
 		if(sd_image[sd_index(drive_index)].valid) {
 			UINT br;
-			if( (f_size(&sd_image[sd_index(drive_index)].file) >> (9+blksz)) >= (lba+blockstoread) ) {
+			// Sectors only partially inside the image file are read too, with the missing
+			// bytes set to zero. Before, the last sector of an image whose size is not a
+			// multiple of the sector size (TAP/TZX tapes, .d64 disks...) was never read and
+			// the core got whatever was left in the buffer.
+			uint64_t fsize = f_size(&sd_image[sd_index(drive_index)].file);
+			uint64_t nblocks = (fsize + (512<<blksz) - 1) >> (9+blksz);
+			if( nblocks >= (lba+blockstoread) ) {
 				IDXSeek(&sd_image[sd_index(drive_index)], lba<<blksz);
 				f_read(&sd_image[sd_index(drive_index)].file, buffer, blockstoread << (9+blksz), &br);
+				if (br < (blockstoread << (9+blksz)))
+					memset(buffer + br, 0, (blockstoread << (9+blksz)) - br);
 				retval = true;
 			}
 		} else if (!drive_index && !umounted) {
