@@ -1695,9 +1695,16 @@ void user_io_poll() {
 #if 1
 						if(sd_image[sd_index(drive_index)].valid) {
 							UINT bw;
-							if( (f_size(&sd_image[sd_index(drive_index)].file) >> (9+blksz)) >= (lba+blockstowrite) ) {
+							// Only the bytes inside the image file are written: a sector that
+							// is partially beyond the end of the file is written up to the end
+							// of the file, so the file size never changes.
+							uint64_t fsize = f_size(&sd_image[sd_index(drive_index)].file);
+							uint64_t start = (uint64_t)lba << (9+blksz);
+							if( start < fsize ) {
+								uint32_t len = blockstowrite << (9+blksz);
+								if (start + len > fsize) len = fsize - start;
 								IDXSeek(&sd_image[sd_index(drive_index)], lba<<blksz);
-								f_write(&sd_image[sd_index(drive_index)].file, sector_buffer, blockstowrite << (9+blksz), &bw);
+								f_write(&sd_image[sd_index(drive_index)].file, sector_buffer, len, &bw);
 							}
 						} else if (!drive_index && !umounted) {
 							raw_sd_used = 1;
