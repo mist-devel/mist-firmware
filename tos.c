@@ -1868,5 +1868,5 @@ static char tos_getmenuitem(uint8_t idx, char action, menu_item_t *item) {
 }
 
 void tos_setup_menu() {
-	SetupMenu(tos_getmenupage, tos_getmenuitem, NULL);
+	SetupMenu(tos_getmenupage, tos_getmenuitem, KeyEvent_VideoModes);
 }
