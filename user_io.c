@@ -1298,6 +1298,7 @@ static bool user_io_read_sd(uint8_t drive_index, uint8_t *buffer, uint8_t buffer
 	// block size in bytes == 512<<blksize
 	//iprintf("%s drive_index: %d buffer_size: %d lba: %d blocks: %d blksz: %d send: %d\n", __FUNCTION__, drive_index, buffer_size, lba, blocks, blksz, sendtofpga);
 	bool retval = false;
+	FRESULT res;
 	DISKLED_ON
 	if (sendtofpga) {
 		spi_uio_cmd_cont(UIO_SECTOR_RD);
@@ -1305,10 +1306,16 @@ static bool user_io_read_sd(uint8_t drive_index, uint8_t *buffer, uint8_t buffer
 	while (blocks) {
 		uint8_t blockstoread = MIN(blocks, buffer_size>>blksz);
 		if(sd_image[sd_index(drive_index)].valid) {
-			UINT br;
-			if( (f_size(&sd_image[sd_index(drive_index)].file) >> (9+blksz)) >= (lba+blockstoread) ) {
+			UINT br, btr;
+			if( (f_size(&sd_image[sd_index(drive_index)].file) >> (9+blksz)) >= lba ) {
 				IDXSeek(&sd_image[sd_index(drive_index)], lba<<blksz);
-				f_read(&sd_image[sd_index(drive_index)].file, buffer, blockstoread << (9+blksz), &br);
+				btr = blockstoread << (9+blksz);
+				res = f_read(&sd_image[sd_index(drive_index)].file, buffer, btr, &br);
+				//pad partial reads with 0
+				if (res == FR_OK && br < btr) {
+					memset(buffer + br, 0, btr-br);
+					iprintf("Reading beyond file end (lba: %d - %d bytes)\n", lba, btr-br);
+				}
 				retval = true;
 			}
 		} else if (!drive_index && !umounted) {
@@ -1687,9 +1694,15 @@ void user_io_poll() {
 #if 1
 						if(sd_image[sd_index(drive_index)].valid) {
 							UINT bw;
-							if( (f_size(&sd_image[sd_index(drive_index)].file) >> (9+blksz)) >= (lba+blockstowrite) ) {
+							FSIZE_t fs = f_size(&sd_image[sd_index(drive_index)].file);
+							if( (fs >> (9+blksz)) >= lba ) {
+								UINT btw = blockstowrite << (9+blksz);
+								FSIZE_t write_start = lba << (9+blksz);
+								FSIZE_t write_max = fs - write_start;
+								if (btw > write_max) iprintf("Write truncated to %llu bytes\n", write_max);
+								btw = MIN(write_max, btw);
 								IDXSeek(&sd_image[sd_index(drive_index)], lba<<blksz);
-								f_write(&sd_image[sd_index(drive_index)].file, sector_buffer, blockstowrite << (9+blksz), &bw);
+								f_write(&sd_image[sd_index(drive_index)].file, sector_buffer, btw, &bw);
 							}
 						} else if (!drive_index && !umounted) {
 							raw_sd_used = 1;
