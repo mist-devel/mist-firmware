@@ -49,11 +49,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "menu-minimig.h"
 #include "menu-8bit.h"
 #include "settings.h"
+#include "video_recorder.h"
 #include "usb.h"
 #include "usbdev.h"
 #ifdef CONFIG_HAVE_ETH
 #include "eth.h"
 #include "net.h"
+#include "cab_player.h"
 #endif
 
 #ifdef HAVE_HDMI
@@ -361,7 +363,10 @@ static char ResetDialog(uint8_t idx) {
 	return 0;
 }
 
-static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
+unsigned char MenuLoadCore(const char *SelectedName) {
+#ifdef CONFIG_HAVE_ETH
+	cab_player_stop();
+#endif
 	// close OSD now as the new core may not even have one
 	OsdDisable();
 
@@ -381,8 +386,7 @@ static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
 	if (extension && !strncasecmp(extension,"ARC",3)) {
 		mod = arc_open(SelectedName);
 		if(mod < 0 || !strlen(arc_get_rbfname())) { // error
-			ErrorMessage("\n     Error in ARC file!\n", 0);
-			return 0;
+			return ERROR_INVALID_DATA;
 		}
 		strcpy(s, arc_get_rbfname());
 		strcat(s, ".RBF");
@@ -399,7 +403,7 @@ static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
 		strcat(s, ".RBF");
 		err = fpga_init(s);
 	}
-	if (err != ERROR_NONE) FatalError(err);
+	if (err != ERROR_NONE) return err;
 	// De-init joysticks to allow re-ordering for new core
 	StateReset();
 
@@ -407,6 +411,15 @@ static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
 
 	CloseMenu();
 
+	return ERROR_NONE;
+}
+
+static char CoreFileSelected(uint8_t idx, const char *SelectedName) {
+	unsigned char err = MenuLoadCore(SelectedName);
+	if (err == ERROR_INVALID_DATA)
+		ErrorMessage("\n     Error in ARC file!\n", 0);
+	else if (err != ERROR_NONE)
+		FatalError(err);
 	return 0;
 }
 
@@ -531,6 +544,10 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 	item->newpage = 0;
 	item->newsub = 0;
 	item->item = "";
+	if (idx > 58) return 0;
+	// Present stable item 58 after Save settings without renumbering its action.
+	if (idx == 5) idx = 58;
+	else if (idx >= 6) idx--;
 	if(idx<=6) item->page = 0;
 	else if (idx<=13) item->page = 1;
 	else if (idx<=20) item->page = 2;
@@ -539,6 +556,7 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 	else if (idx<=40) {item->page = 8; item->active = 0;}
 	else if (idx<=46) {item->page = 9; item->active = 0;}
 	else if (idx<=57) {item->page = 10; item->active = 0;}
+	else if (idx==58) item->page = 0;
 	else return 0;
 	if (item->page != page_idx) return 1; // shortcut
 
@@ -582,6 +600,11 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					break;
 				case 6:
 					item->item = " About";
+					break;
+				case 58:
+					item->item = " Save snapshot";
+					item->active = video_snapshot_supported();
+					item->stipple = !item->active;
 					break;
 
 				// page 1 - firmware & core
@@ -947,6 +970,12 @@ static char GetMenuItem_System(uint8_t idx, char action, menu_item_t *item) {
 					parentstate = MENU_8BIT_ABOUT1;
 					menusub = 0;
 					break;
+				case 58: {
+					const char *error=video_snapshot_request();
+					if(error) ErrorMessage(error,0);
+					else CloseMenu();
+					break;
+				}
 
 				// page 1 - firmware & core
 				case 9:

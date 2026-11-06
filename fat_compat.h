@@ -116,7 +116,8 @@ RAMFUNC FRESULT FileReadNextBlock (FIL *file, void *pBuffer) RAMFUNC;
 
 const char *GetExtension(const char *fileName);
 char ScanDirectory(unsigned long mode, char *extension, unsigned char options);
-void ChangeDirectoryName(unsigned char *name);
+FRESULT ChangeDirectoryName(const unsigned char *name);
+const char *CurrentDirectoryName(void);
 
 void fat_switch_to_usb(void);
 char *fs_type_to_string(void);

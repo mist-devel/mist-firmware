@@ -70,6 +70,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "qspi.h"
 #endif
 #include "eth.h"
+#ifdef CONFIG_HAVE_ETH
+#include "ftpd.h"
+#endif
 
 #ifndef _WANT_IO_LONG_LONG
 #error "newlib lacks support of long long type in IO functions. Please use a toolchain that was compiled with option --enable-newlib-io-long-long."
@@ -255,6 +258,9 @@ int main(void)
       usb_poll();
 
       eth_poll();
+#ifdef CONFIG_HAVE_ETH
+      ftpd_poll();
+#endif
 
       // MIST (atari) core supports the same UI as Minimig
       if((user_io_core_type() == CORE_TYPE_MIST) ||

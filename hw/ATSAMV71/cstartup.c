@@ -203,6 +203,13 @@ void reset_handler(void)
 	for (dst = (uint32_t*)&_srelocate, src = (uint32_t*)&_etext; dst < (uint32_t*)&_erelocate; dst++, src++)
 		*dst = *src;
 
+    /* Fill only unused stack below the current MSP; retain startup call frames. */
+    extern uint32_t __stack_start__;
+    uint32_t current_sp;
+    __asm volatile ("mrs %0, msp" : "=r" (current_sp));
+    for (dst=&__stack_start__; (uintptr_t)dst+128<current_sp; dst++)
+        *dst=0x51ac7e57;
+
 	/* initialize the C library */
 	__libc_init_array();
 
@@ -221,4 +228,13 @@ void reset_handler(void)
 
 	/* program done, block in infinite loop */
 	while (1);
+}
+
+/* Includes the 128-byte startup guard, making the reported use conservative. */
+unsigned video_stack_used(void)
+{
+    extern uint32_t __stack_start__, _cstack;
+    volatile uint32_t *p=&__stack_start__;
+    while(p < &_cstack && *p==0x51ac7e57) p++;
+    return (unsigned)((uintptr_t)&_cstack-(uintptr_t)p);
 }

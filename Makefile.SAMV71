@@ -15,7 +15,7 @@ SRC += hw/ATSAMV71/network/intmath.c hw/ATSAMV71/network/gmac.c hw/ATSAMV71/netw
 SRC += fdd.c firmware.c fpga.c hdd.c  main.c  menu.c menu-minimig.c menu-8bit.c menu_info.c osd.c state.c syscalls.c user_io.c settings.c data_io.c boot.c idxfile.c config.c tos.c ikbd.c xmodem.c ini_parser.c cue_parser.c mist_cfg.c archie.c pcecd.c neocd.c megacd.c saturn.c psx.c snes.c zx_col.c arc_file.c idx_files.c font.c utils.c serial_sink.c
 SRC += sxmlc/sxmlc.c
 # firmware IP stack (lwIP, raw API) + FTP server
-SRC += ftpd.c
+SRC += ftpd.c remote_input.c cab_format.c cab_player.c video_format.c video_recorder.c
 SRC += lwip/src/core/init.c lwip/src/core/def.c lwip/src/core/inet_chksum.c lwip/src/core/ip.c lwip/src/core/mem.c lwip/src/core/memp.c
 SRC += lwip/src/core/netif.c lwip/src/core/pbuf.c lwip/src/core/sys.c lwip/src/core/tcp.c lwip/src/core/tcp_in.c lwip/src/core/tcp_out.c
 SRC += lwip/src/core/timeouts.c lwip/src/core/udp.c
