@@ -732,7 +732,7 @@ static void usb_process_iface (usb_device_t *dev,
 								a[i] = ((a[i] & 0xff) + 128) & 0xff;
 							}
 						}
-						int hrange = (max - min) + 1;
+						int hrange = max - min;
 
 						// scale to 0-255
 						if (a[i] <= min) a[i] = min;
@@ -740,7 +740,7 @@ static void usb_process_iface (usb_device_t *dev,
 						if (!hrange)
 							a[i] = 128;
 						else
-							a[i] = ((a[i]-min) * 256) / hrange;
+							a[i] = ((a[i]-min) * 255 + hrange/2) / hrange;
 
 						// apply dead range
 						if (a[i] > (128-mist_cfg.joystick_dead_range) && a[i] < (128+mist_cfg.joystick_dead_range)) a[i] = 128;

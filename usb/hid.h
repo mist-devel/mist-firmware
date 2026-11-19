@@ -46,7 +46,7 @@
 
 // when the joystick axis counts as trigger a direction for binary
 #define JOYSTICK_AXIS_MIN           0
-#define JOYSTICK_AXIS_MID           127
+#define JOYSTICK_AXIS_MID           128
 #define JOYSTICK_AXIS_MAX           255
 #define JOYSTICK_AXIS_TRIGGER_MIN   64
 #define JOYSTICK_AXIS_TRIGGER_MAX   192
