@@ -23,7 +23,7 @@
 configTYPE config;
 static configTYPE tmpconf;
 extern char s[FF_LFN_BUF + 1];
-static char configfilename[13];
+static char configfilename[15];
 char DebugMode=0;
 static unsigned char *romkey = (sector_buffer + 512);
 
