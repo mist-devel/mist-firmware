@@ -12,6 +12,7 @@
 #include "pcecd.h"
 #include "neocd.h"
 #include "megacd.h"
+#include "p3do.h"
 #ifdef HAVE_SATURN
 #include "saturn.h"
 #endif
@@ -847,6 +848,11 @@ char user_io_cue_mount(const unsigned char *name, unsigned char index) {
 	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_MEGACD))
 		megacd_image_selected((name && toc.valid) ? (const char*)name : NULL);
 #endif
+#ifdef HAVE_3DO
+	// 3DO: disc info to the core, core reset around the disc change
+	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_3DO))
+		p3do_image_selected((name && toc.valid) ? (const char*)name : NULL);
+#endif
 	return res;
 }
 
@@ -1610,6 +1616,10 @@ void user_io_poll() {
 #ifdef HAVE_SATURN
 	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_SATURN))
 		saturn_poll();
+#endif
+#ifdef HAVE_3DO
+	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_3DO))
+		p3do_poll();
 #endif
 #ifdef HAVE_MEGACD
 	if((core_type == CORE_TYPE_8BIT) && (core_features & FEAT_MEGACD))
