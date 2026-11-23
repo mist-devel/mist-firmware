@@ -32,6 +32,11 @@ void data_io_fill_tx(unsigned char, unsigned int, char);
 void data_io_file_tx(FIL*, char, const char*);
 void data_io_file_tx_processor(FIL*, char, const char*, const char*, const char*);
 void data_io_file_rx(FIL*, char, unsigned int);
+// Incremental checked variant of the same Save NVRAM readback protocol.
+typedef struct { uint32_t remaining, crc; uint8_t first; } data_io_rx_t;
+void data_io_rx_begin(data_io_rx_t*, char index, unsigned int len);
+FRESULT data_io_rx_step(data_io_rx_t*, FIL*);
+void data_io_rx_end(data_io_rx_t*);
 
 // called when a rom entry is found in the mist.ini
 void data_io_rom_upload(char *s, char mode);

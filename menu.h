@@ -75,6 +75,8 @@ void SelectFileNG(char *pFileExt, unsigned char Options, menu_select_file_t call
 void SetupSystemMenu();
 void SetupMenu(menu_get_page_t, menu_get_items_t, menu_key_event_t);
 void CloseMenu();
+// Load an ARC or RBF from the firmware's current directory. Returns ERROR_*.
+unsigned char MenuLoadCore(const char *name);
 void ResetMenu();
 void ClosePage();
 void ChangePage(char);
