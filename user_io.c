@@ -2757,7 +2757,7 @@ void add_modifiers(uint8_t mod, uint16_t* keys_ps2)
 char user_io_key_remap(char *s, char action, int tag) {
 	if (action == INI_SAVE) return 0;
 	// s is a string containing two comma separated hex numbers
-	if((strlen(s) != 5) && (s[2]!=',')) {
+	if((strlen(s) != 5) || (s[2]!=',')) {
 		ini_parser_debugf("malformed entry %s", s);
 		return 0;
 	}
