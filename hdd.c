@@ -575,7 +575,7 @@ static void PKT_PlayAudio(unsigned char unit, unsigned int start, unsigned int e
 static void PKT_PlayAudioMSF(unsigned char *cmd, unsigned char unit)
 {
   hdd_debugf("IDE%d: PKT_PlayAudioMSF", unit);
-  unsigned int start = (cmd[2] == 0xff && cmd[3] == 0xff && cmd[5] == 0xff) ? cdrom.currentlba : MSF2LBA(cmd[3], cmd[4], cmd[5]);
+  unsigned int start = (cmd[3] == 0xff && cmd[4] == 0xff && cmd[5] == 0xff) ? cdrom.currentlba : MSF2LBA(cmd[3], cmd[4], cmd[5]);
   unsigned int end = MSF2LBA(cmd[6], cmd[7], cmd[8]);
   cdrom.audiostatus = AUDIO_NOSTAT;
   PKT_PlayAudio(unit, start, end);
@@ -671,7 +671,7 @@ static void PKT_SubChannel(unsigned char *cmd, unsigned char unit, unsigned shor
       // current position
       respsize = (cmd[2] & 0x40) ? 16 : 4;
       sector_buffer[4] = 0x01;
-      sector_buffer[5] = (1 << 4) | (toc.tracks[track-1].type == SECTOR_AUDIO ? 0 : 4);
+      sector_buffer[5] = (1 << 4) | (toc.tracks[track].type == SECTOR_AUDIO ? 0 : 4);
       sector_buffer[6] = track + 1;
       sector_buffer[7] = cdrom.currentlba >= toc.tracks[track].start ? 1 : 0; // TODO: support more than 1 indices
       unsigned int rellba = cdrom.currentlba - toc.tracks[track].start;
@@ -704,7 +704,7 @@ static void PKT_SubChannel(unsigned char *cmd, unsigned char unit, unsigned shor
     case 3:
       // ISRC
       respsize = 24;
-      sector_buffer[4] = 0x02;
+      sector_buffer[4] = 0x03;
       break;
     default:
       // reserved
@@ -1380,13 +1380,12 @@ static inline void ATA_ReadSectors(unsigned char* tfr, unsigned short sector, un
                 qspi_write_block(sector_buffer, 512*MIN(blocks, SECTOR_BUFFER_SIZE/512));
                 qspi_end();
               } else {
-#else
+#endif
               EnableFpga();
               spi8(CMD_IDE_DATA_WR); // write data command
               spi_n(0x00, 5);
               spi_write(sector_buffer, 512*MIN(blocks, SECTOR_BUFFER_SIZE/512));
               DisableFpga();
-#endif
 #ifdef HAVE_QSPI
               }
 #endif
@@ -1797,8 +1796,8 @@ unsigned char GetHDFFileType(const char *filename)
         break;
       }
     }
+    f_close(&rdbfile);
   }
-  f_close(&rdbfile);
   return(res);
 }
 
