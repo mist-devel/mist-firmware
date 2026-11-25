@@ -807,11 +807,26 @@ static void usb_process_iface (usb_device_t *dev,
 			
 				//iprintf("JOY X:%d Y:%d RX:%d, RY:%d\n", a[0], a[1], a[3], a[2]);
 
-				if(a[0] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
-				if(a[0] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
-				if(a[1] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_UP;
-				if(a[1] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_DOWN;
+				// raphnet N64 to USB adapter: the analog stick stays analog only , so it does not also press the D-pad
+				bool raphnet = (dev->vid == 0x289B);
+				if(!raphnet) {
+					if(a[0] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_LEFT;
+					if(a[0] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_RIGHT;
+					if(a[1] < JOYSTICK_AXIS_TRIGGER_MIN) jmap |= JOY_UP;
+					if(a[1] > JOYSTICK_AXIS_TRIGGER_MAX) jmap |= JOY_DOWN;
+				}
 				jmap |= btn << JOY_BTN_SHIFT;      // add buttons
+
+				// raphnet N64 to USB adapter (VID 0x289B): D-pad left/right handling for buttons 13/14
+				if(raphnet && conf->joystick_mouse.button_count == MAX_BUTTONS) {
+					uint16_t bit = conf->joystick_mouse.button[MAX_BUTTONS-1].byte_offset * 8 +
+						__builtin_ctz(conf->joystick_mouse.button[MAX_BUTTONS-1].bitmask);
+					uint16_t b13 = bit + 1, b14 = bit + 2;
+					if(b14/8 < conf->report_size) {
+						if(p[b13/8] & (1 << (b13%8))) jmap |= JOY_LEFT;
+						if(p[b14/8] & (1 << (b14%8))) jmap |= JOY_RIGHT;
+					}
+				}
 
 				// report joystick 1 to OSD
 				idx = joystick_index(iface->jindex);
@@ -901,12 +916,15 @@ static uint8_t usb_hid_poll(usb_device_t *dev) {
 			if (timer_check(iface->qLastPollTime, iface->interval)) { // poll at requested rate
 			//      hid_debugf("poll %d...", iface->ep.epAddr);
 				uint16_t read = iface->ep.maxPktSize;
-				// report may not fit into one packet
-				if (iface->conf.report_size > read)
-					read = iface->conf.report_size;
+				// report may not fit into one packet.
+				// conf.report_size does not count the report ID byte, 
+				// so add it for raphnet N64 to USB adapter.
+				uint16_t full = iface->conf.report_size + (iface->conf.report_id ? 1 : 0);
+				if (full > read)
+					read = full;
 				uint8_t buf[read];
 				// clear buffer
-				memset(buf, 0, iface->ep.maxPktSize);
+				memset(buf, 0, read);
 				uint8_t rcode = usb_in_transfer(dev, &(iface->ep), &read, buf);
 				if (rcode) {
 					if (rcode != hrNAK)
