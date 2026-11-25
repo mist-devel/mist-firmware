@@ -1706,7 +1706,7 @@ void user_io_poll() {
 							FSIZE_t fs = f_size(&sd_image[sd_index(drive_index)].file);
 							if( (fs >> (9+blksz)) >= lba ) {
 								UINT btw = blockstowrite << (9+blksz);
-								FSIZE_t write_start = lba << (9+blksz);
+								FSIZE_t write_start = (FSIZE_t)lba << (9+blksz);
 								FSIZE_t write_max = fs - write_start;
 								if (btw > write_max) iprintf("Write truncated to %llu bytes\n", write_max);
 								btw = MIN(write_max, btw);
