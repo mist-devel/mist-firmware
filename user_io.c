@@ -1798,10 +1798,10 @@ void user_io_poll() {
 					// ------ X axis -----------
 					// store sign bit in first byte
 					ps2_mouse[0] |= (mouse_pos[idx][X] < 0)?0x10:0x00;
-					if(mouse_pos[idx][X] < -255) {
+					if(mouse_pos[idx][X] < -256) {
 						// min possible value + overflow flag
 						ps2_mouse[0] |= 0x40;
-						ps2_mouse[1] = -128;
+						ps2_mouse[1] = 0;
 					} else if(mouse_pos[idx][X] > 255) {
 						// max possible value + overflow flag
 						ps2_mouse[0] |= 0x40;
@@ -1812,10 +1812,10 @@ void user_io_poll() {
 					// ------ Y axis -----------
 					// store sign bit in first byte
 					ps2_mouse[0] |= (mouse_pos[idx][Y] < 0)?0x20:0x00;
-					if(mouse_pos[idx][Y] < -255) {
+					if(mouse_pos[idx][Y] < -256) {
 						// min possible value + overflow flag
 						ps2_mouse[0] |= 0x80;
-						ps2_mouse[2] = -128;
+						ps2_mouse[2] = 0;
 					} else if(mouse_pos[idx][Y] > 255) {
 						// max possible value + overflow flag
 						ps2_mouse[0] |= 0x80;
@@ -1833,6 +1833,8 @@ void user_io_poll() {
 						ps2_mouse[3] = 7;
 					} else
 						ps2_mouse[3] = mouse_pos[idx][Z];
+
+					ps2_mouse[3] &= 0x0f;
 
 					// collect movement info and send at predefined rate
 					if(!(ps2_mouse[0]==0x08 && ps2_mouse[1]==0 && ps2_mouse[2]==0 && ps2_mouse[3]==0) && user_io_dip_switch1())
