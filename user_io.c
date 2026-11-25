@@ -983,7 +983,7 @@ char *user_io_8bit_get_string(unsigned char index) {
 
 	//  iprintf("String: ");
 
-	while ((i != 0) && (i!=0xff) && (j<sizeof(buffer))) {
+	while ((i != 0) && (i!=0xff) && (j<sizeof(buffer)-1)) {
 		if(i == ';') {
 			if((lidx & 0x03) == 0 && (lidx >> 2) < CONF_TBL_MAX) {
 				conf_idx[lidx >> 2] = arc ? 0 : lastpos;
@@ -1000,7 +1000,7 @@ char *user_io_8bit_get_string(unsigned char index) {
 				arc = 1;
 			} else {
 				if(lidx == index) {
-					buffer[j++] = 0;
+					buffer[j] = 0;
 					break;
 				}
 				lidx++;
