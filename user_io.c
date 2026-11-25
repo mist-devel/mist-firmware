@@ -5,7 +5,6 @@
 #include "hardware.h"
 #include "osd.h"
 #include "state.h"
-#include "state.h"
 #include "user_io.h"
 #include "data_io.h"
 #include "archie.h"
